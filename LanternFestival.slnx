@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="LanternFestival.esproj">
+    <Build />
+    <Deploy />
+  </Project>
+</Solution>

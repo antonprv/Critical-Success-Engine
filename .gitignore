@@ -1,0 +1,38 @@
+# === Node / package managers ===
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# === Build output ===
+dist/
+build/
+*.tsbuildinfo
+
+# === TypeScript ===
+*.js.map
+
+# === JetBrains Rider / .esproj ===
+.idea/
+*.esproj.user
+*.slnx.user
+
+# === Visual Studio ===
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# === OS files ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === Editor / misc ===
+.vscode/
+*.log
+.env
+.env.local
