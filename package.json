@@ -4,27 +4,37 @@
   "description": "",
   "main": "dist/js/bundle.js",
   "scripts": {
-    "build": "webpack",
+    "start": "webpack serve --mode production",
+    "start:dev": "webpack serve --mode development",
+    "build": "webpack --mode production",
+    "build:dev": "webpack --mode development",
     "clean": "rimraf dist",
     "rebuild": "pnpm clean && pnpm build",
     "typecheck": "tsc --noEmit",
-    "start": "webpack-dev-server --port 8080"
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "analyze": "webpack --mode production --json > stats.json && webpack-bundle-analyzer stats.json dist"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
-  "devDependencies": {
+  "dependencies": {
     "@babylonjs/core": "^9.22.1",
+    "@babylonjs/loaders": "^9.22.1"
+  },
+  "devDependencies": {
     "@babylonjs/inspector": "^9.22.1",
-    "@babylonjs/loaders": "^9.22.1",
     "@types/node": "^26.2.0",
+    "copy-webpack-plugin": "^13.0.0",
     "eslint": "^10.9.0",
     "html-webpack-plugin": "^5.6.8",
     "rimraf": "^6.0.1",
     "ts-loader": "^9.6.2",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.67.0",
     "webpack": "^5.109.2",
+    "webpack-bundle-analyzer": "^4.10.2",
     "webpack-cli": "^7.2.2",
     "webpack-dev-server": "^6.0.0"
   }
