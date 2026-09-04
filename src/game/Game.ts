@@ -25,7 +25,7 @@ export class Game {
             "Camera",
             Math.PI / 2,
             Math.PI / 2,
-            2,
+            3,
             Vector3.Zero(),
             this.scene
         );
