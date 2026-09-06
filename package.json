@@ -1,31 +1,22 @@
 {
   "name": "lanternfestival",
-
   "version": "1.0.0",
   "description": "",
-
   "main": "dist/js/bundle.js",
-
   "scripts": {
     "dev": "vite",
-
     "build": "webpack --mode production",
     "build:dev": "webpack --mode development",
-
     "serve:webpack": "webpack serve --mode development",
     "serve:prod": "webpack serve --mode production",
-
     "typecheck": "tsc --noEmit && tsc --project tsconfig.node.json",
-
+    "test": "node --experimental-vm-modules node_modules/.bin/jest",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
-
     "clean": "rimraf dist",
     "rebuild": "pnpm clean && pnpm build",
-
     "analyze": "webpack --mode production --json > stats.json && webpack-bundle-analyzer stats.json dist"
   },
-
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -34,14 +25,16 @@
     "@babylonjs/core": "^9.22.1",
     "@babylonjs/loaders": "^9.22.1"
   },
-
   "devDependencies": {
     "@babylonjs/inspector": "^9.22.1",
+    "@types/jest": "^30.0.0",
     "@types/node": "^26.2.0",
     "copy-webpack-plugin": "^13.0.0",
     "eslint": "^10.9.0",
     "html-webpack-plugin": "^5.6.8",
+    "jest": "^30.5.1",
     "rimraf": "^6.0.1",
+    "ts-jest": "^29.4.12",
     "ts-loader": "^9.6.2",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.67.0",
@@ -51,5 +44,4 @@
     "webpack-cli": "^7.2.2",
     "webpack-dev-server": "^6.0.0"
   }
-
 }

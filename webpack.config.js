@@ -32,7 +32,7 @@ module.exports = (env, argv) => {
         module: {
             rules: [
                 {
-                    test: /\.tsx?$/,
+                    test: /\.(t|j)sx?$/,
                     exclude: /node_modules/,
                     use: {
                         loader: "ts-loader",

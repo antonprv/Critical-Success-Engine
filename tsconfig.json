@@ -17,6 +17,10 @@
     "rootDir": "src",
     "outDir": "./dist",
 
+    // JS/TS interop
+    "allowJs": true,
+    "checkJs": false,
+
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
     "types": [],
@@ -45,7 +49,8 @@
 
   "include": [
     "src/**/*.ts",
-    "src/**/*.tsx"
+    "src/**/*.tsx",
+    "src/**/*.js"
   ],
 
   "exclude": [
