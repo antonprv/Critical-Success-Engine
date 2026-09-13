@@ -2,9 +2,9 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Debug Vite (Chrome)",
             "type": "chrome",
             "request": "launch",
-            "name": "Debug Vite (Chrome)",
 
             "url": "http://localhost:5173",
             "webRoot": "${workspaceFolder}",
