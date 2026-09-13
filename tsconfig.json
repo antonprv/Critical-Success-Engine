@@ -6,6 +6,7 @@
     "target": "es6",
     "module": "ESNext",
     "moduleResolution": "node",
+    "ignoreDeprecations": "6.0",
     "noResolve": false,
     "noImplicitAny": false,
     "sourceMap": true,
