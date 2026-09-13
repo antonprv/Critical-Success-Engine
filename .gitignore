@@ -33,7 +33,10 @@ Thumbs.db
 desktop.ini
 
 # === Editor / misc ===
-.vscode/
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
+
 *.log
 .env
 .env.local

@@ -1,0 +1,46 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start Vite",
+      "type": "shell",
+      
+      "linux": {
+        "command": "bash -c 'setsid pnpm dev & VitePid=$!; echo $VitePid > .vscode/vite.pid; trap \"kill -INT -- -$VitePid 2>/dev/null; wait $VitePid 2>/dev/null; rm -f .vscode/vite.pid; exit 0\" INT TERM EXIT; wait $VitePid'"
+      },
+      
+      "windows": {
+        "command": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$Process = Start-Process pnpm -ArgumentList 'dev' -PassThru; $Process.Id | Set-Content '.vscode/vite.pid'; try { Wait-Process -Id $Process.Id } finally { Remove-Item '.vscode/vite.pid' -Force -ErrorAction SilentlyContinue }\""
+      },
+      
+      "isBackground": true,
+      
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^(.*)$"
+        },
+      
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^.*$",
+          "endsPattern": "Local:\\s+http://(localhost|127\\.0\\.0\\.1):5173/"
+        }
+      }
+
+    },
+    {
+      "label": "Stop Vite",
+      "type": "shell",
+
+      "linux": {
+        "command": "bash -c 'if [ -f .vscode/vite.pid ]; then PID=$(cat .vscode/vite.pid); kill -INT -- -$PID 2>/dev/null || true; rm -f .vscode/vite.pid; fi'"
+      },
+      
+      "windows": {
+        "command": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"if (Test-Path '.vscode/vite.pid') { $Pid = Get-Content '.vscode/vite.pid'; Stop-Process -Id $Pid -Force -ErrorAction SilentlyContinue; Remove-Item '.vscode/vite.pid' -Force -ErrorAction SilentlyContinue }\""
+      },
+      
+      "problemMatcher": []
+    }
+  ]
+}

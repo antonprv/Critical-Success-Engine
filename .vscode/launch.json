@@ -1,0 +1,33 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "chrome",
+            "request": "launch",
+            "name": "Debug Vite (Chrome)",
+
+            "url": "http://localhost:5173",
+            "webRoot": "${workspaceFolder}",
+            
+            "preLaunchTask": "Start Vite"
+        },
+        {
+            "name": "Debug Vite (Firefox)",
+            "type": "firefox",
+            "request": "launch",
+
+            "url": "http://localhost:5173",
+            "webRoot": "${workspaceFolder}",
+            
+            "preLaunchTask": "Start Vite",
+            "postDebugTask": "Stop Vite",
+            "preferences": {
+                "webgl.disabled": false,
+                "webgl.force-enabled": true,
+                "webgl.enable-webgl2": true
+            },
+
+            "reAttach": false
+        }
+    ]
+}
