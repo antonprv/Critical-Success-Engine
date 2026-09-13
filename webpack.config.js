@@ -82,16 +82,13 @@ export default (env, argv) => {
             new CopyWebpackPlugin({
                 patterns: [
                     {
-                        // Static files in public/assets are copied as-is.
-                        from: path.resolve(
-                            AppDirectory,
-                            "public/assets"
-                        ),
-                        to: path.resolve(
-                            AppDirectory,
-                            "dist/assets"
-                        ),
+                        from: path.resolve( AppDirectory, "public/assets" ),
+                        to: path.resolve( AppDirectory, "dist/assets" ),
                         noErrorOnMissing: true,
+                    },
+                    {
+                        from: path.resolve( AppDirectory, "public/index.css" ),
+                        to: path.resolve( AppDirectory, "dist/index.css" ),
                     },
                 ],
             }),
