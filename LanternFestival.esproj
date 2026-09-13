@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.VisualStudio.JavaScript.Sdk/1.0.5984942">
   <PropertyGroup>
-    <BuildCommand>pnpm build</BuildCommand>
+    <BuildCommand>pnpm build:dev</BuildCommand>
     <BuildOutputFolder>dist</BuildOutputFolder>
     <CleanCommand>pnpm clean</CleanCommand>
   </PropertyGroup>

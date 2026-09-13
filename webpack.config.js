@@ -1,22 +1,30 @@
-const path = require("path");
-const webpack = require("webpack");
-const HtmlWebpackPlugin = require("html-webpack-plugin");
-const CopyWebpackPlugin = require("copy-webpack-plugin");
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const appDirectory = __dirname;
+import webpack from "webpack";
+import HtmlWebpackPlugin from "html-webpack-plugin";
+import CopyWebpackPlugin from "copy-webpack-plugin";
 
-module.exports = (env, argv) => {
-    const isProduction = argv.mode === "production";
+const Filename = fileURLToPath(import.meta.url);
+const Dirname = path.dirname(Filename);
+const AppDirectory = Dirname;
+
+export default (env, argv) => {
+    const IsProduction = argv.mode === "production";
 
     return {
         // Main TypeScript entry point.
-        entry: path.resolve(appDirectory, "src/app.ts"),
+        entry: path.resolve(AppDirectory, "src/app.ts"),
 
         // Production/development build output.
         output: {
-            path: path.resolve(appDirectory, "dist"),
+            path: path.resolve(AppDirectory, "dist"),
+
             // Content hash busts the browser cache whenever the bundle changes.
-            filename: isProduction ? "js/bundle.[contenthash].js" : "js/bundle.js",
+            filename: IsProduction
+                ? "js/bundle.[contenthash].js"
+                : "js/bundle.js",
+
             clean: true,
         },
 
@@ -38,10 +46,11 @@ module.exports = (env, argv) => {
                         loader: "ts-loader",
                     },
                 },
+
                 {
                     // Textures, models, audio imported directly from TS code
-                    // (e.g. `import tex from "./assets/rock.png"`) get copied
-                    // to dist/assets and the import resolves to their final URL.
+                    // get copied to dist/assets and the import resolves to their
+                    // final URL.
                     test: /\.(png|jpe?g|gif|glb|gltf|babylon|env|dds|mp3|wav|ogg)$/i,
                     type: "asset/resource",
                     generator: {
@@ -52,60 +61,64 @@ module.exports = (env, argv) => {
         },
 
         plugins: [
-            // __DEV__ lets code do `if (__DEV__) { import("@babylonjs/inspector") }`.
-            // In production this becomes `if (false)`, and Terser drops the
-            // whole branch — including the import() call — so Inspector
-            // never ends up in the shipped bundle.
+            // __DEV__ lets code do:
+            // if (__DEV__) { import("@babylonjs/inspector") }
             new webpack.DefinePlugin({
-                __DEV__: JSON.stringify(!isProduction),
+                __DEV__: JSON.stringify(!IsProduction),
             }),
+
             new HtmlWebpackPlugin({
                 inject: true,
-                template: path.resolve(appDirectory, "public/index.html"),
-                // Without this, HtmlWebpackPlugin injects a <script> tag for
-                // EVERY chunk it sees — including "vendor", which only exists
-                // because of the dynamic import() in app.ts. That would force
-                // the browser to fetch Babylon synchronously on page load,
-                // defeating the whole lazy-loading setup. "runtime" + "main"
-                // is the app.ts entry only; vendor is fetched by webpack's
-                // own runtime the moment import() actually executes.
+                template: path.resolve(
+                    AppDirectory,
+                    "public/index.html"
+                ),
+
+                // Only inject the entry chunks. Dynamic imports are loaded
+                // by webpack runtime when they are actually requested.
                 chunks: ["runtime", "main"],
             }),
+
             new CopyWebpackPlugin({
                 patterns: [
                     {
-                        // Anything in public/assets is served as-is (no hashing,
-                        // no bundling) — good for large static files like level
-                        // data or third-party assets you don't import in code.
-                        from: path.resolve(appDirectory, "public/assets"),
-                        to: path.resolve(appDirectory, "dist/assets"),
+                        // Static files in public/assets are copied as-is.
+                        from: path.resolve(
+                            AppDirectory,
+                            "public/assets"
+                        ),
+                        to: path.resolve(
+                            AppDirectory,
+                            "dist/assets"
+                        ),
                         noErrorOnMissing: true,
                     },
                 ],
             }),
         ],
 
-        // Split vendor code (Babylon.js etc.) from app code so the large,
-        // rarely-changing library chunk can be cached separately by the browser.
-        optimization: isProduction
+        // Split vendor code from application code so large libraries can
+        // be cached separately by the browser.
+        optimization: IsProduction
             ? {
-                  splitChunks: {
-                      chunks: "all",
-                      cacheGroups: {
-                          vendor: {
-                              test: /[\\/]node_modules[\\/]/,
-                              name: "vendor",
-                              chunks: "all",
-                          },
-                      },
-                  },
-                  runtimeChunk: "single",
-              }
+                splitChunks: {
+                    chunks: "all",
+
+                    cacheGroups: {
+                        vendor: {
+                            test: /[\\/]node_modules[\\/]/,
+                            name: "vendor",
+                            chunks: "all",
+                        },
+                    },
+                },
+
+                runtimeChunk: "single",
+            }
             : undefined,
 
-        // The 244 KiB default is a generic web-app guideline and doesn't fit
-        // a 3D engine chunk that's fetched lazily after the game is already
-        // interactive. Real regressions are still visible via `pnpm analyze`.
+        // The generic webpack size warning is not useful for a 3D engine
+        // bundle where large Babylon.js chunks are expected.
         performance: {
             hints: false,
         },
@@ -115,7 +128,7 @@ module.exports = (env, argv) => {
             port: 8080,
 
             static: {
-                directory: path.resolve(appDirectory, "public"),
+                directory: path.resolve(AppDirectory, "public"),
             },
 
             hot: true,
@@ -125,8 +138,6 @@ module.exports = (env, argv) => {
             },
 
             client: {
-                // Show real runtime errors, but don't pop the overlay for
-                // build warnings like the size hint above.
                 overlay: {
                     errors: true,
                     warnings: false,
@@ -134,9 +145,9 @@ module.exports = (env, argv) => {
             },
         },
 
-        // Full source maps in dev for easy debugging, lighter maps in prod.
-        devtool: isProduction ? "source-map" : "eval-source-map",
+        // Full source maps in dev, lighter maps in production.
+        devtool: IsProduction ? "source-map" : "eval-source-map",
 
-        mode: isProduction ? "production" : "development",
+        mode: IsProduction ? "production" : "development",
     };
 };
