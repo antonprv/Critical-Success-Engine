@@ -4,12 +4,14 @@
         {
             "name": "Debug Vite (Chrome)",
             "type": "chrome",
+            "runtimeExecutable": "C:\\Users\\${env:USERNAME}\\AppData\\Local\\Chromium\\Application\\chrome.exe",
             "request": "launch",
 
             "url": "http://localhost:5173",
             "webRoot": "${workspaceFolder}",
             
-            "preLaunchTask": "Start Vite"
+            "preLaunchTask": "Start Vite",
+            "postDebugTask": "Stop Vite",
         },
         {
             "name": "Debug Vite (Firefox)",
