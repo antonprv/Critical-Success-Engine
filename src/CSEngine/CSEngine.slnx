@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="Core/Core.esproj">
+    <Build />
+    <Deploy />
+  </Project>
+  <Project Path="Physics/Physics.csproj" />
+</Solution>
