@@ -1,12 +1,9 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-using System;
-using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.InteropServices.JavaScript;
-
-using Framework.Physics;
+using System.Runtime.Versioning;
 
 namespace Framework.Physics.Wasm
 {
@@ -45,6 +42,7 @@ namespace Framework.Physics.Wasm
 
 		#region World lifecycle
 
+		[SupportedOSPlatform( "browser" )]
 		[JSExport]
 		public static void CreateWorld(
 			double gravityX, double gravityY, double gravityZ,
@@ -75,6 +73,7 @@ namespace Framework.Physics.Wasm
 			_lastEvents.Clear();
 		}
 
+		[SupportedOSPlatform( "browser" )]
 		[JSExport]
 		public static void DestroyWorld()
 		{
@@ -86,6 +85,7 @@ namespace Framework.Physics.Wasm
 
 		#region Shapes
 
+		[SupportedOSPlatform( "browser" )]
 		[JSExport]
 		public static int AddBoxShape(double sizeX, double sizeY, double sizeZ)
 		{
@@ -94,6 +94,7 @@ namespace Framework.Physics.Wasm
 			return id;
 		}
 
+		[SupportedOSPlatform( "browser" )]
 		[JSExport]
 		public static int AddSphereShape(double radius)
 		{
@@ -103,6 +104,7 @@ namespace Framework.Physics.Wasm
 		}
 
 		/// <summary><paramref name="cylinderLength"/> is the straight segment only, not the total capped length - matches PhysicsWorld.AddCapsuleShape.</summary>
+		[SupportedOSPlatform( "browser" )]
 		[JSExport]
 		public static int AddCapsuleShape(double radius, double cylinderLength)
 		{
@@ -111,6 +113,7 @@ namespace Framework.Physics.Wasm
 			return id;
 		}
 
+		[SupportedOSPlatform( "browser" )]
 		[JSExport]
 		public static int AddCylinderShape(double radius, double height)
 		{
@@ -123,6 +126,7 @@ namespace Framework.Physics.Wasm
 
 		#region Bodies & statics
 
+		[SupportedOSPlatform( "browser" )]
 		[JSExport]
 		public static int AddDynamicBody(
 			int shapeId,
@@ -144,6 +148,7 @@ namespace Framework.Physics.Wasm
 			return id;
 		}
 
+		[SupportedOSPlatform( "browser" )]
 		[JSExport]
 		public static int AddKinematicBody(
 			int shapeId,
@@ -163,6 +168,7 @@ namespace Framework.Physics.Wasm
 			return id;
 		}
 
+		[SupportedOSPlatform( "browser" )]
 		[JSExport]
 		public static int AddStaticBody(
 			int shapeId,
@@ -179,6 +185,7 @@ namespace Framework.Physics.Wasm
 			return id;
 		}
 
+		[SupportedOSPlatform( "browser" )]
 		[JSExport]
 		public static void RemoveBody(int bodyId)
 		{
@@ -186,6 +193,7 @@ namespace Framework.Physics.Wasm
 				World.RemoveBody(handle);
 		}
 
+		[SupportedOSPlatform( "browser" )]
 		[JSExport]
 		public static void RemoveStatic(int staticId)
 		{
@@ -193,6 +201,7 @@ namespace Framework.Physics.Wasm
 				World.RemoveStatic(handle);
 		}
 
+		[SupportedOSPlatform( "browser" )]
 		[JSExport]
 		public static void SetBodyPose(
 			int bodyId,
@@ -203,22 +212,27 @@ namespace Framework.Physics.Wasm
 			World.SetBodyPose(_bodies[bodyId], MakeTransform(posX, posY, posZ, quatX, quatY, quatZ, quatW));
 		}
 
+		[SupportedOSPlatform( "browser" )]
 		[JSExport]
 		public static void SetAwakeState(int bodyId, bool isAwake) =>
 			World.SetAwakeState(_bodies[bodyId], isAwake);
 
+		[SupportedOSPlatform( "browser" )]
 		[JSExport]
 		public static bool GetAwakeState(int bodyId) =>
 			World.GetAwakeState(_bodies[bodyId]);
 
+		[SupportedOSPlatform( "browser" )]
 		[JSExport]
 		public static void SetLinearVelocity(int bodyId, double x, double y, double z) =>
 			World.SetLinearVelocity(_bodies[bodyId], new Vector3((float)x, (float)y, (float)z));
 
+		[SupportedOSPlatform( "browser" )]
 		[JSExport]
 		public static void SetAngularVelocity(int bodyId, double x, double y, double z) =>
 			World.SetAngularVelocity(_bodies[bodyId], new Vector3((float)x, (float)y, (float)z));
 
+		[SupportedOSPlatform( "browser" )]
 		[JSExport]
 		public static void ApplyImpulse(
 			int bodyId,
@@ -239,6 +253,7 @@ namespace Framework.Physics.Wasm
 
 		// Returns [posX, posY, posZ, isOnFloor(0/1), floorNormalX, floorNormalY, floorNormalZ,
 		// groundOwnerId, velX, velY, velZ] - one MoveCharacter result flattened to 11 doubles.
+		[SupportedOSPlatform( "browser" )]
 		[JSExport]
 		[return: JSMarshalAs<JSType.Array<JSType.Number>>]
 		public static double[] MoveCharacter(
@@ -280,6 +295,7 @@ namespace Framework.Physics.Wasm
 		/// body currently registered, in unspecified order. Call GetLastOverlapEvents()
 		/// immediately after to read this same step's Entered/Exited transitions.
 		/// </summary>
+		[SupportedOSPlatform( "browser" )]
 		[JSExport]
 		[return: JSMarshalAs<JSType.Array<JSType.Number>>]
 		public static double[] Step(double dt)
@@ -311,6 +327,7 @@ namespace Framework.Physics.Wasm
 		}
 
 		/// <summary>Flat buffer from the most recent Step(): [ownerIdA, ownerIdB, entered(0/1)] per event.</summary>
+		[SupportedOSPlatform( "browser" )]
 		[JSExport]
 		[return: JSMarshalAs<JSType.Array<JSType.Number>>]
 		public static int[] GetLastOverlapEvents()

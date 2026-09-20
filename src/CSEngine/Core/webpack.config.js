@@ -90,6 +90,11 @@ export default (env, argv) => {
                         from: path.resolve( AppDirectory, "public/index.css" ),
                         to: path.resolve( AppDirectory, "dist/index.css" ),
                     },
+                    {
+                        from: path.resolve( AppDirectory, "physics-wasm/_framework" ),
+                        to: path.resolve( AppDirectory, "dist/physics-wasm/_framework" ),
+                        noErrorOnMissing: true,
+                    },
                 ],
             }),
         ],

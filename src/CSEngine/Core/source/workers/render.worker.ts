@@ -57,7 +57,11 @@ function spawnEntity(message: Extract<GameLogicToRenderMessage, { type: "spawn-e
 			break;
 		}
 		case "box": {
-			const mesh = MeshBuilder.CreateBox(`entity-${message.entityId}`, { size: message.mesh.size }, scene);
+			const mesh = MeshBuilder.CreateBox(
+				`entity-${message.entityId}`,
+				{ width: message.mesh.size[0], height: message.mesh.size[1], depth: message.mesh.size[2] },
+				scene
+			);
 			applyTransform(mesh, message.transform);
 			entityMeshes.set(message.entityId, mesh);
 			break;
@@ -105,6 +109,9 @@ function handleGameLogicMessage(message: GameLogicToRenderMessage): void {
 }
 
 function init(message: Extract<MainToRenderMessage, { type: "init" }>): void {
+	// Must happen before the Engine reads the canvas size: OffscreenCanvas keeps its 300x150 default otherwise.
+	message.canvas.width = Math.max(1, Math.round(message.width * message.devicePixelRatio));
+	message.canvas.height = Math.max(1, Math.round(message.height * message.devicePixelRatio));
 	engine = new Engine(message.canvas as unknown as HTMLCanvasElement, true, undefined, true);
 	scene = new Scene(engine);
 	assetLoader = new AssetLoader(scene);
@@ -112,7 +119,7 @@ function init(message: Extract<MainToRenderMessage, { type: "init" }>): void {
 
 	// Placeholder scene, ported as-is from the old Game.ts - swap for real
 	// camera/lighting setup once gamelogic.worker is driving real entities.
-	const camera = new ArcRotateCamera("Camera", Math.PI / 2, Math.PI / 2, 3, Vector3.Zero(), scene);
+	const camera = new ArcRotateCamera("Camera", -Math.PI / 2, Math.PI / 3, 15, new Vector3(0, 1, 0), scene);
 	// No canvas.attachControl(): pointer input is captured on the main thread
 	// (see orchestrator.ts) and forwarded through gamelogic.worker instead, so
 	// two things aren't fighting over the same pointer events.

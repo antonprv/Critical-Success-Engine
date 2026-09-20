@@ -43,6 +43,8 @@ interface PhysicsBridgeExports {
 		layer: number, mask: number, ownerId: number
 	): number;
 	RemoveBody(bodyId: number): void;
+	SetAwakeState(bodyId: number, awake: boolean): void;
+	GetAwakeState(bodyId: number): boolean;
 	SetLinearVelocity(bodyId: number, x: number, y: number, z: number): void;
 	ApplyImpulse(
 		bodyId: number,
@@ -135,6 +137,14 @@ function resolveShapeId(bridge: PhysicsBridgeExports, shape: PhysicsShapeDescrip
 }
 
 function handleGameLogicMessage(message: GameLogicToPhysicsMessage): void {
+	try {
+		handleGameLogicMessageUnsafe(message);
+	} catch (error) {
+		console.error(`[physics.worker] "${message.type}" failed:`, error);
+	}
+}
+
+function handleGameLogicMessageUnsafe(message: GameLogicToPhysicsMessage): void {
 	if (!bridge) {
 		console.warn("[physics.worker] dropped message, wasm bridge not loaded yet:", message.type);
 		return;
@@ -144,9 +154,11 @@ function handleGameLogicMessage(message: GameLogicToPhysicsMessage): void {
 		case "spawn-dynamic-body": {
 			const shapeId = resolveShapeId(bridge, message.shape);
 			const [px, py, pz, qx, qy, qz, qw] = message.transform;
+			// layer/mask are C# `int`: the JS<->.NET marshaller asserts on anything outside int32,
+			// so 0xffffffff (4294967295) must be passed as -1 (`| 0`).
 			const bodyId = bridge.AddDynamicBody(
 				shapeId, px, py, pz, qx, qy, qz, qw,
-				message.mass, message.layer, message.mask, message.entityId,
+				message.mass, message.layer | 0, message.mask | 0, message.entityId,
 				false
 			);
 			entityToBodyId.set(message.entityId, bodyId);
@@ -158,7 +170,7 @@ function handleGameLogicMessage(message: GameLogicToPhysicsMessage): void {
 			const [px, py, pz, qx, qy, qz, qw] = message.transform;
 			// Statics don't get stepped transforms back, so they don't need an
 			// entityId<->bodyId mapping the way dynamic bodies do.
-			bridge.AddStaticBody(shapeId, px, py, pz, qx, qy, qz, qw, message.layer, message.mask, message.entityId);
+			bridge.AddStaticBody(shapeId, px, py, pz, qx, qy, qz, qw, message.layer | 0, message.mask | 0, message.entityId);
 			break;
 		}
 		case "remove-body": {
@@ -173,6 +185,8 @@ function handleGameLogicMessage(message: GameLogicToPhysicsMessage): void {
 		case "apply-impulse": {
 			const bodyId = entityToBodyId.get(message.entityId);
 			if (bodyId !== undefined) {
+				// Bepu puts resting bodies to sleep and impulses/velocity writes are silently ignored while asleep.
+				bridge.SetAwakeState(bodyId, true);
 				bridge.ApplyImpulse(bodyId, ...message.impulse, ...message.offset);
 			}
 			break;
@@ -180,6 +194,7 @@ function handleGameLogicMessage(message: GameLogicToPhysicsMessage): void {
 		case "set-velocity": {
 			const bodyId = entityToBodyId.get(message.entityId);
 			if (bodyId !== undefined) {
+				bridge.SetAwakeState(bodyId, true);
 				bridge.SetLinearVelocity(bodyId, ...message.velocity);
 			}
 			break;
@@ -234,15 +249,24 @@ function setRunning(next: boolean): void {
 	}
 }
 
-self.onmessage = (event: MessageEvent<MainToPhysicsMessage>) => {
+// IMPORTANT: use addEventListener, NOT `self.onmessage = ...`.
+// .NET 10's dotnet.js loader checks `globalThis.onmessage` at import time: if the worker already has an
+// onmessage handler it is classified as a plain web worker, the runtime skips resolving its core-asset
+// promise, and `dotnet.create()` then never resolves *or* rejects (a silent hang).
+self.addEventListener("message", (event: MessageEvent<MainToPhysicsMessage>) => {
 	const message = event.data;
 	if (message.type === "init") {
 		gameLogicPort = message.gameLogicPort;
 		fixedTimestepMs = message.fixedTimestepMs;
 		gameLogicPort.onmessage = (e: MessageEvent<GameLogicToPhysicsMessage>) => handleGameLogicMessage(e.data);
 
+		const watchdog = setTimeout(
+			() => console.error("[physics.worker] PhysicsBridge still not loaded after 15 s - dotnet.create() is hanging."),
+			15_000
+		);
 		loadBridge()
 			.then((loaded) => {
+				clearTimeout(watchdog);
 				bridge = loaded;
 				bridge.CreateWorld(message.gravity[0], message.gravity[1], message.gravity[2], 8, 1, false);
 				const readyMessage: PhysicsToGameLogicMessage = { type: "ready" };
@@ -250,6 +274,7 @@ self.onmessage = (event: MessageEvent<MainToPhysicsMessage>) => {
 				setRunning(true);
 			})
 			.catch((error) => {
+				clearTimeout(watchdog);
 				// Deliberately non-fatal: lets render/game-logic/audio keep working
 				// (e.g. for pure-visual iteration) before physics-wasm has been built
 				// even once. See physics-wasm/BUILD.md.
@@ -261,4 +286,4 @@ self.onmessage = (event: MessageEvent<MainToPhysicsMessage>) => {
 	} else if (message.type === "set-running") {
 		setRunning(message.running);
 	}
-};
+});

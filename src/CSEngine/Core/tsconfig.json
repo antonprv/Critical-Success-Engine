@@ -6,7 +6,6 @@
     "target": "es6",
     "module": "ESNext",
     "moduleResolution": "node",
-    "ignoreDeprecations": "6.0",
     "noResolve": false,
     "noImplicitAny": false,
     "sourceMap": true,
@@ -15,7 +14,7 @@
       "dom",
       "es6"
     ],
-    "rootDir": "src",
+    "rootDir": "source",
     "outDir": "./dist",
 
     // JS/TS interop
@@ -49,9 +48,9 @@
   },
 
   "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    "src/**/*.js"
+    "source/**/*.ts",
+    "source/**/*.tsx",
+    "source/**/*.js"
   ],
 
   "exclude": [

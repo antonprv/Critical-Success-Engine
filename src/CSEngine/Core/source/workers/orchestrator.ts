@@ -60,6 +60,9 @@ export class Orchestrator {
 			canvas: offscreenCanvas,
 			gameLogicPort: gameLogicRenderChannel.port2,
 			devMode,
+			width: this.canvas.clientWidth,
+			height: this.canvas.clientHeight,
+			devicePixelRatio: window.devicePixelRatio,
 		};
 		this.renderWorker.postMessage(renderInit, [offscreenCanvas, gameLogicRenderChannel.port2]);
 

@@ -2,6 +2,7 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import type {
+	FlatTransform,
 	GameLogicToAudioMessage,
 	GameLogicToPhysicsMessage,
 	GameLogicToRenderMessage,
@@ -27,71 +28,71 @@ let audioPort: MessagePort | null = null;
 let nextEntityId = 1;
 const pressedKeys = new Set<string>();
 
-/** Demo content: one falling sphere over a static ground plane, so the
- * worker split has something visible to prove out end to end once
- * physics-wasm is built (see physics-wasm/BUILD.md). Replace with real
- * level/entity spawning once you have some. */
-function spawnDemoScene(): void {
-	if (!renderPort || !physicsPort) return;
+/** Demo content: one falling sphere over a static ground slab. Visuals and physics bodies are spawned
+ * independently - visuals as soon as render.worker is ready, bodies as soon as physics.worker is - so a
+ * slow or failed physics-wasm load never leaves the screen empty. */
+const demoGroundEntityId = nextEntityId++;
+const demoBallEntityId = nextEntityId++;
+const GROUND_SIZE: [number, number, number] = [10, 1, 10];
+const GROUND_TRANSFORM: FlatTransform = [0, -0.5, 0, 0, 0, 0, 1];
+const BALL_TRANSFORM: FlatTransform = [0, 5, 0, 0, 0, 0, 1];
 
-	const groundEntityId = nextEntityId++;
-	const groundSpawnRender: GameLogicToRenderMessage = {
+let physicsReady = false;
+let demoVisualsSpawned = false;
+let demoBodiesSpawned = false;
+
+function spawnDemoVisuals(): void {
+	if (demoVisualsSpawned || !renderPort) return;
+	demoVisualsSpawned = true;
+
+	const ground: GameLogicToRenderMessage = {
 		type: "spawn-entity",
-		entityId: groundEntityId,
-		mesh: { kind: "box", size: 10 },
-		transform: [0, -0.5, 0, 0, 0, 0, 1],
+		entityId: demoGroundEntityId,
+		mesh: { kind: "box", size: GROUND_SIZE },
+		transform: GROUND_TRANSFORM,
 	};
-	renderPort.postMessage(groundSpawnRender);
+	renderPort.postMessage(ground);
 
-	const groundSpawnPhysics: GameLogicToPhysicsMessage = {
-		type: "spawn-static-body",
-		entityId: groundEntityId,
-		shape: { kind: "box", size: [10, 1, 10] },
-		transform: [0, -0.5, 0, 0, 0, 0, 1],
-		layer: 1,
-		mask: 0xffffffff,
-	};
-	physicsPort.postMessage(groundSpawnPhysics);
-
-	const ballEntityId = nextEntityId++;
-	const ballSpawnRender: GameLogicToRenderMessage = {
+	const ball: GameLogicToRenderMessage = {
 		type: "spawn-entity",
-		entityId: ballEntityId,
+		entityId: demoBallEntityId,
 		mesh: { kind: "sphere", diameter: 1 },
-		transform: [0, 5, 0, 0, 0, 0, 1],
+		transform: BALL_TRANSFORM,
 	};
-	renderPort.postMessage(ballSpawnRender);
-
-	const ballSpawnPhysics: GameLogicToPhysicsMessage = {
-		type: "spawn-dynamic-body",
-		entityId: ballEntityId,
-		shape: { kind: "sphere", radius: 0.5 },
-		transform: [0, 5, 0, 0, 0, 0, 1],
-		mass: 1,
-		layer: 1,
-		mask: 0xffffffff,
-	};
-	physicsPort.postMessage(ballSpawnPhysics);
-
-	demoBallEntityId = ballEntityId;
+	renderPort.postMessage(ball);
 }
 
-let demoBallEntityId: number | null = null;
-let renderReady = false;
-let physicsReady = false;
-let demoSceneSpawned = false;
+function spawnDemoBodies(): void {
+	if (demoBodiesSpawned || !physicsPort) return;
+	demoBodiesSpawned = true;
 
-function trySpawnDemoScene(): void {
-	if (demoSceneSpawned || !renderReady || !physicsReady) return;
-	demoSceneSpawned = true;
-	spawnDemoScene();
+	const ground: GameLogicToPhysicsMessage = {
+		type: "spawn-static-body",
+		entityId: demoGroundEntityId,
+		shape: { kind: "box", size: GROUND_SIZE },
+		transform: GROUND_TRANSFORM,
+		layer: 1,
+		mask: -1, // all bits (int32)
+	};
+	physicsPort.postMessage(ground);
+
+	const ball: GameLogicToPhysicsMessage = {
+		type: "spawn-dynamic-body",
+		entityId: demoBallEntityId,
+		shape: { kind: "sphere", radius: 0.5 },
+		transform: BALL_TRANSFORM,
+		mass: 1,
+		layer: 1,
+		mask: -1,
+	};
+	physicsPort.postMessage(ball);
 }
 
 function handlePhysicsMessage(message: PhysicsToGameLogicMessage): void {
 	switch (message.type) {
 		case "ready":
 			physicsReady = true;
-			trySpawnDemoScene();
+			spawnDemoBodies();
 			break;
 		case "transforms": {
 			if (!renderPort || message.entities.length === 0) break;
@@ -116,8 +117,7 @@ function handleRenderMessage(message: RenderToGameLogicMessage): void {
 			// Both ports may become ready in either order - spawning only once
 			// both have said "ready" avoids racing spawn-entity/spawn-*-body
 			// messages ahead of either worker finishing its own init().
-			renderReady = true;
-			trySpawnDemoScene();
+			spawnDemoVisuals();
 			break;
 		case "asset-loaded":
 			break;
@@ -128,7 +128,7 @@ function handleInput(event: InputEvent): void {
 	switch (event.kind) {
 		case "keydown":
 			pressedKeys.add(event.code);
-			if (event.code === "Space" && demoBallEntityId !== null && physicsPort) {
+			if (event.code === "Space" && physicsReady && physicsPort) {
 				const impulse: GameLogicToPhysicsMessage = {
 					type: "apply-impulse",
 					entityId: demoBallEntityId,

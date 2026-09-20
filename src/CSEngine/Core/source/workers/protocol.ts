@@ -38,6 +38,10 @@ export type MainToRenderMessage =
 			canvas: OffscreenCanvas;
 			gameLogicPort: MessagePort;
 			devMode: boolean;
+			/** CSS size + DPR at transfer time; an OffscreenCanvas otherwise stays at the default 300x150. */
+			width: number;
+			height: number;
+			devicePixelRatio: number;
 	  }
 	| { type: "resize"; width: number; height: number; devicePixelRatio: number }
 	| { type: "set-inspector-visible"; visible: boolean };
@@ -126,7 +130,7 @@ export type PhysicsToGameLogicMessage =
 
 export type MeshDescriptor =
 	| { kind: "sphere"; diameter: number }
-	| { kind: "box"; size: number }
+	| { kind: "box"; size: [number, number, number] } // full extents, same convention as PhysicsShapeDescriptor
 	| { kind: "gltf"; rootUrl: string; sceneFilename: string };
 
 export type GameLogicToRenderMessage =

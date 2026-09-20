@@ -1,7 +1,32 @@
 {
   "Version": 1,
   "WorkspaceRootPath": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\",
-  "Documents": [],
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|c:\\repos\\critical-success-engine\\src\\csengine\\core\\webpack.config.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|solutionrelative:core\\webpack.config.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|c:\\repos\\critical-success-engine\\src\\csengine\\core\\source\\workers\\physics.worker.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|solutionrelative:core\\source\\workers\\physics.worker.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|c:\\repos\\critical-success-engine\\src\\csengine\\core\\physics-wasm\\_framework\\dotnet.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|solutionrelative:core\\physics-wasm\\_framework\\dotnet.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|c:\\repos\\critical-success-engine\\src\\csengine\\core\\package.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|solutionrelative:core\\package.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|c:\\repos\\critical-success-engine\\src\\csengine\\core\\tsconfig.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|solutionrelative:core\\tsconfig.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|c:\\repos\\critical-success-engine\\src\\csengine\\core\\vite.config.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|solutionrelative:core\\vite.config.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+    }
+  ],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
@@ -9,7 +34,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": -1,
+          "SelectedChildIndex": 2,
           "Children": [
             {
               "$type": "Bookmark",
@@ -18,6 +43,80 @@
             {
               "$type": "Bookmark",
               "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "webpack.config.js",
+              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\webpack.config.js",
+              "RelativeDocumentMoniker": "Core\\webpack.config.js",
+              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\webpack.config.js",
+              "RelativeToolTip": "Core\\webpack.config.js",
+              "ViewState": "AgIAAEcAAAAAAAAAAAAkwGEAAAAXAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2026-09-20T18:37:58.032Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "physics.worker.ts",
+              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\source\\workers\\physics.worker.ts",
+              "RelativeDocumentMoniker": "Core\\source\\workers\\physics.worker.ts",
+              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\source\\workers\\physics.worker.ts",
+              "RelativeToolTip": "Core\\source\\workers\\physics.worker.ts",
+              "ViewState": "AgIAACwAAAAAAAAAAAAQwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2026-09-20T18:36:31.893Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "dotnet.js",
+              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\physics-wasm\\_framework\\dotnet.js",
+              "RelativeDocumentMoniker": "Core\\physics-wasm\\_framework\\dotnet.js",
+              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\physics-wasm\\_framework\\dotnet.js",
+              "RelativeToolTip": "Core\\physics-wasm\\_framework\\dotnet.js",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2026-09-20T18:35:33.423Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "package.json",
+              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\package.json",
+              "RelativeDocumentMoniker": "Core\\package.json",
+              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\package.json",
+              "RelativeToolTip": "Core\\package.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAAuAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2026-09-20T18:31:17.406Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "tsconfig.json",
+              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\tsconfig.json",
+              "RelativeDocumentMoniker": "Core\\tsconfig.json",
+              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\tsconfig.json",
+              "RelativeToolTip": "Core\\tsconfig.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABEAAAAXAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2026-09-20T18:25:35.829Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "vite.config.ts",
+              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\vite.config.ts",
+              "RelativeDocumentMoniker": "Core\\vite.config.ts",
+              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\vite.config.ts",
+              "RelativeToolTip": "Core\\vite.config.ts",
+              "ViewState": "AgIAAHMAAAAAAAAAAAAgwIoAAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2026-09-20T18:19:28.173Z"
             }
           ]
         }

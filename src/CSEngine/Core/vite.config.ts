@@ -114,6 +114,13 @@ export default defineConfig({
     plugins: [
         TemporaryIndexHtmlPlugin(),
     ],
+    
+    optimizeDeps: {
+        exclude: [
+            "physics-wasm",
+            "physics-wasm/_framework",
+        ],
+    },
 
     server: {
         host: "127.0.0.1",

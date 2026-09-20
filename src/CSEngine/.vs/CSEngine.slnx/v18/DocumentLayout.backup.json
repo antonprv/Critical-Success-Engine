@@ -3,32 +3,24 @@
   "WorkspaceRootPath": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{57302D22-21A6-AB41-9896-555CF27E0DBF}|Physics\\Physics.csproj|c:\\repos\\critical-success-engine\\src\\csengine\\physics\\physics.csproj||{04B8AB82-A572-4FEF-95CE-5222444B6B64}|",
-      "RelativeMoniker": "D:0:0:{57302D22-21A6-AB41-9896-555CF27E0DBF}|Physics\\Physics.csproj|solutionrelative:physics\\physics.csproj||{04B8AB82-A572-4FEF-95CE-5222444B6B64}|"
+      "AbsoluteMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|c:\\repos\\critical-success-engine\\src\\csengine\\core\\source\\workers\\physics.worker.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|solutionrelative:core\\source\\workers\\physics.worker.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{57302D22-21A6-AB41-9896-555CF27E0DBF}|Physics\\Physics.csproj|c:\\repos\\critical-success-engine\\src\\csengine\\physics\\build.md||{EFC0BB08-EA7D-40C6-A696-C870411A895B}",
-      "RelativeMoniker": "D:0:0:{57302D22-21A6-AB41-9896-555CF27E0DBF}|Physics\\Physics.csproj|solutionrelative:physics\\build.md||{EFC0BB08-EA7D-40C6-A696-C870411A895B}"
+      "AbsoluteMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|c:\\repos\\critical-success-engine\\src\\csengine\\core\\physics-wasm\\_framework\\dotnet.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|solutionrelative:core\\physics-wasm\\_framework\\dotnet.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{57302D22-21A6-AB41-9896-555CF27E0DBF}|Physics\\Physics.csproj|c:\\repos\\critical-success-engine\\src\\csengine\\physics\\vendor\\fastmath.core\\constants.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{57302D22-21A6-AB41-9896-555CF27E0DBF}|Physics\\Physics.csproj|solutionrelative:physics\\vendor\\fastmath.core\\constants.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|c:\\repos\\critical-success-engine\\src\\csengine\\core\\package.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|solutionrelative:core\\package.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{57302D22-21A6-AB41-9896-555CF27E0DBF}|Physics\\Physics.csproj|c:\\repos\\critical-success-engine\\src\\csengine\\physics\\vendor\\bepuutilities\\bundleindexing.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{57302D22-21A6-AB41-9896-555CF27E0DBF}|Physics\\Physics.csproj|solutionrelative:physics\\vendor\\bepuutilities\\bundleindexing.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|c:\\repos\\critical-success-engine\\src\\csengine\\core\\tsconfig.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|solutionrelative:core\\tsconfig.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{57302D22-21A6-AB41-9896-555CF27E0DBF}|Physics\\Physics.csproj|c:\\repos\\critical-success-engine\\src\\csengine\\physics\\vendor\\bepuphysics\\batchcompressor.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{57302D22-21A6-AB41-9896-555CF27E0DBF}|Physics\\Physics.csproj|solutionrelative:physics\\vendor\\bepuphysics\\batchcompressor.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{57302D22-21A6-AB41-9896-555CF27E0DBF}|Physics\\Physics.csproj|c:\\repos\\critical-success-engine\\src\\csengine\\physics\\bridge\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{57302D22-21A6-AB41-9896-555CF27E0DBF}|Physics\\Physics.csproj|solutionrelative:physics\\bridge\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{57302D22-21A6-AB41-9896-555CF27E0DBF}|Physics\\Physics.csproj|c:\\repos\\critical-success-engine\\src\\csengine\\physics\\bridge\\physicsbridge.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{57302D22-21A6-AB41-9896-555CF27E0DBF}|Physics\\Physics.csproj|solutionrelative:physics\\bridge\\physicsbridge.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|c:\\repos\\critical-success-engine\\src\\csengine\\core\\vite.config.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|solutionrelative:core\\vite.config.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
     }
   ],
   "DocumentGroupContainers": [
@@ -51,92 +43,65 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "Physics",
-              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Physics\\Physics.csproj",
-              "RelativeDocumentMoniker": "Physics\\Physics.csproj",
-              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Physics\\Physics.csproj",
-              "RelativeToolTip": "Physics\\Physics.csproj",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
-              "WhenOpened": "2026-09-20T15:47:07.254Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "Constants.cs",
-              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Physics\\Vendor\\FastMath.Core\\Constants.cs",
-              "RelativeDocumentMoniker": "Physics\\Vendor\\FastMath.Core\\Constants.cs",
-              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Physics\\Vendor\\FastMath.Core\\Constants.cs",
-              "RelativeToolTip": "Physics\\Vendor\\FastMath.Core\\Constants.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAQAAAABAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-20T15:42:24.022Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "BundleIndexing.cs",
-              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Physics\\Vendor\\BepuUtilities\\BundleIndexing.cs",
-              "RelativeDocumentMoniker": "Physics\\Vendor\\BepuUtilities\\BundleIndexing.cs",
-              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Physics\\Vendor\\BepuUtilities\\BundleIndexing.cs",
-              "RelativeToolTip": "Physics\\Vendor\\BepuUtilities\\BundleIndexing.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-20T15:42:19.13Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "BatchCompressor.cs",
-              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Physics\\Vendor\\BepuPhysics\\BatchCompressor.cs",
-              "RelativeDocumentMoniker": "Physics\\Vendor\\BepuPhysics\\BatchCompressor.cs",
-              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Physics\\Vendor\\BepuPhysics\\BatchCompressor.cs",
-              "RelativeToolTip": "Physics\\Vendor\\BepuPhysics\\BatchCompressor.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-20T15:42:14.538Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 5,
-              "Title": "Program.cs",
-              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Physics\\Bridge\\Program.cs",
-              "RelativeDocumentMoniker": "Physics\\Bridge\\Program.cs",
-              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Physics\\Bridge\\Program.cs",
-              "RelativeToolTip": "Physics\\Bridge\\Program.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-20T15:41:35.577Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 6,
-              "Title": "PhysicsBridge.cs",
-              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Physics\\Bridge\\PhysicsBridge.cs",
-              "RelativeDocumentMoniker": "Physics\\Bridge\\PhysicsBridge.cs",
-              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Physics\\Bridge\\PhysicsBridge.cs",
-              "RelativeToolTip": "Physics\\Bridge\\PhysicsBridge.cs",
-              "ViewState": "AgIAAAMAAAAAAAAAAAAAAAwAAAAOAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-20T15:40:37.241Z",
+              "Title": "physics.worker.ts",
+              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\source\\workers\\physics.worker.ts",
+              "RelativeDocumentMoniker": "Core\\source\\workers\\physics.worker.ts",
+              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\source\\workers\\physics.worker.ts",
+              "RelativeToolTip": "Core\\source\\workers\\physics.worker.ts",
+              "ViewState": "AgIAACwAAAAAAAAAAAAQwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2026-09-20T18:36:31.893Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 1,
-              "Title": "BUILD.md",
-              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Physics\\BUILD.md",
-              "RelativeDocumentMoniker": "Physics\\BUILD.md",
-              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Physics\\BUILD.md",
-              "RelativeToolTip": "Physics\\BUILD.md",
-              "ViewState": "AgIAAAwAAAAAAAAAAAAAABIAAAAHAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001818|",
-              "WhenOpened": "2026-09-20T15:40:27.035Z",
+              "Title": "dotnet.js",
+              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\physics-wasm\\_framework\\dotnet.js",
+              "RelativeDocumentMoniker": "Core\\physics-wasm\\_framework\\dotnet.js",
+              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\physics-wasm\\_framework\\dotnet.js",
+              "RelativeToolTip": "Core\\physics-wasm\\_framework\\dotnet.js",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2026-09-20T18:35:33.423Z",
               "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "package.json",
+              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\package.json",
+              "RelativeDocumentMoniker": "Core\\package.json",
+              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\package.json",
+              "RelativeToolTip": "Core\\package.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAAuAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2026-09-20T18:31:17.406Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "tsconfig.json",
+              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\tsconfig.json",
+              "RelativeDocumentMoniker": "Core\\tsconfig.json",
+              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\tsconfig.json",
+              "RelativeToolTip": "Core\\tsconfig.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABEAAAAXAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2026-09-20T18:25:35.829Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "vite.config.ts",
+              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\vite.config.ts",
+              "RelativeDocumentMoniker": "Core\\vite.config.ts",
+              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\vite.config.ts",
+              "RelativeToolTip": "Core\\vite.config.ts",
+              "ViewState": "AgIAAHMAAAAAAAAAAAAgwIoAAAADAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2026-09-20T18:19:28.173Z"
             }
           ]
         }

@@ -3,10 +3,6 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-#if !DEBUG
-[module: SkipLocalsInit]
-#endif
-
 namespace BepuUtilities.Memory
 {
 	/// <summary>

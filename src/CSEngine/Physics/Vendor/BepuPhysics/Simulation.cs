@@ -5,10 +5,7 @@ using BepuUtilities;
 using BepuUtilities.Memory;
 using Framework.FastMath.Numerics;
 using System.Diagnostics;
-
-#if !DEBUG
-[module: SkipLocalsInit]
-#endif
+using System.Runtime.CompilerServices;
 
 namespace BepuPhysics;
 
