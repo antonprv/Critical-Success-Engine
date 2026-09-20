@@ -1,19 +1,27 @@
 # === Node / package managers ===
-node_modules/
+**/node_modules/
+**/.pnpm-store/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-.pnpm-store/
 
 # === Build output ===
-obj/
-dist/
-build/
+**/obj/
+**/bin/
+**/Binaries/
+**/dist/
+**/build/
 *.tsbuildinfo
 
 # === TypeScript ===
 *.js.map
+
+# === .NET ===
+*.dll
+*.pdb
+*.deps.json
+*.runtimeconfig.json
 
 # === JetBrains Rider / .esproj ===
 .idea/
@@ -22,6 +30,7 @@ build/
 
 # === Visual Studio ===
 .vs/
+**/.vs/
 *.suo
 *.user
 *.userosscache
@@ -37,7 +46,15 @@ desktop.ini
 !.vscode/launch.json
 !.vscode/tasks.json
 
+# === Logs / configuration ===
 *.log
 .env
 .env.local
 stats.json
+
+# === Caches ===
+*.dtbcache.v2
+*.futdache.v2
+
+# === File tree checks ===
+file-tree.txt
