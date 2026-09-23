@@ -2,7 +2,7 @@
 using BepuPhysics.Trees;
 using BepuUtilities;
 using BepuUtilities.Memory;
-using Framework.FastMath.Numerics;
+using FastMath;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 

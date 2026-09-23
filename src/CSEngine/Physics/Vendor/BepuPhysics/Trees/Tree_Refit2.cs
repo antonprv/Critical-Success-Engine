@@ -1,7 +1,7 @@
 ﻿using BepuUtilities;
 using BepuUtilities.Memory;
 using BepuUtilities.TaskScheduling;
-using Framework.FastMath.Numerics;
+using FastMath;
 using System.Diagnostics;
 
 using Task = BepuUtilities.TaskScheduling.Task;

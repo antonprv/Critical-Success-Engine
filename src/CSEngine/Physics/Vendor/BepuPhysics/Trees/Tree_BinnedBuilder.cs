@@ -2,7 +2,7 @@
 using BepuUtilities.Collections;
 using BepuUtilities.Memory;
 using BepuUtilities.TaskScheduling;
-using Framework.FastMath.Core;
+using FastMath;
 using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;

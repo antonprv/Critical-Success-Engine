@@ -5,13 +5,13 @@ using System.Numerics;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
 
-namespace Framework.Physics.Wasm
+namespace Physics.Wasm
 {
 	/// <summary>
 	/// The entire JS-facing surface of the physics simulation. Mirrors
 	/// <see cref="PhysicsWorld"/>'s own "opaque handles + primitives only" design one level
 	/// further out: every handle here is a plain <c>int</c> id minted by this class (never a
-	/// raw Bepu or Framework.Physics handle value), and every shape/pose parameter is
+	/// raw Bepu or Physics handle value), and every shape/pose parameter is
 	/// individual doubles rather than a struct, because that's what the built-in JSExport
 	/// marshaler understands without any custom interop glue.
 	///

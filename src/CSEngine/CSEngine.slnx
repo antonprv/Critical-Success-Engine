@@ -1,7 +1,25 @@
 <Solution>
-  <Project Path="Core/Core.esproj">
-    <Build />
-    <Deploy />
-  </Project>
-  <Project Path="Physics/Physics.csproj" />
+  <Folder Name="/Engine/">
+    <Folder Name="/Engine/Core/">
+      <Project Path="Core/Core.esproj">
+        <Build />
+        <Deploy />
+      </Project>
+    </Folder>
+    <Folder Name="/Engine/Physics/">
+      <Folder Name="/Engine/Physics/Bridge/">
+        <Project Path="Physics/Bridge/Bridge.csproj" />
+      </Folder>
+      <Folder Name="/Engine/Physics/Vendor/">
+        <Project Path="Physics/Vendor/BepuPhysics/BepuPhysics.csproj" />
+        <Project Path="Physics/Vendor/BepuUtilities/BepuUtilities.csproj" />
+        <Project Path="Physics/Vendor/Integration/Integration.csproj" />
+      </Folder>
+    </Folder>
+    <Folder Name="/Engine/Common/">
+      <Folder Name="/Engine/Common/Math/">
+        <Project Path="Common/Math/FastMath.csproj" />
+      </Folder>
+    </Folder>
+  </Folder>
 </Solution>

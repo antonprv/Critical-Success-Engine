@@ -1,7 +1,7 @@
 ﻿using BepuUtilities;
 using BepuUtilities.Collections;
 using BepuUtilities.Memory;
-using Framework.FastMath.Numerics;
+using FastMath;
 using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;

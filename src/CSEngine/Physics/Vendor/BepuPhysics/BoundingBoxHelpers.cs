@@ -1,7 +1,7 @@
 ﻿using BepuPhysics.Collidables;
 using BepuUtilities;
-using Framework.FastMath.Numerics;
-using Framework.FastMath.Numerics.Extensions;
+using FastMath;
+using FastMath.Extensions;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 

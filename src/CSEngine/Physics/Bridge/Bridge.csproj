@@ -1,0 +1,66 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<RuntimeIdentifier>browser-wasm</RuntimeIdentifier>
+		<OutputType>Exe</OutputType>
+
+		<!-- Presence of WasmMainJSPath is what tells the SDK (once the wasm-tools
+		     workload is installed) to build this as a browser-wasm app instead of
+		     a normal managed assembly - without it this silently stops being a
+		     wasm app at all. main.js itself is only used for the manual
+		     smoke test in BUILD.md; physics.worker.ts loads _framework/dotnet.js
+		     directly and never runs main.js. -->
+		<WasmMainJSPath>main.js</WasmMainJSPath>
+		<SelfContained>true</SelfContained>
+
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>annotations</Nullable>
+		<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+		<RootNamespace>Physics.Wasm</RootNamespace>
+		<AssemblyName>PhysicsBridge</AssemblyName>
+
+		<!-- Bumped one extra "..\" versus the old Physics/Physics.csproj: this project now
+		     lives one folder deeper, at Physics/Bridge/, so it needs one more level to land
+		     on the same output/docs locations as before. -->
+		<BaseOutputPath>..\..\Binaries\Physics\</BaseOutputPath>
+		<ProduceReferenceAssembly>False</ProduceReferenceAssembly>
+
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
+		<DocumentationFile>..\..\..\..\docs\Physics\Physics.xml</DocumentationFile>
+
+		<!-- wasm runtime -->
+		<WasmEnableThreads>false</WasmEnableThreads>
+		<WasmEnableSIMD>true</WasmEnableSIMD>
+		<InvariantGlobalization>true</InvariantGlobalization>
+
+		<!-- лишние подсистемы рантайма -->
+		<EventSourceSupport>false</EventSourceSupport>
+		<DebuggerSupport>false</DebuggerSupport>
+		<MetadataUpdaterSupport>false</MetadataUpdaterSupport>
+
+		<!-- ещё ~0.3 МБ, но тексты исключений станут ключами; -->
+		<!-- <UseSystemResourceKeys>true</UseSystemResourceKeys> -->
+		<RunAOTCompilation>true</RunAOTCompilation>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)'=='Debug'">
+		<Optimize>False</Optimize>
+		<IsAotCompatible>True</IsAotCompatible>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)'=='Release'">
+		<IsAotCompatible>True</IsAotCompatible>
+		<PublishTrimmed>true</PublishTrimmed>
+		<TrimMode>full</TrimMode>
+		<WasmBuildNative>true</WasmBuildNative>
+		<DebugType>none</DebugType>
+		<DebugSymbols>false</DebugSymbols>
+		<WasmEmitSymbolMap>false</WasmEmitSymbolMap>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Vendor\Integration\Integration.csproj" />
+	</ItemGroup>
+
+</Project>

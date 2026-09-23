@@ -1,5 +1,5 @@
 ﻿using BepuUtilities;
-using Framework.FastMath.Numerics;
+using FastMath;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 

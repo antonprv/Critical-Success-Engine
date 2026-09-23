@@ -2,8 +2,8 @@
 using BepuPhysics.CollisionDetection;
 using BepuUtilities;
 using BepuUtilities.Memory;
-using Framework.FastMath.Numerics;
-using Framework.FastMath.Numerics.Extensions;
+using FastMath;
+using FastMath.Extensions;
 using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;

@@ -1,6 +1,6 @@
 ﻿using BepuPhysics.Collidables;
 using BepuUtilities.Memory;
-using Framework.FastMath.Core;
+using FastMath;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
