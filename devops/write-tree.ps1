@@ -1,27 +1,89 @@
+# Generates a tree-like directory structure.
+# Excluded directories are skipped completely.
+# The output file itself is excluded to prevent it from appearing in the tree.
+
+param (
+    [string]$RootPath = '.',
+    [string]$OutputPath = 'file-tree.txt'
+)
+
+$ExcludedDirectories = @(
+    '.git',
+    '.vs',
+    'node_modules',
+    'bin',
+    'obj',
+    'dist'
+)
+
+$ExcludedFiles = @(
+    [System.IO.Path]::GetFullPath($OutputPath)
+)
+
 function Write-Tree {
     param (
+        [Parameter(Mandatory)]
         [string]$Path,
+
         [string]$Prefix = ''
     )
 
-    $ExcludedDirectories = @(
-        'node_modules',
-        '.git'
-    )
+    try {
+        $Items = @(
+            Get-ChildItem -LiteralPath $Path -Force -ErrorAction Stop |
+                Where-Object {
+                    if ($_.PSIsContainer) {
+                        return $_.Name -notin $ExcludedDirectories
+                    }
 
-    $Items = Get-ChildItem -LiteralPath $Path -Force |
-        Sort-Object @{ Expression = { -not $_.PSIsContainer } }, Name
+                    $FullPath = [System.IO.Path]::GetFullPath($_.FullName)
+                    return $FullPath -notin $ExcludedFiles
+                } |
+                Sort-Object -Property @(
+                    @{ Expression = { -not $_.PSIsContainer } }
+                    @{ Expression = { $_.Name } }
+                )
+        )
+    }
+    catch {
+        "$Prefix└── [Unable to access: $($_.Exception.Message)]"
+        return
+    }
 
-    foreach ($Item in $Items) {
-        "$Prefix├── $($Item.Name)"
+    for ($Index = 0; $Index -lt $Items.Count; $Index++) {
+        $Item = $Items[$Index]
+        $IsLast = $Index -eq $Items.Count - 1
 
-        if (
-            $Item.PSIsContainer -and
-            $Item.Name -notin $ExcludedDirectories
-        ) {
-            Write-Tree $Item.FullName "$Prefix│   "
+        if ($IsLast) {
+            $Branch = '└── '
+            $ChildPrefix = "$Prefix    "
+        }
+        else {
+            $Branch = '├── '
+            $ChildPrefix = "$Prefix│   "
+        }
+
+        "$Prefix$Branch$($Item.Name)"
+
+        if ($Item.PSIsContainer) {
+            Write-Tree `
+                -Path $Item.FullName `
+                -Prefix $ChildPrefix
         }
     }
 }
 
-Write-Tree . | Out-File file-tree.txt -Encoding utf8
+$RootPath = [System.IO.Path]::GetFullPath($RootPath)
+$OutputPath = [System.IO.Path]::GetFullPath($OutputPath)
+
+# Make sure the output file is excluded even when OutputPath is relative.
+$ExcludedFiles = @($OutputPath)
+
+$Tree = @(
+    Split-Path -Leaf $RootPath
+    Write-Tree -Path $RootPath
+)
+
+$Tree | Out-File `
+    -LiteralPath $OutputPath `
+    -Encoding utf8
