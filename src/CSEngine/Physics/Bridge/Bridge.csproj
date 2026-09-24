@@ -56,4 +56,35 @@
 		<ProjectReference Include="..\Vendor\Integration\Integration.csproj" />
 	</ItemGroup>
 
+	<UsingTask TaskName="GzipCompressFile" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+		<ParameterGroup>
+			<SourceFile ParameterType="System.String" Required="true" />
+			<DestinationFile ParameterType="System.String" Required="true" />
+		</ParameterGroup>
+		<Task>
+			<Using Namespace="System.IO" />
+			<Using Namespace="System.IO.Compression" />
+			<Code Type="Fragment" Language="cs">
+				<![CDATA[
+				using (var input = File.OpenRead(SourceFile))
+				using (var output = File.Create(DestinationFile))
+				using (var gzip = new GZipStream(output, CompressionLevel.SmallestSize))
+				{
+					input.CopyTo(gzip);
+				}
+				Log.LogMessage(MessageImportance.High, $"gzip: {SourceFile} -> {DestinationFile}");
+				]]>
+			</Code>
+		</Task>
+	</UsingTask>
+
+	<Target Name="GzipCompressWasmRuntime" AfterTargets="Publish">
+		<PropertyGroup>
+			<_WasmRuntimeFile>$(PublishDir)_framework\dotnet.native.wasm</_WasmRuntimeFile>
+		</PropertyGroup>
+		<GzipCompressFile Condition="Exists('$(_WasmRuntimeFile)')"
+						SourceFile="$(_WasmRuntimeFile)"
+						DestinationFile="$(_WasmRuntimeFile).gz" />
+	</Target>
+
 </Project>

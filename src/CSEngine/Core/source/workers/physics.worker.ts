@@ -57,10 +57,47 @@ interface PhysicsBridgeExports {
 
 /** Minimal slice of the generated `dotnet.js` boot API (net8.0 wasm-tools) that we actually use. */
 interface DotnetRuntimeApi {
-	getConfig(): { mainAssemblyName: string };
+	getConfig(): { mainAssemblyName: string; };
 	getAssemblyExports(assemblyName: string): Promise<{
-		Framework: { Physics: { Wasm: { PhysicsBridge: PhysicsBridgeExports } } };
+		Framework: { Physics: { Wasm: { PhysicsBridge: PhysicsBridgeExports; }; }; };
 	}>;
+}
+
+/**
+ * dotnet.js calls this for every resource it wants to fetch. Returning `undefined`
+ * lets it load the resource the normal way; returning a Response makes it use
+ * that instead. We only intercept the actual runtime .wasm binary - everything
+ * else (managed assemblies, dotnet.js itself, etc.) loads unchanged.
+ *
+ * Why this exists: Яндекс Игры serves the uploaded archive as static files with
+ * no way to set Content-Encoding, so a plain HTTP-level gzip negotiation never
+ * kicks in - see BUILD.md/the compression discussion for the full story. The
+ * publish step (Bridge.csproj) gzips dotnet.native.wasm into dotnet.native.wasm.gz
+ * alongside the original; here we fetch the .gz explicitly and decompress it
+ * ourselves before handing the bytes to the runtime.
+ */
+async function loadGzippedWasmRuntime(
+	type: string,
+	_name: string,
+	defaultUri: string
+): Promise<Response | undefined> {
+	if (type !== "dotnetwasm") return undefined; // let everything else load as usual
+
+	try {
+		const response = await fetch(`${defaultUri}.gz`);
+		if (!response.ok || !response.body) {
+			console.warn(`[physics.worker] .gz runtime missing (${response.status}), falling back to uncompressed`);
+			return undefined; // dotnet.js will just fetch defaultUri itself
+		}
+		const decompressed = response.body.pipeThrough(new DecompressionStream("gzip"));
+		// Content-Type matters: dotnet.js only uses the fast WebAssembly.compileStreaming()
+		// path when it sees "application/wasm" here - otherwise it falls back to buffering
+		// the whole thing into an ArrayBuffer first, which is slower to start.
+		return new Response(decompressed, { headers: { "Content-Type": "application/wasm" } });
+	} catch (error) {
+		console.warn("[physics.worker] gzip runtime fetch failed, falling back to uncompressed:", error);
+		return undefined;
+	}
 }
 
 let bridge: PhysicsBridgeExports | null = null;
@@ -91,9 +128,19 @@ async function loadBridge(): Promise<PhysicsBridgeExports> {
 	// this repo's own source graph.
 	// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 	const { dotnet } = (await import(/* webpackIgnore: true */ /* @vite-ignore */ dotnetJsUrl)) as {
-		dotnet: { create(): Promise<DotnetRuntimeApi> };
+		dotnet: {
+			withResourceLoader(
+				loader: (
+					type: string,
+					name: string,
+					defaultUri: string,
+					integrity: string,
+					behavior: string
+				) => string | Promise<Response | undefined> | undefined
+			): { create(): Promise<DotnetRuntimeApi>; };
+		};
 	};
-	const { getAssemblyExports, getConfig } = await dotnet.create();
+	const { getAssemblyExports, getConfig } = await dotnet.withResourceLoader(loadGzippedWasmRuntime).create();
 	const config = getConfig();
 	const exports = await getAssemblyExports(config.mainAssemblyName);
 	return exports.Framework.Physics.Wasm.PhysicsBridge as PhysicsBridgeExports;
@@ -222,7 +269,7 @@ function stepOnce(): void {
 
 	const rawEvents = bridge.GetLastOverlapEvents();
 	if (rawEvents.length > 0) {
-		const events: { ownerA: number; ownerB: number; entered: boolean }[] = [];
+		const events: { ownerA: number; ownerB: number; entered: boolean; }[] = [];
 		for (let i = 0; i + 2 < rawEvents.length; i += 3) {
 			events.push({ ownerA: rawEvents[i]!, ownerB: rawEvents[i + 1]!, entered: rawEvents[i + 2] === 1 });
 		}
