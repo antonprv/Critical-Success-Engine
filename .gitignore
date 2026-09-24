@@ -27,6 +27,7 @@ pnpm-debug.log*
 .idea/
 *.esproj.user
 *.slnx.user
+!*.slnx
 
 # === Visual Studio ===
 .vs/

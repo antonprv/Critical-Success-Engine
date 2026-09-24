@@ -287,7 +287,7 @@ namespace BepuPhysics.CollisionDetection
 			subtreeRefinementSize = (int)FMath.Ceil( sqrtLeafCount * subtreeRefinementSizeScale );
 
 			//Note that we scale up the cost of the root refinement; it uses a sequentialized priority queue to collect subtrees for refinement and costs more.
-			var subtreeRefinementsPerRootRefinementInCost = targetRootRefinementSize * FMath.Log2( targetRootRefinementSize ) / ( subtreeRefinementSize * FMath.Log2( subtreeRefinementSize ) );
+			var subtreeRefinementsPerRootRefinementInCost = targetRootRefinementSize * FMath.FastLog2( targetRootRefinementSize ) / ( subtreeRefinementSize * FMath.FastLog2( subtreeRefinementSize ) );
 			//If we're refining the root, reduce the number of subtree refinements to avoid cost spikes.
 			subtreeRefinementCount = FMath.Max( 0, (int)FMath.Round( (float)targetOptimizedLeafCount / subtreeRefinementSize - ( refineRoot ? subtreeRefinementsPerRootRefinementInCost : 0 ) ) );
 			if ( !refineRoot )
@@ -372,10 +372,24 @@ namespace BepuPhysics.CollisionDetection
 				//Distribute tasks for refinement roughly in proportion to their cost.
 				//This doesn't need to be perfect.
 				//Cost of a refinement is roughly n * log2(n), for n = refinement size.
-				var activeCost = FMath.Log2( activeRootRefinementSize + 1 ) * activeRootRefinementSize + FMath.Log2( activeSubtreeRefinementSize + 1 ) * activeSubtreeRefinementSize * activeSubtreeRefinementCount;
-				var staticCost = FMath.Log2( staticRootRefinementSize + 1 ) * staticRootRefinementSize + FMath.Log2( staticSubtreeRefinementSize + 1 ) * staticSubtreeRefinementSize * staticSubtreeRefinementCount;
+				var activeCost = 
+					FMath.FastLog2( activeRootRefinementSize + 1 ) 
+					* activeRootRefinementSize + 
+					FMath.FastLog2( activeSubtreeRefinementSize + 1 ) 
+					* activeSubtreeRefinementSize 
+					* activeSubtreeRefinementCount;
+
+				var staticCost = 
+					FMath.FastLog2( staticRootRefinementSize + 1 ) 
+					* staticRootRefinementSize 
+					+ FMath.FastLog2( staticSubtreeRefinementSize + 1 ) 
+					* staticSubtreeRefinementSize 
+					* staticSubtreeRefinementCount;
+
 				var activeTaskFraction = activeCost / ( activeCost + staticCost );
-				var targetTotalTaskCount = threadDispatcher.ThreadCount; //could scale this. Empirically, doesn't matter on the CPUs tested so far.
+
+				//could scale this. Empirically, doesn't matter on the CPUs tested so far.
+				var targetTotalTaskCount = threadDispatcher.ThreadCount; 
 				var targetActiveTaskCount = (int)FMath.Ceil( activeTaskFraction * targetTotalTaskCount );
 				var taskStack = new TaskStack( Pool, threadDispatcher, threadDispatcher.ThreadCount );
 				var activeRefineContext = new RefinementContext
