@@ -1,0 +1,260 @@
+diff --git a/workers/gamelogic.worker.ts b/workers/gamelogic.worker.ts
+index 2e1e403..f7662b2 100644
+--- a/workers/gamelogic.worker.ts
++++ b/workers/gamelogic.worker.ts
+@@ -95,9 +95,17 @@ function handlePhysicsMessage(message: PhysicsToGameLogicMessage): void {
+ 			spawnDemoBodies();
+ 			break;
+ 		case "transforms": {
+-			if (!renderPort || message.entities.length === 0) break;
+-			const batch: GameLogicToRenderMessage = { type: "transform-batch", entities: message.entities };
+-			renderPort.postMessage(batch);
++			// physics.worker only ever sends this when entityCount > 0, so no length check needed here.
++			// We never touch `message.buffer`'s contents - just relabel and hand ownership straight on to
++			// render.worker, transferred again so this hop stays zero-copy too.
++			if (!renderPort) break;
++			const batch: GameLogicToRenderMessage = {
++				type: "transform-batch",
++				step: message.step,
++				entityCount: message.entityCount,
++				buffer: message.buffer,
++			};
++			renderPort.postMessage(batch, [message.buffer]);
+ 			break;
+ 		}
+ 		case "overlap-events": {
+diff --git a/workers/physics.worker.ts b/workers/physics.worker.ts
+index 3f91d4b..2fd1d53 100644
+--- a/workers/physics.worker.ts
++++ b/workers/physics.worker.ts
+@@ -1,8 +1,8 @@
+ // Created by Anton Piruev in 2026.
+ // Any direct commercial use of derivative work is strictly prohibited.
+ 
++import { TRANSFORM_STRIDE } from "./protocol";
+ import type {
+-	EntityTransform,
+ 	GameLogicToPhysicsMessage,
+ 	MainToPhysicsMessage,
+ 	PhysicsShapeDescriptor,
+@@ -206,19 +206,38 @@ function stepOnce(): void {
+ 	if (!bridge || !gameLogicPort) return;
+ 
+ 	const flat = bridge.Step(fixedTimestepMs / 1000);
+-	const entities: EntityTransform[] = [];
++	const step = stepIndex++;
++
++	// bridge.Step()'s own layout is also 8-wide (bodyId + 7 transform floats), so the
++	// output buffer needs at most as many TRANSFORM_STRIDE-wide slots as flat has - we
++	// may end up writing fewer if some bodyIds don't map to a live entity (see the
++	// `continue` below), never more. A fresh buffer every tick is deliberate: once a
++	// buffer has been handed to postMessage's transfer list it's permanently detached
++	// from this realm, so there's no pool of buffers to safely reuse here - see
++	// TransformBatchPayload's doc comment in protocol.ts.
++	const output = new Float64Array(Math.floor(flat.length / 8) * TRANSFORM_STRIDE);
++	let entityCount = 0;
+ 	for (let i = 0; i + 7 < flat.length; i += 8) {
+ 		const bodyId = flat[i]!;
+ 		const entityId = bodyIdToEntity.get(bodyId);
+ 		if (entityId === undefined) continue; // shouldn't happen, but never forward a dangling id
+-		entities.push({
+-			entityId,
+-			transform: [flat[i + 1]!, flat[i + 2]!, flat[i + 3]!, flat[i + 4]!, flat[i + 5]!, flat[i + 6]!, flat[i + 7]!],
+-		});
++
++		const base = entityCount * TRANSFORM_STRIDE;
++		output[base] = entityId;
++		output[base + 1] = flat[i + 1]!;
++		output[base + 2] = flat[i + 2]!;
++		output[base + 3] = flat[i + 3]!;
++		output[base + 4] = flat[i + 4]!;
++		output[base + 5] = flat[i + 5]!;
++		output[base + 6] = flat[i + 6]!;
++		output[base + 7] = flat[i + 7]!;
++		entityCount++;
+ 	}
+ 
+-	const transformsMessage: PhysicsToGameLogicMessage = { type: "transforms", step: stepIndex++, entities };
+-	gameLogicPort.postMessage(transformsMessage);
++	if (entityCount > 0) {
++		const transformsMessage: PhysicsToGameLogicMessage = { type: "transforms", step, entityCount, buffer: output.buffer };
++		gameLogicPort.postMessage(transformsMessage, [output.buffer]);
++	}
+ 
+ 	const rawEvents = bridge.GetLastOverlapEvents();
+ 	if (rawEvents.length > 0) {
+diff --git a/workers/protocol.ts b/workers/protocol.ts
+index 555095d..be6342b 100644
+--- a/workers/protocol.ts
++++ b/workers/protocol.ts
+@@ -11,9 +11,12 @@
+  * said on each channel.
+  *
+  * Wire format: plain postMessage/structured-clone, no SharedArrayBuffer/Atomics.
+- * That means every payload below is copied on send, which is the deliberate
++ * That means most payloads below are copied on send, which is the deliberate
+  * trade-off (see docs/THREADING_ARCHITECTURE.md) for not requiring COOP/COEP
+- * response headers just to run the game.
++ * response headers just to run the game. The one exception is the per-tick
++ * transform stream (physics -> gamelogic -> render, see TransformBatchPayload
++ * below): that one is high-frequency enough to be worth sending as a
++ * Transferable ArrayBuffer instead - zero-copy, still no SharedArrayBuffer.
+  */
+ 
+ // ---------------------------------------------------------------------------
+@@ -23,9 +26,31 @@
+ /** Flat [posX, posY, posZ, quatX, quatY, quatZ, quatW]. */
+ export type FlatTransform = [number, number, number, number, number, number, number];
+ 
+-export interface EntityTransform {
+-	entityId: number;
+-	transform: FlatTransform;
++/** Float64 slots per entity in a {@link TransformBatchPayload} buffer. */
++export const TRANSFORM_STRIDE = 8; // [entityId, posX, posY, posZ, quatX, quatY, quatZ, quatW]
++
++/**
++ * Flat, transferable representation of one physics tick's entity transforms.
++ * `buffer` is the underlying ArrayBuffer of a Float64Array, laid out as
++ * `entityCount` back-to-back groups of TRANSFORM_STRIDE float64s each:
++ * `[entityId, posX, posY, posZ, quatX, quatY, quatZ, quatW]`.
++ *
++ * Always sent as the transfer list of its postMessage call
++ * (`postMessage(msg, [payload.buffer])`) - that moves ownership of the
++ * buffer between worker realms instead of structured-cloning it, so it's
++ * zero-copy at every hop. Whoever receives it either reads it immediately
++ * or forwards it on (transferring it again); never hold onto a buffer
++ * across a tick and expect to still be able to write into it - once
++ * transferred, the sending realm's view of it is permanently detached.
++ *
++ * `buffer.byteLength` may be larger than `entityCount * TRANSFORM_STRIDE * 8`
++ * (the sender may reuse capacity from a bigger previous tick) - always
++ * iterate up to `entityCount`, never derive it from `buffer.byteLength`.
++ */
++export interface TransformBatchPayload {
++	step: number;
++	entityCount: number;
++	buffer: ArrayBuffer;
+ }
+ 
+ // ---------------------------------------------------------------------------
+@@ -121,7 +146,7 @@ export type PhysicsShapeDescriptor =
+ 
+ export type PhysicsToGameLogicMessage =
+ 	| { type: "ready" }
+-	| { type: "transforms"; step: number; entities: EntityTransform[] }
++	| ({ type: "transforms" } & TransformBatchPayload)
+ 	| { type: "overlap-events"; events: { ownerA: number; ownerB: number; entered: boolean }[] };
+ 
+ // ---------------------------------------------------------------------------
+@@ -136,7 +161,7 @@ export type MeshDescriptor =
+ export type GameLogicToRenderMessage =
+ 	| { type: "spawn-entity"; entityId: number; mesh: MeshDescriptor; transform: FlatTransform }
+ 	| { type: "remove-entity"; entityId: number }
+-	| { type: "transform-batch"; entities: EntityTransform[] }
++	| ({ type: "transform-batch" } & TransformBatchPayload)
+ 	| { type: "camera-pose"; transform: FlatTransform };
+ 
+ export type RenderToGameLogicMessage = { type: "ready" } | { type: "asset-loaded"; entityId: number };
+diff --git a/workers/render.worker.ts b/workers/render.worker.ts
+index 405aeb7..2dac48f 100644
+--- a/workers/render.worker.ts
++++ b/workers/render.worker.ts
+@@ -7,12 +7,8 @@ import "@babylonjs/loaders";
+ 
+ import { AssetLoader } from "../game/AssetLoader";
+ 
+-import type {
+-	EntityTransform,
+-	GameLogicToRenderMessage,
+-	MainToRenderMessage,
+-	RenderToGameLogicMessage,
+-} from "./protocol";
++import { TRANSFORM_STRIDE } from "./protocol";
++import type { GameLogicToRenderMessage, MainToRenderMessage, RenderToGameLogicMessage } from "./protocol";
+ 
+ /**
+  * Everything that used to live in Game.ts's constructor + runRenderLoop now
+@@ -37,8 +33,16 @@ let gameLogicPort: MessagePort | null = null;
+ 
+ const entityMeshes = new Map<number, AbstractMesh>();
+ 
+-function applyTransform(mesh: AbstractMesh, transform: EntityTransform["transform"]): void {
+-	const [px, py, pz, qx, qy, qz, qw] = transform;
++function applyTransform(
++	mesh: AbstractMesh,
++	px: number,
++	py: number,
++	pz: number,
++	qx: number,
++	qy: number,
++	qz: number,
++	qw: number
++): void {
+ 	mesh.position.set(px, py, pz);
+ 	if (!mesh.rotationQuaternion) {
+ 		mesh.rotationQuaternion = new Quaternion();
+@@ -49,10 +53,14 @@ function applyTransform(mesh: AbstractMesh, transform: EntityTransform["transfor
+ function spawnEntity(message: Extract<GameLogicToRenderMessage, { type: "spawn-entity" }>): void {
+ 	if (!scene) return;
+ 
++	// Spawns are infrequent (once per entity, not once per tick), so the destructure
++	// here isn't worth avoiding the way the transform-batch hot loop below is.
++	const [px, py, pz, qx, qy, qz, qw] = message.transform;
++
+ 	switch (message.mesh.kind) {
+ 		case "sphere": {
+ 			const mesh = MeshBuilder.CreateSphere(`entity-${message.entityId}`, { diameter: message.mesh.diameter }, scene);
+-			applyTransform(mesh, message.transform);
++			applyTransform(mesh, px, py, pz, qx, qy, qz, qw);
+ 			entityMeshes.set(message.entityId, mesh);
+ 			break;
+ 		}
+@@ -62,7 +70,7 @@ function spawnEntity(message: Extract<GameLogicToRenderMessage, { type: "spawn-e
+ 				{ width: message.mesh.size[0], height: message.mesh.size[1], depth: message.mesh.size[2] },
+ 				scene
+ 			);
+-			applyTransform(mesh, message.transform);
++			applyTransform(mesh, px, py, pz, qx, qy, qz, qw);
+ 			entityMeshes.set(message.entityId, mesh);
+ 			break;
+ 		}
+@@ -70,7 +78,7 @@ function spawnEntity(message: Extract<GameLogicToRenderMessage, { type: "spawn-e
+ 			assetLoader?.addMesh("background", `entity-${message.entityId}`, message.mesh.rootUrl, message.mesh.sceneFilename, (meshes) => {
+ 				const root = meshes[0];
+ 				if (!root) return;
+-				applyTransform(root, message.transform);
++				applyTransform(root, px, py, pz, qx, qy, qz, qw);
+ 				entityMeshes.set(message.entityId, root);
+ 				const reply: RenderToGameLogicMessage = { type: "asset-loaded", entityId: message.entityId };
+ 				gameLogicPort?.postMessage(reply);
+@@ -92,9 +100,27 @@ function handleGameLogicMessage(message: GameLogicToRenderMessage): void {
+ 			break;
+ 		}
+ 		case "transform-batch": {
+-			for (const entry of message.entities) {
+-				const mesh = entityMeshes.get(entry.entityId);
+-				if (mesh) applyTransform(mesh, entry.transform);
++			// message.buffer is TRANSFORM_STRIDE-wide float64 groups: [entityId, posX, posY, posZ,
++			// quatX, quatY, quatZ, quatW] - see TransformBatchPayload in protocol.ts. Reading it
++			// directly here (rather than the old per-entity object array) is the whole point of
++			// making this message Transferable: no structured-clone copy at either hop, and no
++			// per-entity object/array allocation on this end either.
++			const view = new Float64Array(message.buffer);
++			for (let entity = 0; entity < message.entityCount; entity++) {
++				const base = entity * TRANSFORM_STRIDE;
++				const mesh = entityMeshes.get(view[base]!);
++				if (mesh) {
++					applyTransform(
++						mesh,
++						view[base + 1]!,
++						view[base + 2]!,
++						view[base + 3]!,
++						view[base + 4]!,
++						view[base + 5]!,
++						view[base + 6]!,
++						view[base + 7]!
++					);
++				}
+ 			}
+ 			break;
+ 		}

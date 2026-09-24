@@ -95,9 +95,17 @@ function handlePhysicsMessage(message: PhysicsToGameLogicMessage): void {
 			spawnDemoBodies();
 			break;
 		case "transforms": {
-			if (!renderPort || message.entities.length === 0) break;
-			const batch: GameLogicToRenderMessage = { type: "transform-batch", entities: message.entities };
-			renderPort.postMessage(batch);
+			// physics.worker only ever sends this when entityCount > 0, so no length check needed here.
+			// We never touch `message.buffer`'s contents - just relabel and hand ownership straight on to
+			// render.worker, transferred again so this hop stays zero-copy too.
+			if (!renderPort) break;
+			const batch: GameLogicToRenderMessage = {
+				type: "transform-batch",
+				step: message.step,
+				entityCount: message.entityCount,
+				buffer: message.buffer,
+			};
+			renderPort.postMessage(batch, [message.buffer]);
 			break;
 		}
 		case "overlap-events": {

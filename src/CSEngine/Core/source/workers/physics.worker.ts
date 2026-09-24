@@ -1,8 +1,8 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { TRANSFORM_STRIDE } from "./protocol";
 import type {
-	EntityTransform,
 	GameLogicToPhysicsMessage,
 	MainToPhysicsMessage,
 	PhysicsShapeDescriptor,
@@ -59,45 +59,114 @@ interface PhysicsBridgeExports {
 interface DotnetRuntimeApi {
 	getConfig(): { mainAssemblyName: string; };
 	getAssemblyExports(assemblyName: string): Promise<{
-		Framework: { Physics: { Wasm: { PhysicsBridge: PhysicsBridgeExports; }; }; };
+		Physics: { Wasm: { PhysicsBridge: PhysicsBridgeExports; }; };
 	}>;
 }
 
-/**
- * dotnet.js calls this for every resource it wants to fetch. Returning `undefined`
- * lets it load the resource the normal way; returning a Response makes it use
- * that instead. We only intercept the actual runtime .wasm binary - everything
- * else (managed assemblies, dotnet.js itself, etc.) loads unchanged.
- *
- * Why this exists: Яндекс Игры serves the uploaded archive as static files with
- * no way to set Content-Encoding, so a plain HTTP-level gzip negotiation never
- * kicks in - see BUILD.md/the compression discussion for the full story. The
- * publish step (Bridge.csproj) gzips dotnet.native.wasm into dotnet.native.wasm.gz
- * alongside the original; here we fetch the .gz explicitly and decompress it
- * ourselves before handing the bytes to the runtime.
- */
-async function loadGzippedWasmRuntime(
-	type: string,
-	_name: string,
-	defaultUri: string
-): Promise<Response | undefined> {
-	if (type !== "dotnetwasm") return undefined; // let everything else load as usual
 
-	try {
-		const response = await fetch(`${defaultUri}.gz`);
-		if (!response.ok || !response.body) {
-			console.warn(`[physics.worker] .gz runtime missing (${response.status}), falling back to uncompressed`);
-			return undefined; // dotnet.js will just fetch defaultUri itself
-		}
-		const decompressed = response.body.pipeThrough(new DecompressionStream("gzip"));
-		// Content-Type matters: dotnet.js only uses the fast WebAssembly.compileStreaming()
-		// path when it sees "application/wasm" here - otherwise it falls back to buffering
-		// the whole thing into an ArrayBuffer first, which is slower to start.
-		return new Response(decompressed, { headers: { "Content-Type": "application/wasm" } });
-	} catch (error) {
-		console.warn("[physics.worker] gzip runtime fetch failed, falling back to uncompressed:", error);
-		return undefined;
-	}
+function loadGzippedWasmRuntime(
+    type: string,
+    _name: string,
+    defaultUri: string
+): Promise<Response | undefined> | undefined {
+    if (type !== "dotnetwasm") {
+        return undefined;
+    }
+
+    return (async () => {
+        const gzipUri = `${defaultUri}.gz`;
+
+        console.log(
+            "[physics.worker] Loading gzipped WASM:",
+            gzipUri
+        );
+
+        const gzipResponse = await fetch(gzipUri);
+
+        if (!gzipResponse.ok) {
+            throw new Error(
+                `Failed to load gzipped WASM runtime: ` +
+                `${gzipUri} ` +
+                `(${gzipResponse.status} ${gzipResponse.statusText})`
+            );
+        }
+
+        console.log("[physics.worker] Gzip response:", {
+            status: gzipResponse.status,
+            contentType: gzipResponse.headers.get("Content-Type"),
+            contentEncoding: gzipResponse.headers.get("Content-Encoding"),
+            contentLength: gzipResponse.headers.get("Content-Length"),
+            url: gzipResponse.url,
+        });
+
+        const responseData = new Uint8Array(
+            await gzipResponse.arrayBuffer()
+        );
+
+        const IsWasm = (
+            responseData.length >= 4 &&
+            responseData[0] === 0x00 &&
+            responseData[1] === 0x61 &&
+            responseData[2] === 0x73 &&
+            responseData[3] === 0x6d
+        );
+
+        const IsGzip = (
+            responseData.length >= 2 &&
+            responseData[0] === 0x1f &&
+            responseData[1] === 0x8b
+        );
+
+        let wasmData: ArrayBuffer;
+
+        if (IsWasm) {
+            // The browser already decoded HTTP Content-Encoding: gzip.
+            wasmData = responseData.buffer;
+        } else if (IsGzip) {
+            // The response contains the actual .gz file.
+            const DecompressedResponse = new Response(
+                new Blob([responseData])
+                    .stream()
+                    .pipeThrough(new DecompressionStream("gzip"))
+            );
+
+            wasmData = await DecompressedResponse.arrayBuffer();
+        } else {
+            throw new Error(
+                `Invalid gzipped WASM response: ${gzipUri}. ` +
+                `Expected gzip or WASM magic bytes.`
+            );
+        }
+
+        const WasmBytes = new Uint8Array(wasmData);
+
+        if (
+            WasmBytes.length < 8 ||
+            WasmBytes[0] !== 0x00 ||
+            WasmBytes[1] !== 0x61 ||
+            WasmBytes[2] !== 0x73 ||
+            WasmBytes[3] !== 0x6d
+        ) {
+            throw new Error(
+                `Decompressed resource is not a valid WASM module: ` +
+                `${gzipUri}`
+            );
+        }
+
+        console.log(
+            "[physics.worker] WASM runtime decompressed:",
+            WasmBytes.byteLength,
+            "bytes"
+        );
+
+        return new Response(wasmData, {
+            status: 200,
+            headers: {
+                "Content-Type": "application/wasm",
+                "Content-Length": String(WasmBytes.byteLength),
+            },
+        });
+    })();
 }
 
 let bridge: PhysicsBridgeExports | null = null;
@@ -143,7 +212,7 @@ async function loadBridge(): Promise<PhysicsBridgeExports> {
 	const { getAssemblyExports, getConfig } = await dotnet.withResourceLoader(loadGzippedWasmRuntime).create();
 	const config = getConfig();
 	const exports = await getAssemblyExports(config.mainAssemblyName);
-	return exports.Framework.Physics.Wasm.PhysicsBridge as PhysicsBridgeExports;
+	return exports.Physics.Wasm.PhysicsBridge as PhysicsBridgeExports;
 }
 
 function shapeKey(shape: PhysicsShapeDescriptor): string {
@@ -253,19 +322,38 @@ function stepOnce(): void {
 	if (!bridge || !gameLogicPort) return;
 
 	const flat = bridge.Step(fixedTimestepMs / 1000);
-	const entities: EntityTransform[] = [];
+	const step = stepIndex++;
+
+	// bridge.Step()'s own layout is also 8-wide (bodyId + 7 transform floats), so the
+	// output buffer needs at most as many TRANSFORM_STRIDE-wide slots as flat has - we
+	// may end up writing fewer if some bodyIds don't map to a live entity (see the
+	// `continue` below), never more. A fresh buffer every tick is deliberate: once a
+	// buffer has been handed to postMessage's transfer list it's permanently detached
+	// from this realm, so there's no pool of buffers to safely reuse here - see
+	// TransformBatchPayload's doc comment in protocol.ts.
+	const output = new Float64Array(Math.floor(flat.length / 8) * TRANSFORM_STRIDE);
+	let entityCount = 0;
 	for (let i = 0; i + 7 < flat.length; i += 8) {
 		const bodyId = flat[i]!;
 		const entityId = bodyIdToEntity.get(bodyId);
 		if (entityId === undefined) continue; // shouldn't happen, but never forward a dangling id
-		entities.push({
-			entityId,
-			transform: [flat[i + 1]!, flat[i + 2]!, flat[i + 3]!, flat[i + 4]!, flat[i + 5]!, flat[i + 6]!, flat[i + 7]!],
-		});
+
+		const base = entityCount * TRANSFORM_STRIDE;
+		output[base] = entityId;
+		output[base + 1] = flat[i + 1]!;
+		output[base + 2] = flat[i + 2]!;
+		output[base + 3] = flat[i + 3]!;
+		output[base + 4] = flat[i + 4]!;
+		output[base + 5] = flat[i + 5]!;
+		output[base + 6] = flat[i + 6]!;
+		output[base + 7] = flat[i + 7]!;
+		entityCount++;
 	}
 
-	const transformsMessage: PhysicsToGameLogicMessage = { type: "transforms", step: stepIndex++, entities };
-	gameLogicPort.postMessage(transformsMessage);
+	if (entityCount > 0) {
+		const transformsMessage: PhysicsToGameLogicMessage = { type: "transforms", step, entityCount, buffer: output.buffer };
+		gameLogicPort.postMessage(transformsMessage, [output.buffer]);
+	}
 
 	const rawEvents = bridge.GetLastOverlapEvents();
 	if (rawEvents.length > 0) {

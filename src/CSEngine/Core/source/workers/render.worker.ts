@@ -7,12 +7,8 @@ import "@babylonjs/loaders";
 
 import { AssetLoader } from "../game/AssetLoader";
 
-import type {
-	EntityTransform,
-	GameLogicToRenderMessage,
-	MainToRenderMessage,
-	RenderToGameLogicMessage,
-} from "./protocol";
+import { TRANSFORM_STRIDE } from "./protocol";
+import type { GameLogicToRenderMessage, MainToRenderMessage, RenderToGameLogicMessage } from "./protocol";
 
 /**
  * Everything that used to live in Game.ts's constructor + runRenderLoop now
@@ -37,8 +33,16 @@ let gameLogicPort: MessagePort | null = null;
 
 const entityMeshes = new Map<number, AbstractMesh>();
 
-function applyTransform(mesh: AbstractMesh, transform: EntityTransform["transform"]): void {
-	const [px, py, pz, qx, qy, qz, qw] = transform;
+function applyTransform(
+	mesh: AbstractMesh,
+	px: number,
+	py: number,
+	pz: number,
+	qx: number,
+	qy: number,
+	qz: number,
+	qw: number
+): void {
 	mesh.position.set(px, py, pz);
 	if (!mesh.rotationQuaternion) {
 		mesh.rotationQuaternion = new Quaternion();
@@ -49,10 +53,14 @@ function applyTransform(mesh: AbstractMesh, transform: EntityTransform["transfor
 function spawnEntity(message: Extract<GameLogicToRenderMessage, { type: "spawn-entity" }>): void {
 	if (!scene) return;
 
+	// Spawns are infrequent (once per entity, not once per tick), so the destructure
+	// here isn't worth avoiding the way the transform-batch hot loop below is.
+	const [px, py, pz, qx, qy, qz, qw] = message.transform;
+
 	switch (message.mesh.kind) {
 		case "sphere": {
 			const mesh = MeshBuilder.CreateSphere(`entity-${message.entityId}`, { diameter: message.mesh.diameter }, scene);
-			applyTransform(mesh, message.transform);
+			applyTransform(mesh, px, py, pz, qx, qy, qz, qw);
 			entityMeshes.set(message.entityId, mesh);
 			break;
 		}
@@ -62,7 +70,7 @@ function spawnEntity(message: Extract<GameLogicToRenderMessage, { type: "spawn-e
 				{ width: message.mesh.size[0], height: message.mesh.size[1], depth: message.mesh.size[2] },
 				scene
 			);
-			applyTransform(mesh, message.transform);
+			applyTransform(mesh, px, py, pz, qx, qy, qz, qw);
 			entityMeshes.set(message.entityId, mesh);
 			break;
 		}
@@ -70,7 +78,7 @@ function spawnEntity(message: Extract<GameLogicToRenderMessage, { type: "spawn-e
 			assetLoader?.addMesh("background", `entity-${message.entityId}`, message.mesh.rootUrl, message.mesh.sceneFilename, (meshes) => {
 				const root = meshes[0];
 				if (!root) return;
-				applyTransform(root, message.transform);
+				applyTransform(root, px, py, pz, qx, qy, qz, qw);
 				entityMeshes.set(message.entityId, root);
 				const reply: RenderToGameLogicMessage = { type: "asset-loaded", entityId: message.entityId };
 				gameLogicPort?.postMessage(reply);
@@ -92,9 +100,27 @@ function handleGameLogicMessage(message: GameLogicToRenderMessage): void {
 			break;
 		}
 		case "transform-batch": {
-			for (const entry of message.entities) {
-				const mesh = entityMeshes.get(entry.entityId);
-				if (mesh) applyTransform(mesh, entry.transform);
+			// message.buffer is TRANSFORM_STRIDE-wide float64 groups: [entityId, posX, posY, posZ,
+			// quatX, quatY, quatZ, quatW] - see TransformBatchPayload in protocol.ts. Reading it
+			// directly here (rather than the old per-entity object array) is the whole point of
+			// making this message Transferable: no structured-clone copy at either hop, and no
+			// per-entity object/array allocation on this end either.
+			const view = new Float64Array(message.buffer);
+			for (let entity = 0; entity < message.entityCount; entity++) {
+				const base = entity * TRANSFORM_STRIDE;
+				const mesh = entityMeshes.get(view[base]!);
+				if (mesh) {
+					applyTransform(
+						mesh,
+						view[base + 1]!,
+						view[base + 2]!,
+						view[base + 3]!,
+						view[base + 4]!,
+						view[base + 5]!,
+						view[base + 6]!,
+						view[base + 7]!
+					);
+				}
 			}
 			break;
 		}
