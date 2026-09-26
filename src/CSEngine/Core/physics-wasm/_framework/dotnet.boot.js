@@ -1,7 +1,7 @@
 export const config = /*json-start*/{
   "mainAssemblyName": "PhysicsBridge.dll",
   "resources": {
-    "hash": "sha256-XpeeMH5vmwK5yTzU1+YT1Tm3iupu/x/RL9xE+bOcLKM=",
+    "hash": "sha256-L6yLhwaW+Ffvkkkvumzdu5Ed/64k6D2ywpWRfZhJPG4=",
     "jsModuleNative": [
       {
         "name": "dotnet.native.js"
@@ -34,27 +34,27 @@ export const config = /*json-start*/{
       {
         "virtualPath": "BepuPhysics.wasm",
         "name": "BepuPhysics.wasm",
-        "hash": "sha256-NuJmhvIRzH8Nta4ov0mIPesYsRrcmG0Mdqg9AxzLZNw="
+        "hash": "sha256-xJyNP/3FP/0GoEiPyUIHf/Nu1CcJrWqIKHei2WsBeAg="
       },
       {
         "virtualPath": "BepuUtilities.wasm",
         "name": "BepuUtilities.wasm",
-        "hash": "sha256-zJRCUX+j36LxDTMI7M5BYfJYpE6R7MJMoxhtKrZJpbM="
+        "hash": "sha256-PjHk18cbSf5MBtz5JAOd+W2IfHU1MpQHVBRiWRNv8mo="
       },
       {
         "virtualPath": "FastMath.wasm",
         "name": "FastMath.wasm",
-        "hash": "sha256-WjvB7ryIBYBxOOG7K0vLC54xbtwjIardUO/hK+/+dAk="
+        "hash": "sha256-Hl7sZihU2X0QXALvRkqbeXatfC4oAR4kJmsZ5W54ZEs="
       },
       {
         "virtualPath": "Physics.Integration.wasm",
         "name": "Physics.Integration.wasm",
-        "hash": "sha256-ZIY/r+Y6dwnpJXELmYPGrGbfcGfAVZ1UZZTsGWSq2hM="
+        "hash": "sha256-Y6QEDcAK+Ep1Y6Tb8ZSnlDEMMewn9elYYo+mszbwhYw="
       },
       {
         "virtualPath": "PhysicsBridge.wasm",
         "name": "PhysicsBridge.wasm",
-        "hash": "sha256-jVETXJdExKfWdJzAzXCIi38Sn3YRJf2isHshI4C3+4s="
+        "hash": "sha256-ZOR3nKhYVvxprRPwA+dqQA980nPczBHF9HB1w6sSSAU="
       },
       {
         "virtualPath": "System.Console.wasm",

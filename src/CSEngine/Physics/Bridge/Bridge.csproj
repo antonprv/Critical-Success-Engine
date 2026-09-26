@@ -38,7 +38,7 @@
 	<PropertyGroup Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">
 		<PublishReadyToRun>false</PublishReadyToRun>
 	</PropertyGroup>
-	
+
 	<PropertyGroup Condition="'$(Configuration)'=='Debug'">
 		<UseSystemResourceKeys>false</UseSystemResourceKeys>
 		<Optimize>False</Optimize>
@@ -59,60 +59,8 @@
 	<ItemGroup>
 		<ProjectReference Include="..\Vendor\Integration\Integration.csproj" />
 	</ItemGroup>
-
-	<!-- Build compression for later decompression in browser -->
-	<UsingTask
-		TaskName="GzipCompressFile"
-		TaskFactory="RoslynCodeTaskFactory"
-		AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
-
-		<ParameterGroup>
-			<SourceFile
-				ParameterType="System.String"
-				Required="true" />
-
-			<DestinationFile
-				ParameterType="System.String"
-				Required="true" />
-		</ParameterGroup>
-
-		<Task>
-			<Using Namespace="System.IO" />
-			<Using Namespace="System.IO.Compression" />
-
-			<Code Type="Fragment" Language="cs">
-				<![CDATA[
-            using (var input = File.OpenRead(SourceFile))
-            using (var output = File.Create(DestinationFile))
-            using (var gzip = new GZipStream(output, (CompressionLevel)3))
-            {
-                input.CopyTo(gzip);
-            }
-
-            Log.LogMessage(
-                MessageImportance.High,
-                $"gzip: {SourceFile} -> {DestinationFile}");
-            ]]>
-			</Code>
-		</Task>
-	</UsingTask>
-
-	<Target Name="GzipCompressWasmRuntime" AfterTargets="WasmNestedPublishApp">
-		<PropertyGroup>
-			<WasmRuntimeFile>$(MSBuildProjectDirectory)\..\..\Binaries\Physics\$(Configuration)\$(TargetFramework)\browser-wasm\AppBundle\_framework\dotnet.native.wasm</WasmRuntimeFile>
-		</PropertyGroup>
-
-		<Message Importance="High"
-				 Text="WASM runtime: $(WasmRuntimeFile)" />
-
-		<Message Importance="High"
-				 Text="WASM runtime exists: $([System.IO.File]::Exists('$(WasmRuntimeFile)'))" />
-
-		<GzipCompressFile
-			Condition="Exists('$(WasmRuntimeFile)')"
-			SourceFile="$(WasmRuntimeFile)"
-			DestinationFile="$(WasmRuntimeFile).gz" />
-
-	</Target>
+    
+    <!-- Compress final WASM build -->
+	<Import Project="$(MSBuildThisFileDirectory)GzipCompressWasmAssets.targets" />
 
 </Project>

@@ -63,110 +63,67 @@ interface DotnetRuntimeApi {
 	}>;
 }
 
-
-function loadGzippedWasmRuntime(
-    type: string,
-    _name: string,
-    defaultUri: string
+/**
+ * Every .wasm asset under _framework/ (the wasm-tools native runtime AND every
+ * Webcil-wrapped managed assembly, which also carries a .wasm extension) is
+ * published gzip-only - see GzipCompressWasmAssets.targets. There is no
+ * uncompressed fallback on disk, so any .wasm resource dotnet.js asks for is
+ * intercepted here and loaded from its `.gz` sibling.
+ *
+ * Some static-file servers (notably Vite's dev server) transparently set
+ * `Content-Encoding: gzip` on requests for a `.gz`-suffixed file, which makes
+ * the browser's own fetch() silently undo the compression before this code
+ * ever sees the bytes - other hosts may not do this at all. So we check the
+ * gzip magic bytes (1F 8B) on what we actually received: if present, we
+ * decompress ourselves; if absent, the transport already did it for us and
+ * the bytes are used as-is. This works uniformly for the native runtime
+ * (raw WASM once decompressed) and for Webcil-wrapped managed assemblies
+ * (which don't carry a WASM magic number at all, so we can't key off that).
+ */
+function loadGzippedWasmAsset(
+	_type: string,
+	_name: string,
+	defaultUri: string
 ): Promise<Response | undefined> | undefined {
-    if (type !== "dotnetwasm") {
-        return undefined;
-    }
+	if (!defaultUri.endsWith(".wasm")) {
+		return undefined; // not a wasm asset - let dotnet.js load it normally
+	}
 
-    return (async () => {
-        const gzipUri = `${defaultUri}.gz`;
+	return (async () => {
+		const gzipUri = `${defaultUri}.gz`;
+		const gzipResponse = await fetch(gzipUri);
 
-        console.log(
-            "[physics.worker] Loading gzipped WASM:",
-            gzipUri
-        );
+		if (!gzipResponse.ok) {
+			throw new Error(
+				`[physics.worker] Missing gzip asset: ${gzipUri} (${gzipResponse.status} ${gzipResponse.statusText}). ` +
+				`Uncompressed .wasm files are not published - rebuild via GzipCompressWasmAssets (see physics-wasm/BUILD.md).`
+			);
+		}
 
-        const gzipResponse = await fetch(gzipUri);
+		const received = new Uint8Array(await gzipResponse.arrayBuffer());
+		const isGzip = received.length >= 2 && received[0] === 0x1f && received[1] === 0x8b;
 
-        if (!gzipResponse.ok) {
-            throw new Error(
-                `Failed to load gzipped WASM runtime: ` +
-                `${gzipUri} ` +
-                `(${gzipResponse.status} ${gzipResponse.statusText})`
-            );
-        }
+		let payload: ArrayBuffer;
+		if (isGzip) {
+			payload = await new Response(
+				new Blob([received]).stream().pipeThrough(new DecompressionStream("gzip"))
+			).arrayBuffer();
+			console.log(`[physics.worker] decompressed ${gzipUri}: ${payload.byteLength} bytes`);
+		} else {
+			// No gzip magic bytes - the transport (dev server + browser Content-Encoding
+			// handling) already decompressed this for us. Nothing left to do.
+			payload = received.buffer;
+			console.log(`[physics.worker] ${gzipUri} arrived pre-decompressed by the transport: ${payload.byteLength} bytes`);
+		}
 
-        console.log("[physics.worker] Gzip response:", {
-            status: gzipResponse.status,
-            contentType: gzipResponse.headers.get("Content-Type"),
-            contentEncoding: gzipResponse.headers.get("Content-Encoding"),
-            contentLength: gzipResponse.headers.get("Content-Length"),
-            url: gzipResponse.url,
-        });
-
-        const responseData = new Uint8Array(
-            await gzipResponse.arrayBuffer()
-        );
-
-        const IsWasm = (
-            responseData.length >= 4 &&
-            responseData[0] === 0x00 &&
-            responseData[1] === 0x61 &&
-            responseData[2] === 0x73 &&
-            responseData[3] === 0x6d
-        );
-
-        const IsGzip = (
-            responseData.length >= 2 &&
-            responseData[0] === 0x1f &&
-            responseData[1] === 0x8b
-        );
-
-        let wasmData: ArrayBuffer;
-
-        if (IsWasm) {
-            // The browser already decoded HTTP Content-Encoding: gzip.
-            wasmData = responseData.buffer;
-        } else if (IsGzip) {
-            // The response contains the actual .gz file.
-            const DecompressedResponse = new Response(
-                new Blob([responseData])
-                    .stream()
-                    .pipeThrough(new DecompressionStream("gzip"))
-            );
-
-            wasmData = await DecompressedResponse.arrayBuffer();
-        } else {
-            throw new Error(
-                `Invalid gzipped WASM response: ${gzipUri}. ` +
-                `Expected gzip or WASM magic bytes.`
-            );
-        }
-
-        const WasmBytes = new Uint8Array(wasmData);
-
-        if (
-            WasmBytes.length < 8 ||
-            WasmBytes[0] !== 0x00 ||
-            WasmBytes[1] !== 0x61 ||
-            WasmBytes[2] !== 0x73 ||
-            WasmBytes[3] !== 0x6d
-        ) {
-            throw new Error(
-                `Decompressed resource is not a valid WASM module: ` +
-                `${gzipUri}`
-            );
-        }
-
-        console.log(
-            "[physics.worker] WASM runtime decompressed:",
-            WasmBytes.byteLength,
-            "bytes"
-        );
-
-        return new Response(wasmData, {
-            status: 200,
-            headers: {
-                "Content-Type": "application/wasm",
-                "Content-Length": String(WasmBytes.byteLength),
-            },
-        });
-    })();
+		return new Response(payload, {
+			status: 200,
+			headers: {
+				"Content-Type": "application/wasm",
+				"Content-Length": String(payload.byteLength),
+			},
+		});
+	})();
 }
 
 let bridge: PhysicsBridgeExports | null = null;
@@ -209,7 +166,7 @@ async function loadBridge(): Promise<PhysicsBridgeExports> {
 			): { create(): Promise<DotnetRuntimeApi>; };
 		};
 	};
-	const { getAssemblyExports, getConfig } = await dotnet.withResourceLoader(loadGzippedWasmRuntime).create();
+	const { getAssemblyExports, getConfig } = await dotnet.withResourceLoader(loadGzippedWasmAsset).create();
 	const config = getConfig();
 	const exports = await getAssemblyExports(config.mainAssemblyName);
 	return exports.Physics.Wasm.PhysicsBridge as PhysicsBridgeExports;

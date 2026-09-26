@@ -1,0 +1,67 @@
+<Project>
+
+	<UsingTask
+		TaskName="GzipCompressFile"
+		TaskFactory="RoslynCodeTaskFactory"
+		AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+
+		<ParameterGroup>
+			<SourceFile ParameterType="System.String" Required="true" />
+			<DestinationFile ParameterType="System.String" Required="true" />
+		</ParameterGroup>
+
+		<Task>
+			<Using Namespace="System.IO" />
+			<Using Namespace="System.IO.Compression" />
+			<Code Type="Fragment" Language="cs">
+				<![CDATA[
+				using (var input = File.OpenRead(SourceFile))
+				using (var output = File.Create(DestinationFile))
+				using (var gzip = new GZipStream(output, (CompressionLevel)3))
+				{
+					input.CopyTo(gzip);
+				}
+				Log.LogMessage(MessageImportance.High, $"gzip: {SourceFile} -> {DestinationFile}");
+				]]>
+			</Code>
+		</Task>
+	</UsingTask>
+
+	<!--
+		Gzips every *.wasm under the AppBundle's _framework/ (the wasm-tools native runtime
+		AND the Webcil-wrapped managed assemblies, which also carry a .wasm extension), then
+		deletes the uncompressed originals. There is deliberately no uncompressed fallback at
+		runtime (see physics.worker.ts's loadGzippedWasmAsset) - if this target doesn't run,
+		the app should fail loudly (missing .gz -> thrown error) instead of silently serving
+		uncompressed files.
+	-->
+	<Target Name="GzipCompressWasmAssets" AfterTargets="WasmNestedPublishApp">
+		<PropertyGroup>
+			<_WasmFrameworkDir>$(MSBuildProjectDirectory)\..\..\Binaries\Physics\$(Configuration)\$(TargetFramework)\browser-wasm\AppBundle\_framework\</_WasmFrameworkDir>
+		</PropertyGroup>
+
+		<ItemGroup>
+			<_WasmAssetToCompress Include="$(_WasmFrameworkDir)*.wasm" />
+		</ItemGroup>
+
+		<Warning
+			Condition="'@(_WasmAssetToCompress)' == ''"
+			Text="GzipCompressWasmAssets: не найдено ни одного .wasm в $(_WasmFrameworkDir) - AppBundle не сгенерирован?" />
+
+		<GzipCompressFile
+			Condition="'@(_WasmAssetToCompress)' != ''"
+			SourceFile="%(_WasmAssetToCompress.FullPath)"
+			DestinationFile="%(_WasmAssetToCompress.FullPath).gz" />
+
+		<!-- No uncompressed fallback: delete originals so a stale/broken deploy fails loudly, not silently. -->
+		<Delete
+			Files="@(_WasmAssetToCompress)"
+			Condition="'@(_WasmAssetToCompress)' != ''" />
+
+		<PropertyGroup>
+			<_WasmAssetCount>@(_WasmAssetToCompress->Count())</_WasmAssetCount>
+		</PropertyGroup>
+		<Message Importance="High" Text="GzipCompressWasmAssets: сжато файлов - $(_WasmAssetCount)" />
+	</Target>
+
+</Project>
