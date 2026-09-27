@@ -3,8 +3,16 @@
   "WorkspaceRootPath": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|c:\\repos\\critical-success-engine\\src\\csengine\\core\\source\\workers\\physics.worker.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
-      "RelativeMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|solutionrelative:core\\source\\workers\\physics.worker.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
+      "AbsoluteMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|c:\\repos\\critical-success-engine\\src\\csengine\\core\\webpack.config.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|solutionrelative:core\\webpack.config.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|c:\\repos\\critical-success-engine\\src\\csengine\\core\\eslint.config.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|solutionrelative:core\\eslint.config.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|c:\\repos\\critical-success-engine\\src\\csengine\\core\\package.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|solutionrelative:core\\package.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
     }
   ],
   "DocumentGroupContainers": [
@@ -27,14 +35,39 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "physics.worker.ts",
-              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\source\\workers\\physics.worker.ts",
-              "RelativeDocumentMoniker": "Core\\source\\workers\\physics.worker.ts",
-              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\source\\workers\\physics.worker.ts",
-              "RelativeToolTip": "Core\\source\\workers\\physics.worker.ts",
-              "ViewState": "AgIAANMAAAAAAAAAAAA0wOoAAAAJAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
-              "WhenOpened": "2026-09-26T11:16:47.278Z",
+              "Title": "webpack.config.js",
+              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\webpack.config.js",
+              "RelativeDocumentMoniker": "Core\\webpack.config.js",
+              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\webpack.config.js",
+              "RelativeToolTip": "Core\\webpack.config.js",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABAAAAAnAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2026-09-26T11:49:44.858Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "package.json",
+              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\package.json",
+              "RelativeDocumentMoniker": "Core\\package.json",
+              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\package.json",
+              "RelativeToolTip": "Core\\package.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABMAAAARAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2026-09-26T11:48:19.996Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "eslint.config.js",
+              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\eslint.config.js",
+              "RelativeDocumentMoniker": "Core\\eslint.config.js",
+              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\eslint.config.js",
+              "RelativeToolTip": "Core\\eslint.config.js",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA0AAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2026-09-26T11:47:55.203Z",
               "EditorCaption": ""
             }
           ]

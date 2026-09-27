@@ -1,24 +1,36 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import webpack from "webpack";
-import HtmlWebpackPlugin from "html-webpack-plugin";
 import CopyWebpackPlugin from "copy-webpack-plugin";
+import HtmlWebpackPlugin from "html-webpack-plugin";
+import webpack from "webpack";
 
 const Filename = fileURLToPath(import.meta.url);
 const Dirname = path.dirname(Filename);
 const AppDirectory = Dirname;
+
+// Matches Core.esproj's <BuildOutputFolder> and vite.config.ts's build.outDir -
+// one build destination regardless of which bundler produced it.
+const OutputDirectory = path.resolve(AppDirectory, "../Binaries/Core");
+
+// The .NET publish output for the physics engine lives outside this project
+// entirely - see Physics/Bridge/BUILD.md - addressed relative to this file
+// rather than hardcoded to one machine's checkout path.
+const PhysicsWasmFrameworkDirectory = path.resolve(
+    AppDirectory,
+    "../Binaries/Physics/Release/net10.0/browser-wasm/AppBundle/_framework"
+);
 
 export default (env, argv) => {
     const IsProduction = argv.mode === "production";
 
     return {
         // Main TypeScript entry point.
-        entry: path.resolve(AppDirectory, "source/app.ts"),
+        entry: path.resolve(AppDirectory, "Source/App.ts"),
 
         // Production/development build output.
         output: {
-            path: path.resolve(AppDirectory, "dist"),
+            path: OutputDirectory,
 
             // Content hash busts the browser cache whenever the bundle changes.
             filename: IsProduction
@@ -49,8 +61,8 @@ export default (env, argv) => {
 
                 {
                     // Textures, models, audio imported directly from TS code
-                    // get copied to dist/assets and the import resolves to their
-                    // final URL.
+                    // get copied to <output>/assets and the import resolves to
+                    // their final URL.
                     test: /\.(png|jpe?g|gif|glb|gltf|babylon|env|dds|mp3|wav|ogg)$/i,
                     type: "asset/resource",
                     generator: {
@@ -71,7 +83,7 @@ export default (env, argv) => {
                 inject: true,
                 template: path.resolve(
                     AppDirectory,
-                    "public/index.html"
+                    "Assets/index.html"
                 ),
 
                 // Only inject the entry chunks. Dynamic imports are loaded
@@ -82,25 +94,23 @@ export default (env, argv) => {
             new CopyWebpackPlugin({
                 patterns: [
                     {
-                        from: path.resolve( AppDirectory, "public/assets" ),
-                        to: path.resolve( AppDirectory, "dist/assets" ),
+                        from: path.resolve(AppDirectory, "Assets/assets"),
+                        to: path.resolve(OutputDirectory, "assets"),
                         noErrorOnMissing: true,
                     },
                     {
-                        from: path.resolve( AppDirectory, "public/index.css" ),
-                        to: path.resolve( AppDirectory, "dist/index.css" ),
+                        from: path.resolve(AppDirectory, "Assets/index.css"),
+                        to: path.resolve(OutputDirectory, "index.css"),
                     },
                     {
-                        from: path.resolve( AppDirectory, "physics-wasm/_framework" ),
-                        to: path.resolve( AppDirectory, "dist/physics-wasm/_framework" ),
+                        from: PhysicsWasmFrameworkDirectory,
+                        to: path.resolve(OutputDirectory, "physics-wasm/_framework"),
                         noErrorOnMissing: true,
                     },
                 ],
             }),
         ],
 
-        // Split vendor code from application code so large libraries can
-        // be cached separately by the browser.
         optimization: IsProduction
             ? {
                 splitChunks: {
@@ -119,8 +129,6 @@ export default (env, argv) => {
             }
             : undefined,
 
-        // The generic webpack size warning is not useful for a 3D engine
-        // bundle where large Babylon.js chunks are expected.
         performance: {
             hints: false,
         },
@@ -129,9 +137,15 @@ export default (env, argv) => {
             host: "0.0.0.0",
             port: 8080,
 
-            static: {
-                directory: path.resolve(AppDirectory, "public"),
-            },
+            static: [
+                {
+                    directory: path.resolve(AppDirectory, "Assets"),
+                },
+                {
+                    directory: PhysicsWasmFrameworkDirectory,
+                    publicPath: "/physics-wasm/_framework",
+                },
+            ],
 
             hot: true,
 

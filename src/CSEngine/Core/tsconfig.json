@@ -14,8 +14,8 @@
       "dom",
       "es6"
     ],
-    "rootDir": "source",
-    "outDir": "./dist",
+    "rootDir": "Source",
+    "outDir": "../Binaries/Core",
 
     // JS/TS interop
     "allowJs": true,
@@ -23,7 +23,7 @@
 
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
-    "types": [],
+    "types": [ ],
     // For nodejs:
     // "lib": ["esnext"],
     // "types": ["node"],
@@ -48,14 +48,13 @@
   },
 
   "include": [
-    "source/**/*.ts",
-    "source/**/*.tsx",
-    "source/**/*.js"
+    "Source/**/*.ts",
+    "Source/**/*.tsx",
+    "Source/**/*.js"
   ],
 
   "exclude": [
-    "node_modules",
-    "dist"
+    "node_modules"
   ]
 
 }

@@ -231,3 +231,39 @@ dotnet_diagnostic.CA1034.severity = none
 
 # CA1030: Use events where appropriate
 dotnet_diagnostic.CA1030.severity = none
+
+# JavaScript files
+[*.js]
+indent_size = 4
+indent_style = tab
+tab_width = 4
+
+end_of_line = crlf
+insert_final_newline = false
+
+# TypeScript files
+[*.ts]
+indent_size = 4
+indent_style = tab
+tab_width = 4
+
+end_of_line = crlf
+insert_final_newline = false
+
+# JavaScript JSX files
+[*.jsx]
+indent_size = 4
+indent_style = tab
+tab_width = 4
+
+end_of_line = crlf
+insert_final_newline = false
+
+# TypeScript JSX files
+[*.tsx]
+indent_size = 4
+indent_style = tab
+tab_width = 4
+
+end_of_line = crlf
+insert_final_newline = false

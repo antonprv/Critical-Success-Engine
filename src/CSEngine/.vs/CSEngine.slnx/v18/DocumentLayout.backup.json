@@ -3,24 +3,24 @@
   "WorkspaceRootPath": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{61BF9F2C-E515-8BEE-F573-EF589F0FBA30}|Physics\\Bridge\\Bridge.csproj|c:\\repos\\critical-success-engine\\src\\csengine\\physics\\bridge\\physicsbridge.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{61BF9F2C-E515-8BEE-F573-EF589F0FBA30}|Physics\\Bridge\\Bridge.csproj|solutionrelative:physics\\bridge\\physicsbridge.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|c:\\repos\\critical-success-engine\\src\\csengine\\core\\webpack.config.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|solutionrelative:core\\webpack.config.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{61BF9F2C-E515-8BEE-F573-EF589F0FBA30}|Physics\\Bridge\\Bridge.csproj|c:\\repos\\critical-success-engine\\src\\csengine\\physics\\bridge\\moduleattributes.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{61BF9F2C-E515-8BEE-F573-EF589F0FBA30}|Physics\\Bridge\\Bridge.csproj|solutionrelative:physics\\bridge\\moduleattributes.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|c:\\repos\\critical-success-engine\\src\\csengine\\core\\package.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|solutionrelative:core\\package.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{61BF9F2C-E515-8BEE-F573-EF589F0FBA30}|Physics\\Bridge\\Bridge.csproj|c:\\repos\\critical-success-engine\\src\\csengine\\physics\\bridge\\main.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
-      "RelativeMoniker": "D:0:0:{61BF9F2C-E515-8BEE-F573-EF589F0FBA30}|Physics\\Bridge\\Bridge.csproj|solutionrelative:physics\\bridge\\main.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+      "AbsoluteMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|c:\\repos\\critical-success-engine\\src\\csengine\\core\\jest.config.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|solutionrelative:core\\jest.config.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{61BF9F2C-E515-8BEE-F573-EF589F0FBA30}|Physics\\Bridge\\Bridge.csproj|c:\\repos\\critical-success-engine\\src\\csengine\\physics\\bridge\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{61BF9F2C-E515-8BEE-F573-EF589F0FBA30}|Physics\\Bridge\\Bridge.csproj|solutionrelative:physics\\bridge\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|c:\\repos\\critical-success-engine\\src\\csengine\\core\\eslint.config.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|solutionrelative:core\\eslint.config.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{8652304C-B432-F90A-9249-8771D914E081}|Physics\\Vendor\\BepuPhysics\\BepuPhysics.csproj|c:\\repos\\critical-success-engine\\src\\csengine\\physics\\vendor\\bepuphysics\\collisiondetection\\broadphase.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{8652304C-B432-F90A-9249-8771D914E081}|Physics\\Vendor\\BepuPhysics\\BepuPhysics.csproj|solutionrelative:physics\\vendor\\bepuphysics\\collisiondetection\\broadphase.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|c:\\repos\\critical-success-engine\\src\\csengine\\core\\source\\app.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}",
+      "RelativeMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|solutionrelative:core\\source\\app.ts||{0F2454B1-A556-402D-A7D0-1FDE7F99DEE0}"
     }
   ],
   "DocumentGroupContainers": [
@@ -30,45 +30,71 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 5,
+          "SelectedChildIndex": 0,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "main.js",
-              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Physics\\Bridge\\main.js",
-              "RelativeDocumentMoniker": "Physics\\Bridge\\main.js",
-              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Physics\\Bridge\\main.js",
-              "RelativeToolTip": "Physics\\Bridge\\main.js",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "DocumentIndex": 0,
+              "Title": "webpack.config.js",
+              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\webpack.config.js",
+              "RelativeDocumentMoniker": "Core\\webpack.config.js",
+              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\webpack.config.js",
+              "RelativeToolTip": "Core\\webpack.config.js",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABYAAABQAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2026-09-23T23:33:41.75Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "Program.cs",
-              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Physics\\Bridge\\Program.cs",
-              "RelativeDocumentMoniker": "Physics\\Bridge\\Program.cs",
-              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Physics\\Bridge\\Program.cs",
-              "RelativeToolTip": "Physics\\Bridge\\Program.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-23T23:33:28.739Z",
+              "WhenOpened": "2026-09-26T11:49:44.858Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 1,
-              "Title": "ModuleAttributes.cs",
-              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Physics\\Bridge\\ModuleAttributes.cs",
-              "RelativeDocumentMoniker": "Physics\\Bridge\\ModuleAttributes.cs",
-              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Physics\\Bridge\\ModuleAttributes.cs",
-              "RelativeToolTip": "Physics\\Bridge\\ModuleAttributes.cs",
+              "Title": "package.json",
+              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\package.json",
+              "RelativeDocumentMoniker": "Core\\package.json",
+              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\package.json",
+              "RelativeToolTip": "Core\\package.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABMAAAARAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2026-09-26T11:48:19.996Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "jest.config.ts",
+              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\jest.config.ts",
+              "RelativeDocumentMoniker": "Core\\jest.config.ts",
+              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\jest.config.ts",
+              "RelativeToolTip": "Core\\jest.config.ts",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAwAAAAGAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2026-09-26T11:48:12.199Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "eslint.config.js",
+              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\eslint.config.js",
+              "RelativeDocumentMoniker": "Core\\eslint.config.js",
+              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\eslint.config.js",
+              "RelativeToolTip": "Core\\eslint.config.js",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA0AAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2026-09-26T11:47:55.203Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "App.ts",
+              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\source\\App.ts",
+              "RelativeDocumentMoniker": "Core\\source\\App.ts",
+              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\source\\App.ts",
+              "RelativeToolTip": "Core\\source\\App.ts",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-23T23:33:23.89Z",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003213|",
+              "WhenOpened": "2026-09-26T11:47:43.662Z",
               "EditorCaption": ""
             },
             {
@@ -78,32 +104,6 @@
             {
               "$type": "Bookmark",
               "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "PhysicsBridge.cs",
-              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Physics\\Bridge\\PhysicsBridge.cs",
-              "RelativeDocumentMoniker": "Physics\\Bridge\\PhysicsBridge.cs",
-              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Physics\\Bridge\\PhysicsBridge.cs",
-              "RelativeToolTip": "Physics\\Bridge\\PhysicsBridge.cs",
-              "ViewState": "AgIAAB4AAAAAAAAAAAA5wCUAAAAlAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-23T23:32:44.307Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "BroadPhase.cs",
-              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Physics\\Vendor\\BepuPhysics\\CollisionDetection\\BroadPhase.cs",
-              "RelativeDocumentMoniker": "Physics\\Vendor\\BepuPhysics\\CollisionDetection\\BroadPhase.cs",
-              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Physics\\Vendor\\BepuPhysics\\CollisionDetection\\BroadPhase.cs",
-              "RelativeToolTip": "Physics\\Vendor\\BepuPhysics\\CollisionDetection\\BroadPhase.cs",
-              "ViewState": "AgIAAIEBAAAAAAAAAAAuwIcBAAA9AAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-23T23:28:22.541Z",
-              "EditorCaption": ""
             }
           ]
         }

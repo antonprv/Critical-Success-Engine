@@ -12,26 +12,26 @@ import type { Scene } from "@babylonjs/core/scene";
  * entirely — webpack only creates a request for it once the import()
  * actually executes, and in production that branch is unreachable.
  */
-export function enableInspectorToggle(scene: Scene): void {
-    window.addEventListener("keydown", (event) => {
-        const isToggleCombo =
-            event.shiftKey &&
-            event.ctrlKey &&
-            event.altKey &&
-            (event.key === "I" || event.key === "i");
+export function EnableInspectorToggle(scene: Scene): void {
+	window.addEventListener("keydown", (event) => {
+		const isToggleCombo =
+			event.shiftKey &&
+			event.ctrlKey &&
+			event.altKey &&
+			(event.key === "I" || event.key === "i");
 
-        if (!isToggleCombo) {
-            return;
-        }
+		if (!isToggleCombo) {
+			return;
+		}
 
-        if (scene.debugLayer.isVisible()) {
-            scene.debugLayer.hide();
-            return;
-        }
+		if (scene.debugLayer.isVisible()) {
+			scene.debugLayer.hide();
+			return;
+		}
 
-        // Loaded on first use only, not at startup.
-        import("@babylonjs/inspector")
-            .then(() => scene.debugLayer.show({ overlay: true }))
-            .catch((error) => console.error("Failed to load Inspector", error));
-    });
+		// Loaded on first use only, not at startup.
+		import("@babylonjs/inspector")
+			.then(() => scene.debugLayer.show({ overlay: true }))
+			.catch((error) => console.error("Failed to load Inspector", error));
+	});
 }
