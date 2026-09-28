@@ -4,6 +4,8 @@
 import { AssetsManager } from "@babylonjs/core/Misc/assetsManager";
 import type { Scene } from "@babylonjs/core/scene";
 
+import { Logger } from "../Logging/Logger";
+
 /**
  * Two-tier asset streaming.
  *
@@ -63,7 +65,7 @@ export class AssetLoader {
 		const task = manager.addMeshTask(taskName, "", rootUrl, sceneFilename);
 		task.onSuccess = (t) => onLoaded?.(t.loadedMeshes);
 		task.onError = (t, message, exception) =>
-			console.error(`[AssetLoader] failed to load ${t.name}:`, message, exception);
+			Logger.LogException(exception ?? message, `[AssetLoader] failed to load ${t.name}: ${message}`);
 	}
 
 	/**
@@ -79,7 +81,7 @@ export class AssetLoader {
 		const task = manager.addTextureTask(taskName, url);
 		task.onSuccess = (t) => onLoaded?.(t.texture);
 		task.onError = (t, message, exception) =>
-			console.error(`[AssetLoader] failed to load ${t.name}:`, message, exception);
+			Logger.LogException(exception ?? message, `[AssetLoader] failed to load ${t.name}: ${message}`);
 	}
 
 	/** Awaited before the loading screen is hidden — keep this list short. */

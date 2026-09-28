@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { Logger } from "../../Logging/Logger";
 import type { ResolvedSound } from "../Protocol/AudioProtocol";
 
 /**
@@ -55,7 +56,7 @@ export class AudioBank {
 
 		const url = this._soundUrls[soundId];
 		if (!url) {
-			console.warn(`[AudioBank] no URL registered for sound "${soundId}" - add it to _soundUrls.`);
+			Logger.LogWarning(`[AudioBank] no URL registered for sound "${soundId}" - add it to _soundUrls.`);
 			return null;
 		}
 
@@ -79,7 +80,7 @@ export class AudioBank {
 			this._pcmCache.set(soundId, resolved);
 			return resolved;
 		} catch (error) {
-			console.warn(`[AudioBank] in-worker decode unavailable/failed for "${soundId}", falling back to main-thread decode`, error);
+			Logger.LogWarning(`[AudioBank] in-worker decode unavailable/failed for "${soundId}", falling back to main-thread decode: ${String(error)}`);
 			return null;
 		}
 	}

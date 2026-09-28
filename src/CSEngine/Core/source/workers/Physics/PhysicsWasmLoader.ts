@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { Logger } from "../../Logging/Logger";
 import type { DotnetRuntimeApi, PhysicsBridgeExports } from "./PhysicsBridgeContract";
 
 /**
@@ -84,12 +85,12 @@ export class PhysicsWasmLoader {
 				payload = await new Response(
 					new Blob([received]).stream().pipeThrough(new DecompressionStream("gzip"))
 				).arrayBuffer();
-				console.log(`[PhysicsWasmLoader] decompressed ${gzipUri}: ${payload.byteLength} bytes`);
+				Logger.LogDebug(`[PhysicsWasmLoader] decompressed ${gzipUri}: ${payload.byteLength} bytes`);
 			} else {
 				// No gzip magic bytes - the transport (dev server + browser Content-Encoding
 				// handling) already decompressed this for us. Nothing left to do.
 				payload = received.buffer;
-				console.log(`[PhysicsWasmLoader] ${gzipUri} arrived pre-decompressed by the transport: ${payload.byteLength} bytes`);
+				Logger.LogDebug(`[PhysicsWasmLoader] ${gzipUri} arrived pre-decompressed by the transport: ${payload.byteLength} bytes`);
 			}
 
 			return new Response(payload, {

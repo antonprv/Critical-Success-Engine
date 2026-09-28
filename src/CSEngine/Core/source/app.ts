@@ -7,6 +7,11 @@
 // loading screen is already visible and its own progress is animating.
 
 import { LoadingScreen } from "./LoadingScreen";
+import { Logger } from "./Logging/Logger";
+
+// Main-thread only - flushes buffered logs to Tools/LogServer.mjs on a timer and
+// on tab close (no-op off localhost). See Logger.ts.
+Logger.SetupAutoFlush();
 
 const canvas = document.createElement("canvas");
 canvas.style.width = "100%";
@@ -40,6 +45,6 @@ async function Boot(): Promise<void> {
 }
 
 Boot().catch((error) => {
-	console.error("Failed to start game", error);
+	Logger.LogException(error);
 	loadingScreen.SetLabel("Failed to load. Please refresh.");
 });

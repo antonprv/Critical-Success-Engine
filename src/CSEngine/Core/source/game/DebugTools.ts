@@ -3,6 +3,8 @@
 
 import type { Scene } from "@babylonjs/core/scene";
 
+import { Logger } from "../Logging/Logger";
+
 /**
  * Wires up Shift+Ctrl+Alt+I to toggle the Babylon Inspector.
  *
@@ -32,6 +34,6 @@ export function EnableInspectorToggle(scene: Scene): void {
 		// Loaded on first use only, not at startup.
 		import("@babylonjs/inspector")
 			.then(() => scene.debugLayer.show({ overlay: true }))
-			.catch((error) => console.error("Failed to load Inspector", error));
+			.catch((error) => Logger.LogException(error, "Failed to load Inspector"));
 	});
 }

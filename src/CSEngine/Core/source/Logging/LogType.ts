@@ -2,7 +2,8 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 export enum LogType {
-	Info = 0,
+	Debug = 0,
+	Info,
 	Warning,
 	Error,
 }

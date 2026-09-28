@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { Logger } from "../Logging/Logger";
 import { AudioBank } from "./Audio/AudioBank";
 import type { AudioToMainMessage, MainToAudioMessage } from "./Protocol/AudioProtocol";
 import type { GameLogicToAudioMessage } from "./Protocol/GameLogicAudioProtocol";
@@ -8,6 +9,9 @@ import type { GameLogicToAudioMessage } from "./Protocol/GameLogicAudioProtocol"
 // No lazy construction needed - unlike a real-time AudioContext, AudioBank never
 // touches audio output, so there's nothing here that depends on a user gesture.
 const bank = new AudioBank();
+
+// Own static buffer per realm - App.ts's timer doesn't flush this one.
+Logger.SetupAutoFlush();
 
 self.onmessage = (event: MessageEvent<MainToAudioMessage>) => {
 	const message = event.data;

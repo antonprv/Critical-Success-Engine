@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { Logger } from "../Logging/Logger";
 import type { AudioToMainMessage } from "../Workers/Protocol/AudioProtocol";
 
 /**
@@ -55,7 +56,7 @@ export class AudioPlayer {
 				this._decodedCache.set(soundId, decoded);
 				this.Start(decoded, position);
 			})
-			.catch((error) => console.error(`[AudioPlayer] failed to decode "${soundId}"`, error));
+			.catch((error) => Logger.LogException(error, `[AudioPlayer] failed to decode "${soundId}"`));
 	}
 
 	private Start(buffer: AudioBuffer, position?: [number, number, number]): void {

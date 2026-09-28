@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { Logger } from "../../Logging/Logger";
 import { PhysOpType, PhysShape } from "../Common/CommonEnums";
 import {
 	PhysToGameMsg,
@@ -53,7 +54,7 @@ export class PhysicsWorld {
 		try {
 			this.HandleGameLogicMessageUnsafe(message);
 		} catch (error) {
-			console.error(`[PhysicsWorld] "${message.type}" failed:`, error);
+			Logger.LogException(error, `[PhysicsWorld] "${message.type}" failed:`);
 		}
 	}
 

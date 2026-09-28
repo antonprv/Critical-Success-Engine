@@ -16,13 +16,13 @@ import { StartLogServerSidecar, StopLogServerSidecar } from "./LogServerSidecar.
  * `webpack build`, only `webpack serve`).
  */
 export function LogServerPlugin(): Plugin {
-    return {
-        name: "log-server-sidecar",
+	return {
+		name: "log-server-sidecar",
 
-        configureServer(server) {
-            void StartLogServerSidecar();
+		configureServer(server) {
+			void StartLogServerSidecar();
 
-            server.httpServer?.once("close", StopLogServerSidecar);
-        },
-    };
+			server.httpServer?.once("close", StopLogServerSidecar);
+		},
+	};
 }

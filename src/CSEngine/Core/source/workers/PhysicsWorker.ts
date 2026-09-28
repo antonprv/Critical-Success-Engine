@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { Logger } from "../Logging/Logger";
 import { PhysicsWasmLoader } from "./Physics/PhysicsWasmLoader";
 import { PhysicsWorld } from "./Physics/PhysicsWorld";
 import {
@@ -15,6 +16,9 @@ let world: PhysicsWorld | null = null;
 let gameLogicPort: MessagePort | null = null;
 let running = false;
 let fixedTimestepMs = 1000 / 60;
+
+// Own static buffer per realm - App.ts's timer doesn't flush this one.
+Logger.SetupAutoFlush();
 
 // Fixed-timestep loop. setInterval drifts under load, which is fine here -
 // gameplay networking/replay determinism isn't a goal for LanternFestival
@@ -52,7 +56,7 @@ function InitializeWorld(message: MainToPhysicsMessage & { type: "init"; }): voi
 	gameLogicPort.onmessage = (event: MessageEvent<GameLogicToPhysicsMessage>) => world?.HandleGameLogicMessage(event.data);
 
 	const watchdog = setTimeout(
-		() => console.error("[PhysicsWorker] PhysicsBridge still not loaded after 15 s - dotnet.create() is hanging."),
+		() => Logger.LogError("[PhysicsWorker] PhysicsBridge still not loaded after 15 s - dotnet.create() is hanging."),
 		15_000
 	);
 
@@ -72,9 +76,9 @@ function InitializeWorld(message: MainToPhysicsMessage & { type: "init"; }): voi
 			// Deliberately non-fatal: lets render/game-logic/audio keep working
 			// (e.g. for pure-visual iteration) before physics-wasm has been built
 			// even once. See PhysicsWasmLoader.ts.
-			console.error(
-				"[PhysicsWorker] failed to load PhysicsBridge wasm module - physics is disabled this session.",
-				error
+			Logger.LogException(
+				error,
+				"[PhysicsWorker] failed to load PhysicsBridge wasm module - physics is disabled this session."
 			);
 		});
 }

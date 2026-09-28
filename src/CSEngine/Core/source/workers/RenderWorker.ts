@@ -15,11 +15,15 @@ import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import "@babylonjs/loaders";
 
 import { AssetLoader } from "../Game/AssetLoader";
+import { Logger } from "../Logging/Logger";
 
 import { RendMesh, RendOpType } from "./Common/CommonEnums";
 import type { GameLogicToRenderMessage, RenderToGameLogicMessage } from "./Protocol/RenderGameLogicProtocol";
 import type { MainToRenderMessage } from "./Protocol/RenderProtocol";
 import { TRANSFORM_STRIDE, type TransformBatchPayload } from "./Protocol/TransformProtocol";
+
+// Own static buffer per realm - App.ts's timer doesn't flush this one.
+Logger.SetupAutoFlush();
 
 let engine: Engine | null = null;
 let scene: Scene | null = null;

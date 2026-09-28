@@ -1,8 +1,8 @@
 import { resolve } from "node:path";
 import { defineConfig, searchForWorkspaceRoot } from "vite";
 
-import { LogServerPlugin } from "./BuildTools/LogServerPlugin.ts";
 import { PhysicsWasmStaticPlugin } from "./BuildTools/PhysicsWasmStaticPlugin.ts";
+import { LogServerPlugin } from "./BuildTools/LogServerPlugin.ts";
 import { TemporaryIndexHtmlPlugin } from "./BuildTools/TemporaryIndexHtmlPlugin.ts";
 
 const RootDirectory = process.cwd();
