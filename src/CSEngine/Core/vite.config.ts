@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import { defineConfig, searchForWorkspaceRoot } from "vite";
 
+import { LogServerPlugin } from "./BuildTools/LogServerPlugin.ts";
 import { PhysicsWasmStaticPlugin } from "./BuildTools/PhysicsWasmStaticPlugin.ts";
 import { TemporaryIndexHtmlPlugin } from "./BuildTools/TemporaryIndexHtmlPlugin.ts";
 
@@ -22,6 +23,7 @@ export default defineConfig({
     plugins: [
         TemporaryIndexHtmlPlugin(),
         PhysicsWasmStaticPlugin(PhysicsWasmFrameworkDirectory),
+        LogServerPlugin(),
     ],
 
     build: {

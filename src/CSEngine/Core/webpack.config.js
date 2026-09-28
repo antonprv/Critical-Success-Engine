@@ -5,6 +5,8 @@ import CopyWebpackPlugin from "copy-webpack-plugin";
 import HtmlWebpackPlugin from "html-webpack-plugin";
 import webpack from "webpack";
 
+import { StartLogServerSidecar } from "./BuildTools/LogServerSidecar.mjs";
+
 const Filename = fileURLToPath(import.meta.url);
 const Dirname = path.dirname(Filename);
 const AppDirectory = Dirname;
@@ -158,6 +160,13 @@ export default (env, argv) => {
                     errors: true,
                     warnings: false,
                 },
+            },
+
+            // Only ever called by `webpack serve`, never by a plain
+            // `webpack build` - see LogServerPlugin.ts for the Vite side of
+            // this same hook.
+            onListening() {
+                void StartLogServerSidecar();
             },
         },
 
