@@ -24,6 +24,6 @@ export type ResolvedSound =
 export type AudioToMainMessage = {
 	type: "play-sound";
 	soundId: string;
-	position?: [number, number, number];
+	position?: [number, number, number] | undefined;
 	sound: ResolvedSound;
 };

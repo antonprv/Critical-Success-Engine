@@ -10,6 +10,10 @@ import type { GameLogicToAudioMessage } from "./Protocol/GameLogicAudioProtocol"
 // touches audio output, so there's nothing here that depends on a user gesture.
 const bank = new AudioBank();
 
+// lib is "dom" only here (no "webworker"), so `self` is typed as Window and its postMessage
+// overload wants a targetOrigin - narrow to the worker signature we actually have at runtime.
+const mainThread = self as unknown as { postMessage(message: unknown, transfer: Transferable[]): void };
+
 // Own static buffer per realm - App.ts's timer doesn't flush this one.
 Logger.SetupAutoFlush();
 
@@ -30,5 +34,5 @@ async function PlaySound(soundId: string, position?: [number, number, number]): 
 
 	const message: AudioToMainMessage = { type: "play-sound", soundId, position, sound };
 	const transfer = sound.kind === "pcm" ? sound.channels.map((c) => c.buffer) : [sound.data];
-	self.postMessage(message, transfer);
+	mainThread.postMessage(message, transfer);
 }

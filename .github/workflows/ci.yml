@@ -6,24 +6,39 @@ on:
   pull_request:
     branches: [main]
 
+# A newer push to the same branch/PR makes the older run pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    # The web project lives in src/CSEngine/Core, not at the repo root. Applies to
+    # `run:` steps only - `uses:` steps below still take repo-relative paths.
+    defaults:
+      run:
+        working-directory: src/CSEngine/Core
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # pnpm 9 rejects pnpm-workspace.yaml when it has settings but no `packages`
+      # field ("packages field missing or empty"), which is what this repo has.
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 10
 
+      # vite 8 / eslint 10 need Node >= 20.19; webpack-dev-server 6 wants >= 22.15.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: "pnpm"
+          cache-dependency-path: src/CSEngine/Core/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -37,8 +52,9 @@ jobs:
       - name: Build (production)
         run: pnpm build
 
-      - name: Upload dist artifact
+      # webpack writes to ../Binaries/Core (see webpack.config.js), not dist/.
+      - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dist
-          path: dist/
+          name: core-build
+          path: src/CSEngine/Binaries/Core/
