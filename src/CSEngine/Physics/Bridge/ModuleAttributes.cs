@@ -1,8 +1,5 @@
-﻿using BepuPhysics.Trees;
-using System.Diagnostics;
-using System.IO.Compression;
-using System.Runtime.CompilerServices;
-using System.Xml.Linq;
+﻿// Created by Anton Piruev in 2026.
+// Any direct commercial use of derivative work is strictly prohibited.
 
 #if !DEBUG
 [module: SkipLocalsInit]

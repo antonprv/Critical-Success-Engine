@@ -1,7 +1,9 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-export type MainToAudioMessage = { type: "init"; gameLogicPort: MessagePort };
+import { SoundAction, SoundType } from "../Common/CommonEnums";
+
+export type MainToAudioMessage = { type: "init"; gameLogicPort: MessagePort; };
 
 /**
  * What AudioBank resolved a sound id to. "pcm" is the happy path - AudioBank
@@ -12,8 +14,8 @@ export type MainToAudioMessage = { type: "init"; gameLogicPort: MessagePort };
  * runs the one-time decodeAudioData there instead.
  */
 export type ResolvedSound =
-	| { kind: "pcm"; sampleRate: number; channels: Float32Array[] }
-	| { kind: "encoded"; data: ArrayBuffer };
+	| { kind: SoundType.Pcm; sampleRate: number; channels: Float32Array[]; }
+	| { kind: SoundType.Encoded; data: ArrayBuffer; };
 
 /**
  * Sent AudioWorker -> main whenever GameLogicWorker asked to play a sound
@@ -22,7 +24,7 @@ export type ResolvedSound =
  * cached copy, so transferring this one away costs it nothing.
  */
 export type AudioToMainMessage = {
-	type: "play-sound";
+	action: SoundAction.PlaySound;
 	soundId: string;
 	position?: [number, number, number] | undefined;
 	sound: ResolvedSound;

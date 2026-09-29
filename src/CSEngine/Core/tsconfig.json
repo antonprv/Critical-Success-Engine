@@ -7,9 +7,21 @@
     "module": "ESNext",
     "moduleResolution": "node",
     "noResolve": false,
-    "noImplicitAny": false,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": false,
+    "noEmitOnError": true,
+    "allowUnreachableCode": false,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noImplicitOverride": true,
     "sourceMap": true,
     "preserveConstEnums": true,
+
+    "useUnknownInCatchVariables": true,
+    "noFallthroughCasesInSwitch": false,
+    "forceConsistentCasingInFileNames": true,
+
     "lib": [
       "dom",
       "es6"
@@ -48,9 +60,9 @@
   },
 
   "include": [
-    "Source/**/*.ts",
-    "Source/**/*.tsx",
-    "Source/**/*.js"
+    "./Source/**/*.ts",
+    "./Source/**/*.tsx",
+    "./Source/**/*.js"
   ],
 
   "exclude": [

@@ -2,6 +2,7 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { Logger } from "../../Logging/Logger";
+import { SoundType as SoundKind } from "../Common/CommonEnums";
 import type { ResolvedSound } from "../Protocol/AudioProtocol";
 
 /**
@@ -26,9 +27,9 @@ import type { ResolvedSound } from "../Protocol/AudioProtocol";
  */
 export class AudioBank {
 	private readonly _offlineCtor =
-		(self as unknown as { OfflineAudioContext?: typeof OfflineAudioContext }).OfflineAudioContext;
+		(self as unknown as { OfflineAudioContext?: typeof OfflineAudioContext; }).OfflineAudioContext;
 	private readonly _rawCache = new Map<string, ArrayBuffer>();
-	private readonly _pcmCache = new Map<string, { sampleRate: number; channels: Float32Array[] }>();
+	private readonly _pcmCache = new Map<string, { sampleRate: number; channels: Float32Array[]; }>();
 
 	/** Registry of sound-id -> URL. Fill in with your actual asset list. */
 	private readonly _soundUrls: Record<string, string> = {
@@ -38,16 +39,16 @@ export class AudioBank {
 	/** Resolves a sound id to something AudioPlayer can play, decoding/caching along the way. */
 	public async Resolve(soundId: string): Promise<ResolvedSound | null> {
 		const cachedPcm = this._pcmCache.get(soundId);
-		if (cachedPcm) return { kind: "pcm", sampleRate: cachedPcm.sampleRate, channels: cachedPcm.channels.map((c) => c.slice()) };
+		if (cachedPcm) return { kind: SoundKind.Pcm, sampleRate: cachedPcm.sampleRate, channels: cachedPcm.channels.map((c) => c.slice()) };
 
 		const raw = await this.LoadRaw(soundId);
 		if (!raw) return null;
 
 		const decoded = await this.TryDecode(soundId, raw);
-		if (decoded) return { kind: "pcm", sampleRate: decoded.sampleRate, channels: decoded.channels.map((c) => c.slice()) };
+		if (decoded) return { kind: SoundKind.Pcm, sampleRate: decoded.sampleRate, channels: decoded.channels.map((c) => c.slice()) };
 
 		// Copy, not the cached original - LoadRaw's cache entry must survive being transferred away.
-		return { kind: "encoded", data: raw.slice(0) };
+		return { kind: SoundKind.Encoded, data: raw.slice(0) };
 	}
 
 	private async LoadRaw(soundId: string): Promise<ArrayBuffer | null> {
@@ -66,7 +67,7 @@ export class AudioBank {
 		return buffer;
 	}
 
-	private async TryDecode(soundId: string, raw: ArrayBuffer): Promise<{ sampleRate: number; channels: Float32Array[] } | null> {
+	private async TryDecode(soundId: string, raw: ArrayBuffer): Promise<{ sampleRate: number; channels: Float32Array[]; } | null> {
 		if (!this._offlineCtor) return null;
 
 		try {

@@ -3,6 +3,7 @@
 
 import { Logger } from "../Logging/Logger";
 import { AudioBank } from "./Audio/AudioBank";
+import { SoundAction, SoundType as SoundKind } from "./Common/CommonEnums";
 import type { AudioToMainMessage, MainToAudioMessage } from "./Protocol/AudioProtocol";
 import type { GameLogicToAudioMessage } from "./Protocol/GameLogicAudioProtocol";
 
@@ -12,7 +13,7 @@ const bank = new AudioBank();
 
 // lib is "dom" only here (no "webworker"), so `self` is typed as Window and its postMessage
 // overload wants a targetOrigin - narrow to the worker signature we actually have at runtime.
-const mainThread = self as unknown as { postMessage(message: unknown, transfer: Transferable[]): void };
+const mainThread = self as unknown as { postMessage(message: unknown, transfer: Transferable[]): void; };
 
 // Own static buffer per realm - App.ts's timer doesn't flush this one.
 Logger.SetupAutoFlush();
@@ -32,7 +33,7 @@ async function PlaySound(soundId: string, position?: [number, number, number]): 
 	const sound = await bank.Resolve(soundId);
 	if (!sound) return;
 
-	const message: AudioToMainMessage = { type: "play-sound", soundId, position, sound };
-	const transfer = sound.kind === "pcm" ? sound.channels.map((c) => c.buffer) : [sound.data];
+	const message: AudioToMainMessage = { action: SoundAction.PlaySound, soundId, position, sound };
+	const transfer = sound.kind === SoundKind.Pcm ? sound.channels.map((c) => c.buffer) : [sound.data];
 	mainThread.postMessage(message, transfer);
 }

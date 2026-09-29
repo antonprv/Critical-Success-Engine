@@ -2,6 +2,7 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { Logger } from "../Logging/Logger";
+import { SoundAction, SoundType } from "../Workers/Common/CommonEnums";
 import type { AudioToMainMessage } from "../Workers/Protocol/AudioProtocol";
 
 /**
@@ -30,13 +31,13 @@ export class AudioPlayer {
 	}
 
 	private OnMessage(message: AudioToMainMessage): void {
-		if (message.type !== "play-sound") return;
+		if (message.action !== SoundAction.PlaySound) return;
 
-		if (message.sound.kind === "pcm") this.PlayPcm(message.sound, message.position);
+		if (message.sound.kind === SoundType.Pcm) this.PlayPcm(message.sound, message.position);
 		else this.PlayEncoded(message.soundId, message.sound.data, message.position);
 	}
 
-	private PlayPcm(sound: { sampleRate: number; channels: Float32Array[] }, position?: [number, number, number]): void {
+	private PlayPcm(sound: { sampleRate: number; channels: Float32Array[]; }, position?: [number, number, number]): void {
 		const length = sound.channels[0]?.length ?? 0;
 		const buffer = this._context.createBuffer(sound.channels.length, length, sound.sampleRate);
 		sound.channels.forEach((channel, index) => buffer.copyToChannel(channel, index));
