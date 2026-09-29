@@ -2,10 +2,10 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { Logger } from "../Logging/Logger";
+import { PhysState } from "./Common/CommonEnums";
 import { PhysicsWasmLoader } from "./Physics/PhysicsWasmLoader";
 import { PhysicsWorld } from "./Physics/PhysicsWorld";
 import {
-	PhysToGameMsg,
 	type GameLogicToPhysicsMessage,
 	type PhysicsToGameLogicMessage
 } from "./Protocol/PhysicsGameLogicProtocol";
@@ -67,7 +67,7 @@ function InitializeWorld(message: MainToPhysicsMessage & { type: "init"; }): voi
 			clearTimeout(watchdog);
 			world = new PhysicsWorld(bridge);
 			world.CreateWorld(message.gravity, 8, 1, false);
-			const readyMessage: PhysicsToGameLogicMessage = { type: PhysToGameMsg.Ready };
+			const readyMessage: PhysicsToGameLogicMessage = { state: PhysState.Ready };
 			gameLogicPort?.postMessage(readyMessage);
 			SetRunning(true);
 		})

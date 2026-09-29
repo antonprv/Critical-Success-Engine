@@ -1,12 +1,12 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-import { RendOpType } from "./Common/CommonEnums";
+import { PhysState, RendOpType, SoundAction } from "./Common/CommonEnums";
 import { DemoScene } from "./GameLogic/DemoScene";
 import { PlayerInput } from "./GameLogic/PlayerInput";
 import type { GameLogicToAudioMessage } from "./Protocol/GameLogicAudioProtocol";
 import type { MainToGameLogicMessage } from "./Protocol/GameLogicProtocol";
-import { PhysToGameMsg, type PhysicsToGameLogicMessage } from "./Protocol/PhysicsGameLogicProtocol";
+import { type PhysicsToGameLogicMessage } from "./Protocol/PhysicsGameLogicProtocol";
 import type { GameLogicToRenderMessage, RenderToGameLogicMessage } from "./Protocol/RenderGameLogicProtocol";
 
 /**
@@ -34,18 +34,18 @@ playerInput.OnJumpPressed = () => {
 };
 
 function HandlePhysicsMessage(message: PhysicsToGameLogicMessage): void {
-	switch (message.type) {
-		case PhysToGameMsg.Ready:
+	switch (message.state) {
+		case PhysState.Ready:
 			physicsReady = true;
 			if (physicsPort) demoScene.SpawnBodies(physicsPort);
 			break;
-		case PhysToGameMsg.Transforms: {
+		case PhysState.Transforms: {
 			// PhysicsWorker only ever sends this when entityCount > 0, so no length check needed here.
 			// We never touch `message.buffer`'s contents - just relabel and hand ownership straight on to
 			// RenderWorker, transferred again so this hop stays zero-copy too.
 			if (!renderPort) break;
 			const batch: GameLogicToRenderMessage = {
-				type: RendOpType.TransformBatch,
+				operation: RendOpType.TransformBatch,
 				step: message.step,
 				entityCount: message.entityCount,
 				buffer: message.buffer,
@@ -53,10 +53,16 @@ function HandlePhysicsMessage(message: PhysicsToGameLogicMessage): void {
 			renderPort.postMessage(batch, [message.buffer]);
 			break;
 		}
-		case PhysToGameMsg.OverlapEvents: {
+		case PhysState.OverlapEvents: {
 			for (const overlapEvent of message.events) {
-				if (!overlapEvent.entered) continue;
-				const sound: GameLogicToAudioMessage = { type: "play-sound", soundId: "impact" };
+				if (!overlapEvent.entered)
+					continue;
+
+				const sound: GameLogicToAudioMessage = {
+					action: SoundAction.PlaySound,
+					soundId: "impact"
+				};
+
 				audioPort?.postMessage(sound);
 			}
 			break;

@@ -23,7 +23,7 @@ self.onmessage = (event: MessageEvent<MainToAudioMessage>) => {
 	switch (message.type) {
 		case "init":
 			message.gameLogicPort.onmessage = (e: MessageEvent<GameLogicToAudioMessage>) => {
-				if (e.data.type === "play-sound") void PlaySound(e.data.soundId, e.data.position);
+				if (e.data.action === SoundAction.PlaySound) void PlaySound(e.data.soundId, e.data.position);
 			};
 			break;
 	}

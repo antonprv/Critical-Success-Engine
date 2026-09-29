@@ -32,17 +32,17 @@ export class DemoScene {
 		this._visualsSpawned = true;
 
 		const ground: GameLogicToRenderMessage = {
-			type: RendOpType.SpawnEntity,
+			operation: RendOpType.SpawnEntity,
 			entityId: this.GroundEntityId,
-			mesh: { kind: RendMesh.Box, size: DemoScene.GroundSize },
+			mesh: { shape: RendMesh.Box, size: DemoScene.GroundSize },
 			transform: DemoScene.GroundTransform,
 		};
 		renderPort.postMessage(ground);
 
 		const ball: GameLogicToRenderMessage = {
-			type: RendOpType.SpawnEntity,
+			operation: RendOpType.SpawnEntity,
 			entityId: this.BallEntityId,
-			mesh: { kind: RendMesh.Sphere, diameter: 1 },
+			mesh: { shape: RendMesh.Sphere, diameter: 1 },
 			transform: DemoScene.BallTransform,
 		};
 		renderPort.postMessage(ball);
@@ -53,9 +53,9 @@ export class DemoScene {
 		this._bodiesSpawned = true;
 
 		const ground: GameLogicToPhysicsMessage = {
-			type: PhysOpType.SpawnStaticBody,
+			operation: PhysOpType.SpawnStaticBody,
 			entityId: this.GroundEntityId,
-			shape: { kind: PhysShape.Box, size: DemoScene.GroundSize },
+			shape: { shape: PhysShape.Box, size: DemoScene.GroundSize },
 			transform: DemoScene.GroundTransform,
 			layer: 1,
 			mask: -1, // all bits (int32)
@@ -63,9 +63,9 @@ export class DemoScene {
 		physicsPort.postMessage(ground);
 
 		const ball: GameLogicToPhysicsMessage = {
-			type: PhysOpType.SpawnDynamicBody,
+			operation: PhysOpType.SpawnDynamicBody,
 			entityId: this.BallEntityId,
-			shape: { kind: PhysShape.Sphere, radius: 0.5 },
+			shape: { shape: PhysShape.Sphere, radius: 0.5 },
 			transform: DemoScene.BallTransform,
 			mass: 1,
 			layer: 1,
@@ -76,7 +76,7 @@ export class DemoScene {
 
 	public ApplyJumpImpulse(physicsPort: MessagePort): void {
 		const impulse: GameLogicToPhysicsMessage = {
-			type: PhysOpType.ApplyImpulse,
+			operation: PhysOpType.ApplyImpulse,
 			entityId: this.BallEntityId,
 			impulse: [0, 6, 0],
 			offset: [0, 0, 0],

@@ -17,7 +17,7 @@ import "@babylonjs/loaders";
 import { AssetLoader } from "../Game/AssetLoader";
 import { Logger } from "../Logging/Logger";
 
-import { RendMesh, RendOpType } from "./Common/CommonEnums";
+import { RendMesh, RendOpType as RendOp } from "./Common/CommonEnums";
 import type { GameLogicToRenderMessage, RenderToGameLogicMessage } from "./Protocol/RenderGameLogicProtocol";
 import type { MainToRenderMessage } from "./Protocol/RenderProtocol";
 import { TRANSFORM_STRIDE, type TransformBatchPayload } from "./Protocol/TransformProtocol";
@@ -89,20 +89,20 @@ function _Init(message: Extract<MainToRenderMessage, { type: "init"; }>): void {
 }
 
 function _HandleGameLogicMessage(message: GameLogicToRenderMessage): void {
-	switch (message.type) {
-		case RendOpType.SpawnEntity:
+	switch (message.operation) {
+		case RendOp.SpawnEntity:
 			_SpawnEntity(message);
 			break;
-		case RendOpType.RemoveEntity: {
+		case RendOp.RemoveEntity: {
 			entityMeshes.get(message.entityId)?.dispose();
 			entityMeshes.delete(message.entityId);
 			break;
 		}
-		case RendOpType.TransformBatch: {
+		case RendOp.TransformBatch: {
 			_TransformEntity(message);
 			break;
 		}
-		case RendOpType.PoseCamera: {
+		case RendOp.PoseCamera: {
 			// Left as a hook: swap in whatever camera object your gameplay code
 			// actually drives (ArcRotateCamera target, FreeCamera position, ...).
 			// The default scene below only sets up an ArcRotateCamera for the
@@ -112,14 +112,14 @@ function _HandleGameLogicMessage(message: GameLogicToRenderMessage): void {
 	}
 }
 
-function _SpawnEntity(message: Extract<GameLogicToRenderMessage, { type: RendOpType.SpawnEntity; }>): void {
+function _SpawnEntity(message: Extract<GameLogicToRenderMessage, { operation: RendOp.SpawnEntity; }>): void {
 	if (!scene) return;
 
 	// Spawns are infrequent (once per entity, not once per tick), so the destructure
 	// here isn't worth avoiding the way the transform-batch hot loop below is.
 	const [px, py, pz, qx, qy, qz, qw] = message.transform;
 
-	switch (message.mesh.kind) {
+	switch (message.mesh.shape) {
 		case RendMesh.Sphere: {
 			const mesh = MeshBuilder.CreateSphere(`entity-${message.entityId}`, { diameter: message.mesh.diameter }, scene);
 			_ApplyTransform(mesh, px, py, pz, qx, qy, qz, qw);
@@ -173,7 +173,7 @@ function _ApplyTransform(
 // directly here (rather than the old per-entity object array) is the whole point of
 // making this message Transferable: no structured-clone copy at either hop, and no
 // per-entity object/array allocation on this end either.
-function _TransformEntity(message: { type: RendOpType.TransformBatch; } & TransformBatchPayload) {
+function _TransformEntity(message: { operation: RendOp.TransformBatch; } & TransformBatchPayload) {
 	const view = new Float64Array(message.buffer);
 	for (let entity = 0; entity < message.entityCount; entity++) {
 		const base = entity * TRANSFORM_STRIDE;

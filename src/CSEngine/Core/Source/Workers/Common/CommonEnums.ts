@@ -13,6 +13,12 @@ export const enum PhysOpType {
     SetVelocity
 }
 
+export const enum PhysState {
+    Ready = 0,
+    Transforms,
+    OverlapEvents
+}
+
 export const enum RendMesh {
     Sphere = 0,
     Box,

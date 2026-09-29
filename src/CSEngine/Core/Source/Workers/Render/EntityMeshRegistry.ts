@@ -6,7 +6,7 @@ import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Scene } from "@babylonjs/core/scene";
 
 import type { AssetLoader } from "../../Game/AssetLoader";
-import { RendMesh, type RendOpType } from "../Common/CommonEnums";
+import { RendMesh, type RendOpType as RendOp } from "../Common/CommonEnums";
 import type { GameLogicToRenderMessage } from "../Protocol/RenderGameLogicProtocol";
 import { TRANSFORM_STRIDE } from "../Protocol/TransformProtocol";
 
@@ -30,12 +30,12 @@ export class EntityMeshRegistry {
 		this._assetLoader = assetLoader;
 	}
 
-	public SpawnEntity(message: Extract<GameLogicToRenderMessage, { type: RendOpType.SpawnEntity; }>): void {
+	public SpawnEntity(message: Extract<GameLogicToRenderMessage, { operation: RendOp.SpawnEntity; }>): void {
 		// Spawns are infrequent (once per entity, not once per tick), so the destructure
 		// here isn't worth avoiding the way ApplyTransformBatch's hot loop below is.
 		const [px, py, pz, qx, qy, qz, qw] = message.transform;
 
-		switch (message.mesh.kind) {
+		switch (message.mesh.shape) {
 			case RendMesh.Sphere: {
 				const mesh = MeshBuilder.CreateSphere(`entity-${message.entityId}`, { diameter: message.mesh.diameter }, this._scene);
 				EntityMeshRegistry.ApplyTransform(mesh, px, py, pz, qx, qy, qz, qw);

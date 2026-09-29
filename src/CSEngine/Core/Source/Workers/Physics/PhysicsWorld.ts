@@ -2,9 +2,8 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { Logger } from "../../Logging/Logger";
-import { PhysOpType, PhysShape } from "../Common/CommonEnums";
+import { PhysOpType, PhysShape, PhysState } from "../Common/CommonEnums";
 import {
-	PhysToGameMsg,
 	type GameLogicToPhysicsMessage,
 	type PhysicsShapeDescriptor,
 	type PhysicsToGameLogicMessage,
@@ -14,8 +13,8 @@ import type { PhysicsBridgeExports } from "./PhysicsBridgeContract";
 
 /** Result of a single fixed-timestep tick, ready for the caller to post over the game-logic port. */
 export interface PhysicsStepResult {
-	transforms: (PhysicsToGameLogicMessage & { type: PhysToGameMsg.Transforms; }) | null;
-	overlapEvents: (PhysicsToGameLogicMessage & { type: PhysToGameMsg.OverlapEvents; }) | null;
+	transforms: (PhysicsToGameLogicMessage & { state: PhysState.Transforms; }) | null;
+	overlapEvents: (PhysicsToGameLogicMessage & { state: PhysState.OverlapEvents; }) | null;
 }
 
 /**
@@ -54,12 +53,12 @@ export class PhysicsWorld {
 		try {
 			this.HandleGameLogicMessageUnsafe(message);
 		} catch (error) {
-			Logger.LogException(error, `[PhysicsWorld] "${message.type}" failed:`);
+			Logger.LogException(error, `[PhysicsWorld] "${message.operation}" failed:`);
 		}
 	}
 
 	private HandleGameLogicMessageUnsafe(message: GameLogicToPhysicsMessage): void {
-		switch (message.type) {
+		switch (message.operation) {
 			case PhysOpType.SpawnDynamicBody: {
 				const shapeId = this.ResolveShapeId(message.shape);
 				const [px, py, pz, qx, qy, qz, qw] = message.transform;
@@ -117,7 +116,7 @@ export class PhysicsWorld {
 		if (cached !== undefined) return cached;
 
 		let id: number;
-		switch (shape.kind) {
+		switch (shape.shape) {
 			case PhysShape.Box:
 				id = this._bridge.AddBoxShape(shape.size[0], shape.size[1], shape.size[2]);
 				break;
@@ -136,7 +135,7 @@ export class PhysicsWorld {
 	}
 
 	private static ShapeKey(shape: PhysicsShapeDescriptor): string {
-		switch (shape.kind) {
+		switch (shape.shape) {
 			case PhysShape.Box:
 				return `box:${shape.size.join(",")}`;
 			case PhysShape.Sphere:
@@ -180,16 +179,20 @@ export class PhysicsWorld {
 		}
 
 		const transforms: PhysicsStepResult["transforms"] =
-			entityCount > 0 ? { type: PhysToGameMsg.Transforms, step, entityCount, buffer: output.buffer } : null;
+			entityCount > 0 ?
+				{ state: PhysState.Transforms, step, entityCount, buffer: output.buffer }
+				: null;
 
 		const rawEvents = this._bridge.GetLastOverlapEvents();
+
 		let overlapEvents: PhysicsStepResult["overlapEvents"] = null;
+
 		if (rawEvents.length > 0) {
 			const events: { ownerA: number; ownerB: number; entered: boolean; }[] = [];
 			for (let i = 0; i + 2 < rawEvents.length; i += 3) {
 				events.push({ ownerA: rawEvents[i]!, ownerB: rawEvents[i + 1]!, entered: rawEvents[i + 2] === 1 });
 			}
-			overlapEvents = { type: PhysToGameMsg.OverlapEvents, events };
+			overlapEvents = { state: PhysState.OverlapEvents, events };
 		}
 
 		return { transforms, overlapEvents };
