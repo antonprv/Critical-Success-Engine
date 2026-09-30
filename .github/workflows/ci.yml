@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  build-web:
     runs-on: ubuntu-latest
 
     # The web project lives in src/CSEngine/Core, not at the repo root. Applies to
@@ -58,3 +58,52 @@ jobs:
         with:
           name: core-build
           path: src/CSEngine/Binaries/Core/
+
+  build-physics:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      # Bridge.csproj targets browser-wasm - both this and the publish step
+      # below fail with a missing-workload error without this, even though
+      # nothing here is Bridge-specific yet.
+      - name: Install wasm-tools workload
+        run: dotnet workload install wasm-tools
+
+      # Builds every C# project in the solution (FastMath, Bridge, BepuPhysics,
+      # BepuUtilities, Integration) - this is the part CI was skipping
+      # entirely before. Fails fast on a plain compile error before the
+      # slower AOT publish step below even starts.
+      - name: Build solution
+        run: dotnet build src/CSEngine/CSEngine.slnx -c Release
+
+      # The actual wasm publish devops/build-physics.sh does - relative
+      # paths inside that script ("../src/...") are resolved against this
+      # working directory, which is why it has to run from here.
+      - name: Publish physics (wasm)
+        working-directory: devops
+        run: bash build-physics.sh
+
+      # Uploaded unconditionally (always(), even if the step above failed)
+      # so a build failure is actually diagnosable from the Actions run
+      # instead of just showing a red X.
+      - name: Upload dotnet publish log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: physics-publish-log
+          path: devops/publish.log
+          if-no-files-found: warn
+
+      - name: Upload physics build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: physics-build
+          path: src/CSEngine/Binaries/Physics/
