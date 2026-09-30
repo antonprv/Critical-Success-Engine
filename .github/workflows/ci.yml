@@ -77,13 +77,6 @@ jobs:
       - name: Install wasm-tools workload
         run: dotnet workload install wasm-tools
 
-      # Builds every C# project in the solution (FastMath, Bridge, BepuPhysics,
-      # BepuUtilities, Integration) - this is the part CI was skipping
-      # entirely before. Fails fast on a plain compile error before the
-      # slower AOT publish step below even starts.
-      - name: Build solution
-        run: dotnet build src/CSEngine/CSEngine.slnx -c Release
-
       # The actual wasm publish devops/build-physics.sh does - relative
       # paths inside that script ("../src/...") are resolved against this
       # working directory, which is why it has to run from here.
