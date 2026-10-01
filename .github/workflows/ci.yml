@@ -12,54 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-web:
-    runs-on: ubuntu-latest
-
-    # The web project lives in src/CSEngine/Core, not at the repo root. Applies to
-    # `run:` steps only - `uses:` steps below still take repo-relative paths.
-    defaults:
-      run:
-        working-directory: src/CSEngine/Core
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      # pnpm 9 rejects pnpm-workspace.yaml when it has settings but no `packages`
-      # field ("packages field missing or empty"), which is what this repo has.
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      # vite 8 / eslint 10 need Node >= 20.19; webpack-dev-server 6 wants >= 22.15.
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: "pnpm"
-          cache-dependency-path: src/CSEngine/Core/pnpm-lock.yaml
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Type check
-        run: pnpm typecheck
-
-      - name: Lint
-        run: pnpm lint
-
-      - name: Build (production)
-        run: pnpm build
-
-      # webpack writes to ../Binaries/Core (see webpack.config.js), not dist/.
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: core-build
-          path: src/CSEngine/Binaries/Core/
-
-  build-physics:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -77,9 +30,20 @@ jobs:
       - name: Install wasm-tools workload
         run: dotnet workload install wasm-tools
 
-      # The actual wasm publish devops/build-physics.sh does - relative
-      # paths inside that script ("../src/...") are resolved against this
-      # working directory, which is why it has to run from here.
+      # Not `dotnet build` on CSEngine.slnx - that solution also lists
+      # Core.esproj (the web project), whose own MSBuild target shells out to
+      # `pnpm build:prod`. pnpm isn't on PATH yet at this point in the job,
+      # so that would fail with "pnpm: not found". FastMath has no project
+      # references in either direction, so it's the one C# project the
+      # publish step below won't touch - build it explicitly to still cover it.
+      - name: Build FastMath
+        run: dotnet build src/CSEngine/Common/Math/FastMath.csproj -c Release
+
+      # BepuUtilities, BepuPhysics and Integration are project references of
+      # Bridge, so this one step already builds and AOT-publishes all four -
+      # this is also what leaves .../AppBundle/_framework on disk for the
+      # webpack step below to pick up. Relative paths inside the script
+      # ("../src/...") are resolved against this working directory.
       - name: Publish physics (wasm)
         working-directory: devops
         run: bash build-physics.sh
@@ -95,8 +59,47 @@ jobs:
           path: devops/publish.log
           if-no-files-found: warn
 
-      - name: Upload physics build output
+      # pnpm 9 rejects pnpm-workspace.yaml when it has settings but no `packages`
+      # field ("packages field missing or empty"), which is what this repo has.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      # vite 8 / eslint 10 need Node >= 20.19; webpack-dev-server 6 wants >= 22.15.
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+          cache-dependency-path: src/CSEngine/Core/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: src/CSEngine/Core
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check
+        working-directory: src/CSEngine/Core
+        run: pnpm typecheck
+
+      - name: Lint
+        working-directory: src/CSEngine/Core
+        run: pnpm lint
+
+      # CopyWebpackPlugin (see webpack.config.js) copies
+      # PhysicsWasmFrameworkDirectory - the exact _framework folder the
+      # publish step above just produced - into Binaries/Core/physics-wasm.
+      # Nothing extra to wire up: it's already sitting at the relative path
+      # webpack.config.js expects, from the step above.
+      - name: Build (production)
+        working-directory: src/CSEngine/Core
+        run: pnpm build
+
+      # The one final artifact: webpack's own output, which by this point
+      # already has physics-wasm/_framework inside it - not the full ~40 MB
+      # publish output, just the trimmed subset the browser actually loads.
+      - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: physics-build
-          path: src/CSEngine/Binaries/Physics/
+          name: core-build
+          path: src/CSEngine/Binaries/Core/
