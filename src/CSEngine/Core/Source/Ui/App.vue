@@ -33,7 +33,7 @@ const state = store.State;
 	inset: 0;
 	/* The canvas below must keep receiving pointer events while only the HUD is up; overlays re-enable them. */
 	pointer-events: none;
-	font-family: system-ui, sans-serif;
-	color: #e8e8e8;
+	font-family: var(--xp-font);
+	color: #000;
 }
 </style>

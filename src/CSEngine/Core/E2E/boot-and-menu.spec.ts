@@ -45,6 +45,17 @@ test.describe("a visitor opens the site", () => {
 		expect(await page.evaluate(() => document.pointerLockElement?.id)).toBe("gameCanvas");
 	});
 
+	test("closes the menu window with its X: back in the game, mouse captured again", async ({ game, page }) => {
+		await game.open();
+		await game.play();
+		await game.pressEscape();
+
+		await page.getByRole("button", { name: "Close menu" }).click();
+		await expect(game.menu).toBeHidden();
+		await expect(game.hud.first()).toBeVisible();
+		expect(await page.evaluate(() => document.pointerLockElement?.id)).toBe("gameCanvas");
+	});
+
 	test("picks another scene from the menu: loading screen, then the new scene takes over", async ({ game, page }) => {
 		await game.open();
 		await game.play();

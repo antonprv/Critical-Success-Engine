@@ -1,17 +1,19 @@
 <!-- Created by Anton Piruev in 2026. Any direct commercial use of derivative work is strictly prohibited. -->
 <script setup lang="ts">
 import type { UiBar } from "../../Workers/Protocol/UiProtocol";
+import XpProgress from "./XpProgress.vue";
 
 defineProps<{ lines: string[]; bars: UiBar[] }>();
 </script>
 
 <template>
-	<div class="hud">
+	<!-- An XP tooltip in the corner: pale yellow, black hairline, out of the way of the game. -->
+	<div v-if="lines.length > 0 || bars.length > 0" class="hud">
 		<div v-for="(line, index) in lines" :key="index" class="hud-line">{{ line }}</div>
 
 		<div v-for="bar in bars" :key="bar.id" class="hud-bar">
 			<div class="hud-bar-label">{{ bar.label }}</div>
-			<q-linear-progress :value="bar.value" color="red-5" track-color="grey-9" rounded size="10px" />
+			<XpProgress :value="bar.value" :label="bar.label" />
 		</div>
 	</div>
 </template>
@@ -19,16 +21,24 @@ defineProps<{ lines: string[]; bars: UiBar[] }>();
 <style scoped>
 .hud {
 	position: fixed;
-	top: 12px;
-	left: 14px;
-	font: 13px/1.5 ui-monospace, Consolas, monospace;
-	text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+	top: 10px;
+	left: 10px;
+	padding: 3px 8px 4px;
+	border: 1px solid #000;
+	background: rgba(255, 255, 225, 0.94);
+	box-shadow: 2px 2px 3px rgba(0, 0, 0, 0.35);
+	font: 11px/1.5 var(--xp-font);
+	color: #000;
 	white-space: pre;
 	user-select: none;
 }
 
 .hud-bar {
 	width: 180px;
-	margin-top: 6px;
+	margin: 4px 0 2px;
+}
+
+.hud-bar-label {
+	margin-bottom: 2px;
 }
 </style>

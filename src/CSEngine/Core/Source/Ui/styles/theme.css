@@ -1,0 +1,73 @@
+/*
+ * Lantern Festival UI theme: the engine's identity is an early-2000s desktop - Windows XP "Luna" chrome, the office
+ * software of the era, and a 2000s jungle pulse (the 174 BPM meter in the taskbar tray).
+ * Tokens live here; each component styles itself with them. The only global rules are for things Quasar renders
+ * outside our components (the notification balloons).
+ */
+:root {
+	/* Luna window chrome */
+	--xp-blue: #0054e3;
+	--xp-blue-dark: #0831d9;
+	--xp-beige: #ece9d8;
+	--xp-beige-shadow: #aca899;
+	--xp-select: #316ac5;
+	--xp-tooltip: #ffffe1;
+	--xp-list-border: #7f9db9;
+
+	/* The desktop behind the windows (the plain blue XP used when there is no wallpaper) and the start-up screen */
+	--xp-desktop: #004e98;
+	--xp-boot: #000;
+
+	/* The green of the Start button - and of the media players' level meters of the time */
+	--xp-green: #3c9a3c;
+	--xp-led: #5ae35a;
+
+	/* Type: what XP itself used, with fallbacks for systems that don't ship the Microsoft core fonts. */
+	--xp-font: Tahoma, Verdana, "DejaVu Sans", sans-serif;
+	--xp-title-font: "Trebuchet MS", Tahoma, "DejaVu Sans", sans-serif;
+}
+
+/* Toasts pop up like XP tray balloons, bottom right, above where the taskbar sits. */
+.q-notifications__list--bottom {
+	margin-bottom: 34px;
+}
+
+.q-notification.xp-balloon {
+	position: relative;
+	min-height: 0;
+	padding: 8px 12px;
+	border: 1px solid #000;
+	border-radius: 8px;
+	background: var(--xp-tooltip) !important;
+	color: #000 !important;
+	box-shadow: 2px 3px 4px rgba(0, 0, 0, 0.35);
+	font: 12px/1.35 var(--xp-font);
+	overflow: visible;
+}
+
+.q-notification.xp-balloon .q-notification__message {
+	padding: 0;
+}
+
+/* The balloon's tail, pointing down at the tray: a black triangle with a yellow one inside it. */
+.q-notification.xp-balloon::before,
+.q-notification.xp-balloon::after {
+	content: "";
+	position: absolute;
+	right: 28px;
+	border-style: solid;
+	border-color: transparent;
+}
+
+.q-notification.xp-balloon::before {
+	bottom: -12px;
+	border-width: 12px 12px 0 0;
+	border-top-color: #000;
+}
+
+.q-notification.xp-balloon::after {
+	bottom: -10px;
+	right: 29px;
+	border-width: 10px 10px 0 0;
+	border-top-color: var(--xp-tooltip);
+}

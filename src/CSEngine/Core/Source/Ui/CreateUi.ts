@@ -1,10 +1,10 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-import "@quasar/extras/material-icons/material-icons.css";
 import { createApp, type App as VueApp } from "vue";
-import { Dark, Notify, Quasar } from "quasar";
+import { Notify, Quasar } from "quasar";
 import "quasar/dist/quasar.css";
+import "./styles/theme.css";
 
 import App from "./App.vue";
 import type { UiStore } from "./UiStore";
@@ -16,8 +16,9 @@ import type { UiStore } from "./UiStore";
 export function CreateUi(store: UiStore, mountPoint: HTMLElement): VueApp {
 	const app = createApp(App);
 	app.use(Quasar, {
-		plugins: { Dark, Notify },
-		config: { dark: true, notify: { position: "top-right", timeout: 2200 } },
+		plugins: { Notify },
+		// Toasts are XP tray balloons (styles/theme.css): bottom right, black on pale yellow.
+		config: { notify: { position: "bottom-right", timeout: 2600, color: "transparent", textColor: "black", classes: "xp-balloon" } },
 	});
 	app.provide("uiStore", store);
 	app.mount(mountPoint);

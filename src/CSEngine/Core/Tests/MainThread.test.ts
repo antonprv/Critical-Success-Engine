@@ -106,7 +106,7 @@ describe("UiStore", () => {
 	});
 });
 
-describe("the Vue/Quasar UI", () => {
+describe("the Vue/Quasar UI (Windows XP look)", () => {
 	function Mount() {
 		const store = new UiStore();
 		const root = document.createElement("div");
@@ -114,62 +114,118 @@ describe("the Vue/Quasar UI", () => {
 		const app = CreateUi(store, root);
 		return { store, root, app };
 	}
+	const scenes = [{ id: "a", name: "Alpha", description: "first" }, { id: "b", name: "Beta", description: "second" }];
+	const buttonByText = (root: ParentNode, text: string): HTMLButtonElement =>
+		[...root.querySelectorAll("button")].find((b) => b.textContent?.trim() === text) as HTMLButtonElement;
 
-	it("shows the loading overlay with its label and progress", async () => {
+	it("the loading screen shows the label and an XP start-up progress bar (value clamped to 0-100)", async () => {
 		const { store, root, app } = Mount();
 		store.ApplyPatch({ loading: { visible: true, label: "Starting renderer…", fraction: 0.3 } });
 		await settle();
-		expect(root.querySelector(".loading-overlay")?.textContent).toContain("Starting renderer…");
-		expect(root.querySelector(".q-linear-progress")).not.toBeNull();
+		const overlay = root.querySelector(".loading-overlay")!;
+		expect(overlay.textContent).toContain("Starting renderer…");
+		expect(overlay.textContent).toContain("Lantern Festival");
+		const bar = overlay.querySelector("[role=progressbar]")!;
+		expect(bar.classList.contains("xp-progress--boot")).toBe(true);
+		expect(bar.getAttribute("aria-valuenow")).toBe("30");
+		expect((bar.querySelector(".xp-progress__fill") as HTMLElement).style.width).toBe("30%");
+
+		store.ApplyPatch({ loading: { visible: true, label: "", fraction: 1.7 } });
+		await settle();
+		expect(bar.getAttribute("aria-valuenow")).toBe("100");
+		store.ApplyPatch({ loading: { visible: true, label: "", fraction: -1 } });
+		await settle();
+		expect(bar.getAttribute("aria-valuenow")).toBe("0");
 
 		store.ApplyPatch({ loading: { visible: false, label: "", fraction: 1 } });
 		await vi.waitFor(() => expect(root.querySelector(".loading-overlay")).toBeNull(), { timeout: 2000 }); // after the fade-out
 		app.unmount();
 	});
 
-	it("the start menu lists scenes, marks the current one, and its buttons call the actions", async () => {
+	it("the start menu is an XP window: title bar, Play, the scene list with the current one marked, and a status bar", async () => {
 		const { store, root, app } = Mount();
 		const resume = vi.fn(), select = vi.fn();
 		store.Actions = { Resume: resume, SelectScene: select };
-		store.ApplyPatch({
-			loading: { visible: false, label: "", fraction: 1 },
-			menu: { visible: true, mode: "start", currentSceneId: "b", scenes: [{ id: "a", name: "Alpha", description: "first" }, { id: "b", name: "Beta", description: "second" }] },
-		});
+		store.ApplyPatch({ loading: { visible: false, label: "", fraction: 1 }, menu: { visible: true, mode: "start", currentSceneId: "b", scenes } });
 		await settle();
 
 		const card = root.querySelector(".menu-card")!;
-		expect(card.textContent).toContain("Lantern Festival");
+		expect(card.getAttribute("role")).toBe("dialog");
+		expect(card.querySelector(".titlebar")!.textContent).toContain("Lantern Festival");
+		expect(card.textContent).toContain("Ready");
 		expect(card.textContent).toContain("Click Play to take control of the mouse.");
 		const items = [...card.querySelectorAll(".q-item")];
 		expect(items.map((i) => i.textContent)).toEqual([expect.stringContaining("Alpha"), expect.stringContaining("Beta")]);
 		expect(items[1]!.textContent).toContain("current");
+		expect(items[1]!.classList.contains("scene-row--current")).toBe(true);
 		expect(items[0]!.textContent).not.toContain("current");
+		expect([...card.querySelectorAll(".statusbar__panel")].map((p) => p.textContent)).toEqual(["2 scenes", "Beta"]);
 
-		(card.querySelector("button") as HTMLButtonElement).click();
+		buttonByText(card, "Play").click();
 		(items[0] as HTMLElement).click();
 		expect(resume).toHaveBeenCalledTimes(1);
 		expect(select).toHaveBeenCalledWith("a");
 		app.unmount();
 	});
 
-	it("the paused menu says Resume; while something loads its controls are disabled", async () => {
+	it("closing the menu window goes back to the game", async () => {
+		const { store, root, app } = Mount();
+		const resume = vi.fn();
+		store.Actions = { Resume: resume, SelectScene: vi.fn() };
+		store.ApplyPatch({ loading: { visible: false, label: "", fraction: 1 }, menu: { visible: true, mode: "paused", currentSceneId: "a", scenes } });
+		await settle();
+
+		const close = root.querySelector<HTMLButtonElement>(".titlebar__close")!;
+		expect(close.getAttribute("aria-label")).toBe("Close menu");
+		close.click();
+		expect(resume).toHaveBeenCalledTimes(1);
+		app.unmount();
+	});
+
+	it("the paused menu says Resume; while something loads its buttons and rows are disabled; the status bar copes with one or no current scene", async () => {
 		const { store, root, app } = Mount();
 		store.ApplyPatch({
 			loading: { visible: true, label: "Loading…", fraction: 0.5 },
-			menu: { visible: true, mode: "paused", currentSceneId: null, scenes: [{ id: "a", name: "Alpha", description: "" }] },
+			menu: { visible: true, mode: "paused", currentSceneId: null, scenes: [scenes[0]!] },
 		});
 		await settle();
 		const card = root.querySelector(".menu-card")!;
 		expect(card.textContent).toContain("Paused");
 		expect(card.textContent).toContain("Mouse released.");
-		const button = card.querySelector("button")!;
-		expect(button.textContent).toContain("Resume");
-		expect(button.hasAttribute("disabled") || button.classList.contains("disabled")).toBe(true);
+		expect(buttonByText(card, "Resume").disabled).toBe(true);
+		expect(card.querySelector<HTMLButtonElement>(".titlebar__close")!.disabled).toBe(true);
 		expect(card.querySelector(".q-item")!.classList.contains("disabled")).toBe(true);
+		expect([...card.querySelectorAll(".statusbar__panel")].map((p) => p.textContent)).toEqual(["1 scene", "No scene loaded"]);
 		app.unmount();
 	});
 
-	it("the HUD shows lines and bars, only while nothing covers the game", async () => {
+	it("the taskbar under the menu shows the window's task and a clock that keeps time, and stops its timer when closed", async () => {
+		vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] });
+		vi.setSystemTime(new Date(2026, 9, 3, 9, 5, 0));
+		const clear = vi.spyOn(globalThis, "clearInterval");
+		try {
+			const { store, root, app } = Mount();
+			store.ApplyPatch({ loading: { visible: false, label: "", fraction: 1 }, menu: { visible: true, mode: "start", currentSceneId: null, scenes } });
+			await nextTick();
+			const taskbar = root.querySelector(".taskbar")!;
+			expect(taskbar.querySelector(".task-button")!.textContent).toBe("Lantern Festival");
+			expect(taskbar.textContent).toContain("174 BPM");
+			expect(taskbar.querySelectorAll(".equalizer__bar")).toHaveLength(5);
+			expect(taskbar.querySelector(".clock")!.textContent).toBe("09:05");
+
+			vi.setSystemTime(new Date(2026, 9, 3, 13, 42, 0));
+			vi.advanceTimersByTime(1000);
+			await nextTick();
+			expect(taskbar.querySelector(".clock")!.textContent).toBe("13:42");
+
+			app.unmount();
+			expect(clear).toHaveBeenCalled();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it("the HUD is an XP tooltip with lines and green progress bars, only while nothing covers the game", async () => {
 		const { store, root, app } = Mount();
 		store.ApplyPatch({
 			loading: { visible: false, label: "", fraction: 1 },
@@ -178,8 +234,20 @@ describe("the Vue/Quasar UI", () => {
 		await settle();
 		expect([...root.querySelectorAll(".hud-line")].map((e) => e.textContent)).toEqual(["Coins: 1 / 9", "Time: 42.0"]);
 		expect(root.querySelector(".hud-bar-label")?.textContent).toBe("HP 40/100");
+		const bar = root.querySelector(".hud [role=progressbar]")!;
+		expect(bar.classList.contains("xp-progress--luna")).toBe(true);
+		expect(bar.getAttribute("aria-label")).toBe("HP 40/100");
+		expect(bar.getAttribute("aria-valuenow")).toBe("40");
 
 		store.ApplyPatch({ menu: { ...store.State.menu, visible: true } });
+		await settle();
+		expect(root.querySelector(".hud")).toBeNull();
+		app.unmount();
+	});
+
+	it("an empty HUD draws no box at all", async () => {
+		const { store, root, app } = Mount();
+		store.ApplyPatch({ loading: { visible: false, label: "", fraction: 1 }, hud: { visible: true, lines: [], bars: [] } });
 		await settle();
 		expect(root.querySelector(".hud")).toBeNull();
 		app.unmount();
