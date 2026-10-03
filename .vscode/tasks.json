@@ -46,7 +46,7 @@
       },
 
       "windows": {
-          "command": "if (Test-Path '.vscode/vite.pid') { $ProcId = Get-Content '.vscode/vite.pid'; taskkill /PID $ProcId /T /F | Out-Null; Remove-Item '.vscode/vite.pid' -Force -ErrorAction SilentlyContinue }; Remove-Item index.html",
+          "command": "if (Test-Path '.vscode/vite.pid') { $ProcId = Get-Content '.vscode/vite.pid'; taskkill /PID $ProcId /T /F | Out-Null; Remove-Item '.vscode/vite.pid' -Force -ErrorAction SilentlyContinue }",
           "options": {
             "shell": {
               "executable": "C:\\Program Files\\PowerShell\\7\\pwsh.exe",

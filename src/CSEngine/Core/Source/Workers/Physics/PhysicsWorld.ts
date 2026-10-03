@@ -2,37 +2,93 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { Logger } from "../../Logging/Logger";
-import { PhysOpType, PhysShape, PhysState } from "../Common/CommonEnums";
-import {
-	type GameLogicToPhysicsMessage,
-	type PhysicsShapeDescriptor,
-	type PhysicsToGameLogicMessage,
+import { Quat } from "../../Engine/Math/Quat";
+import { Vec3 } from "../../Engine/Math/Vec3";
+import { PhysBodyType, PhysOpType, PhysQueryType, PhysShape, PhysState } from "../Common/CommonEnums";
+import type {
+	CharacterMoveOptionsDescriptor,
+	PhysicsCommand,
+	PhysicsQuery,
+	PhysicsQueryResult,
+	PhysicsShapeDescriptor,
+	PhysicsToGameLogicMessage,
+	PhysicsWorldSettingsDescriptor,
 } from "../Protocol/PhysicsGameLogicProtocol";
-import { TRANSFORM_STRIDE } from "../Protocol/TransformProtocol";
+import { BODY_STRIDE, CHARACTER_STRIDE, type FlatTransform } from "../Protocol/TransformProtocol";
 import type { PhysicsBridgeExports } from "./PhysicsBridgeContract";
 
-/** Result of a single fixed-timestep tick, ready for the caller to post over the game-logic port. */
-export interface PhysicsStepResult {
-	transforms: (PhysicsToGameLogicMessage & { state: PhysState.Transforms; }) | null;
-	overlapEvents: (PhysicsToGameLogicMessage & { state: PhysState.OverlapEvents; }) | null;
+type Tuple3 = [number, number, number];
+
+/** Defaults identical to Framework.Physics.CharacterMoveOptions / PhysicsWorldSettings in C#. */
+const DefaultCharacterOptions: Required<CharacterMoveOptionsDescriptor> = {
+	maxSlideIterations: 4,
+	skinWidth: 0.015,
+	maxFloorAngleDegrees: 46,
+	floorProbeDistance: 0.08,
+};
+
+interface ShapeEntry {
+	id: number;
+	/** Convex hulls only: Bepu re-centres the hull; this is that offset in the source points' local space. */
+	centroidOffset: Tuple3;
+	capsule?: { radius: number; cylinderLength: number; };
+}
+
+interface BodyEntry {
+	entityId: number;
+	/** Bridge body id (dynamic/kinematic) or static id (static) - see `bodyType`. */
+	handle: number;
+	bodyType: PhysBodyType;
+	centroidOffset: Tuple3;
+	/** Kinematic bodies only: last pose we were told about, for deriving velocity from the pose delta. */
+	lastPose?: FlatTransform | undefined;
+	pendingKinematicPose?: FlatTransform | undefined;
+}
+
+interface CharacterEntry {
+	entity: BodyEntry;
+	/**
+	 * The character's authoritative position. Deliberately NOT read back from the Bepu body: after Step() the kinematic
+	 * body has been integrated by its own velocity (pose + v*dt), so reading it would move the character twice per tick.
+	 * (The Godot original keeps the position on the node and only ever *writes* the body pose, for the same reason.)
+	 */
+	position: Tuple3;
+	radius: number;
+	cylinderLength: number;
+	pending: { velocity: Tuple3; layer: number; mask: number; options: Required<CharacterMoveOptionsDescriptor>; } | null;
+
+	// Results of the most recent MoveCharacter, reported every step until the next one replaces them.
+	isOnFloor: boolean;
+	floorNormal: Tuple3;
+	groundEntityId: number;
+	velocity: Tuple3;
+}
+
+export interface PhysicsStepOutput {
+	step: number;
+	bodyCount: number;
+	bodies: ArrayBuffer;
+	characterCount: number;
+	characters: ArrayBuffer;
+	overlaps: Int32Array<ArrayBuffer> | null;
 }
 
 /**
- * Everything that talks to an already-loaded PhysicsBridge directly: shape
- * caching, body bookkeeping, spawning/despawning, impulses and stepping.
- * Knows nothing about how the bridge was booted (see PhysicsWasmLoader) and
- * nothing about MessagePorts or the fixed-timestep loop (see
- * PhysicsWorker.ts) - it only ever hands its caller plain data to forward.
+ * Everything that talks to an already-loaded PhysicsBridge directly: shape caching, body bookkeeping, command
+ * execution, the character controller's engine-side half (the moving-platform carry + MoveCharacter call), kinematic
+ * pose -> velocity derivation, queries and stepping. Knows nothing about how the bridge was booted (PhysicsWasmLoader)
+ * and nothing about MessagePorts or the fixed-timestep loop (PhysicsWorker.ts) - it only hands its caller plain data.
+ *
+ * Mirrors what BepuCharacterBody3D / BepuAnimatableBody3D / PhysicsWorldNode do on the Godot side; the gameplay half of
+ * the character (acceleration, jumping, gravity...) is in the GameLogic worker (CharacterBody + MoverComponent).
  */
 export class PhysicsWorld {
 	private readonly _bridge: PhysicsBridgeExports;
 
-	/** entityId (gamelogic's id) <-> the int handle PhysicsBridge minted for that body. */
-	private readonly _entityToBodyId = new Map<number, number>();
-	private readonly _bodyIdToEntity = new Map<number, number>();
-
-	/** Shapes are cheap and immutable, so cache one per distinct descriptor rather than per body. */
-	private readonly _shapeCache = new Map<string, number>();
+	private readonly _entities = new Map<number, BodyEntry>();
+	private readonly _bodyIdToEntity = new Map<number, BodyEntry>();
+	private readonly _characters = new Map<number, CharacterEntry>();
+	private readonly _shapeCache = new Map<string, ShapeEntry>();
 
 	private _stepIndex = 0;
 
@@ -40,161 +96,478 @@ export class PhysicsWorld {
 		this._bridge = bridge;
 	}
 
-	/** Ticks that have run so far, for tagging outgoing transform batches. */
 	public get StepIndex(): number {
 		return this._stepIndex;
 	}
 
-	public CreateWorld(gravity: [number, number, number], velocityIterations: number, substeps: number, useMultithreading: boolean): void {
-		this._bridge.CreateWorld(gravity[0], gravity[1], gravity[2], velocityIterations, substeps, useMultithreading);
+	//#region World lifecycle
+
+	public CreateWorld(settings: PhysicsWorldSettingsDescriptor): void {
+		const [gx, gy, gz] = settings.gravity;
+		this._bridge.CreateWorld(
+			gx, gy, gz,
+			settings.velocityIterations ?? 8,
+			settings.substeps ?? 1,
+			false, // single-threaded wasm build - see PhysicsBridge.CreateWorld
+			settings.frictionCoefficient ?? 0.8,
+			settings.maximumRecoveryVelocity ?? 2
+		);
+
+		this._entities.clear();
+		this._bodyIdToEntity.clear();
+		this._characters.clear();
+		this._shapeCache.clear();
 	}
 
-	public HandleGameLogicMessage(message: GameLogicToPhysicsMessage): void {
-		try {
-			this.HandleGameLogicMessageUnsafe(message);
-		} catch (error) {
-			Logger.LogException(error, `[PhysicsWorld] "${message.operation}" failed:`);
+	//#endregion
+
+	//#region Commands
+
+	/** `reply` receives anything that has to travel back immediately (query results, sync acks). */
+	public ApplyCommands(commands: PhysicsCommand[], reply: (message: PhysicsToGameLogicMessage) => void): void {
+		for (const command of commands) {
+			try {
+				this.ApplyCommand(command, reply);
+			} catch (error) {
+				Logger.LogException(error, `[PhysicsWorld] command ${String(command.operation)} failed:`);
+			}
 		}
 	}
 
-	private HandleGameLogicMessageUnsafe(message: GameLogicToPhysicsMessage): void {
-		switch (message.operation) {
-			case PhysOpType.SpawnDynamicBody: {
-				const shapeId = this.ResolveShapeId(message.shape);
-				const [px, py, pz, qx, qy, qz, qw] = message.transform;
-				// layer/mask are C# `int`: the JS<->.NET marshaller asserts on anything outside int32,
-				// so 0xffffffff (4294967295) must be passed as -1 (`| 0`).
-				const bodyId = this._bridge.AddDynamicBody(
-					shapeId, px, py, pz, qx, qy, qz, qw,
-					message.mass, message.layer | 0, message.mask | 0, message.entityId,
-					false
-				);
-				this._entityToBodyId.set(message.entityId, bodyId);
-				this._bodyIdToEntity.set(bodyId, message.entityId);
+	private ApplyCommand(command: PhysicsCommand, reply: (message: PhysicsToGameLogicMessage) => void): void {
+		switch (command.operation) {
+			case PhysOpType.SpawnBody:
+				this.SpawnBody(command);
+				break;
+
+			case PhysOpType.RemoveBody:
+				this.RemoveBody(command.entityId);
+				break;
+
+			case PhysOpType.SetPose: {
+				const body = this.GetMovable(command.entityId);
+				if (!body) break;
+				this.WritePose(body, command.transform);
+				body.lastPose = command.transform; // a teleport must not turn into a huge derived velocity next step
+				body.pendingKinematicPose = undefined;
+
+				const character = this._characters.get(command.entityId);
+				if (character) character.position = [command.transform[0], command.transform[1], command.transform[2]];
 				break;
 			}
-			case PhysOpType.SpawnStaticBody: {
-				const shapeId = this.ResolveShapeId(message.shape);
-				const [px, py, pz, qx, qy, qz, qw] = message.transform;
-				// Statics don't get stepped transforms back, so they don't need an
-				// entityId<->bodyId mapping the way dynamic bodies do.
-				this._bridge.AddStaticBody(shapeId, px, py, pz, qx, qy, qz, qw, message.layer | 0, message.mask | 0, message.entityId);
+
+			case PhysOpType.SetKinematicPose: {
+				const body = this.GetMovable(command.entityId);
+				if (body) body.pendingKinematicPose = command.transform; // consumed by the next Step, latest wins
 				break;
 			}
-			case PhysOpType.RemoveBody: {
-				const bodyId = this._entityToBodyId.get(message.entityId);
-				if (bodyId !== undefined) {
-					this._bridge.RemoveBody(bodyId);
-					this._entityToBodyId.delete(message.entityId);
-					this._bodyIdToEntity.delete(bodyId);
-				}
+
+			case PhysOpType.SetLinearVelocity: {
+				const body = this.GetMovable(command.entityId);
+				if (!body) break;
+				// Bepu puts resting bodies to sleep and velocity writes are silently ignored while asleep.
+				this._bridge.SetAwakeState(body.handle, true);
+				this._bridge.SetLinearVelocity(body.handle, ...command.velocity);
 				break;
 			}
+
+			case PhysOpType.SetAngularVelocity: {
+				const body = this.GetMovable(command.entityId);
+				if (!body) break;
+				this._bridge.SetAwakeState(body.handle, true);
+				this._bridge.SetAngularVelocity(body.handle, ...command.velocity);
+				break;
+			}
+
 			case PhysOpType.ApplyImpulse: {
-				const bodyId = this._entityToBodyId.get(message.entityId);
-				if (bodyId !== undefined) {
-					// Bepu puts resting bodies to sleep and impulses/velocity writes are silently ignored while asleep.
-					this._bridge.SetAwakeState(bodyId, true);
-					this._bridge.ApplyImpulse(bodyId, ...message.impulse, ...message.offset);
-				}
+				const body = this.GetMovable(command.entityId);
+				if (!body) break;
+				this._bridge.SetAwakeState(body.handle, true);
+				this._bridge.ApplyImpulse(body.handle, ...command.impulse, ...command.offset);
 				break;
 			}
-			case PhysOpType.SetVelocity: {
-				const bodyId = this._entityToBodyId.get(message.entityId);
-				if (bodyId !== undefined) {
-					this._bridge.SetAwakeState(bodyId, true);
-					this._bridge.SetLinearVelocity(bodyId, ...message.velocity);
-				}
+
+			case PhysOpType.SetAwake: {
+				const body = this.GetMovable(command.entityId);
+				if (body) this._bridge.SetAwakeState(body.handle, command.awake);
 				break;
 			}
+
+			case PhysOpType.MoveCharacter: {
+				const character = this._characters.get(command.entityId);
+				if (!character) break;
+				character.pending = {
+					velocity: command.velocity,
+					layer: command.layer,
+					mask: command.mask,
+					options: { ...DefaultCharacterOptions, ...command.options },
+				};
+				break;
+			}
+
+			case PhysOpType.Query:
+				reply({ state: PhysState.QueryResult, queryId: command.queryId, result: this.RunQuery(command.query) });
+				break;
+
+			case PhysOpType.ResetWorld:
+				this.CreateWorld(command.settings);
+				break;
+
+			case PhysOpType.Sync:
+				reply({ state: PhysState.SyncAck, token: command.token });
+				break;
 		}
 	}
 
-	private ResolveShapeId(shape: PhysicsShapeDescriptor): number {
+	/** Dynamic or kinematic body for an entity, or undefined (statics have no body id to poke). */
+	private GetMovable(entityId: number): BodyEntry | undefined {
+		const body = this._entities.get(entityId);
+		return body && body.bodyType !== PhysBodyType.Static ? body : undefined;
+	}
+
+	private SpawnBody(command: Extract<PhysicsCommand, { operation: PhysOpType.SpawnBody; }>): void {
+		if (this._entities.has(command.entityId)) this.RemoveBody(command.entityId);
+
+		const shape = this.ResolveShape(command.shape, command.mass ?? 1);
+		const [px, py, pz, qx, qy, qz, qw] = command.transform;
+
+		// A hull's pose is that of its centroid: shift the source origin by the (rotated) offset.
+		const offset = shape.centroidOffset;
+		const worldOffset = Quat.FromTuple([qx, qy, qz, qw]).Rotate(Vec3.FromTuple(offset));
+		const x = px + worldOffset.X;
+		const y = py + worldOffset.Y;
+		const z = pz + worldOffset.Z;
+
+		// layer/mask are C# `int`: the JS<->.NET marshaller asserts on anything outside int32,
+		// so 0xffffffff (4294967295) must be passed as -1 (`| 0`).
+		const layer = command.layer | 0;
+		const mask = command.mask | 0;
+
+		let handle: number;
+		switch (command.bodyType) {
+			case PhysBodyType.Dynamic:
+				handle = this._bridge.AddDynamicBody(
+					shape.id, x, y, z, qx, qy, qz, qw, command.mass ?? 1,
+					layer, mask, command.entityId, command.objectKind, command.continuousDetection ?? false
+				);
+				break;
+			case PhysBodyType.Kinematic:
+				handle = this._bridge.AddKinematicBody(
+					shape.id, x, y, z, qx, qy, qz, qw, layer, mask, command.entityId, command.objectKind
+				);
+				break;
+			case PhysBodyType.Static:
+				handle = this._bridge.AddStaticBody(
+					shape.id, x, y, z, qx, qy, qz, qw, layer, mask, command.entityId, command.objectKind
+				);
+				break;
+		}
+
+		const entry: BodyEntry = {
+			entityId: command.entityId,
+			handle,
+			bodyType: command.bodyType,
+			centroidOffset: offset,
+			lastPose: command.bodyType === PhysBodyType.Kinematic ? command.transform : undefined,
+		};
+		this._entities.set(command.entityId, entry);
+		if (command.bodyType !== PhysBodyType.Static) this._bodyIdToEntity.set(handle, entry);
+
+		if (command.bodyType === PhysBodyType.Kinematic && shape.capsule) {
+			this._characters.set(command.entityId, {
+				entity: entry,
+				position: [px, py, pz],
+				radius: shape.capsule.radius,
+				cylinderLength: shape.capsule.cylinderLength,
+				pending: null,
+				isOnFloor: false,
+				floorNormal: [0, 1, 0],
+				groundEntityId: 0,
+				velocity: [0, 0, 0],
+			});
+		}
+	}
+
+	private RemoveBody(entityId: number): void {
+		const body = this._entities.get(entityId);
+		if (!body) return;
+
+		if (body.bodyType === PhysBodyType.Static) {
+			this._bridge.RemoveStatic(body.handle);
+		} else {
+			this._bridge.RemoveBody(body.handle);
+			this._bodyIdToEntity.delete(body.handle);
+		}
+		this._entities.delete(entityId);
+		this._characters.delete(entityId);
+	}
+
+	private WritePose(body: BodyEntry, transform: FlatTransform): void {
+		const [px, py, pz, qx, qy, qz, qw] = transform;
+		const worldOffset = Quat.FromTuple([qx, qy, qz, qw]).Rotate(Vec3.FromTuple(body.centroidOffset));
+		this._bridge.SetBodyPose(body.handle, px + worldOffset.X, py + worldOffset.Y, pz + worldOffset.Z, qx, qy, qz, qw);
+	}
+
+	//#endregion
+
+	//#region Shapes
+
+	private ResolveShape(shape: PhysicsShapeDescriptor, mass: number): ShapeEntry {
+		// Primitive shapes are cheap and immutable: one cached entry per distinct descriptor. Hulls/meshes are
+		// effectively unique per call, so caching them would only cost memory.
 		const key = PhysicsWorld.ShapeKey(shape);
-		const cached = this._shapeCache.get(key);
-		if (cached !== undefined) return cached;
+		if (key !== null) {
+			const cached = this._shapeCache.get(key);
+			if (cached) return cached;
+		}
 
-		let id: number;
+		let entry: ShapeEntry;
 		switch (shape.shape) {
 			case PhysShape.Box:
-				id = this._bridge.AddBoxShape(shape.size[0], shape.size[1], shape.size[2]);
+				entry = { id: this._bridge.AddBoxShape(...shape.size), centroidOffset: [0, 0, 0] };
 				break;
 			case PhysShape.Sphere:
-				id = this._bridge.AddSphereShape(shape.radius);
+				entry = { id: this._bridge.AddSphereShape(shape.radius), centroidOffset: [0, 0, 0] };
 				break;
 			case PhysShape.Capsule:
-				id = this._bridge.AddCapsuleShape(shape.radius, shape.cylinderLength);
+				entry = {
+					id: this._bridge.AddCapsuleShape(shape.radius, shape.cylinderLength),
+					centroidOffset: [0, 0, 0],
+					capsule: { radius: shape.radius, cylinderLength: shape.cylinderLength },
+				};
 				break;
 			case PhysShape.Cylinder:
-				id = this._bridge.AddCylinderShape(shape.radius, shape.height);
+				entry = { id: this._bridge.AddCylinderShape(shape.radius, shape.height), centroidOffset: [0, 0, 0] };
+				break;
+			case PhysShape.ConvexHull: {
+				const result = this._bridge.AddConvexHullShape(shape.points, mass);
+				entry = { id: result[0]!, centroidOffset: [result[1]!, result[2]!, result[3]!] };
+				break;
+			}
+			case PhysShape.TriangleMesh:
+				entry = { id: this._bridge.AddTriangleMeshShape(shape.vertices, ...shape.scale), centroidOffset: [0, 0, 0] };
 				break;
 		}
-		this._shapeCache.set(key, id);
-		return id;
+
+		if (key !== null) this._shapeCache.set(key, entry);
+		return entry;
 	}
 
-	private static ShapeKey(shape: PhysicsShapeDescriptor): string {
+	private static ShapeKey(shape: PhysicsShapeDescriptor): string | null {
 		switch (shape.shape) {
-			case PhysShape.Box:
-				return `box:${shape.size.join(",")}`;
-			case PhysShape.Sphere:
-				return `sphere:${shape.radius}`;
-			case PhysShape.Capsule:
-				return `capsule:${shape.radius}:${shape.cylinderLength}`;
-			case PhysShape.Cylinder:
-				return `cylinder:${shape.radius}:${shape.height}`;
+			case PhysShape.Box: return `box:${shape.size.join(",")}`;
+			case PhysShape.Sphere: return `sphere:${shape.radius}`;
+			case PhysShape.Capsule: return `capsule:${shape.radius}:${shape.cylinderLength}`;
+			case PhysShape.Cylinder: return `cylinder:${shape.radius}:${shape.height}`;
+			case PhysShape.ConvexHull:
+			case PhysShape.TriangleMesh:
+				return null;
 		}
 	}
+
+	//#endregion
+
+	//#region Queries
+
+	private RunQuery(query: PhysicsQuery): PhysicsQueryResult {
+		switch (query.type) {
+			case PhysQueryType.SweepSphere: {
+				const exclude = query.excludeEntityId !== undefined ? this.GetMovable(query.excludeEntityId)?.handle ?? 0 : 0;
+				const r = this._bridge.SweepSphereCast(
+					...query.origin, ...query.direction, query.maxDistance, query.radius,
+					query.layer | 0, query.mask | 0, exclude
+				);
+				return {
+					hit: r[0] === 1,
+					position: [r[1]!, r[2]!, r[3]!],
+					point: [r[4]!, r[5]!, r[6]!],
+					normal: [r[7]!, r[8]!, r[9]!],
+					distance: r[10]!,
+					hitEntityId: r[11]!,
+				};
+			}
+			case PhysQueryType.SweepProjectile: {
+				const self = this.GetMovable(query.entityId);
+				if (!self) return { hit: false, position: query.position, point: [0, 0, 0], normal: [0, 1, 0], hitEntityId: 0 };
+				const r = this._bridge.SweepProjectile(
+					self.handle, ...query.position, ...query.velocity, query.dt, query.radius, query.layer | 0, query.mask | 0
+				);
+				return {
+					hit: r[0] === 1,
+					position: [r[1]!, r[2]!, r[3]!],
+					point: [r[4]!, r[5]!, r[6]!],
+					normal: [r[7]!, r[8]!, r[9]!],
+					hitEntityId: r[10]!,
+				};
+			}
+			case PhysQueryType.AwakeState: {
+				const body = this.GetMovable(query.entityId);
+				return { awake: body ? this._bridge.GetAwakeState(body.handle) : false };
+			}
+		}
+	}
+
+	//#endregion
+
+	//#region Stepping
 
 	/** Advances the simulation by one fixed step and packages the results for the caller to post. */
-	public StepOnce(fixedTimestepMs: number): PhysicsStepResult {
-		const flat = this._bridge.Step(fixedTimestepMs / 1000);
+	public Step(dt: number): PhysicsStepOutput {
+		this.ApplyKinematicPoses(dt);
+		this.MoveCharacters(dt);
+
+		const flat = this._bridge.Step(dt);
 		const step = this._stepIndex++;
 
-		// bridge.Step()'s own layout is also 8-wide (bodyId + 7 transform floats), so the
-		// output buffer needs at most as many TRANSFORM_STRIDE-wide slots as flat has - we
-		// may end up writing fewer if some bodyIds don't map to a live entity (see the
-		// `continue` below), never more. A fresh buffer every tick is deliberate: once a
-		// buffer has been handed to postMessage's transfer list it's permanently detached
-		// from this realm, so there's no pool of buffers to safely reuse here - see
-		// TransformBatchPayload's doc comment in TransformProtocol.ts.
-		const output = new Float64Array(Math.floor(flat.length / 8) * TRANSFORM_STRIDE);
-		let entityCount = 0;
-		for (let i = 0; i + 7 < flat.length; i += 8) {
-			const bodyId = flat[i]!;
-			const entityId = this._bodyIdToEntity.get(bodyId);
-			if (entityId === undefined) continue; // shouldn't happen, but never forward a dangling id
+		// Fresh buffers every tick on purpose: once a buffer is in postMessage's transfer list it is
+		// permanently detached from this realm, so there is no pool to safely reuse.
+		const bodies = new Float64Array(Math.floor(flat.length / BODY_STRIDE) * BODY_STRIDE);
+		let bodyCount = 0;
+		for (let i = 0; i + BODY_STRIDE - 1 < flat.length; i += BODY_STRIDE) {
+			const entry = this._bodyIdToEntity.get(flat[i]!);
+			if (!entry) continue; // never forward a dangling id
 
-			const base = entityCount * TRANSFORM_STRIDE;
-			output[base] = entityId;
-			output[base + 1] = flat[i + 1]!;
-			output[base + 2] = flat[i + 2]!;
-			output[base + 3] = flat[i + 3]!;
-			output[base + 4] = flat[i + 4]!;
-			output[base + 5] = flat[i + 5]!;
-			output[base + 6] = flat[i + 6]!;
-			output[base + 7] = flat[i + 7]!;
-			entityCount++;
+			const base = bodyCount * BODY_STRIDE;
+			bodies[base] = entry.entityId;
+
+			// Undo the hull centroid shift so the entity's origin stays where its source shape was.
+			const o = entry.centroidOffset;
+			let px = flat[i + 1]!, py = flat[i + 2]!, pz = flat[i + 3]!;
+			if (o[0] !== 0 || o[1] !== 0 || o[2] !== 0) {
+				const w = new Quat(flat[i + 4]!, flat[i + 5]!, flat[i + 6]!, flat[i + 7]!).Rotate(new Vec3(o[0], o[1], o[2]));
+				px -= w.X;
+				py -= w.Y;
+				pz -= w.Z;
+			}
+			bodies[base + 1] = px;
+			bodies[base + 2] = py;
+			bodies[base + 3] = pz;
+			for (let k = 4; k < BODY_STRIDE; k++) bodies[base + k] = flat[i + k]!;
+
+			// Characters report their own authoritative position (see CharacterEntry.position), not the integrated body pose.
+			const character = this._characters.get(entry.entityId);
+			if (character) {
+				bodies[base + 1] = character.position[0];
+				bodies[base + 2] = character.position[1];
+				bodies[base + 3] = character.position[2];
+			}
+			bodyCount++;
 		}
 
-		const transforms: PhysicsStepResult["transforms"] =
-			entityCount > 0 ?
-				{ state: PhysState.Transforms, step, entityCount, buffer: output.buffer }
-				: null;
+		const characters = new Float64Array(this._characters.size * CHARACTER_STRIDE);
+		let characterCount = 0;
+		for (const [entityId, c] of this._characters) {
+			const base = characterCount * CHARACTER_STRIDE;
+			characters[base] = entityId;
+			characters[base + 1] = c.isOnFloor ? 1 : 0;
+			characters[base + 2] = c.floorNormal[0];
+			characters[base + 3] = c.floorNormal[1];
+			characters[base + 4] = c.floorNormal[2];
+			characters[base + 5] = c.groundEntityId;
+			characters[base + 6] = c.velocity[0];
+			characters[base + 7] = c.velocity[1];
+			characters[base + 8] = c.velocity[2];
+			characterCount++;
+		}
 
 		const rawEvents = this._bridge.GetLastOverlapEvents();
-
-		let overlapEvents: PhysicsStepResult["overlapEvents"] = null;
-
+		let overlaps: Int32Array<ArrayBuffer> | null = null;
 		if (rawEvents.length > 0) {
-			const events: { ownerA: number; ownerB: number; entered: boolean; }[] = [];
-			for (let i = 0; i + 2 < rawEvents.length; i += 3) {
-				events.push({ ownerA: rawEvents[i]!, ownerB: rawEvents[i + 1]!, entered: rawEvents[i + 2] === 1 });
-			}
-			overlapEvents = { state: PhysState.OverlapEvents, events };
+			overlaps = new Int32Array(rawEvents.length);
+			for (let i = 0; i < rawEvents.length; i++) overlaps[i] = rawEvents[i]!;
 		}
 
-		return { transforms, overlapEvents };
+		return { step, bodyCount, bodies: bodies.buffer, characterCount, characters: characters.buffer, overlaps };
 	}
+
+	/**
+	 * Port of BepuAnimatableBody3D._PhysicsProcess: derive linear/angular velocity from the pose delta (the solver builds
+	 * friction/push constraints from relative *velocity*, so a body that is only teleported would not carry anything
+	 * resting on it), then teleport the pose so the body stays exactly glued to whatever drives it.
+	 */
+	private ApplyKinematicPoses(dt: number): void {
+		if (dt <= 0) return;
+
+		for (const body of this._entities.values()) {
+			const target = body.pendingKinematicPose;
+			if (!target) continue;
+			body.pendingKinematicPose = undefined;
+
+			const last = body.lastPose ?? target;
+			this._bridge.SetLinearVelocity(
+				body.handle,
+				(target[0] - last[0]) / dt,
+				(target[1] - last[1]) / dt,
+				(target[2] - last[2]) / dt
+			);
+
+			// Quaternion-log equivalent of the linear velocity: omega = 2/dt * log(to * inverse(from)).
+			const delta = Quat.FromTuple([target[3], target[4], target[5], target[6]])
+				.Mul(Quat.FromTuple([last[3], last[4], last[5], last[6]]).Inverse());
+			const log = PhysicsWorld.QuatLogVector(delta);
+			this._bridge.SetAngularVelocity(body.handle, log.X * (2 / dt), log.Y * (2 / dt), log.Z * (2 / dt));
+
+			this.WritePose(body, target);
+			body.lastPose = target;
+		}
+	}
+
+	/** Vector part of log(q) for a unit quaternion: axis * (angle / 2), taking the short way round. */
+	private static QuatLogVector(q: Quat): Vec3 {
+		const sign = q.W < 0 ? -1 : 1;
+		const w = Math.min(1, sign * q.W);
+		const vx = sign * q.X, vy = sign * q.Y, vz = sign * q.Z;
+		const vectorLength = Math.sqrt(vx * vx + vy * vy + vz * vz);
+		if (vectorLength < 1e-9) return new Vec3();
+		const scale = Math.atan2(vectorLength, w) / vectorLength;
+		return new Vec3(vx * scale, vy * scale, vz * scale);
+	}
+
+	/**
+	 * Engine-side half of BepuCharacterBody3D.MoveAndSlide: carry along whatever we stood on last tick, run the
+	 * collide-and-slide sweep, write the resulting pose + velocity back to the kinematic body so dynamic bodies still
+	 * see and get pushed by the character.
+	 */
+	private MoveCharacters(dt: number): void {
+		for (const character of this._characters.values()) {
+			const command = character.pending;
+			if (!command) continue;
+			character.pending = null;
+
+			const body = character.entity;
+			let [px, py, pz] = character.position;
+
+			// Carry: MoveCharacter is a pure sweep query against wherever things are *right now* - it has no notion
+			// of "the floor moved since last tick, bring me with it". So if we were standing on something that
+			// can move, ride along with its velocity before sweeping this tick's own input velocity.
+			if (character.isOnFloor && character.groundEntityId !== 0) {
+				const ground = this._entities.get(character.groundEntityId);
+				if (ground && ground.bodyType !== PhysBodyType.Static) {
+					const v = this._bridge.GetLinearVelocity(ground.handle);
+					px += v[0]! * dt;
+					py += v[1]! * dt;
+					pz += v[2]! * dt;
+				}
+			}
+
+			const o = command.options;
+			const r = this._bridge.MoveCharacter(
+				body.handle, px, py, pz, ...command.velocity, dt,
+				character.radius, character.cylinderLength,
+				command.layer | 0, command.mask | 0,
+				o.maxSlideIterations, o.skinWidth, o.maxFloorAngleDegrees, o.floorProbeDistance
+			);
+
+			character.isOnFloor = r[3] === 1;
+			character.floorNormal = [r[4]!, r[5]!, r[6]!];
+			character.groundEntityId = r[7]!;
+			character.velocity = [r[8]!, r[9]!, r[10]!];
+
+			character.position = [r[0]!, r[1]!, r[2]!];
+			this._bridge.SetBodyPose(body.handle, r[0]!, r[1]!, r[2]!, 0, 0, 0, 1);
+			this._bridge.SetLinearVelocity(body.handle, ...(dt > 0 ? character.velocity : ([0, 0, 0] as Tuple3)));
+		}
+	}
+
+	//#endregion
 }

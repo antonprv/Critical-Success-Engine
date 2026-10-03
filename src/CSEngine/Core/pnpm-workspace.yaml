@@ -1,5 +1,7 @@
 allowBuilds:
   '@parcel/watcher': true
   unrs-resolver: true
+minimumReleaseAgeExclude:
+  - vite@8.3.2
 nodeLinker: hoisted
 packageImportMethod: copy

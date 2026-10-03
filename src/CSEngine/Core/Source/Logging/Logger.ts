@@ -7,7 +7,7 @@ export class Logger {
 	private static readonly _sidecarUrl = "http://127.0.0.1:4790/log";
 	private static readonly _buffer: string[] = [];
 
-	// Cover both Vite and Webpack
+	// Hosts that may talk to the local log sidecar (dev server, `vite preview`).
 	private static readonly _localHostnames = new Set(["127.0.0.1", "localhost", "[::1]", "::1"]);
 
 	private static get IsLocalHost(): boolean {

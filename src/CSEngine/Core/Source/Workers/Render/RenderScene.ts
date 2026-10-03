@@ -1,63 +1,102 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-import { ArcRotateCamera, Engine, HemisphericLight, Scene, Vector3 } from "@babylonjs/core";
-import "@babylonjs/loaders";
+// Deep imports on purpose: the "@babylonjs/core" barrel and the "@babylonjs/loaders" index (OBJ, STL, SPLAT, BVH, glTF 1
+// and 2, ...) would each drag their whole feature set into the render worker bundle. This engine renders primitives and
+// glTF 2.0 models, so that is all that is registered.
+import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
+import { Engine } from "@babylonjs/core/Engines/engine";
+import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
+import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
+import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
+import { Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Scene } from "@babylonjs/core/scene";
+import "@babylonjs/loaders/glTF/2.0";
 
 import { AssetLoader } from "../../Game/AssetLoader";
+import type { CameraPose } from "../Protocol/RenderGameLogicProtocol";
 
 /**
- * Owns the Babylon Engine/Scene pair and their placeholder camera/light -
- * nothing here knows about entities, meshes-per-entity bookkeeping, or the
- * gamelogic message protocol (see EntityMeshRegistry for that side).
+ * Owns the Babylon Engine/Scene pair, the camera and the lights - nothing here knows about entities (see
+ * EntityMeshRegistry) or the message protocol (see RenderWorker).
  *
- * KNOWN LIMITATION: Babylon's Inspector (scene.debugLayer) manipulates the
- * DOM directly (creates its own overlay elements) and needs `document`,
- * which doesn't exist inside a worker. DebugTools.EnableInspectorToggle
- * (from ../../game/DebugTools) is NOT called here for that reason - see
- * docs/THREADING_ARCHITECTURE.md "Dev tooling" for the options if you want
- * it back (the practical one: keep a non-worker fallback render path for
- * `pnpm dev`, and only use the worker split in real builds).
+ * Conventions: the scene is RIGHT-handed, Y-up, camera forward = -Z - the same as Godot and Bepu, so poses coming from
+ * the simulation are applied verbatim, with no axis flipping anywhere.
+ *
+ * KNOWN LIMITATION: Babylon's Inspector (scene.debugLayer) needs `document`, which doesn't exist inside a worker -
+ * see docs/THREADING_ARCHITECTURE.md "Dev tooling".
  */
 export class RenderScene {
 	private readonly _engine: Engine;
 	private readonly _scene: Scene;
+	private readonly _camera: FreeCamera;
 
 	public readonly AssetLoader: AssetLoader;
 
-	public constructor(canvas: OffscreenCanvas, width: number, height: number, devicePixelRatio: number) {
+	/**
+	 * @param createEngine Builds the Babylon engine for the canvas. The default is the real WebGL engine; tests pass a
+	 * NullEngine-based one (Node has no WebGL, and NullEngine is a subclass of Engine, so the module can't be mocked).
+	 */
+	public constructor(
+		canvas: OffscreenCanvas,
+		width: number,
+		height: number,
+		devicePixelRatio: number,
+		createEngine: (canvas: OffscreenCanvas) => Engine = (target) => new Engine(target as unknown as HTMLCanvasElement, true, undefined, true)
+	) {
 		// Must happen before the Engine reads the canvas size: OffscreenCanvas keeps its 300x150 default otherwise.
 		canvas.width = Math.max(1, Math.round(width * devicePixelRatio));
 		canvas.height = Math.max(1, Math.round(height * devicePixelRatio));
 
-		this._engine = new Engine(canvas as unknown as HTMLCanvasElement, true, undefined, true);
+		this._engine = createEngine(canvas);
 		this._scene = new Scene(this._engine);
+		this._scene.useRightHandedSystem = true;
+		this._scene.clearColor = new Color4(0.08, 0.1, 0.14, 1);
 		this.AssetLoader = new AssetLoader(this._scene);
 
-		// Placeholder scene, ported as-is from the old Game.ts - swap for real
-		// camera/lighting setup once GameLogicWorker is driving real entities.
-		const camera = new ArcRotateCamera("Camera", -Math.PI / 2, Math.PI / 3, 15, new Vector3(0, 1, 0), this._scene);
-		// No canvas.attachControl(): pointer input is captured on the main thread
-		// (see DomInputBridge) and forwarded through GameLogicWorker instead, so
-		// two things aren't fighting over the same pointer events.
-		void camera;
+		// No attachControl(): pointer input is captured on the main thread (DomInputBridge) and forwarded through
+		// GameLogicWorker, so two things aren't fighting over the same pointer events.
+		this._camera = new FreeCamera("MainCamera", new Vector3(0, 8, 13), this._scene);
+		this._camera.rotationQuaternion = Quaternion.Identity();
+		this._camera.minZ = 0.05;
+		this._camera.maxZ = 500;
+		this._camera.setTarget(new Vector3(0, 1, 0));
+		this._camera.rotationQuaternion = Quaternion.FromEulerAngles(this._camera.rotation.x, this._camera.rotation.y, 0);
 
-		new HemisphericLight("light1", new Vector3(1, 1, 0), this._scene);
+		const sky = new HemisphericLight("Sky", new Vector3(0.2, 1, 0.1), this._scene);
+		sky.intensity = 0.65;
+		sky.groundColor = new Color3(0.25, 0.25, 0.3);
+
+		const sun = new DirectionalLight("Sun", new Vector3(-0.4, -1, -0.5), this._scene);
+		sun.intensity = 0.7;
 	}
 
-	public get Scene(): Scene {
-		return this._scene;
+	public get Scene(): Scene { return this._scene; }
+
+	public SetClearColor(r: number, g: number, b: number): void {
+		this._scene.clearColor = new Color4(r, g, b, 1);
 	}
 
-	public RunRenderLoop(): void {
-		this._engine.runRenderLoop(() => this._scene.render());
+	public PoseCamera(pose: CameraPose): void {
+		const [px, py, pz, qx, qy, qz, qw] = pose.transform;
+		this._camera.position.set(px, py, pz);
+		this._camera.rotationQuaternion?.set(qx, qy, qz, qw);
+		this._camera.fov = pose.fov;
+	}
+
+	/** `beforeRender` runs once per displayed frame, right before the scene is drawn. */
+	public RunRenderLoop(beforeRender: () => void): void {
+		this._engine.runRenderLoop(() => {
+			beforeRender();
+			this._scene.render();
+		});
 	}
 
 	public Resize(width: number, height: number, devicePixelRatio: number): void {
 		const canvas = this._engine.getRenderingCanvas();
 		if (canvas) {
-			canvas.width = Math.round(width * devicePixelRatio);
-			canvas.height = Math.round(height * devicePixelRatio);
+			canvas.width = Math.max(1, Math.round(width * devicePixelRatio));
+			canvas.height = Math.max(1, Math.round(height * devicePixelRatio));
 		}
 		this._engine.resize();
 	}

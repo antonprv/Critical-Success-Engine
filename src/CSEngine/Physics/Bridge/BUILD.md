@@ -1,12 +1,15 @@
 # Building physics-wasm (PhysicsBridge)
 
 This compiles your actual `Framework.Physics` (BEPUphysics2 wrapper) to a real
-browser WebAssembly module, so `physics.worker.ts` runs the same simulation
+browser WebAssembly module, so `PhysicsWorker.ts` runs the same simulation
 code as your Godot project - not a JS reimplementation and not Rapier/Cannon.
 
-I could not run any of this myself in the sandbox I built it in (no NuGet
-access there), so treat the commands below as the intended path, not a
-verified one - the most likely failure points are called out at the bottom.
+Status of the current `PhysicsBridge.cs`: it was compile-checked (C# only, against the real Integration/Bepu/FastMath
+sources with net8 reference assemblies) but the browser-wasm build and its behaviour in a browser have not been run by the
+author of the last change - treat the commands below as the intended path, and the failure points at the bottom as the
+first places to look. The project targets net10.0; the output goes to
+`CSEngine/Binaries/Physics/Release/net10.0/browser-wasm/AppBundle/_framework` (which is where Vite looks, see
+`Core/vite.config.ts`).
 
 ## One-time setup
 
@@ -21,7 +24,7 @@ cd physics-wasm/Bridge
 dotnet build -c Release
 ```
 
-Output lands in `bin/Release/net8.0/browser-wasm/AppBundle/`, containing
+Output lands in `Binaries/Physics/Release/net10.0/browser-wasm/AppBundle/`, containing
 `_framework/dotnet.js`, `_framework/dotnet.wasm`, `_framework/*.dll` (your
 managed assemblies, shipped as data files the runtime loads), and `main.js`/
 `index.html` (only used for the manual smoke test below).
@@ -33,17 +36,18 @@ build - see "If it doesn't build" below).
 
 ## Wire it into LanternFestival
 
-`physics.worker.ts` expects the AppBundle's `_framework/` directory to be
-fetchable at `/physics-wasm/_framework/...` from the built site. Copy it
-there as part of your existing asset pipeline:
+`Source/Workers/Physics/PhysicsWasmLoader.ts` loads the runtime from
+`/physics-wasm/_framework/dotnet.js`. Nothing has to be copied by hand - the
+Vite build already handles it (`src/CSEngine/Core/BuildTools/PhysicsWasmPlugin.ts`):
 
-- **webpack**: add another pattern to the `copy-webpack-plugin` config already
-  in `webpack.config.js`:
-  ```js
-  { from: "physics-wasm/Bridge/bin/Release/net8.0/browser-wasm/AppBundle/_framework", to: "physics-wasm/_framework" }
-  ```
-- **vite**: drop the same `_framework` folder into `public/physics-wasm/_framework/`
-  so Vite serves it as a static asset.
+- `pnpm dev` serves `src/CSEngine/Binaries/Physics/Release/net10.0/browser-wasm/AppBundle/_framework`
+  (what `devops/build-physics.sh` publishes) directly under `/physics-wasm/_framework/`;
+- `pnpm build` copies that folder into `src/CSEngine/Binaries/Core/physics-wasm/_framework`,
+  so `pnpm preview` and any static host serve it from the same URL.
+
+To use a runtime from somewhere else, set `PHYSICS_WASM_DIR` (absolute, or relative
+to `src/CSEngine/Core`) for `pnpm dev` / `pnpm build`. Without a published runtime
+the site still builds and runs - just without physics (the game says so on screen).
 
 ## Manual smoke test (before wiring up the worker)
 
@@ -53,14 +57,15 @@ over http(s), not `file://`, for wasm streaming compilation) and open
 console:
 
 ```js
-PhysicsBridge.CreateWorld(0, -20, 0, 8, 1, false);
+PhysicsBridge.CreateWorld(0, -20, 0, 8, 1, false, 0.8, 2);   // gravity, velocityIterations, substeps, multithreading, friction, maxRecoveryVelocity
 const shape = PhysicsBridge.AddSphereShape(0.5);
-const body = PhysicsBridge.AddDynamicBody(shape, 0,5,0, 0,0,0,1, 1, 1, 0xffffffff, 1, false);
-PhysicsBridge.Step(0.016); // -> Float64Array [1, 0, 4.9968, 0, 0,0,0,1]
+// shape, pos(3), quat(4), mass, layer, mask, ownerId, kind(0 solid), continuousDetection
+const body = PhysicsBridge.AddDynamicBody(shape, 0, 5, 0, 0, 0, 0, 1, 1, 1, -1, 1, 0, false);
+PhysicsBridge.Step(0.016); // -> 14 numbers: [bodyId, pos(3), quat(4), linearVelocity(3), angularVelocity(3)] - y a hair below 5, linear y about -0.3
 ```
 
 If that returns a falling sphere's transform, the wasm build itself is good
-and any remaining problem is in `physics.worker.ts`'s own loading/boot code,
+and any remaining problem is in `PhysicsWorker.ts`'s own loading/boot code,
 not the C# side.
 
 ## If it doesn't build
@@ -94,13 +99,17 @@ not the C# side.
 
 ## Extending the bridge
 
-Everything in `Bridge/PhysicsBridge.cs` follows one pattern: flatten
-Vector3/Quaternion into individual `double` parameters (JSExport's built-in
-marshaler doesn't know about those struct types), mint your own `int` id for
-any handle you hand back to JS, and store the real `Framework.Physics` handle
-in one of the `Dictionary<int, T>` fields. `AddConvexHullShape`,
-`AddTriangleMeshShape`, `SweepProjectile`, and `SweepSphereCast` aren't wired
-up yet because they take `ReadOnlySpan<Vector3>` - add a
-`[JSMarshalAs<JSType.Array<JSType.Number>>] double[] flattenedPoints`
-parameter and rebuild the span from it the same way `Step()`'s method already
-builds a flat array to return one.
+Everything in `Bridge/PhysicsBridge.cs` follows one pattern: flatten Vector3/Quaternion into individual `double`
+parameters (JSExport's built-in marshaler doesn't know those struct types), mint your own `int` id for any handle you
+hand back to JS, and keep the real `Physics` handle in one of the `Dictionary<int, T>` fields. Variable-length input
+(point clouds, triangle soups) goes in as `[JSMarshalAs<JSType.Array<JSType.Number>>] double[]`, multi-value results
+come back as a flat `double[]` whose layout is documented on the method.
+
+The whole `PhysicsWorld` API is exposed now (convex hulls, triangle meshes, dynamic/kinematic/static bodies, character
+moves, projectile and sphere sweeps, velocity/awake getters and setters). To add a method: write it in `PhysicsBridge.cs`,
+mirror its signature in `Core/Source/Workers/Physics/PhysicsBridgeContract.ts`, use it from `PhysicsWorld.ts` (that file
+is the only TypeScript that talks to the bridge), and expose it to scripts through `PhysicsService` if gameplay code
+needs it.
+
+One known soft spot: `MoveCharacter` takes 16 parameters. If the JS marshaller ever complains, pack the four
+`CharacterMoveOptions` values (and `layer`/`mask`) into a `double[]` parameter instead.

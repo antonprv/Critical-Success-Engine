@@ -1,14 +1,12 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-// Shared by vite.config.ts (via LogServerPlugin.ts) and webpack.config.js's
-// devServer.onListening - both need the exact same "spawn Tools/LogServer.mjs
-// unless something's already listening on its port, kill it again on
-// shutdown" logic. Plain .mjs on purpose (see LogServerSidecar.d.mts for why
-// it still typechecks) - webpack.config.js is executed by Node directly with
-// no TypeScript loader registered, so it can only ever import plain JS.
+// Used by vite.config.ts (via LogServerPlugin.ts): spawn Tools/LogServer.mjs unless
+// something is already listening on its port (or the script is not there), and kill it
+// again on shutdown. Plain .mjs (see LogServerSidecar.d.mts for how it still typechecks).
 
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import { createConnection } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -55,7 +53,7 @@ function RegisterShutdownHooks() {
  * ever double-spawning it.
  */
 export async function StartLogServerSidecar() {
-	if (childProcess || (await IsPortTaken(SidecarPort))) return;
+	if (childProcess || !existsSync(SidecarScript) || (await IsPortTaken(SidecarPort))) return;
 
 	childProcess = spawn(process.execPath, [SidecarScript], { stdio: "inherit" });
 	childProcess.once("exit", () => {

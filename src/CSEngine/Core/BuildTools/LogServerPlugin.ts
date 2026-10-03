@@ -11,9 +11,7 @@ import { StartLogServerSidecar, StopLogServerSidecar } from "./LogServerSidecar.
  * disk itself) the moment `vite dev` starts listening, and tears it down
  * again on shutdown. Nothing to run manually, nothing left running once the
  * dev server exits. Only wired into configureServer, so a plain `vite build`
- * never touches it - matches webpack.config.js's devServer.onListening,
- * which is the equivalent hook there (also never fires for a plain
- * `webpack build`, only `webpack serve`).
+ * never touches it.
  */
 export function LogServerPlugin(): Plugin {
 	return {

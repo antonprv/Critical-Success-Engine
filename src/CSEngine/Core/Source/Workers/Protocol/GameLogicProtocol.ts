@@ -8,7 +8,8 @@ export type InputEvent =
 	| { kind: InputEvt.KeyUp; code: string; }
 	| { kind: InputEvt.PointerMove; dx: number; dy: number; }
 	| { kind: InputEvt.PointerDown; button: number; }
-	| { kind: InputEvt.PointerUp; button: number; };
+	| { kind: InputEvt.PointerUp; button: number; }
+	| { kind: InputEvt.ReleaseAll; };
 
 export type MainToGameLogicMessage =
 	| {
@@ -16,5 +17,6 @@ export type MainToGameLogicMessage =
 		renderPort: MessagePort;
 		physicsPort: MessagePort;
 		audioPort: MessagePort;
+		uiPort: MessagePort;
 	}
 	| { type: "input"; event: InputEvent; };

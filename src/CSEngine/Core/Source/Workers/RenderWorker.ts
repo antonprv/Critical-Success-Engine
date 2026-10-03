@@ -1,196 +1,107 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-import {
-	ArcRotateCamera,
-	Engine,
-	HemisphericLight,
-	MeshBuilder,
-	Quaternion,
-	Scene,
-	Vector3
-} from "@babylonjs/core";
-
-import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
-import "@babylonjs/loaders";
-
-import { AssetLoader } from "../Game/AssetLoader";
 import { Logger } from "../Logging/Logger";
-
-import { RendMesh, RendOpType as RendOp } from "./Common/CommonEnums";
-import type { GameLogicToRenderMessage, RenderToGameLogicMessage } from "./Protocol/RenderGameLogicProtocol";
+import { RendOpType as RendOp } from "./Common/CommonEnums";
+import { EntityMeshRegistry } from "./Render/EntityMeshRegistry";
+import { RenderScene } from "./Render/RenderScene";
+import type { CameraPose, GameLogicToRenderMessage, RenderToGameLogicMessage } from "./Protocol/RenderGameLogicProtocol";
 import type { MainToRenderMessage } from "./Protocol/RenderProtocol";
-import { TRANSFORM_STRIDE, type TransformBatchPayload } from "./Protocol/TransformProtocol";
 
 // Own static buffer per realm - App.ts's timer doesn't flush this one.
 Logger.SetupAutoFlush();
 
-let engine: Engine | null = null;
-let scene: Scene | null = null;
-let assetLoader: AssetLoader | null = null;
-let gameLogicPort: MessagePort | null = null;
+/**
+ * Frame protocol: the render worker owns the display clock. Once per displayed frame it asks GameLogic for a frame
+ * ("frame-request") - as long as fewer than MaxOutstanding requests are unanswered, so a slow GameLogic cannot build up
+ * an ever-growing queue - and draws whatever the LATEST received frame says (poses + camera). The answer to a request
+ * therefore shows up one or two displays frames later; GameLogic interpolates physics poses to hide that.
+ */
+const MaxOutstanding = 2;
 
-const entityMeshes = new Map<number, AbstractMesh>();
+// Only for "resize", which may arrive before "init"; everything after init gets the scene and registry passed in.
+let renderScene: RenderScene | null = null;
 
-//#region public Callback
+let nextFrameId = 1;
+let outstanding = 0;
+let pendingFrame: { buffer: ArrayBuffer; entityCount: number; camera: CameraPose | null; } | null = null;
 
 self.onmessage = (event: MessageEvent<MainToRenderMessage>) => {
 	const message = event.data;
 	switch (message.type) {
 		case "init":
-			_Init(message);
+			Init(message);
 			break;
-		case "resize": {
-			if (!engine) break;
-			const canvas = engine.getRenderingCanvas();
-			if (canvas) {
-				canvas.width = Math.round(message.width * message.devicePixelRatio);
-				canvas.height = Math.round(message.height * message.devicePixelRatio);
-			}
-			engine.resize();
+		case "resize":
+			renderScene?.Resize(message.width, message.height, message.devicePixelRatio);
 			break;
-		}
 		case "set-inspector-visible":
-			// See the file header comment - Inspector needs `document` and can't
-			// run inside this worker. Intentionally a no-op.
+			// Inspector needs `document`, which a worker doesn't have - intentionally a no-op (see RenderScene).
 			break;
 	}
 };
 
-//#endregion
+function Init(message: Extract<MainToRenderMessage, { type: "init"; }>): void {
+	const scene = new RenderScene(message.canvas, message.width, message.height, message.devicePixelRatio);
+	const registry = new EntityMeshRegistry(scene.Scene, scene.AssetLoader);
+	renderScene = scene;
+	const gameLogicPort = message.gameLogicPort;
+	const Post = (reply: RenderToGameLogicMessage): void => gameLogicPort.postMessage(reply);
 
-//#region Private Methods
+	registry.OnGltfLoaded = (entityId) => Post({ type: "asset-loaded", entityId });
+	gameLogicPort.onmessage = (e: MessageEvent<GameLogicToRenderMessage>) => HandleGameLogicMessage(e.data, scene, registry, Post);
 
-function _Init(message: Extract<MainToRenderMessage, { type: "init"; }>): void {
-	// Must happen before the Engine reads the canvas size: OffscreenCanvas keeps its 300x150 default otherwise.
-	message.canvas.width = Math.max(1, Math.round(message.width * message.devicePixelRatio));
-	message.canvas.height = Math.max(1, Math.round(message.height * message.devicePixelRatio));
-	engine = new Engine(message.canvas as unknown as HTMLCanvasElement, true, undefined, true);
-	scene = new Scene(engine);
-	assetLoader = new AssetLoader(scene);
-	gameLogicPort = message.gameLogicPort;
-
-	// Placeholder scene, ported as-is from the old Game.ts - swap for real
-	// camera/lighting setup once gamelogic.worker is driving real entities.
-	const camera = new ArcRotateCamera("Camera", -Math.PI / 2, Math.PI / 3, 15, new Vector3(0, 1, 0), scene);
-	// No canvas.attachControl(): pointer input is captured on the main thread
-	// (see orchestrator.ts) and forwarded through gamelogic.worker instead, so
-	// two things aren't fighting over the same pointer events.
-	void camera;
-
-	new HemisphericLight("light1", new Vector3(1, 1, 0), scene);
-
-	gameLogicPort.onmessage = (event: MessageEvent<GameLogicToRenderMessage>) => _HandleGameLogicMessage(event.data);
-
-	engine.runRenderLoop(() => scene?.render());
-
-	const readyMessage: RenderToGameLogicMessage = { type: "ready" };
-	gameLogicPort.postMessage(readyMessage);
+	scene.RunRenderLoop(() => BeforeRender(scene, registry, Post));
+	Post({ type: "ready" });
 }
 
-function _HandleGameLogicMessage(message: GameLogicToRenderMessage): void {
+function BeforeRender(scene: RenderScene, registry: EntityMeshRegistry, Post: (message: RenderToGameLogicMessage) => void): void {
+	if (pendingFrame) {
+		registry.ApplyTransformBatch(pendingFrame.buffer, pendingFrame.entityCount);
+		if (pendingFrame.camera) scene.PoseCamera(pendingFrame.camera);
+		pendingFrame = null;
+	}
+
+	if (outstanding < MaxOutstanding) {
+		outstanding++;
+		Post({ type: "frame-request", frameId: nextFrameId++, time: performance.now() });
+	}
+}
+
+function HandleGameLogicMessage(
+	message: GameLogicToRenderMessage,
+	renderScene: RenderScene,
+	registry: EntityMeshRegistry,
+	Post: (message: RenderToGameLogicMessage) => void
+): void {
+
 	switch (message.operation) {
 		case RendOp.SpawnEntity:
-			_SpawnEntity(message);
+			registry.Spawn(message.entityId, message.mesh, message.transform, message.color);
 			break;
-		case RendOp.RemoveEntity: {
-			entityMeshes.get(message.entityId)?.dispose();
-			entityMeshes.delete(message.entityId);
+		case RendOp.RemoveEntity:
+			registry.Remove(message.entityId);
 			break;
-		}
-		case RendOp.TransformBatch: {
-			_TransformEntity(message);
+		case RendOp.SetVisible:
+			registry.SetVisible(message.entityId, message.visible);
 			break;
-		}
-		case RendOp.PoseCamera: {
-			// Left as a hook: swap in whatever camera object your gameplay code
-			// actually drives (ArcRotateCamera target, FreeCamera position, ...).
-			// The default scene below only sets up an ArcRotateCamera for the
-			// placeholder sphere, so there's nothing meaningful to move yet.
+		case RendOp.SetColor:
+			registry.SetColor(message.entityId, message.color);
 			break;
-		}
+		case RendOp.SetEnvironment:
+			renderScene.SetClearColor(...message.clearColor);
+			break;
+		case RendOp.ClearScene:
+			registry.Clear();
+			pendingFrame = null;
+			break;
+		case RendOp.Frame:
+			outstanding = Math.max(0, outstanding - 1);
+			// Latest frame wins: an older one that was never drawn is simply superseded.
+			pendingFrame = { buffer: message.buffer, entityCount: message.entityCount, camera: message.camera };
+			break;
+		case RendOp.Sync:
+			Post({ type: "sync-ack", token: message.token });
+			break;
 	}
 }
-
-function _SpawnEntity(message: Extract<GameLogicToRenderMessage, { operation: RendOp.SpawnEntity; }>): void {
-	if (!scene) return;
-
-	// Spawns are infrequent (once per entity, not once per tick), so the destructure
-	// here isn't worth avoiding the way the transform-batch hot loop below is.
-	const [px, py, pz, qx, qy, qz, qw] = message.transform;
-
-	switch (message.mesh.shape) {
-		case RendMesh.Sphere: {
-			const mesh = MeshBuilder.CreateSphere(`entity-${message.entityId}`, { diameter: message.mesh.diameter }, scene);
-			_ApplyTransform(mesh, px, py, pz, qx, qy, qz, qw);
-			entityMeshes.set(message.entityId, mesh);
-			break;
-		}
-		case RendMesh.Box: {
-			const mesh = MeshBuilder.CreateBox(
-				`entity-${message.entityId}`,
-				{ width: message.mesh.size[0], height: message.mesh.size[1], depth: message.mesh.size[2] },
-				scene
-			);
-			_ApplyTransform(mesh, px, py, pz, qx, qy, qz, qw);
-			entityMeshes.set(message.entityId, mesh);
-			break;
-		}
-		case RendMesh.Gltf: {
-			assetLoader?.AddMesh("background", `entity-${message.entityId}`, message.mesh.rootUrl, message.mesh.sceneFilename, (meshes) => {
-				const root = meshes[0];
-				if (!root) return;
-				_ApplyTransform(root, px, py, pz, qx, qy, qz, qw);
-				entityMeshes.set(message.entityId, root);
-				const reply: RenderToGameLogicMessage = { type: "asset-loaded", entityId: message.entityId };
-				gameLogicPort?.postMessage(reply);
-			});
-			assetLoader?.LoadBackgroundInBackground();
-			break;
-		}
-	}
-}
-
-function _ApplyTransform(
-	mesh: AbstractMesh,
-	px: number,
-	py: number,
-	pz: number,
-	qx: number,
-	qy: number,
-	qz: number,
-	qw: number
-): void {
-	mesh.position.set(px, py, pz);
-	if (!mesh.rotationQuaternion) {
-		mesh.rotationQuaternion = new Quaternion();
-	}
-	mesh.rotationQuaternion.set(qx, qy, qz, qw);
-}
-
-// message.buffer is TRANSFORM_STRIDE-wide float64 groups: [entityId, posX, posY, posZ,
-// quatX, quatY, quatZ, quatW] - see TransformBatchPayload in protocol.ts. Reading it
-// directly here (rather than the old per-entity object array) is the whole point of
-// making this message Transferable: no structured-clone copy at either hop, and no
-// per-entity object/array allocation on this end either.
-function _TransformEntity(message: { operation: RendOp.TransformBatch; } & TransformBatchPayload) {
-	const view = new Float64Array(message.buffer);
-	for (let entity = 0; entity < message.entityCount; entity++) {
-		const base = entity * TRANSFORM_STRIDE;
-		const mesh = entityMeshes.get(view[base]!);
-		if (mesh) {
-			_ApplyTransform(
-				mesh,
-				view[base + 1]!,
-				view[base + 2]!,
-				view[base + 3]!,
-				view[base + 4]!,
-				view[base + 5]!,
-				view[base + 6]!,
-				view[base + 7]!
-			);
-		}
-	}
-}
-
-//#endregion

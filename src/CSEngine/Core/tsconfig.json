@@ -3,10 +3,11 @@
   "compilerOptions": {
     // File Layout
 
-    "target": "es6",
+    "target": "ES2022",
     "module": "ESNext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "noResolve": false,
+    "noEmit": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
     "noUnusedLocals": false,
@@ -15,7 +16,6 @@
     "noImplicitReturns": true,
     "noImplicitThis": true,
     "noImplicitOverride": true,
-    "sourceMap": true,
     "preserveConstEnums": true,
 
     "useUnknownInCatchVariables": true,
@@ -24,10 +24,9 @@
 
     "lib": [
       "dom",
-      "es6"
+      "dom.iterable",
+      "ES2022"
     ],
-    "rootDir": "Source",
-    "outDir": "../Binaries/Core",
 
     // JS/TS interop
     "allowJs": true,
@@ -35,15 +34,9 @@
 
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
-    "types": [ ],
-    // For nodejs:
-    // "lib": ["esnext"],
-    // "types": ["node"],
-    // and npm install -D @types/node
+    "types": ["vite/client"],
 
     // Other Outputs
-    "declaration": true,
-    "declarationMap": true,
 
     // Stricter Typechecking Options
     "noUncheckedIndexedAccess": true,
@@ -51,7 +44,6 @@
 
     // Recommended Options
     "strict": true,
-    "jsx": "react-jsx",
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
     "noUncheckedSideEffectImports": true,
@@ -62,6 +54,7 @@
   "include": [
     "./Source/**/*.ts",
     "./Source/**/*.tsx",
+    "./Source/**/*.vue",
     "./Source/**/*.js"
   ],
 

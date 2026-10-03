@@ -1,20 +1,7 @@
 {
   "Version": 1,
   "WorkspaceRootPath": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\",
-  "Documents": [
-    {
-      "AbsoluteMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|c:\\repos\\critical-success-engine\\src\\csengine\\core\\webpack.config.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
-      "RelativeMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|solutionrelative:core\\webpack.config.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|c:\\repos\\critical-success-engine\\src\\csengine\\core\\eslint.config.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
-      "RelativeMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|solutionrelative:core\\eslint.config.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|c:\\repos\\critical-success-engine\\src\\csengine\\core\\package.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
-      "RelativeMoniker": "D:0:0:{9BEE7861-F1BC-BEAD-A59E-59F0F3F8FB49}|Core\\Core.esproj|solutionrelative:core\\package.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
-    }
-  ],
+  "Documents": [],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
@@ -22,7 +9,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 2,
+          "SelectedChildIndex": -1,
           "Children": [
             {
               "$type": "Bookmark",
@@ -31,44 +18,6 @@
             {
               "$type": "Bookmark",
               "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "webpack.config.js",
-              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\webpack.config.js",
-              "RelativeDocumentMoniker": "Core\\webpack.config.js",
-              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\webpack.config.js",
-              "RelativeToolTip": "Core\\webpack.config.js",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABAAAAAnAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2026-09-26T11:49:44.858Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "package.json",
-              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\package.json",
-              "RelativeDocumentMoniker": "Core\\package.json",
-              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\package.json",
-              "RelativeToolTip": "Core\\package.json",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABMAAAARAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2026-09-26T11:48:19.996Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "eslint.config.js",
-              "DocumentMoniker": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\eslint.config.js",
-              "RelativeDocumentMoniker": "Core\\eslint.config.js",
-              "ToolTip": "C:\\Repos\\Critical-Success-Engine\\src\\CSEngine\\Core\\eslint.config.js",
-              "RelativeToolTip": "Core\\eslint.config.js",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA0AAAAFAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
-              "WhenOpened": "2026-09-26T11:47:55.203Z",
-              "EditorCaption": ""
             }
           ]
         }

@@ -1,5 +1,11 @@
 # LanternFestival threading architecture
 
+> **Update:** there are now **five** workers - a `UiWorker` was added (UI state/logic; Vue + Quasar on the main thread
+> only render it), and `gamelogic` became a component/scene runtime. The reasoning below still holds; for the current
+> picture and the scripting model read [ENGINE_ARCHITECTURE.md](ENGINE_ARCHITECTURE.md) and the guides in
+> [guides/](guides/00-index.md). File names below use the old lowercase names (`render.worker.ts`...); the current ones
+> are `RenderWorker.ts`, `PhysicsWorker.ts`, `GameLogicWorker.ts`, `AudioWorker.ts`, `UiWorker.ts`.
+
 What changed, why it's split this way, and what to check before you rely on
 any of it.
 
@@ -69,26 +75,26 @@ wasm side as unverified until you've run through BUILD.md's smoke test.
 (logs an error, stops stepping) rather than crashing the other three workers
 - useful for iterating on rendering/gameplay before the physics build exists.
 
-## Message flow for one physics tick
+## Message flow (current)
 
 ```
-physics.worker (setInterval, fixedTimestepMs)
-  -> PhysicsBridge.Step(dt)                          [wasm call, in-thread]
-  -> postMessage("transforms", ...) on physics<->gamelogic port
-gamelogic.worker
-  -> postMessage("transform-batch", ...) on gamelogic<->render port
-render.worker
-  -> applies each entity's new position/rotation to its Babylon mesh
-  -> next engine.runRenderLoop() frame picks it up
+PhysicsWorker (setInterval + accumulator, fixed 60 Hz)
+  -> PhysicsWorld.Step(dt)                            [wasm call, in-thread]
+  -> postMessage(Step snapshot: bodies, characters, overlaps)   -> GameLogicWorker
+GameLogicWorker (physics clock)
+  -> OnPhysicsSync -> overlap callbacks -> OnPhysicsUpdate for every component
+  -> postMessage({ commands: [...] }) back to PhysicsWorker       (one batch per tick)
+
+RenderWorker (display clock, once per displayed frame, max 2 outstanding)
+  -> "frame-request"                                  -> GameLogicWorker
+GameLogicWorker (render clock)
+  -> OnInputUpdate -> Update -> OnUIUpdate for every component
+  -> "Frame": interpolated poses of all renderables + camera pose  (Transferable buffer)
+RenderWorker draws the latest frame it has received.
 ```
 
-Physics steps and render frames are decoupled - physics runs its own fixed
-60Hz loop regardless of render framerate, and render just draws whatever the
-latest `transform-batch` said. There is no interpolation between physics
-steps and render frames here; add it in `render.worker.ts`'s
-`applyTransform` (blend between the last two received transforms based on
-time-since-last-batch) if 60Hz physics against a faster/uneven display
-refresh rate starts looking visually stepped.
+Physics steps and render frames are decoupled. Interpolation between the last two physics poses happens in GameLogic
+(`Transform.WriteInterpolated`), so the render worker just applies what it is told.
 
 ## Dev tooling
 
@@ -109,15 +115,10 @@ specifically so option 1 is a small diff if you want it.
 
 ## Known gaps
 
-- `AddConvexHullShape`, `AddTriangleMeshShape`, `SweepProjectile`,
-  `SweepSphereCast` aren't exposed through `PhysicsBridge` yet - see that
-  file's doc comment and `BUILD.md`'s "Extending the bridge" for the pattern.
-- The loading screen no longer tracks real background-asset progress (see the
-  `TODO` in `app.ts`) since `AssetLoader` now runs inside `render.worker.ts`,
-  out of the main thread's direct sight.
-- No transform interpolation between physics steps and render frames (see
-  above).
-- `gamelogic.worker.ts`'s demo scene (one falling sphere, one static ground
-  box, space bar = impulse) exists only to prove the pipeline end to end once
-  `physics-wasm` is built - replace `spawnDemoScene` with real level/entity
-  spawning.
+- The whole `PhysicsWorld` API is exposed through `PhysicsBridge`. `PhysicsBridge.cs` was compile-checked against the
+  real Integration/Bepu sources (C# only, net8 reference assemblies); the browser-wasm build itself
+  (`dotnet workload install wasm-tools`, net10) and the runtime behaviour in a browser have NOT been run by the author of
+  this change - build it per `Physics/Bridge/BUILD.md` and walk through the character test scene before trusting it.
+- The loading screen shows scene-loading progress, not real background-asset download progress.
+- A character move that arrives after its step already ran is skipped (commands are consumed exactly once); this only shows
+  after a stall, when the physics worker catches up with several steps at once.

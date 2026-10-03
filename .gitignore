@@ -14,6 +14,12 @@ pnpm-debug.log*
 **/build/
 *.tsbuildinfo
 
+# === Test output ===
+**/coverage/
+**/.e2e/
+**/test-results/
+**/playwright-report/
+
 # === TypeScript ===
 *.js.map
 

@@ -1,93 +1,98 @@
-# LanternFestival
+# LanternFestival — Critical Success Engine
 
-Проект на [Babylon.js](https://www.babylonjs.com/) (TypeScript + Webpack).
+Браузерный игровой движок: TypeScript + [Babylon.js](https://www.babylonjs.com/) для рендера, BEPU Physics (C#, собранный в WebAssembly) для физики, Vue 3 + Quasar для интерфейса. Каждая подсистема работает в своём воркере. Сборка — [Vite](https://vite.dev/), тесты — Vitest (юнит/интеграционные) и Playwright (в настоящем браузере).
+
+Подробные руководства: [`docs/guides/00-index.md`](docs/guides/00-index.md).
 
 ## Требования
 
-- [Node.js](https://nodejs.org/) 18+
-- [pnpm](https://pnpm.io/) — единственный поддерживаемый пакетный менеджер проекта
-
-Установка pnpm, если он ещё не установлен:
-
-```bash
-npm install -g pnpm
-```
+- [Node.js](https://nodejs.org/) 22.12+
+- [pnpm](https://pnpm.io/) 10+ — единственный поддерживаемый пакетный менеджер
+- для физики: .NET 10 SDK и workload `wasm-tools` (без неё игра запускается, но без физики)
 
 ## Установка
 
-После клонирования репозитория:
+Веб-проект живёт в `src/CSEngine/Core`, все команды ниже — оттуда:
 
 ```bash
+cd src/CSEngine/Core
 pnpm install
 ```
 
-## Запуск в режиме разработки
-
-Поднимает dev-сервер с hot reload на `http://localhost:8080`:
+## Разработка
 
 ```bash
-pnpm start
+pnpm dev
 ```
+
+Dev-сервер Vite с hot reload на `http://127.0.0.1:5173`. Физику он берёт прямо из папки публикации .NET (см. ниже), так что после пересборки физики достаточно обновить страницу.
 
 ## Сборка
 
-Продакшен-сборка бандла в `dist/` (минификация, разбиение на чанки, хэши в именах файлов):
-
 ```bash
-pnpm build
+pnpm build        # продакшен-сборка в src/CSEngine/Binaries/Core (минификация, хэши, source maps)
+pnpm build:dev    # с включёнными __DEV__-ветками (отладочные логи), без source maps
+pnpm preview      # раздать готовую сборку на http://127.0.0.1:4173
+pnpm rebuild      # очистка + продакшен-сборка
 ```
 
-Сборка в режиме разработки (без минификации, быстрее):
+### Физика (WebAssembly)
 
 ```bash
-pnpm build:dev
+cd devops && bash build-physics.sh      # Windows: build-physics.bat
 ```
 
-Полная пересборка (очистка `dist/` + продакшен-сборка):
+Публикация кладёт рантайм в `src/CSEngine/Binaries/Physics/Release/net10.0/browser-wasm/AppBundle/_framework`. Оттуда его раздаёт `pnpm dev`, а `pnpm build` копирует в `Binaries/Core/physics-wasm/_framework`. Другую папку можно указать через переменную окружения `PHYSICS_WASM_DIR`. Подробности — в [`src/CSEngine/Physics/Bridge/BUILD.md`](src/CSEngine/Physics/Bridge/BUILD.md).
+
+## Проверки и тесты
 
 ```bash
-pnpm rebuild
+pnpm typecheck    # vue-tsc (исходники + .vue) и tsc для конфигов, сборочных скриптов и тестов
+pnpm lint         # ESLint (typescript-eslint); pnpm lint:fix — с автоисправлением
+pnpm test         # Vitest с покрытием; падает, если любой файл ниже 100% по любой метрике
+pnpm test:e2e     # Playwright: собирает сайт и играет в него в Chromium, как пользователь
+pnpm verify       # всё вышеперечисленное + сборка
 ```
 
-## Проверка типов и линт
-
-Прогон TypeScript-компилятора без генерации файлов:
-
-```bash
-pnpm typecheck
-```
-
-Линт исходников (`@typescript-eslint`):
-
-```bash
-pnpm lint
-pnpm lint:fix   # с автоисправлением
-```
+Для `pnpm test:e2e` нужен браузер: один раз выполни `pnpm exec playwright install chromium`. Подробности о тестах — в [`docs/guides/01-getting-started.md`](docs/guides/01-getting-started.md).
 
 ## Ассеты
 
-- `src/assets/` — файлы, которые импортируются прямо из TS-кода (`import tex from "./assets/rock.png"`); Webpack хэширует их и кладёт в `dist/assets`.
-- `public/assets/` — статические файлы, которые нужно скопировать в `dist/assets` как есть, без импорта из кода (например, крупные level-данные).
+- Файлы, импортируемые из кода (`import url from "./rock.png"`, а также `.glb`, `.gltf`, `.babylon`, `.env`, `.dds`), Vite хэширует и кладёт в `assets/`.
+- `src/CSEngine/Core/public/` копируется в сборку как есть: `public/assets/level.bin` будет доступен по адресу `/assets/level.bin`.
 
-## CI/CD
+## CI
 
-`.github/workflows/ci.yml` на каждый push/PR в `main` устанавливает зависимости (`pnpm install --frozen-lockfile`), прогоняет `typecheck` → `lint` → `build` и сохраняет `dist/` как артефакт сборки.
+`.github/workflows/ci.yml` на каждый push/PR в `main`:
 
-## Структура проекта
+1. публикует физику в wasm;
+2. ставит зависимости (`pnpm install --frozen-lockfile`);
+3. прогоняет `typecheck`, `lint` и `test` с порогом покрытия;
+4. собирает сайт;
+5. запускает E2E, в том числе на настоящей wasm-физике.
+
+Артефакты: сборка, отчёт о покрытии, а при падении — отчёт Playwright.
+
+## Структура
 
 ```
-src/                — исходный код (точка входа: src/app.ts)
-src/assets/         — ассеты, импортируемые из кода
-public/             — статические файлы и HTML-шаблон (index.html)
-public/assets/      — статические ассеты, копируемые в dist как есть
-dist/               — результат сборки (не хранится в git)
-.github/workflows/  — CI-пайплайн
-webpack.config.js   — конфигурация Webpack (dev/prod режимы) и dev-сервера
-tsconfig.json       — конфигурация TypeScript
-eslint.config.js    — конфигурация ESLint (typescript-eslint)
-LanternFestival.esproj / .slnx — файлы проекта для Visual Studio / Rider
+src/CSEngine/Core/            — веб-проект (Vite)
+  index.html                  — HTML-точка входа
+  Source/                     — исходный код (точка входа: Source/App.ts)
+  public/                     — статические файлы, копируются в сборку как есть
+  Assets/index.css            — стили экрана первой загрузки
+  BuildTools/                 — Vite-плагины: раздача/копирование физики, sidecar логов
+  Tests/                      — Vitest
+  E2E/                        — Playwright (спеки, сервер, подменный рантайм физики)
+  vite.config.ts, vitest.config.ts, playwright.config.ts, tsconfig*.json, eslint.config.js
+  Core.esproj                 — проект для Visual Studio
+src/CSEngine/Physics/         — C#: BEPU Physics, интеграция и мост в JS (Bridge)
+src/CSEngine/Binaries/        — результаты сборок (не хранится в git)
+devops/                       — скрипты сборки физики
+docs/                         — архитектура и руководства
+.github/workflows/            — CI
 ```
 
 ## Открытие в IDE
 
-Проект можно открыть как обычную папку в VS Code, либо через `LanternFestival.slnx` в Visual Studio или JetBrains Rider (JS/TS-проект).
+`src/CSEngine/CSEngine.slnx` — в Visual Studio или JetBrains Rider; репозиторий также можно открыть папкой в VS Code (есть задачи запуска Vite и отладки в браузере).

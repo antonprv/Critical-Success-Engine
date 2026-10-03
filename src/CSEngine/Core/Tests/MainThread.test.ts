@@ -1,0 +1,468 @@
+// @vitest-environment jsdom
+// @vitest-environment-options {"url": "http://test.invalid/"}
+// Created by Anton Piruev in 2026.
+// Any direct commercial use of derivative work is strictly prohibited.
+
+// The main-thread side: page bootstrap (App.ts), the Vue/Quasar UI, the bridges between DOM and workers, and worker creation.
+
+import { Notify } from "quasar";
+import { nextTick } from "vue";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AudioPlayer } from "../Source/Audio/AudioPlayer";
+import { CreateUi } from "../Source/Ui/CreateUi";
+import { UiStore } from "../Source/Ui/UiStore";
+import { InputEvtType, SoundAction, SoundType } from "../Source/Workers/Common/CommonEnums";
+import { DomInputBridge } from "../Source/Workers/OrchestratorUtils/DomInputBridge";
+import type { GameWorkers } from "../Source/Workers/OrchestratorUtils/GameWorkers";
+import { UiBridge } from "../Source/Workers/OrchestratorUtils/UiBridge";
+import { SilenceConsole } from "./helpers";
+
+const settle = async (): Promise<void> => { await nextTick(); await new Promise((resolve) => setTimeout(resolve, 30)); await nextTick(); };
+
+/** A Worker stand-in that records what is sent to it. */
+class FakeWorker {
+	public static created: FakeWorker[] = [];
+	public readonly sent: { message: unknown; transfer?: Transferable[] | undefined; }[] = [];
+	public onmessage: ((event: { data: unknown; }) => void) | null = null;
+	public terminated = false;
+	public constructor(public readonly url: URL, public readonly options: WorkerOptions) { FakeWorker.created.push(this); }
+	public postMessage(message: unknown, transfer?: Transferable[]): void { this.sent.push({ message, transfer }); }
+	public terminate(): void { this.terminated = true; }
+}
+
+/** An AudioContext stand-in: records buffers started, with or without a panner in between. */
+class FakeAudioContext {
+	public static last: FakeAudioContext;
+	public readonly destination = { name: "speakers" };
+	public readonly started: { buffer: unknown; via: string; position?: number[]; }[] = [];
+	public resumed = 0;
+	public decodeAudioData = vi.fn((data: ArrayBuffer) => Promise.resolve({ decodedFrom: data.byteLength }));
+	public constructor() { FakeAudioContext.last = this; }
+	public resume(): Promise<void> { this.resumed++; return Promise.resolve(); }
+	public createBuffer(channels: number, length: number, sampleRate: number) {
+		const data: Float32Array[] = [];
+		return { channels, length, sampleRate, data, copyToChannel: (channel: Float32Array, index: number) => { data[index] = channel; } };
+	}
+	public createBufferSource = () => {
+		const context = this as FakeAudioContext;
+		const source = {
+			buffer: null as unknown,
+			target: "" as string,
+			position: undefined as number[] | undefined,
+			connect(node: { name?: string; positionX?: { value: number; }; positionY?: { value: number; }; positionZ?: { value: number; }; connect?: unknown; }) {
+				if (node === context.destination) { source.target = "speakers"; return node; }
+				source.target = "panner";
+				source.position = [node.positionX!.value, node.positionY!.value, node.positionZ!.value];
+				return { connect: () => context.destination };
+			},
+			start() { context.started.push({ buffer: source.buffer, via: source.target, ...(source.position ? { position: source.position } : {}) }); },
+		};
+		return source;
+	};
+	public createPanner() {
+		return { positionX: { value: 0 }, positionY: { value: 0 }, positionZ: { value: 0 } };
+	}
+}
+
+beforeEach(() => {
+	// Quasar's Platform reads the screen orientation, which jsdom does not implement.
+	Object.defineProperty(window.screen, "orientation", {
+		configurable: true,
+		value: { type: "landscape-primary", angle: 0, addEventListener: () => undefined, removeEventListener: () => undefined },
+	});
+	FakeWorker.created = [];
+	vi.stubGlobal("Worker", FakeWorker);
+	vi.stubGlobal("AudioContext", FakeAudioContext);
+	document.body.innerHTML = "";
+});
+afterEach(() => {
+	vi.doUnmock("../Source/Workers/Orchestrator");
+	vi.resetModules();
+	delete (document as unknown as { pointerLockElement?: unknown; }).pointerLockElement;
+});
+
+function LockTo(element: Element | null): void {
+	Object.defineProperty(document, "pointerLockElement", { configurable: true, get: () => element });
+}
+
+describe("UiStore", () => {
+	it("starts in the loading state and merges partial patches per section", () => {
+		const store = new UiStore();
+		expect(store.State.loading.visible).toBe(true);
+		expect(store.State.menu.visible).toBe(false);
+
+		store.ApplyPatch({ loading: { visible: false, label: "x", fraction: 1 } });
+		store.ApplyPatch({ menu: { ...store.State.menu, visible: true } });
+		store.ApplyPatch({ hud: { visible: true, lines: ["a"], bars: [] } });
+		store.ApplyPatch({});
+		expect(store.State.loading.visible).toBe(false);
+		expect(store.State.menu.visible).toBe(true);
+		expect(store.State.hud.lines).toEqual(["a"]);
+	});
+
+	it("its default actions do nothing until a bridge takes over", () => {
+		const store = new UiStore();
+		expect(() => { store.Actions.Resume(); store.Actions.SelectScene("a"); }).not.toThrow();
+	});
+});
+
+describe("the Vue/Quasar UI", () => {
+	function Mount() {
+		const store = new UiStore();
+		const root = document.createElement("div");
+		document.body.appendChild(root);
+		const app = CreateUi(store, root);
+		return { store, root, app };
+	}
+
+	it("shows the loading overlay with its label and progress", async () => {
+		const { store, root, app } = Mount();
+		store.ApplyPatch({ loading: { visible: true, label: "Starting renderer…", fraction: 0.3 } });
+		await settle();
+		expect(root.querySelector(".loading-overlay")?.textContent).toContain("Starting renderer…");
+		expect(root.querySelector(".q-linear-progress")).not.toBeNull();
+
+		store.ApplyPatch({ loading: { visible: false, label: "", fraction: 1 } });
+		await vi.waitFor(() => expect(root.querySelector(".loading-overlay")).toBeNull(), { timeout: 2000 }); // after the fade-out
+		app.unmount();
+	});
+
+	it("the start menu lists scenes, marks the current one, and its buttons call the actions", async () => {
+		const { store, root, app } = Mount();
+		const resume = vi.fn(), select = vi.fn();
+		store.Actions = { Resume: resume, SelectScene: select };
+		store.ApplyPatch({
+			loading: { visible: false, label: "", fraction: 1 },
+			menu: { visible: true, mode: "start", currentSceneId: "b", scenes: [{ id: "a", name: "Alpha", description: "first" }, { id: "b", name: "Beta", description: "second" }] },
+		});
+		await settle();
+
+		const card = root.querySelector(".menu-card")!;
+		expect(card.textContent).toContain("Lantern Festival");
+		expect(card.textContent).toContain("Click Play to take control of the mouse.");
+		const items = [...card.querySelectorAll(".q-item")];
+		expect(items.map((i) => i.textContent)).toEqual([expect.stringContaining("Alpha"), expect.stringContaining("Beta")]);
+		expect(items[1]!.textContent).toContain("current");
+		expect(items[0]!.textContent).not.toContain("current");
+
+		(card.querySelector("button") as HTMLButtonElement).click();
+		(items[0] as HTMLElement).click();
+		expect(resume).toHaveBeenCalledTimes(1);
+		expect(select).toHaveBeenCalledWith("a");
+		app.unmount();
+	});
+
+	it("the paused menu says Resume; while something loads its controls are disabled", async () => {
+		const { store, root, app } = Mount();
+		store.ApplyPatch({
+			loading: { visible: true, label: "Loading…", fraction: 0.5 },
+			menu: { visible: true, mode: "paused", currentSceneId: null, scenes: [{ id: "a", name: "Alpha", description: "" }] },
+		});
+		await settle();
+		const card = root.querySelector(".menu-card")!;
+		expect(card.textContent).toContain("Paused");
+		expect(card.textContent).toContain("Mouse released.");
+		const button = card.querySelector("button")!;
+		expect(button.textContent).toContain("Resume");
+		expect(button.hasAttribute("disabled") || button.classList.contains("disabled")).toBe(true);
+		expect(card.querySelector(".q-item")!.classList.contains("disabled")).toBe(true);
+		app.unmount();
+	});
+
+	it("the HUD shows lines and bars, only while nothing covers the game", async () => {
+		const { store, root, app } = Mount();
+		store.ApplyPatch({
+			loading: { visible: false, label: "", fraction: 1 },
+			hud: { visible: true, lines: ["Coins: 1 / 9", "Time: 42.0"], bars: [{ id: "hp", label: "HP 40/100", value: 0.4 }] },
+		});
+		await settle();
+		expect([...root.querySelectorAll(".hud-line")].map((e) => e.textContent)).toEqual(["Coins: 1 / 9", "Time: 42.0"]);
+		expect(root.querySelector(".hud-bar-label")?.textContent).toBe("HP 40/100");
+
+		store.ApplyPatch({ menu: { ...store.State.menu, visible: true } });
+		await settle();
+		expect(root.querySelector(".hud")).toBeNull();
+		app.unmount();
+	});
+});
+
+describe("UiBridge", () => {
+	function Make() {
+		const canvas = document.createElement("canvas");
+		document.body.appendChild(canvas);
+		const ui = new FakeWorker(new URL("http://x/ui.js"), {});
+		const store = new UiStore();
+		const bridge = new UiBridge({ UiWorker: ui } as unknown as GameWorkers, canvas, store);
+		const fromUi = (data: unknown): void => ui.onmessage!({ data });
+		const sent = () => ui.sent.map((s) => s.message);
+		return { canvas, ui, store, bridge, fromUi, sent };
+	}
+
+	it("becomes the store's actions: Resume asks for the mouse and tells the UI worker; picking a scene is forwarded", () => {
+		const { canvas, store, sent } = Make();
+		canvas.requestPointerLock = vi.fn(() => Promise.resolve()) as never;
+
+		store.Actions.Resume();
+		expect(canvas.requestPointerLock).toHaveBeenCalled();
+		expect(sent()).toContainEqual({ type: "resume" });
+
+		store.Actions.SelectScene("coin-hunt");
+		expect(sent()).toContainEqual({ type: "select-scene", sceneId: "coin-hunt" });
+	});
+
+	it("applies state patches from the UI worker", () => {
+		const { store, fromUi } = Make();
+		fromUi({ type: "state", patch: { hud: { visible: true, lines: ["x"], bars: [] } } });
+		expect(store.State.hud.lines).toEqual(["x"]);
+	});
+
+	it("requests and releases the pointer lock when the UI worker says so; a refusal (rejected, thrown) is reported back", async () => {
+		const { canvas, fromUi, sent } = Make();
+
+		canvas.requestPointerLock = vi.fn(() => Promise.resolve()) as never;
+		fromUi({ type: "request-pointer-lock" });
+		expect(canvas.requestPointerLock).toHaveBeenCalledTimes(1);
+
+		canvas.requestPointerLock = vi.fn(() => undefined) as never; // older browsers return nothing
+		fromUi({ type: "request-pointer-lock" });
+
+		canvas.requestPointerLock = vi.fn(() => Promise.reject(new DOMException("no", "NotAllowedError"))) as never;
+		fromUi({ type: "request-pointer-lock" });
+		await Promise.resolve();
+		await Promise.resolve();
+		canvas.requestPointerLock = vi.fn(() => { throw new Error("not allowed"); }) as never;
+		fromUi({ type: "request-pointer-lock" });
+		expect(sent().filter((m) => (m as { type: string; }).type === "pointer-lock-failed")).toHaveLength(2);
+
+		document.exitPointerLock = vi.fn();
+		fromUi({ type: "exit-pointer-lock" });
+		expect(document.exitPointerLock).toHaveBeenCalled();
+	});
+
+	it("shows toasts with Quasar's Notify", () => {
+		// Notify.create only exists once the Quasar plugin is installed (CreateUi does that in the real page).
+		const notify = Notify as unknown as { create?: unknown; };
+		const original = notify.create;
+		const create = vi.fn();
+		notify.create = create;
+		try {
+			const { fromUi } = Make();
+			fromUi({ type: "toast", message: "Hello" });
+			expect(create).toHaveBeenCalledWith(expect.objectContaining({ message: "Hello" }));
+		} finally {
+			notify.create = original;
+		}
+	});
+
+	it("reports pointer-lock changes (locked = our canvas) and errors to the UI worker", () => {
+		const { canvas, sent } = Make();
+		LockTo(canvas);
+		document.dispatchEvent(new Event("pointerlockchange"));
+		LockTo(document.body);
+		document.dispatchEvent(new Event("pointerlockchange"));
+		document.dispatchEvent(new Event("pointerlockerror"));
+
+		expect(sent()).toEqual(expect.arrayContaining([{ type: "pointer-lock", locked: true }, { type: "pointer-lock", locked: false }, { type: "pointer-lock-failed" }]));
+	});
+});
+
+describe("DomInputBridge", () => {
+	function Make() {
+		const canvas = document.createElement("canvas");
+		document.body.appendChild(canvas);
+		const workers = { RenderWorker: new FakeWorker(new URL("http://x/r.js"), {}), GameLogicWorker: new FakeWorker(new URL("http://x/g.js"), {}), AudioPlayer: { Resume: vi.fn() } };
+		new DomInputBridge(workers as unknown as GameWorkers, canvas);
+		const inputs = () => workers.GameLogicWorker.sent.map((s) => (s.message as { event: unknown; }).event);
+		return { canvas, workers, inputs };
+	}
+
+	it("forwards key presses (not auto-repeats) and releases", () => {
+		const { inputs } = Make();
+		window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyW" }));
+		window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyW", repeat: true }));
+		window.dispatchEvent(new KeyboardEvent("keyup", { code: "KeyW" }));
+		expect(inputs()).toEqual([{ kind: InputEvtType.KeyDown, code: "KeyW" }, { kind: InputEvtType.KeyUp, code: "KeyW" }]);
+	});
+
+	it("keeps keys from the page (Space scrolling, ...) only while the game has the mouse", () => {
+		const { canvas } = Make();
+		const free = new KeyboardEvent("keydown", { code: "Space", cancelable: true });
+		window.dispatchEvent(free);
+		expect(free.defaultPrevented).toBe(false);
+
+		LockTo(canvas);
+		const down = new KeyboardEvent("keydown", { code: "Space", cancelable: true });
+		const up = new KeyboardEvent("keyup", { code: "Space", cancelable: true });
+		window.dispatchEvent(down);
+		window.dispatchEvent(up);
+		expect(down.defaultPrevented).toBe(true);
+		expect(up.defaultPrevented).toBe(true);
+	});
+
+	it("releases every key when the window loses focus or the pointer lock changes", () => {
+		const { inputs } = Make();
+		window.dispatchEvent(new Event("blur"));
+		document.dispatchEvent(new Event("pointerlockchange"));
+		expect(inputs()).toEqual([{ kind: InputEvtType.ReleaseAll }, { kind: InputEvtType.ReleaseAll }]);
+	});
+
+	it("forwards mouse buttons and movement on the canvas, and blocks its context menu", () => {
+		const { canvas, inputs } = Make();
+		canvas.dispatchEvent(new MouseEvent("pointerdown", { button: 0, bubbles: true }));
+		canvas.dispatchEvent(new MouseEvent("pointerup", { button: 2 }));
+		const move = new MouseEvent("pointermove");
+		Object.defineProperties(move, { movementX: { value: 5 }, movementY: { value: -3 } });
+		canvas.dispatchEvent(move);
+		const menu = new MouseEvent("contextmenu", { cancelable: true });
+		canvas.dispatchEvent(menu);
+
+		expect(inputs()).toEqual([
+			{ kind: InputEvtType.PointerDown, button: 0 },
+			{ kind: InputEvtType.PointerUp, button: 2 },
+			{ kind: InputEvtType.PointerMove, dx: 5, dy: -3 },
+		]);
+		expect(menu.defaultPrevented).toBe(true);
+	});
+
+	it("tells the renderer about window resizes", () => {
+		const { workers } = Make();
+		window.dispatchEvent(new Event("resize"));
+		expect(workers.RenderWorker.sent[0]!.message).toMatchObject({ type: "resize", width: 0, height: 0, devicePixelRatio: window.devicePixelRatio });
+	});
+
+	it("unlocks audio on the first click or key press, once", () => {
+		const first = Make();
+		window.dispatchEvent(new MouseEvent("pointerdown"));
+		window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyA" }));
+		expect(first.workers.AudioPlayer.Resume).toHaveBeenCalledTimes(1);
+
+		const second = Make();
+		window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyA" }));
+		expect(second.workers.AudioPlayer.Resume).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("AudioPlayer", () => {
+	function Make() {
+		const worker = new FakeWorker(new URL("http://x/a.js"), {});
+		const player = new AudioPlayer(worker as unknown as Worker);
+		const send = (data: unknown): void => worker.onmessage!({ data });
+		return { player, context: FakeAudioContext.last, send };
+	}
+
+	it("Resume resumes the audio context (browsers start it suspended)", () => {
+		const { player, context } = Make();
+		player.Resume();
+		expect(context.resumed).toBe(1);
+	});
+
+	it("plays decoded PCM straight away - positioned through a panner, or directly", () => {
+		const { context, send } = Make();
+		const channel = new Float32Array([0.5, 0.25]);
+		send({ action: SoundAction.PlaySound, soundId: "a", sound: { kind: SoundType.Pcm, sampleRate: 22050, channels: [channel] }, position: [1, 2, 3] });
+		send({ action: SoundAction.PlaySound, soundId: "a", sound: { kind: SoundType.Pcm, sampleRate: 22050, channels: [] } });
+
+		expect(context.started[0]).toMatchObject({ via: "panner", position: [1, 2, 3], buffer: { channels: 1, length: 2, sampleRate: 22050 } });
+		expect((context.started[0]!.buffer as { data: Float32Array[]; }).data[0]).toBe(channel);
+		expect(context.started[1]).toMatchObject({ via: "speakers", buffer: { length: 0 } });
+	});
+
+	it("decodes encoded sounds once and replays the cached buffer", async () => {
+		const { context, send } = Make();
+		send({ action: SoundAction.PlaySound, soundId: "boom", sound: { kind: SoundType.Encoded, data: new ArrayBuffer(16) } });
+		await Promise.resolve();
+		await Promise.resolve();
+		send({ action: SoundAction.PlaySound, soundId: "boom", sound: { kind: SoundType.Encoded, data: new ArrayBuffer(16) } });
+
+		expect(context.decodeAudioData).toHaveBeenCalledTimes(1);
+		expect(context.started.map((s) => s.buffer)).toEqual([{ decodedFrom: 16 }, { decodedFrom: 16 }]);
+	});
+
+	it("logs a sound it cannot decode, and ignores other messages", async () => {
+		const log = SilenceConsole();
+		const { context, send } = Make();
+		context.decodeAudioData.mockImplementationOnce(() => Promise.reject(new Error("corrupt")));
+		send({ action: SoundAction.PlaySound, soundId: "bad", sound: { kind: SoundType.Encoded, data: new ArrayBuffer(4) } });
+		send({ action: 99, soundId: "x" });
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect(String(log.error.mock.calls[0]![0])).toContain('[AudioPlayer] failed to decode "bad"');
+		expect(context.started).toEqual([]);
+	});
+});
+
+describe("GameWorkers and Orchestrator", () => {
+	function Canvas(): HTMLCanvasElement {
+		const canvas = document.createElement("canvas");
+		(canvas as unknown as { transferControlToOffscreen: () => unknown; }).transferControlToOffscreen = () => ({ offscreen: true });
+		document.body.appendChild(canvas);
+		return canvas;
+	}
+
+	it("starts the five workers as ES modules and connects them with message channels", async () => {
+		const { GameWorkers } = await import("../Source/Workers/OrchestratorUtils/GameWorkers");
+		const workers = new GameWorkers(Canvas(), true);
+
+		expect(FakeWorker.created.map((w) => w.url.pathname.split("/").pop())).toEqual(["RenderWorker.ts", "PhysicsWorker.ts", "GameLogicWorker.ts", "AudioWorker.ts", "UiWorker.ts"]);
+		expect(FakeWorker.created.every((w) => w.options.type === "module")).toBe(true);
+
+		const init = (worker: Worker) => (worker as unknown as FakeWorker).sent[0]!;
+		const render = init(workers.RenderWorker), physics = init(workers.PhysicsWorker), logic = init(workers.GameLogicWorker), audio = init(workers.AudioWorker), ui = init(workers.UiWorker);
+		expect(render.message).toMatchObject({ type: "init", canvas: { offscreen: true }, devMode: true });
+		expect(physics.message).toMatchObject({ type: "init", settings: { gravity: [0, -20, 0] } });
+		expect((physics.message as { fixedTimestepMs: number; }).fixedTimestepMs).toBeGreaterThan(0);
+
+		// Each GameLogic port is the other end of the channel handed to that worker.
+		const logicInit = logic.message as Record<string, MessagePort>;
+		expect(logic.transfer).toHaveLength(4);
+		expect(render.transfer).toEqual([{ offscreen: true }, (render.message as { gameLogicPort: unknown; }).gameLogicPort]);
+		expect(audio.transfer).toEqual([(audio.message as { gameLogicPort: unknown; }).gameLogicPort]);
+		expect(ui.transfer).toEqual([(ui.message as { gameLogicPort: unknown; }).gameLogicPort]);
+		expect(new Set([logicInit["renderPort"], logicInit["physicsPort"], logicInit["audioPort"], logicInit["uiPort"]]).size).toBe(4);
+
+		expect(workers.AudioPlayer.constructor.name).toBe("AudioPlayer"); // (a fresh module instance: compare by name)
+		workers.Dispose();
+		expect(FakeWorker.created.every((w) => w.terminated)).toBe(true);
+	});
+
+	it("the Orchestrator puts the workers and both bridges together, and Dispose stops the workers", async () => {
+		const { Orchestrator } = await import("../Source/Workers/Orchestrator");
+		const store = new UiStore();
+		const orchestrator = new Orchestrator(Canvas(), false, store);
+		expect(FakeWorker.created).toHaveLength(5);
+		expect(store.Actions.constructor.name).toBe("UiBridge");
+
+		orchestrator.Dispose();
+		expect(FakeWorker.created.every((w) => w.terminated)).toBe(true);
+	});
+});
+
+describe("App.ts (page bootstrap)", () => {
+	it("adds the canvas and the UI mount, replaces the boot splash, and starts the orchestrator in dev mode", async () => {
+		document.body.innerHTML = '<div id="boot-splash">Loading…</div>';
+		const created: unknown[][] = [];
+		vi.doMock("../Source/Workers/Orchestrator", () => ({ Orchestrator: vi.fn(function (...args: unknown[]) { created.push(args); }) }));
+
+		await import("../Source/App");
+		await settle();
+
+		const canvas = document.getElementById("gameCanvas") as HTMLCanvasElement;
+		expect(canvas.style.width).toBe("100%");
+		expect(document.getElementById("ui")).not.toBeNull();
+		expect(document.getElementById("boot-splash")).toBeNull();
+		expect(created[0]![0]).toBe(canvas);
+		expect(created[0]![1]).toBe(true); // __DEV__ in tests
+		expect(document.querySelector(".loading-overlay")?.textContent).toContain("Starting workers…");
+	});
+
+	it("when the workers cannot start, the loading screen says so", async () => {
+		const log = SilenceConsole();
+		vi.doMock("../Source/Workers/Orchestrator", () => ({ Orchestrator: vi.fn(function () { throw new Error("no Worker support"); }) }));
+
+		await import("../Source/App");
+		await settle();
+
+		expect(document.querySelector(".loading-overlay")?.textContent).toContain("Failed to start. Please refresh.");
+		expect(String(log.error.mock.calls[0]![0])).toContain("no Worker support");
+	});
+});

@@ -1,16 +1,16 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lantern Festival</title>
-    <link rel="stylesheet" href="/index.css">
+    <link rel="stylesheet" href="/Assets/index.css">
 </head>
 <body>
-    <div id="loading">
+    <!-- First-paint splash only: App.ts replaces it with the Vue/Quasar loading overlay as soon as that mounts. -->
+    <div id="boot-splash">
         <div class="loading-label">Loading…</div>
-        <div class="loading-track">
-            <div id="loading-bar"></div>
-        </div>
     </div>
-<script type="module" src="/Source/App.ts"></script></body>
+    <script type="module" src="/Source/App.ts"></script>
+</body>
 </html>

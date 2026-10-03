@@ -40,7 +40,8 @@ export class AudioPlayer {
 	private PlayPcm(sound: { sampleRate: number; channels: Float32Array[]; }, position?: [number, number, number]): void {
 		const length = sound.channels[0]?.length ?? 0;
 		const buffer = this._context.createBuffer(sound.channels.length, length, sound.sampleRate);
-		sound.channels.forEach((channel, index) => buffer.copyToChannel(channel, index));
+		// Channels arrive via postMessage transfer, so they are always backed by a plain ArrayBuffer (never a SharedArrayBuffer).
+		sound.channels.forEach((channel, index) => buffer.copyToChannel(channel as Float32Array<ArrayBuffer>, index));
 		this.Start(buffer, position);
 	}
 

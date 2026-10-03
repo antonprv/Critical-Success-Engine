@@ -11,33 +11,94 @@
              further out: every handle here is a plain <c>int</c> id minted by this class (never a
              raw Bepu or Physics handle value), and every shape/pose parameter is
              individual doubles rather than a struct, because that's what the built-in JSExport
-             marshaler understands without any custom interop glue.
+             marshaler understands without any custom interop glue. Variable-length data (point clouds,
+             triangle soups) crosses as a flat <c>double[]</c> [x0,y0,z0,x1,y1,z1,...] marked with
+             <see cref="!:JSMarshalAs&lt;T&gt;"/>, and every multi-value result comes back as a flat
+             <c>double[]</c> whose layout is documented on the method.
             
-             Intended caller: physics.worker.ts, once per fixed-timestep tick:
-               const packed = PhysicsBridge.Step(dt);         // Float64Array, 8 doubles per body
-               const events = PhysicsBridge.GetLastOverlapEvents(); // Int32Array, 3 ints per event
+             The whole <see cref="T:Physics.PhysicsWorld"/> API is exposed here - there is deliberately nothing left that
+             only the desktop (Godot) build can call. TypeScript mirrors this surface 1:1 in
+             PhysicsBridgeContract.ts, and everything above it (command batching, entity ids,
+             character carry, snapshots) lives in TypeScript - this file stays a thin marshalling layer.
             
-             Not yet ported (same pattern, just not wired up - see BUILD.md "Extending the bridge"):
-             AddConvexHullShape, AddTriangleMeshShape, SweepProjectile, SweepSphereCast. Their
-             PhysicsWorld methods take ReadOnlySpan&lt;Vector3&gt;, which needs an explicit
-             [JSMarshalAs&lt;JSType.Array&lt;JSType.Number&gt;&gt;] double[] parameter instead - flatten
-             [x0,y0,z0,x1,y1,z1,...] on the JS side and rebuild the span here, same as everything
-             below already does for single vectors/quaternions.
+             Intended caller: PhysicsWorker.ts, once per fixed-timestep tick:
+               const packed = PhysicsBridge.Step(dt);               // Float64 stride StepStride (14) per body
+               const events = PhysicsBridge.GetLastOverlapEvents(); // Int32 stride 3 per event
              </summary>
+        </member>
+        <member name="F:Physics.Wasm.PhysicsBridge.StepStride">
+            <summary>Doubles per body in <see cref="M:Physics.Wasm.PhysicsBridge.Step(System.Double)"/>'s result: [bodyId, pos(3), quat(4), linearVelocity(3), angularVelocity(3)].</summary>
         </member>
         <member name="M:Physics.Wasm.PhysicsBridge.AddCapsuleShape(System.Double,System.Double)">
             <summary><paramref name="cylinderLength"/> is the straight segment only, not the total capped length - matches PhysicsWorld.AddCapsuleShape.</summary>
         </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.AddConvexHullShape(System.Double[],System.Double)">
+            <summary>
+            Builds a convex hull from a flat point cloud [x0,y0,z0,x1,...]. Returns
+            [shapeId, centroidOffsetX, centroidOffsetY, centroidOffsetZ]: Bepu re-centres the hull on its own centroid, and
+            the offset (in the input points' local space) must be added - rotated by the body's orientation - to the
+            source origin when building the pose, or the hull appears shifted. PhysicsWorld.ts does that for you.
+            </summary>
+        </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.AddTriangleMeshShape(System.Double[],System.Double,System.Double,System.Double)">
+            <summary>
+            Builds a static, BVH-accelerated triangle mesh from a flat triangle soup (vertex count must be a multiple of 3,
+            i.e. the array length a multiple of 9). Static-only - never pass the resulting shape to AddDynamicBody.
+            </summary>
+        </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.AddDynamicBody(System.Int32,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Int32,System.Int32,System.Int32,System.Int32,System.Boolean)">
+            <param name="kind">PhysicsObjectKind as int: 0 Solid, 1 Character, 2 Trigger, 3 Projectile.</param>
+        </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.AddKinematicBody(System.Int32,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Int32,System.Int32,System.Int32,System.Int32)">
+            <param name="kind">PhysicsObjectKind as int: 0 Solid, 1 Character, 2 Trigger, 3 Projectile.</param>
+        </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.AddStaticBody(System.Int32,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Int32,System.Int32,System.Int32,System.Int32)">
+            <param name="kind">PhysicsObjectKind as int: pass 2 (Trigger) for non-solid static sensor volumes.</param>
+        </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.GetBodyPose(System.Int32)">
+            <summary>Returns [posX, posY, posZ, quatX, quatY, quatZ, quatW].</summary>
+        </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.GetLinearVelocity(System.Int32)">
+            <summary>Returns [x, y, z].</summary>
+        </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.GetAngularVelocity(System.Int32)">
+            <summary>Returns [x, y, z].</summary>
+        </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.MoveCharacter(System.Int32,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Int32,System.Int32,System.Int32,System.Double,System.Double,System.Double)">
+            <summary>
+            One collide-and-slide move of a kinematic capsule. Purely geometric - the caller owns position/velocity and
+            calls this once per tick (see CharacterSimulation in PhysicsWorld.ts, which also does the moving-platform carry).
+            Returns [posX, posY, posZ, isOnFloor(0/1), floorNormalX, floorNormalY, floorNormalZ,
+            groundOwnerId, velX, velY, velZ] - one CharacterMoveResult flattened to 11 doubles.
+            </summary>
+        </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.SweepProjectile(System.Int32,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Int32,System.Int32)">
+            <summary>
+            Sweeps a sphere by velocity * dt and reports the first thing it touches (no tunnelling at any speed).
+            Does not move any body. Returns [hit(0/1), posX, posY, posZ, pointX, pointY, pointZ,
+            normalX, normalY, normalZ, hitOwnerId].
+            </summary>
+        </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.SweepSphereCast(System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Int32,System.Int32,System.Int32)">
+            <summary>
+            One-off sphere sweep, not tied to any registered body (camera booms, ground probes...).
+            <paramref name="excludeBodyId"/> 0 means "exclude nothing" (body ids start at 1).
+            Returns [hit(0/1), posX, posY, posZ, pointX, pointY, pointZ, normalX, normalY, normalZ, distance, hitOwnerId].
+            </summary>
+        </member>
         <member name="M:Physics.Wasm.PhysicsBridge.Step(System.Double)">
             <summary>
-            Advances the simulation and returns every dynamic/kinematic body's fresh pose as a
-            flat buffer: [bodyId, posX, posY, posZ, quatX, quatY, quatZ, quatW] repeated once per
-            body currently registered, in unspecified order. Call GetLastOverlapEvents()
-            immediately after to read this same step's Entered/Exited transitions.
+            Advances the simulation and returns every dynamic/kinematic body's fresh state as a flat buffer:
+            [bodyId, posX, posY, posZ, quatX, quatY, quatZ, quatW, linVelX, linVelY, linVelZ, angVelX, angVelY, angVelZ]
+            (<see cref="F:Physics.Wasm.PhysicsBridge.StepStride"/> doubles) repeated once per body currently registered, in unspecified order.
+            Call GetLastOverlapEvents() immediately after to read this same step's Entered/Exited transitions.
             </summary>
         </member>
         <member name="M:Physics.Wasm.PhysicsBridge.GetLastOverlapEvents">
             <summary>Flat buffer from the most recent Step(): [ownerIdA, ownerIdB, entered(0/1)] per event.</summary>
+        </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.ToVectors(System.Double[])">
+            <summary>Flat [x0,y0,z0,x1,y1,z1,...] -> Vector3[]. A length that isn't a multiple of 3 is a caller bug, not something to guess around.</summary>
         </member>
     </members>
 </doc>

@@ -21,10 +21,9 @@ export class PhysicsWasmLoader {
 	public async Load(): Promise<PhysicsBridgeExports> {
 		// A non-literal specifier is used on purpose: it's not one of this repo's own
 		// TS modules, so neither tsc nor the bundler should try to statically
-		// resolve/type it - both webpack and Vite still leave a genuinely dynamic
-		// `import(someVariable)` as a runtime browser import.
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-		const { dotnet } = (await import(/* webpackIgnore: true */ /* @vite-ignore */ this._dotnetJsUrl)) as {
+		// resolve/type it - Vite leaves a genuinely dynamic `import(someVariable)`
+		// (marked @vite-ignore) as a runtime browser import.
+		const { dotnet } = (await import(/* @vite-ignore */ this._dotnetJsUrl)) as {
 			dotnet: {
 				withResourceLoader(
 					loader: (

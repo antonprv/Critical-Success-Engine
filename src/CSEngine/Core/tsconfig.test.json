@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node", "vite/client"],
+    "allowImportingTsExtensions": true,
+    "rootDir": "."
+  },
+
+  "include": [
+    "Source/**/*.ts",
+    "Source/**/*.vue",
+    "Tests/**/*.ts",
+    "E2E/**/*.ts"
+  ]
+}
