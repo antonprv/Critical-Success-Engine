@@ -25,6 +25,18 @@ export abstract class PhysicsBody extends Component {
 	protected GetSpawnExtras(): { mass?: number; continuousDetection?: boolean; } { return {}; }
 
 	public override Awake(): void {
+		this.CreateBody();
+	}
+
+	public override OnEnable(): void {
+		this.CreateBody();
+	}
+
+	public override OnDisable(): void {
+		this.Engine.Physics.RemoveBody(this.Entity.Id);
+	}
+
+	protected CreateBody(): void {
 		this.Engine.Physics.SpawnBody({
 			entityId: this.Entity.Id,
 			bodyType: this.BodyType,
@@ -63,8 +75,8 @@ export class RigidBody extends PhysicsBody {
 		return { mass: this.Mass, continuousDetection: this.ContinuousDetection };
 	}
 
-	public override Awake(): void {
-		super.Awake();
+	protected override CreateBody(): void {
+		super.CreateBody();
 		this.Transform.IsPhysicsDriven = true;
 		this.Transform.PreviousPosition.CopyFrom(this.Transform.Position);
 		this.Transform.PreviousRotation.CopyFrom(this.Transform.Rotation);

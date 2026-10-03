@@ -8,32 +8,14 @@ import type { InputService } from "../Services/InputService";
 import type { UiService } from "../Services/UiService";
 
 /**
- * Base class of everything that can be attached to an {@link Entity} - this is the ONE extension point scripting hangs
- * off. Subclass it, override the hooks you care about, list the class in a scene manifest:
+ * Base class of everything attached to an {@link Entity}: subclass it, override the hooks you need, list it in a scene
+ * manifest (`Comp(Spinner, { Speed: 3 })` sets public fields after the parameterless constructor).
  *
- * ```ts
- * class Spinner extends Component {
- *     public Speed = 1;                          // plain public fields are what the manifest's `props` sets
- *
- *     public override Update(dt: number): void {
- *         this.Transform.Rotation = Quat.FromAxisAngle(Vec3.Up(), this.Speed * dt).Mul(this.Transform.Rotation);
- *     }
- * }
- * // in a manifest:  Comp(Spinner, { Speed: 3 })
- * ```
- *
- * Components must have a constructor without parameters (props are applied right after construction).
- *
- * Hook order, per entity: components are visited top to bottom in the order the manifest lists them.
- *   1. Awake                 - once, right after the whole batch (e.g. a scene) has been created. Other entities exist.
- *   2. Start                 - once, before this component's first Update / OnPhysicsUpdate.
- *   3. OnInputUpdate / Update / OnUIUpdate - every rendered frame, in that order.
- *   4. OnPhysicsUpdate       - every fixed physics step (not tied to the frame rate).
- *   5. OnCollisionEnter/Exit, OnTriggerEnter/Exit - when the physics step reports a new/ended overlap.
- *   6. OnDestroy             - once, when the entity is destroyed (or the scene unloads).
- *
- * `OnPhysicsSync` is engine-level plumbing: physics body components use it to copy the latest simulation snapshot into
- * `Transform` before any script's OnPhysicsUpdate runs. Scripts normally never override it.
+ * Components run top to bottom in manifest order:
+ *   Awake once, after the whole batch exists; Start once, before the first update;
+ *   OnInputUpdate, Update, OnUIUpdate every rendered frame; OnPhysicsUpdate every physics step;
+ *   OnCollision* / OnTrigger* when an overlap starts or ends; OnDestroy once.
+ * `OnPhysicsSync` is for physics body components (copy the snapshot into Transform); scripts don't override it.
  */
 export abstract class Component {
 	/** Set by the engine before Awake. */
@@ -56,6 +38,10 @@ export abstract class Component {
 	public OnTriggerEnter(_other: Entity): void { /* hook */ }
 	public OnTriggerExit(_other: Entity): void { /* hook */ }
 	public OnDestroy(): void { /* hook */ }
+	/** The entity was switched back on (`Entity.Active = true`), e.g. taken out of an EntityPool. */
+	public OnEnable(): void { /* hook */ }
+	/** The entity was switched off (`Entity.Active = false`), e.g. returned to an EntityPool. */
+	public OnDisable(): void { /* hook */ }
 
 	public OnPhysicsSync(): void { /* engine hook */ }
 

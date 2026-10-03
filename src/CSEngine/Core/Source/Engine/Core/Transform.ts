@@ -5,12 +5,8 @@ import { Quat } from "../Math/Quat";
 import { Vec3 } from "../Math/Vec3";
 
 /**
- * World-space transform of an entity (there is no hierarchy yet - every entity is a root, which is also how the
- * physics side sees them).
- *
- * Physics-driven entities (rigid bodies, characters) get a new pose once per physics step; the renderer asks for frames
- * at display rate, so those entities keep the previous step's pose too and `Interpolate` blends between the two.
- * Script-driven entities (moved from Update) just use the current pose.
+ * World-space transform (no hierarchy yet). Physics-driven entities keep the previous step's pose too, and `Interpolate`
+ * blends the two for frames rendered between steps.
  */
 export class Transform {
 	public Position = new Vec3();

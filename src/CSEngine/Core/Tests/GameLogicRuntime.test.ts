@@ -7,9 +7,9 @@ import { CreateRegistry, Harness } from "./Harness";
 import { SceneRegistry } from "../Source/Engine/Scenes/SceneRegistry";
 import { Component } from "../Source/Engine/Core/Component";
 import { Comp, Ent } from "../Source/Engine/Core/EntityManifest";
-import { Coin, GameRules } from "../Source/Game/Scripts/CoinHunt";
+import { Coin, CoinHuntState, GameRules } from "../Source/Game/Scripts/CoinHunt";
 import { MoverComponent } from "../Source/Engine/Components/Mover/MoverComponent";
-import { PhysOpType, PhysState, RendOpType } from "../Source/Workers/Common/CommonEnums";
+import { PhysOpType, PhysState, RenderMsg, RendOpType, UiMsg } from "../Source/Workers/Common/CommonEnums";
 
 
 describe("GameLogicRuntime", () => {
@@ -22,8 +22,8 @@ describe("GameLogicRuntime", () => {
 	it("loads the first scene, spawns its bodies and meshes, and hands control to the UI", async () => {
 		await harness.BootToScene();
 
-		expect(harness.UiMessages("scenes")).toHaveLength(1);
-		expect(harness.UiMessages("load-finished")).toHaveLength(1);
+		expect(harness.UiMessages(UiMsg.Scenes)).toHaveLength(1);
+		expect(harness.UiMessages(UiMsg.LoadFinished)).toHaveLength(1);
 		expect(harness.runtime.Context.Scenes.CurrentSceneId).toBe("bouncing-ball");
 
 		const spawns = harness.AllPhysicsCommands().filter((c) => c.operation === PhysOpType.SpawnBody);
@@ -33,17 +33,17 @@ describe("GameLogicRuntime", () => {
 
 	it("when the physics wasm fails to load, boot does not wait for it: the scene loads at once, with a warning", async () => {
 		void harness.runtime.Boot();
-		harness.render.Receive({ type: "ready" });
+		harness.render.Receive({ type: RenderMsg.Ready });
 		harness.physics.Receive({ state: PhysState.Failed, message: "dotnet.js 404" });
 		await harness.Pump();
 
 		expect(harness.runtime.Context.Scenes.CurrentSceneId).toBe("bouncing-ball");
 		expect(harness.runtime.Context.Physics.Failed).toBe(true);
-		expect(harness.UiMessages("toast").some((t) => String(t["message"]).includes("Physics failed to load"))).toBe(true);
+		expect(harness.UiMessages(UiMsg.Toast).some((t) => String(t["message"]).includes("Physics failed to load"))).toBe(true);
 		expect(harness.physics.sent).toHaveLength(0); // nothing is posted to a worker that will never answer
 
 		// Scene switching keeps working (rendering + scripts), also without waiting for acks that cannot come.
-		harness.ui.Receive({ type: "load-scene", sceneId: "character-test" });
+		harness.ui.Receive({ type: UiMsg.LoadScene, sceneId: "character-test" });
 		await harness.Pump();
 		expect(harness.runtime.Context.Scenes.CurrentSceneId).toBe("character-test");
 	});
@@ -71,7 +71,7 @@ describe("GameLogicRuntime", () => {
 		expect(log).toEqual(["awake:A1", "awake:A2", "awake:B1", "start:A1", "start:A2", "start:B1"]);
 
 		log.length = 0;
-		harness.render.Receive({ type: "frame-request", frameId: 1 });
+		harness.render.Receive({ type: RenderMsg.FrameRequest, frameId: 1 });
 		expect(log).toEqual(["update:A1", "update:A2", "update:B1"]);
 
 		log.length = 0;
@@ -91,7 +91,7 @@ describe("GameLogicRuntime", () => {
 		await harness.BootToScene();
 		harness.ClearSent();
 
-		harness.render.Receive({ type: "frame-request", frameId: 7 });
+		harness.render.Receive({ type: RenderMsg.FrameRequest, frameId: 7 });
 
 		const frame = harness.render.sent[0] as { operation: RendOpType; frameId: number; entityCount: number; camera: unknown; };
 		expect(frame.operation).toBe(RendOpType.Frame);
@@ -104,7 +104,7 @@ describe("GameLogicRuntime", () => {
 		await harness.BootToScene();
 		harness.ClearSent();
 
-		harness.ui.Receive({ type: "load-scene", sceneId: "character-test" });
+		harness.ui.Receive({ type: UiMsg.LoadScene, sceneId: "character-test" });
 		await harness.Pump();
 
 		expect(harness.runtime.Context.Scenes.CurrentSceneId).toBe("character-test");
@@ -119,15 +119,15 @@ describe("GameLogicRuntime", () => {
 		// very first thing physics hears is the reset - nothing from the old scene can reach the new world.
 		expect(commands[0]?.operation).toBe(PhysOpType.ResetWorld);
 		expect(commands.some((c) => c.operation === PhysOpType.RemoveBody)).toBe(false);
-		expect(harness.UiMessages("load-finished")).toHaveLength(2);
+		expect(harness.UiMessages(UiMsg.LoadFinished)).toHaveLength(2);
 	});
 
 	describe("character test scene", () => {
 		beforeEach(async () => {
 			await harness.BootToScene();
-			harness.ui.Receive({ type: "load-scene", sceneId: "character-test" });
+			harness.ui.Receive({ type: UiMsg.LoadScene, sceneId: "character-test" });
 			await harness.Pump();
-			harness.ui.Receive({ type: "set-capture", enabled: true });
+			harness.ui.Receive({ type: UiMsg.SetCapture, enabled: true });
 			harness.ClearSent();
 		});
 
@@ -181,10 +181,10 @@ describe("GameLogicRuntime", () => {
 			const pad = harness.runtime.Context.World.FindByName("Trigger Pad")!;
 			harness.Step([{ id: player(), pos: [0, 1.2, 8] }], [{ id: player(), onFloor: true }], [player(), pad.Id, 1]);
 
-			const toast = harness.UiMessages("toast");
+			const toast = harness.UiMessages(UiMsg.Toast);
 			expect(toast.some((t) => String(t["message"]).includes("entered Trigger Pad"))).toBe(true);
 
-			harness.ui.Receive({ type: "set-capture", enabled: false });
+			harness.ui.Receive({ type: UiMsg.SetCapture, enabled: false });
 			harness.runtime.HandleInput({ kind: 0, code: "KeyW" });
 			harness.ClearSent();
 			harness.Step([{ id: player(), pos: [0, 1.2, 8] }], [{ id: player(), onFloor: true }]);
@@ -201,9 +201,9 @@ describe("GameLogicRuntime", () => {
 
 		beforeEach(async () => {
 			await harness.BootToScene();
-			harness.ui.Receive({ type: "load-scene", sceneId: "coin-hunt" });
+			harness.ui.Receive({ type: UiMsg.LoadScene, sceneId: "coin-hunt" });
 			await harness.Pump();
-			harness.ui.Receive({ type: "set-capture", enabled: true });
+			harness.ui.Receive({ type: UiMsg.SetCapture, enabled: true });
 			harness.ClearSent();
 		});
 
@@ -215,7 +215,7 @@ describe("GameLogicRuntime", () => {
 			expect(coins()).toHaveLength(9);
 			expect(game().Total).toBe(9);
 			expect(game().Collected).toBe(0);
-			expect(game().State).toBe("playing");
+			expect(game().State).toBe(CoinHuntState.Playing);
 		});
 
 		it("collects a coin on touch: counts it, removes the entity and its trigger body", () => {
@@ -241,27 +241,27 @@ describe("GameLogicRuntime", () => {
 		it("wins when the last coin is collected, and says so on the HUD and in a toast", async () => {
 			for (const coin of coins()) touch(coin.Id);
 
-			expect(game().State).toBe("won");
+			expect(game().State).toBe(CoinHuntState.Won);
 			expect(game().Collected).toBe(9);
-			expect(harness.UiMessages("toast").some((t) => String(t["message"]).includes("All coins collected"))).toBe(true);
+			expect(harness.UiMessages(UiMsg.Toast).some((t) => String(t["message"]).includes("All coins collected"))).toBe(true);
 
-			harness.render.Receive({ type: "frame-request", frameId: 1 }); // OnUIUpdate publishes the HUD
-			expect(game().State).toBe("won");
+			harness.render.Receive({ type: RenderMsg.FrameRequest, frameId: 1 }); // OnUIUpdate publishes the HUD
+			expect(game().State).toBe(CoinHuntState.Won);
 		});
 
 		it("loses when the clock runs out, and R rebuilds the whole scene", async () => {
 			// Not "0.001 s left + wait a bit": a frame's dt comes from the wall clock and can be ~0 in a fast test run.
 			game().TimeLeft = 0;
-			harness.render.Receive({ type: "frame-request", frameId: 1 });
-			expect(game().State).toBe("lost");
+			harness.render.Receive({ type: RenderMsg.FrameRequest, frameId: 1 });
+			expect(game().State).toBe(CoinHuntState.Lost);
 
 			const oldGame = game();
 			harness.runtime.HandleInput({ kind: 0, code: "KeyR" });
-			harness.render.Receive({ type: "frame-request", frameId: 3 });
+			harness.render.Receive({ type: RenderMsg.FrameRequest, frameId: 3 });
 			await harness.Pump();
 
 			expect(game()).not.toBe(oldGame);
-			expect(game().State).toBe("playing");
+			expect(game().State).toBe(CoinHuntState.Playing);
 			expect(game().Collected).toBe(0);
 			expect(coins()).toHaveLength(9);
 		});

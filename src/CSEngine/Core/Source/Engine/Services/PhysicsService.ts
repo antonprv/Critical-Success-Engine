@@ -18,6 +18,7 @@ import { BODY_STRIDE, CHARACTER_STRIDE, type FlatTransform } from "../../Workers
 import { SyncTracker } from "../Core/SyncTracker";
 import { Quat } from "../Math/Quat";
 import { Vec3, type Vec3Tuple } from "../Math/Vec3";
+import { DefaultGravity } from "../../Workers/Common/EngineConstants";
 
 /** Latest simulation state of a dynamic/kinematic body, refreshed every physics step. Objects are reused - copy what you keep. */
 export interface BodyState {
@@ -56,11 +57,8 @@ export interface OverlapEventData {
 }
 
 /**
- * GameLogic's side of the physics boundary: turns method calls into batched commands for PhysicsWorker (one
- * postMessage per tick), and keeps the most recent snapshot so scripts can read body/character state synchronously.
- *
- * Everything is addressed by entity id - the bridge's own body/shape handles never leave PhysicsWorker.
- * Queries are asynchronous (the answer comes from another thread) and return promises.
+ * GameLogic's side of physics: method calls become one batched command message per tick, and the latest snapshot is kept
+ * for synchronous reads. Everything is addressed by entity id; queries return promises.
  */
 export class PhysicsService {
 	private readonly _port: MessagePort;
@@ -75,7 +73,7 @@ export class PhysicsService {
 	private _awaitingReset = false;
 
 	/** Gravity of the currently loaded world (what the character motor needs - the Godot IPhysicsWorld.Gravity). */
-	public readonly Gravity = new Vec3(0, -20, 0);
+	public readonly Gravity = new Vec3(...DefaultGravity);
 
 	/** True once PhysicsWorker reported its wasm module is up. */
 	public Ready = false;

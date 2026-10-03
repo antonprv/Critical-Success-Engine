@@ -34,6 +34,14 @@ export class MeshRenderer extends Component {
 		if (this.Mesh) this.Engine.Render.SetColor(this.Entity.Id, color);
 	}
 
+	public override OnEnable(): void {
+		if (this.Mesh) this.Engine.Render.SetVisible(this.Entity.Id, this.Visible);
+	}
+
+	public override OnDisable(): void {
+		if (this.Mesh) this.Engine.Render.SetVisible(this.Entity.Id, false);
+	}
+
 	public override OnDestroy(): void {
 		if (!this.Mesh) return;
 		this.Engine.Render.Remove(this.Entity.Id);

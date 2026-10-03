@@ -4,30 +4,16 @@
 import { Logger } from "../../Logging/Logger";
 import { SoundType as SoundKind } from "../Common/CommonEnums";
 import type { ResolvedSound } from "../Protocol/AudioProtocol";
+import { WorkerScope } from "../Common/WorkerScope";
 
 /**
- * Sound-id -> URL registry plus the fetch/cache/best-effort-decode pipeline
- * behind it. Runs entirely inside AudioWorker, so the network round-trip,
- * the raw compressed bytes it returns, and (where this browser allows it)
- * the decode work never touch the main thread until a sound is actually
- * about to play - see AudioWorker for how a Resolve() result gets shipped
- * out, and AudioPlayer (main thread, Source/Audio/AudioPlayer.ts) for where
- * sound is actually rendered to speakers.
- *
- * KNOWN LIMITATION (browser support): decoding needs a BaseAudioContext,
- * and exposing one inside a dedicated Worker's global scope is still an
- * open WebAudio spec item - reliable on Chromium, not yet shipped on
- * Firefox/Safari. `_offlineCtor` below is undefined there, and Resolve()
- * degrades to shipping the raw encoded bytes to the main thread instead,
- * where AudioPlayer's always-present AudioContext.decodeAudioData does the
- * one-time decode - browsers run that off the JS main thread internally,
- * so this fallback doesn't reintroduce the stutter this split exists to
- * avoid. Check current support before assuming otherwise:
- * https://github.com/WebAudio/web-audio-api/issues/2423
+ * Sound id -> URL registry with fetch, cache and decoding, all inside AudioWorker. Decoding in a worker needs
+ * OfflineAudioContext, which only Chromium exposes there (https://github.com/WebAudio/web-audio-api/issues/2423);
+ * elsewhere the encoded bytes go to the main thread, where AudioPlayer decodes them once.
  */
 export class AudioBank {
 	private readonly _offlineCtor =
-		(self as unknown as { OfflineAudioContext?: typeof OfflineAudioContext; }).OfflineAudioContext;
+		WorkerScope().OfflineAudioContext;
 	private readonly _rawCache = new Map<string, ArrayBuffer>();
 	private readonly _pcmCache = new Map<string, { sampleRate: number; channels: Float32Array[]; }>();
 

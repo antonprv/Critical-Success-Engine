@@ -9,7 +9,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PhysState, RendOpType, SoundAction, SoundType } from "../Source/Workers/Common/CommonEnums";
+import { AudioMsg, GameLogicMsg, PhysicsMsg, PhysState, RenderMsg, RendOpType, SoundAction, SoundType, UiMsg } from "../Source/Workers/Common/CommonEnums";
 import { FakePort } from "./Harness";
 import { SilenceConsole } from "./helpers";
 
@@ -51,18 +51,18 @@ const flush = async (): Promise<void> => { for (let i = 0; i < 5; i++) await Pro
 describe("UiWorker", () => {
 	it("creates the UI controller on init and routes both directions; messages before init are ignored", async () => {
 		await import("../Source/Workers/UiWorker");
-		expect(() => fakeSelf.Send({ type: "pointer-lock", locked: true })).not.toThrow(); // no controller yet
+		expect(() => fakeSelf.Send({ type: UiMsg.PointerLock, locked: true })).not.toThrow(); // no controller yet
 
 		const gameLogic = new FakePort();
-		fakeSelf.Send({ type: "init", gameLogicPort: gameLogic });
+		fakeSelf.Send({ type: UiMsg.Init, gameLogicPort: gameLogic });
 
-		gameLogic.Receive({ type: "scenes", scenes: [{ id: "a", name: "A", description: "" }] });
-		const patches = fakeSelf.posted.map((p) => p.message as { type: string; patch?: { menu?: { scenes?: unknown[]; }; }; });
-		expect(patches.some((m) => m.type === "state" && m.patch?.menu?.scenes?.length === 1)).toBe(true);
+		gameLogic.Receive({ type: UiMsg.Scenes, scenes: [{ id: "a", name: "A", description: "" }] });
+		const patches = fakeSelf.posted.map((p) => p.message as { type: UiMsg; patch?: { menu?: { scenes?: unknown[]; }; }; });
+		expect(patches.some((m) => m.type === UiMsg.State && m.patch?.menu?.scenes?.length === 1)).toBe(true);
 
-		gameLogic.Receive({ type: "load-finished", sceneId: "a" }); // booting is over: the menu takes picks now
-		fakeSelf.Send({ type: "select-scene", sceneId: "a" });
-		expect(gameLogic.sent).toContainEqual({ type: "load-scene", sceneId: "a" });
+		gameLogic.Receive({ type: UiMsg.LoadFinished, sceneId: "a" }); // booting is over: the menu takes picks now
+		fakeSelf.Send({ type: UiMsg.SelectScene, sceneId: "a" });
+		expect(gameLogic.sent).toContainEqual({ type: UiMsg.LoadScene, sceneId: "a" });
 	});
 });
 
@@ -83,22 +83,22 @@ describe("GameLogicWorker", () => {
 	it("builds the runtime with the four ports on init, boots it, and forwards later main-thread messages", async () => {
 		const instances = MockRuntime();
 		await import("../Source/Workers/GameLogicWorker");
-		fakeSelf.Send({ type: "input", event: {} }); // before init: dropped
+		fakeSelf.Send({ type: GameLogicMsg.Input, event: {} }); // before init: dropped
 
 		const ports = { renderPort: new FakePort(), physicsPort: new FakePort(), audioPort: new FakePort(), uiPort: new FakePort() };
-		fakeSelf.Send({ type: "init", ...ports });
+		fakeSelf.Send({ type: GameLogicMsg.Init, ...ports });
 		expect(instances).toHaveLength(1);
 		expect(instances[0]!.ports).toEqual({ render: ports.renderPort, physics: ports.physicsPort, audio: ports.audioPort, ui: ports.uiPort });
 
-		fakeSelf.Send({ type: "input", event: { kind: 1, code: "KeyW" } });
-		expect(instances[0]!.handled).toEqual([{ type: "input", event: { kind: 1, code: "KeyW" } }]);
+		fakeSelf.Send({ type: GameLogicMsg.Input, event: { kind: 1, code: "KeyW" } });
+		expect(instances[0]!.handled).toEqual([{ type: GameLogicMsg.Input, event: { kind: 1, code: "KeyW" } }]);
 	});
 
 	it("logs a failed boot instead of losing it", async () => {
 		const log = SilenceConsole();
 		MockRuntime(() => Promise.reject(new Error("no scenes")));
 		await import("../Source/Workers/GameLogicWorker");
-		fakeSelf.Send({ type: "init", renderPort: new FakePort(), physicsPort: new FakePort(), audioPort: new FakePort(), uiPort: new FakePort() });
+		fakeSelf.Send({ type: GameLogicMsg.Init, renderPort: new FakePort(), physicsPort: new FakePort(), audioPort: new FakePort(), uiPort: new FakePort() });
 		await flush();
 		expect(String(log.error.mock.calls[0]![0])).toContain("[GameLogicWorker] boot failed:");
 	});
@@ -117,7 +117,7 @@ describe("AudioWorker", () => {
 		vi.doMock("../Source/Workers/Audio/AudioBank", () => ({ AudioBank: class { public Resolve = vi.fn((id: string) => Promise.resolve(resolve(id))); } }));
 		await import("../Source/Workers/AudioWorker");
 		const gameLogic = new FakePort();
-		fakeSelf.Send({ type: "init", gameLogicPort: gameLogic });
+		fakeSelf.Send({ type: AudioMsg.Init, gameLogicPort: gameLogic });
 		return gameLogic;
 	}
 
@@ -232,7 +232,7 @@ describe("PhysicsWorker", () => {
 		const gameLogic = new FakePort();
 		return gameLogic;
 	}
-	const init = (port: FakePort): void => fakeSelf.Send({ type: "init", gameLogicPort: port, settings: { gravity: [0, -20, 0] }, fixedTimestepMs: 10 });
+	const init = (port: FakePort): void => fakeSelf.Send({ type: PhysicsMsg.Init, gameLogicPort: port, settings: { gravity: [0, -20, 0] }, fixedTimestepMs: 10 });
 	const advance = (ms: number): void => { clock += ms; vi.advanceTimersByTime(ms); };
 	const steps = (port: FakePort) => (port.sent as { state: PhysState; }[]).filter((m) => m.state === PhysState.Step);
 
@@ -279,17 +279,17 @@ describe("PhysicsWorker", () => {
 		let finishLoading!: (bridge: unknown) => void;
 		const port = await Start(() => new Promise((resolve) => (finishLoading = resolve)));
 		init(port);
-		fakeSelf.Send({ type: "set-running", running: true }); // no world yet: ticks do nothing
+		fakeSelf.Send({ type: PhysicsMsg.SetRunning, running: true }); // no world yet: ticks do nothing
 		advance(50);
 		expect(steps(port)).toHaveLength(0);
 
 		finishLoading({});
 		await flush();
-		fakeSelf.Send({ type: "set-running", running: false });
+		fakeSelf.Send({ type: PhysicsMsg.SetRunning, running: false });
 		advance(100);
 		expect(steps(port)).toHaveLength(0);
 
-		fakeSelf.Send({ type: "set-running", running: true });
+		fakeSelf.Send({ type: PhysicsMsg.SetRunning, running: true });
 		advance(30);
 		expect(steps(port).length).toBeGreaterThan(0);
 	});
@@ -342,7 +342,7 @@ describe("PhysicsWorker", () => {
 		const port = await Start(() => Promise.resolve({}));
 		init(port);
 		await flush();
-		fakeSelf.Send({ type: "set-running", running: false });
+		fakeSelf.Send({ type: PhysicsMsg.SetRunning, running: false });
 		vi.advanceTimersByTime(15_000);
 		expect(log.error.mock.calls.some((c) => String(c[0]).includes("15 s"))).toBe(false);
 	});
@@ -366,33 +366,33 @@ describe("RenderWorker", () => {
 
 	it("a resize before init is ignored; after init it reaches the scene; the inspector toggle is a no-op", async () => {
 		const { scene } = await Start();
-		fakeSelf.Send({ type: "resize", width: 1, height: 1, devicePixelRatio: 1 });
+		fakeSelf.Send({ type: RenderMsg.Resize, width: 1, height: 1, devicePixelRatio: 1 });
 		expect(scene.Resize).not.toHaveBeenCalled();
 
-		fakeSelf.Send({ type: "init", canvas: {}, gameLogicPort: new FakePort(), devMode: false, width: 800, height: 600, devicePixelRatio: 2 });
-		fakeSelf.Send({ type: "resize", width: 640, height: 480, devicePixelRatio: 1 });
+		fakeSelf.Send({ type: RenderMsg.Init, canvas: {}, gameLogicPort: new FakePort(), devMode: false, width: 800, height: 600, devicePixelRatio: 2 });
+		fakeSelf.Send({ type: RenderMsg.Resize, width: 640, height: 480, devicePixelRatio: 1 });
 		expect(scene.Resize).toHaveBeenCalledWith(640, 480, 1);
-		expect(() => fakeSelf.Send({ type: "set-inspector-visible", visible: true })).not.toThrow();
+		expect(() => fakeSelf.Send({ type: RenderMsg.SetInspectorVisible, visible: true })).not.toThrow();
 	});
 
 	it("on init: builds the scene at the canvas size, says ready, and asks GameLogic for frames - at most two at a time", async () => {
 		const { scene, created } = await Start();
 		const port = new FakePort();
-		fakeSelf.Send({ type: "init", canvas: { id: "c" }, gameLogicPort: port, devMode: false, width: 800, height: 600, devicePixelRatio: 2 });
+		fakeSelf.Send({ type: RenderMsg.Init, canvas: { id: "c" }, gameLogicPort: port, devMode: false, width: 800, height: 600, devicePixelRatio: 2 });
 		expect(created[0]).toEqual([{ id: "c" }, 800, 600, 2]);
-		expect(port.sent[0]).toEqual({ type: "ready" });
+		expect(port.sent[0]).toEqual({ type: RenderMsg.Ready });
 
 		scene.loop!();
 		scene.loop!();
 		scene.loop!(); // a third display frame while two requests are still out: no new request
-		const requests = (port.sent as { type: string; frameId?: number; }[]).filter((m) => m.type === "frame-request");
+		const requests = (port.sent as { type: RenderMsg; frameId?: number; }[]).filter((m) => m.type === RenderMsg.FrameRequest);
 		expect(requests.map((r) => r.frameId)).toEqual([1, 2]);
 	});
 
 	it("applies a received frame on the next display frame (transforms + camera), then asks for another", async () => {
 		const { scene, registry } = await Start();
 		const port = new FakePort();
-		fakeSelf.Send({ type: "init", canvas: {}, gameLogicPort: port, devMode: false, width: 1, height: 1, devicePixelRatio: 1 });
+		fakeSelf.Send({ type: RenderMsg.Init, canvas: {}, gameLogicPort: port, devMode: false, width: 1, height: 1, devicePixelRatio: 1 });
 		scene.loop!();
 		scene.loop!();
 
@@ -401,7 +401,7 @@ describe("RenderWorker", () => {
 		scene.loop!();
 		expect(registry.ApplyTransformBatch).toHaveBeenCalledWith(buffer, 1);
 		expect(scene.PoseCamera).toHaveBeenCalledTimes(1);
-		expect((port.sent as { type: string; }[]).filter((m) => m.type === "frame-request")).toHaveLength(3);
+		expect((port.sent as { type: RenderMsg; }[]).filter((m) => m.type === RenderMsg.FrameRequest)).toHaveLength(3);
 
 		port.Receive({ operation: RendOpType.Frame, frameId: 2, buffer, entityCount: 1, camera: null }); // no camera in this scene
 		scene.loop!();
@@ -412,7 +412,7 @@ describe("RenderWorker", () => {
 	it("forwards scene edits to the mesh registry and the scene, and answers sync markers", async () => {
 		const { scene, registry } = await Start();
 		const port = new FakePort();
-		fakeSelf.Send({ type: "init", canvas: {}, gameLogicPort: port, devMode: false, width: 1, height: 1, devicePixelRatio: 1 });
+		fakeSelf.Send({ type: RenderMsg.Init, canvas: {}, gameLogicPort: port, devMode: false, width: 1, height: 1, devicePixelRatio: 1 });
 
 		port.Receive({ operation: RendOpType.SpawnEntity, entityId: 1, mesh: { shape: 0 }, transform: [0, 0, 0, 0, 0, 0, 1], color: [1, 0, 0] });
 		port.Receive({ operation: RendOpType.SetVisible, entityId: 1, visible: false });
@@ -426,13 +426,13 @@ describe("RenderWorker", () => {
 		expect(registry.SetColor).toHaveBeenCalledWith(1, [0, 1, 0]);
 		expect(registry.Remove).toHaveBeenCalledWith(1);
 		expect(scene.SetClearColor).toHaveBeenCalledWith(0.1, 0.2, 0.3);
-		expect(port.sent).toContainEqual({ type: "sync-ack", token: 9 });
+		expect(port.sent).toContainEqual({ type: RenderMsg.SyncAck, token: 9 });
 	});
 
 	it("clearing the scene drops a frame that has not been shown yet; a glTF arrival is reported", async () => {
 		const { scene, registry } = await Start();
 		const port = new FakePort();
-		fakeSelf.Send({ type: "init", canvas: {}, gameLogicPort: port, devMode: false, width: 1, height: 1, devicePixelRatio: 1 });
+		fakeSelf.Send({ type: RenderMsg.Init, canvas: {}, gameLogicPort: port, devMode: false, width: 1, height: 1, devicePixelRatio: 1 });
 
 		port.Receive({ operation: RendOpType.Frame, frameId: 1, buffer: new ArrayBuffer(8), entityCount: 1, camera: null });
 		port.Receive({ operation: RendOpType.ClearScene });
@@ -441,7 +441,7 @@ describe("RenderWorker", () => {
 		expect(registry.ApplyTransformBatch).not.toHaveBeenCalled();
 
 		registry.OnGltfLoaded!(42);
-		expect(port.sent).toContainEqual({ type: "asset-loaded", entityId: 42 });
+		expect(port.sent).toContainEqual({ type: RenderMsg.AssetLoaded, entityId: 42 });
 	});
 });
 

@@ -17,7 +17,7 @@ import { Comp, Ent } from "../Source/Engine/Core/EntityManifest";
 import { Meshes, Shapes } from "../Source/Engine/Core/Shapes";
 import { Quat } from "../Source/Engine/Math/Quat";
 import { Vec3 } from "../Source/Engine/Math/Vec3";
-import { InputEvtType, PhysBodyType, PhysObjectKind, PhysOpType, PhysQueryType, PhysState, RendOpType } from "../Source/Workers/Common/CommonEnums";
+import { InputEvtType, PhysBodyType, PhysObjectKind, PhysOpType, PhysQueryType, PhysState, RendOpType, UiMsg } from "../Source/Workers/Common/CommonEnums";
 import type { PhysicsCommand } from "../Source/Workers/Protocol/PhysicsGameLogicProtocol";
 import { MakeEngine, type TestEngine } from "./engine";
 
@@ -428,7 +428,7 @@ describe("MoverComponent", () => {
 			t.frame();
 			t.engine.Ui.Flush(1000);
 
-			const lines = (t.uiMessages("hud").at(-1) as { lines: string[]; }).lines;
+			const lines = (t.uiMessages(UiMsg.Hud).at(-1) as { lines: string[]; }).lines;
 			expect(lines).toContain("Mode: QuakeStrafeDoom2016");
 			const speed = lines.find((l) => l.startsWith("Speed: "))!;
 			expect(Number(speed.match(/^Speed: ([\d.]+) m\/s/)![1])).toBeGreaterThan(1); // the traits' friction trims the 5 m/s the simulation reported
@@ -442,13 +442,13 @@ describe("MoverComponent", () => {
 			stand([0, 0, 0], 12345);
 			t.frame();
 			t.engine.Ui.Flush(1000);
-			expect((t.uiMessages("hud").at(-1) as { lines: string[]; }).lines).toContain("Floor: yes");
+			expect((t.uiMessages(UiMsg.Hud).at(-1) as { lines: string[]; }).lines).toContain("Floor: yes");
 
 			t.step([{ id: player.Id, pos: [0, 4, 0] }], [{ id: player.Id, onFloor: false }]);
 			mover.SetNoclip(true);
 			t.frame();
 			t.engine.Ui.Flush(2000);
-			const lines = (t.uiMessages("hud").at(-1) as { lines: string[]; }).lines;
+			const lines = (t.uiMessages(UiMsg.Hud).at(-1) as { lines: string[]; }).lines;
 			expect(lines).toContain("Floor: air");
 			expect(lines).toContain("Mode: QuakeStrafeDoom2016  (NOCLIP)");
 		});
@@ -458,7 +458,7 @@ describe("MoverComponent", () => {
 			Level(t, { ShowHud: false });
 			t.frame();
 			t.engine.Ui.Flush(1000);
-			expect(t.uiMessages("hud")).toEqual([]);
+			expect(t.uiMessages(UiMsg.Hud)).toEqual([]);
 		});
 	});
 });

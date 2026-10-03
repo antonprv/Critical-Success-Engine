@@ -1,13 +1,15 @@
 <!-- Created by Anton Piruev in 2026. Any direct commercial use of derivative work is strictly prohibited. -->
 <script setup lang="ts">
 import { computed } from "vue";
+import { MenuMode } from "../../Workers/Common/CommonEnums";
 import type { UiMenuState } from "../../Workers/Protocol/UiProtocol";
+import { GameTitle } from "../Branding";
 import Taskbar from "./Taskbar.vue";
 
 const props = defineProps<{ menu: UiMenuState; disabled: boolean }>();
 defineEmits<{ (e: "resume"): void; (e: "select", sceneId: string): void }>();
 
-const isStart = computed(() => props.menu.mode === "start");
+const isStart = computed(() => props.menu.mode === MenuMode.Start);
 const sceneCount = computed(() => (props.menu.scenes.length === 1 ? "1 scene" : `${props.menu.scenes.length} scenes`));
 const currentName = computed(() => props.menu.scenes.find((s) => s.id === props.menu.currentSceneId)?.name);
 </script>
@@ -18,7 +20,7 @@ const currentName = computed(() => props.menu.scenes.find((s) => s.id === props.
 			<div class="menu-desktop">
 				<section class="menu-card" role="dialog" aria-labelledby="menu-title">
 					<header class="titlebar">
-						<span id="menu-title" class="titlebar__text">Lantern Festival</span>
+						<span id="menu-title" class="titlebar__text">{{ GameTitle }}</span>
 						<!-- Closing the menu window goes back to the game, like closing a dialog returns you to the app. -->
 						<button class="titlebar__close" type="button" aria-label="Close menu" title="Close" :disabled="disabled" @click="$emit('resume')" />
 					</header>
@@ -70,7 +72,7 @@ const currentName = computed(() => props.menu.scenes.find((s) => s.id === props.
 				</section>
 			</div>
 
-			<Taskbar title="Lantern Festival" />
+			<Taskbar :title="GameTitle" />
 		</div>
 	</transition>
 </template>

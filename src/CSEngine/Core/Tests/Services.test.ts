@@ -10,9 +10,7 @@ import { InputService } from "../Source/Engine/Services/InputService";
 import { PhysicsService } from "../Source/Engine/Services/PhysicsService";
 import { RenderService } from "../Source/Engine/Services/RenderService";
 import { UiService } from "../Source/Engine/Services/UiService";
-import {
-	InputEvtType, PhysBodyType, PhysObjectKind, PhysOpType, PhysQueryType, PhysShape, PhysState, RendMesh, RendOpType, SoundAction,
-} from "../Source/Workers/Common/CommonEnums";
+import { InputEvtType, PhysBodyType, PhysObjectKind, PhysOpType, PhysQueryType, PhysShape, PhysState, RendMesh, RendOpType, SoundAction, UiMsg } from "../Source/Workers/Common/CommonEnums";
 import type { PhysicsCommand } from "../Source/Workers/Protocol/PhysicsGameLogicProtocol";
 import { BODY_STRIDE, CHARACTER_STRIDE } from "../Source/Workers/Protocol/TransformProtocol";
 
@@ -135,11 +133,11 @@ describe("UiService", () => {
 		ui.LoadFailed("a", "boom");
 		ui.Toast("hello");
 		expect(port.sent).toEqual([
-			{ type: "scenes", scenes: [{ id: "a", name: "A", description: "d" }] },
-			{ type: "load-progress", sceneId: "a", label: "working", fraction: 0.5 },
-			{ type: "load-finished", sceneId: "a" },
-			{ type: "load-failed", sceneId: "a", message: "boom" },
-			{ type: "toast", message: "hello" },
+			{ type: UiMsg.Scenes, scenes: [{ id: "a", name: "A", description: "d" }] },
+			{ type: UiMsg.LoadProgress, sceneId: "a", label: "working", fraction: 0.5 },
+			{ type: UiMsg.LoadFinished, sceneId: "a" },
+			{ type: UiMsg.LoadFailed, sceneId: "a", message: "boom" },
+			{ type: UiMsg.Toast, message: "hello" },
 		]);
 	});
 
@@ -154,18 +152,18 @@ describe("UiService", () => {
 		ui.SetHud("a", "one"); // same text: not a change
 		ui.SetHud("b", "two");
 		ui.Flush(1000);
-		expect(port.sent).toEqual([{ type: "hud", lines: ["one", "two"] }]);
+		expect(port.sent).toEqual([{ type: UiMsg.Hud, lines: ["one", "two"] }]);
 
 		ui.SetHud("a", "uno");
 		ui.Flush(1050); // too soon
 		expect(port.sent).toHaveLength(1);
 		ui.Flush(1100);
-		expect(port.sent[1]).toEqual({ type: "hud", lines: ["uno", "two"] });
+		expect(port.sent[1]).toEqual({ type: UiMsg.Hud, lines: ["uno", "two"] });
 
 		ui.SetHud("a", null);
 		ui.SetHud("missing", null); // removing something absent changes nothing
 		ui.Flush(1300);
-		expect(port.sent[2]).toEqual({ type: "hud", lines: ["two"] });
+		expect(port.sent[2]).toEqual({ type: UiMsg.Hud, lines: ["two"] });
 	});
 
 	it("bars: clamps, replaces, removes, and only sends what changed", () => {
@@ -175,7 +173,7 @@ describe("UiService", () => {
 		ui.SetBar("hp", "HP", 2);
 		ui.SetBar("mp", "MP", -1);
 		ui.Flush(1000);
-		expect(port.sent).toEqual([{ type: "bars", bars: [{ id: "hp", label: "HP", value: 1 }, { id: "mp", label: "MP", value: 0 }] }]);
+		expect(port.sent).toEqual([{ type: UiMsg.Bars, bars: [{ id: "hp", label: "HP", value: 1 }, { id: "mp", label: "MP", value: 0 }] }]);
 
 		ui.SetBar("hp", "HP", 1); // same value: no change
 		ui.Flush(1200);
@@ -186,7 +184,7 @@ describe("UiService", () => {
 		ui.SetBar("mp", "", null);
 		ui.SetBar("nothing", "", null);
 		ui.Flush(1400);
-		expect(port.sent[1]).toEqual({ type: "bars", bars: [{ id: "hp", label: "HP!", value: 1 }] });
+		expect(port.sent[1]).toEqual({ type: UiMsg.Bars, bars: [{ id: "hp", label: "HP!", value: 1 }] });
 	});
 
 	it("ClearHud empties lines and bars (and does not announce an already empty HUD)", () => {
@@ -203,7 +201,7 @@ describe("UiService", () => {
 
 		ui.ClearHud();
 		ui.Flush(1200);
-		expect(port.sent).toEqual([{ type: "hud", lines: [] }, { type: "bars", bars: [] }]);
+		expect(port.sent).toEqual([{ type: UiMsg.Hud, lines: [] }, { type: UiMsg.Bars, bars: [] }]);
 	});
 });
 

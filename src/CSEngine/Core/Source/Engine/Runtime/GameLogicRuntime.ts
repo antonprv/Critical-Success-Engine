@@ -2,7 +2,7 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { Logger } from "../../Logging/Logger";
-import { PhysObjectKind } from "../../Workers/Common/CommonEnums";
+import { GameLogicMsg, PhysObjectKind, RenderMsg, UiMsg } from "../../Workers/Common/CommonEnums";
 import { PhysicsFixedTimestepMs } from "../../Workers/Common/EngineConstants";
 import type { InputEvent, MainToGameLogicMessage } from "../../Workers/Protocol/GameLogicProtocol";
 import type { PhysicsToGameLogicMessage } from "../../Workers/Protocol/PhysicsGameLogicProtocol";
@@ -28,16 +28,9 @@ export interface GameLogicPorts {
 }
 
 /**
- * The simulation-side owner of "what entities exist and what they are". Nothing in here touches a DOM API or a
- * Babylon/wasm handle: it only ever sends descriptors across four ports and reacts to what comes back. Two clocks drive
- * the scripts:
- *
- *  - the RENDER clock: the render worker asks for a frame (`frame-request`) once per display refresh; each request runs
- *    OnInputUpdate -> Update -> OnUIUpdate for all entities and answers with the interpolated poses + camera.
- *  - the PHYSICS clock: PhysicsWorker steps at a fixed rate and posts a snapshot; each snapshot runs OnPhysicsSync (copy
- *    simulation state into transforms), overlap callbacks, then OnPhysicsUpdate for all entities.
- *
- * Both clocks arrive as messages on the same thread, so scripts never run concurrently - no locking, no races.
+ * Owns the entities and runs their hooks on two clocks: frame requests from the render worker (input, update, UI,
+ * answered with interpolated poses) and physics snapshots (sync, overlap callbacks, physics update). Both arrive as
+ * messages on one thread, so scripts never run concurrently.
  */
 export class GameLogicRuntime {
 	public readonly Context: EngineContext;
@@ -108,7 +101,7 @@ export class GameLogicRuntime {
 
 	/** Entry for messages from the main thread (input events). */
 	public HandleMainMessage(message: MainToGameLogicMessage): void {
-		if (message.type === "input") this.HandleInput(message.event);
+		if (message.type === GameLogicMsg.Input) this.HandleInput(message.event);
 	}
 
 	public HandleInput(event: InputEvent): void {
@@ -117,27 +110,27 @@ export class GameLogicRuntime {
 
 	private OnRenderMessage(message: RenderToGameLogicMessage): void {
 		switch (message.type) {
-			case "ready":
+			case RenderMsg.Ready:
 				this._renderReady = true;
 				this._renderReadyResolve?.();
 				break;
-			case "frame-request":
+			case RenderMsg.FrameRequest:
 				this.OnFrameRequest(message.frameId);
 				break;
-			case "sync-ack":
+			case RenderMsg.SyncAck:
 				this._render.AcknowledgeSync(message.token);
 				break;
-			case "asset-loaded":
+			case RenderMsg.AssetLoaded:
 				break;
 		}
 	}
 
 	private OnUiMessage(message: UiToGameLogicMessage): void {
 		switch (message.type) {
-			case "load-scene":
+			case UiMsg.LoadScene:
 				void this._scenes.Load(message.sceneId);
 				break;
-			case "set-capture":
+			case UiMsg.SetCapture:
 				this._input.CapturePlayerInput = message.enabled;
 				break;
 		}

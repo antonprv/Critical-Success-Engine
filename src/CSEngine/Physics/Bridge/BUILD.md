@@ -34,7 +34,7 @@ works, swap to `dotnet publish -c Release` and turn `RunAOTCompilation`/
 `PublishTrimmed` back on in `PhysicsBridge.csproj` (left off for the first
 build - see "If it doesn't build" below).
 
-## Wire it into LanternFestival
+## Wire it into the engine
 
 `Source/Workers/Physics/PhysicsWasmLoader.ts` loads the runtime from
 `/physics-wasm/_framework/dotnet.js`. Nothing has to be copied by hand - the

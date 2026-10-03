@@ -1,8 +1,8 @@
 {
-  "name": "lanternfestival",
+  "name": "critical-success-engine",
   "version": "1.0.0",
   "private": true,
-  "description": "Lantern Festival - a browser game engine: TypeScript workers, BEPU physics in wasm, Vue + Quasar UI",
+  "description": "Critical Success Engine - a browser game engine: TypeScript workers, BEPU physics in wasm, Vue + Quasar UI",
   "type": "module",
   "engines": {
     "node": ">=22.12"

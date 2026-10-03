@@ -8,7 +8,7 @@ import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { Scene } from "@babylonjs/core/scene";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AssetLoader } from "../Source/Game/AssetLoader";
+import { AssetLoader, AssetPriority } from "../Source/Game/AssetLoader";
 import { RendMesh } from "../Source/Workers/Common/CommonEnums";
 import { EntityMeshRegistry } from "../Source/Workers/Render/EntityMeshRegistry";
 import { RenderScene } from "../Source/Workers/Render/RenderScene";
@@ -251,10 +251,10 @@ describe("AssetLoader", () => {
 		const backgroundTexture = vi.spyOn(managers._background, "addTextureTask").mockImplementation(((name: string) => fakeTask(name)) as never);
 
 		const meshes = vi.fn(), texture = vi.fn();
-		assets.AddMesh("critical", "level", "/assets/", "level.glb", meshes);
-		assets.AddMesh("background", "prop", "/assets/", "prop.glb");
-		assets.AddTexture("critical", "sky", "/assets/sky.png", texture);
-		assets.AddTexture("background", "dirt", "/assets/dirt.png");
+		assets.AddMesh(AssetPriority.Critical, "level", "/assets/", "level.glb", meshes);
+		assets.AddMesh(AssetPriority.Background, "prop", "/assets/", "prop.glb");
+		assets.AddTexture(AssetPriority.Critical, "sky", "/assets/sky.png", texture);
+		assets.AddTexture(AssetPriority.Background, "dirt", "/assets/dirt.png");
 
 		expect(criticalMesh).toHaveBeenCalledWith("level", "", "/assets/", "level.glb");
 		expect(backgroundMesh).toHaveBeenCalledWith("prop", "", "/assets/", "prop.glb");
@@ -278,8 +278,8 @@ describe("AssetLoader", () => {
 		vi.spyOn(managers._background, "addMeshTask").mockImplementation((() => { const t = {}; tasks.push(t); return t; }) as never);
 		vi.spyOn(managers._background, "addTextureTask").mockImplementation((() => { const t = {}; tasks.push(t); return t; }) as never);
 
-		assets.AddMesh("background", "prop", "/", "prop.glb");
-		assets.AddTexture("background", "dirt", "/dirt.png");
+		assets.AddMesh(AssetPriority.Background, "prop", "/", "prop.glb");
+		assets.AddTexture(AssetPriority.Background, "dirt", "/dirt.png");
 		tasks[0]!.onError!({ name: "prop" }, "404", new Error("not found"));
 		tasks[1]!.onError!({ name: "dirt" }, "bad image");
 

@@ -1,9 +1,10 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import type { RenderMsg } from "../Common/CommonEnums";
 export type MainToRenderMessage =
 	| {
-			type: "init";
+			type: RenderMsg.Init;
 			canvas: OffscreenCanvas;
 			gameLogicPort: MessagePort;
 			devMode: boolean;
@@ -12,5 +13,5 @@ export type MainToRenderMessage =
 			height: number;
 			devicePixelRatio: number;
 	  }
-	| { type: "resize"; width: number; height: number; devicePixelRatio: number }
-	| { type: "set-inspector-visible"; visible: boolean };
+	| { type: RenderMsg.Resize; width: number; height: number; devicePixelRatio: number }
+	| { type: RenderMsg.SetInspectorVisible; visible: boolean };

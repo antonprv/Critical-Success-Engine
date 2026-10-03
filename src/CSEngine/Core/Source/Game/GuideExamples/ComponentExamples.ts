@@ -7,6 +7,7 @@
 import { Component } from "../../Engine/Core/Component";
 import { CollisionLayer } from "../../Engine/Core/CollisionLayer";
 import { Comp, Ent } from "../../Engine/Core/EntityManifest";
+import { Despawn, EntityPool } from "../../Engine/Core/EntityPool";
 import { MeshForShape, Shapes } from "../../Engine/Core/Shapes";
 import { CameraComponent } from "../../Engine/Components/Camera/CameraComponent";
 import { MeshRenderer } from "../../Engine/Components/MeshRenderer";
@@ -35,38 +36,49 @@ export class Hover extends Component {
 // >>
 
 // <<lifetime
-/** Destroys its entity after a few seconds. */
+/** Removes its entity after `Seconds` - back to its pool if it came from one. */
 export class Lifetime extends Component {
 	public Seconds = 3;
 
 	private _age = 0;
 
+	public override OnEnable(): void {
+		this._age = 0;
+	}
+
 	public override Update(dt: number): void {
 		this._age += dt;
-		if (this._age >= this.Seconds) this.Entity.Destroy();
+		if (this._age >= this.Seconds) Despawn(this.Entity);
 	}
 }
 // >>
 
 // <<initial-velocity
-/**
- * Gives a RigidBody a starting velocity.
- * Why Start and not Awake: the body is created in RigidBody.Awake, and a command for a body that does not exist yet
- * is ignored. Start runs after EVERY Awake, so the body's spawn command is already queued ahead of this one.
- */
+/** Gives the rigid body a starting velocity once the body exists - and again each time the entity is reused. */
 export class InitialVelocity extends Component {
 	public Velocity: Vec3Tuple = [0, 0, 0];
 
 	public override Start(): void {
+		this.Launch();
+	}
+
+	public override OnEnable(): void {
+		this.Launch();
+	}
+
+	private Launch(): void {
 		this.Entity.RequireComponent(RigidBody).SetLinearVelocity(Vec3.FromTuple(this.Velocity));
 	}
 }
 // >>
 
 // <<ball-gun
-/** Left click: throw a ball from the camera. Shows spawning entities from a script. */
+/** Click to throw a ball where the camera looks. Balls come from a pool and go back to it after 10 seconds. */
 export class BallGun extends Component {
 	public Speed = 15;
+	public MaxBalls = 16;
+
+	private _balls: EntityPool | null = null;
 
 	public override OnInputUpdate(input: InputService): void {
 		if (!input.JustPressed("Mouse0")) return;
@@ -75,14 +87,20 @@ export class BallGun extends Component {
 		if (!camera) return;
 
 		const direction = camera.GetForwardDirection();
-		const shape = Shapes.Sphere(0.3);
+		this._balls ??= new EntityPool(this.Engine.World, BallGun.Ball, { MaxSize: this.MaxBalls });
+		this._balls.Acquire(camera.Transform.Position.Add(direction.Mul(1.5)), (ball) => {
+			ball.RequireComponent(InitialVelocity).Velocity = direction.Mul(this.Speed).ToTuple();
+		});
+	}
 
-		this.Engine.World.Spawn(Ent("Thrown Ball", [
+	private static Ball() {
+		const shape = Shapes.Sphere(0.3);
+		return Ent("Thrown Ball", [
 			Comp(MeshRenderer, { Mesh: MeshForShape(shape), Color: [1, 0.5, 0.2] }),
 			Comp(RigidBody, { Shape: shape, Mass: 1, Layer: CollisionLayer.Prop }),
-			Comp(InitialVelocity, { Velocity: direction.Mul(this.Speed).ToTuple() }),
+			Comp(InitialVelocity),
 			Comp(Lifetime, { Seconds: 10 }),
-		], { position: camera.Transform.Position.Add(direction.Mul(1.5)).ToTuple() }));
+		]);
 	}
 }
 // >>

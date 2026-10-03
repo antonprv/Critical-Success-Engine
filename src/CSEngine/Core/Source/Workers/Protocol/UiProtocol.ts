@@ -1,17 +1,10 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { MenuMode, type UiMsg } from "../Common/CommonEnums";
 /**
- * UI architecture, in one paragraph: Vue + Quasar need a DOM, and workers don't have one - the same constraint audio hits
- * (AudioContext lives on the main thread, see AudioPlayer). So, like audio, the UI is split in two:
- *
- *   - UiWorker owns the UI *state and logic*: what the menu/loading/HUD currently look like, the pause-menu state machine
- *     (pointer lock <-> menu <-> loading), coalescing/throttling of high-frequency HUD updates. Everything the DOM can't be
- *     blamed for.
- *   - The main thread only *renders* that state with Vue (reactive store fed by `UiToMainMessage`) and forwards DOM
- *     events back (`MainToUiMessage`). It holds no UI logic of its own.
- *
- * GameLogic never touches either of those directly - it only talks to UiWorker over its own port (`GameLogicToUiMessage`).
+ * Vue needs a DOM, so the UI is split like audio: UiWorker owns the state and logic (UiController), the main thread only
+ * renders that state and forwards DOM events. GameLogic talks to UiWorker only.
  */
 
 export interface SceneInfo {
@@ -28,8 +21,7 @@ export interface UiLoadingState {
 
 export interface UiMenuState {
 	visible: boolean;
-	/** "start": nothing has captured the pointer yet ("click to play"); "paused": the user pressed Esc. */
-	mode: "start" | "paused";
+	mode: MenuMode;
 	scenes: SceneInfo[];
 	currentSceneId: string | null;
 }
@@ -56,7 +48,7 @@ export interface UiState {
 export function CreateInitialUiState(): UiState {
 	return {
 		loading: { visible: true, label: "Starting…", fraction: 0 },
-		menu: { visible: false, mode: "start", scenes: [], currentSceneId: null },
+		menu: { visible: false, mode: MenuMode.Start, scenes: [], currentSceneId: null },
 		hud: { visible: true, lines: [], bars: [] },
 	};
 }
@@ -64,31 +56,31 @@ export function CreateInitialUiState(): UiState {
 // GameLogic <-> UiWorker
 
 export type GameLogicToUiMessage =
-	| { type: "scenes"; scenes: SceneInfo[]; }
-	| { type: "load-progress"; sceneId: string; label: string; fraction: number; }
-	| { type: "load-finished"; sceneId: string; }
-	| { type: "load-failed"; sceneId: string; message: string; }
-	| { type: "hud"; lines: string[]; }
-	| { type: "bars"; bars: UiBar[]; }
-	| { type: "toast"; message: string; };
+	| { type: UiMsg.Scenes; scenes: SceneInfo[]; }
+	| { type: UiMsg.LoadProgress; sceneId: string; label: string; fraction: number; }
+	| { type: UiMsg.LoadFinished; sceneId: string; }
+	| { type: UiMsg.LoadFailed; sceneId: string; message: string; }
+	| { type: UiMsg.Hud; lines: string[]; }
+	| { type: UiMsg.Bars; bars: UiBar[]; }
+	| { type: UiMsg.Toast; message: string; };
 
 export type UiToGameLogicMessage =
-	| { type: "load-scene"; sceneId: string; }
-	| { type: "set-capture"; enabled: boolean; };
+	| { type: UiMsg.LoadScene; sceneId: string; }
+	| { type: UiMsg.SetCapture; enabled: boolean; };
 
 // main <-> UiWorker
 
 export type MainToUiMessage =
-	| { type: "init"; gameLogicPort: MessagePort; }
+	| { type: UiMsg.Init; gameLogicPort: MessagePort; }
 	/** document.pointerLockElement changed. */
-	| { type: "pointer-lock"; locked: boolean; }
+	| { type: UiMsg.PointerLock; locked: boolean; }
 	/** requestPointerLock() was refused (no user gesture, or the browser's post-Esc cooldown). */
-	| { type: "pointer-lock-failed"; }
-	| { type: "select-scene"; sceneId: string; }
-	| { type: "resume"; };
+	| { type: UiMsg.PointerLockFailed; }
+	| { type: UiMsg.SelectScene; sceneId: string; }
+	| { type: UiMsg.Resume; };
 
 export type UiToMainMessage =
-	| { type: "state"; patch: Partial<UiState>; }
-	| { type: "request-pointer-lock"; }
-	| { type: "exit-pointer-lock"; }
-	| { type: "toast"; message: string; };
+	| { type: UiMsg.State; patch: Partial<UiState>; }
+	| { type: UiMsg.RequestPointerLock; }
+	| { type: UiMsg.ExitPointerLock; }
+	| { type: UiMsg.Toast; message: string; };

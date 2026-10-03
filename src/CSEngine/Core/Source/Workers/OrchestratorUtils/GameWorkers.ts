@@ -7,25 +7,13 @@ import type { MainToGameLogicMessage } from "../Protocol/GameLogicProtocol";
 import type { MainToPhysicsMessage } from "../Protocol/PhysicsProtocol";
 import type { MainToRenderMessage } from "../Protocol/RenderProtocol";
 import type { MainToUiMessage } from "../Protocol/UiProtocol";
-import { PhysicsFixedTimestepMs } from "../Common/EngineConstants";
+import { DefaultGravity, PhysicsFixedTimestepMs } from "../Common/EngineConstants";
+import { UiMsg, RenderMsg, PhysicsMsg, GameLogicMsg, AudioMsg } from "../Common/CommonEnums";
 
 /**
- * Owns the five Worker instances and the one-time MessageChannel wiring of
- * who-talks-to-whom. Holds no DOM event listeners and no game state - see
- * DomInputBridge for the main-thread input side, and GameLogicWorker for the
- * simulation side.
- *
- * Channel layout (see the protocol/ folder for message shapes on each):
- *
- *   main --------- RenderWorker      (canvas transfer, resize, dev toggles)
- *   main --------- PhysicsWorker     (lifecycle only: init/pause)
- *   main --------- GameLogicWorker   (input events)
- *   main --------- AudioWorker       (lifecycle only: init; AudioWorker -> main carries resolved sounds to play, see AudioPlayer)
- *   main --------- UiWorker          (DOM events in, UI state patches out - Vue on the main thread only draws them, see UiBridge)
- *   PhysicsWorker <-----> GameLogicWorker   (direct port: batched commands in, step snapshots/query results out)
- *   GameLogicWorker <---> RenderWorker      (direct port: scene diffs, frame requests and frames)
- *   GameLogicWorker <---> AudioWorker       (direct port: play-sound)
- *   GameLogicWorker <---> UiWorker          (direct port: scene list/loading progress/HUD in, load-scene/capture out)
+ * The five workers and their MessageChannel wiring. The main thread talks to every worker; GameLogic also has a direct
+ * port to each of the others: Physics (commands, snapshots), Render (scene diffs, frames), Audio (play-sound) and
+ * UI (scenes, progress, HUD in; load-scene, capture out).
  */
 export class GameWorkers {
 	public readonly RenderWorker: Worker;
@@ -50,53 +38,57 @@ export class GameWorkers {
 		this.WireWorkers(canvas, devMode);
 	}
 
+	/** One MessageChannel per worker GameLogic talks to: port1 goes to GameLogic, port2 to the other worker. */
 	private WireWorkers(canvas: HTMLCanvasElement, devMode: boolean): void {
-		const physicsGameLogicChannel = new MessageChannel();
-		const gameLogicRenderChannel = new MessageChannel();
-		const gameLogicAudioChannel = new MessageChannel();
-		const gameLogicUiChannel = new MessageChannel();
+		const render = new MessageChannel();
+		const physics = new MessageChannel();
+		const audio = new MessageChannel();
+		const ui = new MessageChannel();
 
+		this.InitRender(canvas, devMode, render.port2);
+		this.InitPhysics(physics.port2);
+		this.InitGameLogic(render.port1, physics.port1, audio.port1, ui.port1);
+		this.InitAudio(audio.port2);
+		this.InitUi(ui.port2);
+	}
+
+	private InitRender(canvas: HTMLCanvasElement, devMode: boolean, gameLogicPort: MessagePort): void {
 		const offscreenCanvas = canvas.transferControlToOffscreen();
-
-		const renderInit: MainToRenderMessage = {
-			type: "init",
+		const message: MainToRenderMessage = {
+			type: RenderMsg.Init,
 			canvas: offscreenCanvas,
-			gameLogicPort: gameLogicRenderChannel.port2,
+			gameLogicPort,
 			devMode,
 			width: canvas.clientWidth,
 			height: canvas.clientHeight,
 			devicePixelRatio: window.devicePixelRatio,
 		};
-		this.RenderWorker.postMessage(renderInit, [offscreenCanvas, gameLogicRenderChannel.port2]);
+		this.RenderWorker.postMessage(message, [offscreenCanvas, gameLogicPort]);
+	}
 
-		const physicsInit: MainToPhysicsMessage = {
-			type: "init",
-			gameLogicPort: physicsGameLogicChannel.port1,
-			// Real gravity comes with each scene (ResetWorld on load); this is just what the very first world starts with.
-			settings: { gravity: [0, -20, 0] },
+	private InitPhysics(gameLogicPort: MessagePort): void {
+		const message: MainToPhysicsMessage = {
+			type: PhysicsMsg.Init,
+			gameLogicPort,
+			settings: { gravity: [...DefaultGravity] },
 			fixedTimestepMs: PhysicsFixedTimestepMs,
 		};
-		this.PhysicsWorker.postMessage(physicsInit, [physicsGameLogicChannel.port1]);
+		this.PhysicsWorker.postMessage(message, [gameLogicPort]);
+	}
 
-		const gameLogicInit: MainToGameLogicMessage = {
-			type: "init",
-			renderPort: gameLogicRenderChannel.port1,
-			physicsPort: physicsGameLogicChannel.port2,
-			audioPort: gameLogicAudioChannel.port1,
-			uiPort: gameLogicUiChannel.port1,
-		};
-		this.GameLogicWorker.postMessage(gameLogicInit, [
-			gameLogicRenderChannel.port1,
-			physicsGameLogicChannel.port2,
-			gameLogicAudioChannel.port1,
-			gameLogicUiChannel.port1,
-		]);
+	private InitGameLogic(renderPort: MessagePort, physicsPort: MessagePort, audioPort: MessagePort, uiPort: MessagePort): void {
+		const message: MainToGameLogicMessage = { type: GameLogicMsg.Init, renderPort, physicsPort, audioPort, uiPort };
+		this.GameLogicWorker.postMessage(message, [renderPort, physicsPort, audioPort, uiPort]);
+	}
 
-		const audioInit: MainToAudioMessage = { type: "init", gameLogicPort: gameLogicAudioChannel.port2 };
-		this.AudioWorker.postMessage(audioInit, [gameLogicAudioChannel.port2]);
+	private InitAudio(gameLogicPort: MessagePort): void {
+		const message: MainToAudioMessage = { type: AudioMsg.Init, gameLogicPort };
+		this.AudioWorker.postMessage(message, [gameLogicPort]);
+	}
 
-		const uiInit: MainToUiMessage = { type: "init", gameLogicPort: gameLogicUiChannel.port2 };
-		this.UiWorker.postMessage(uiInit, [gameLogicUiChannel.port2]);
+	private InitUi(gameLogicPort: MessagePort): void {
+		const message: MainToUiMessage = { type: UiMsg.Init, gameLogicPort };
+		this.UiWorker.postMessage(message, [gameLogicPort]);
 	}
 
 	/** Call once on page teardown (SPA navigation away, hot-reload, etc). */

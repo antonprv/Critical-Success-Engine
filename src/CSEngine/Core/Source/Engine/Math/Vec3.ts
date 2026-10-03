@@ -6,13 +6,7 @@ export type Vec3Tuple = [number, number, number];
 /** Same value as FMath.KINDA_SMALL_NUMBER in the Godot project (Framework/Math/Core/Constants.cs). */
 export const KindaSmallNumber = 0.001;
 
-/**
- * Mutable 3D vector. Field names (X/Y/Z) deliberately match System.Numerics / Godot so code ported from the
- * Start project (movement traits, character controller) reads almost line-for-line the same.
- *
- * Right-handed, Y-up, forward = -Z (Godot / Bepu convention - the render worker switches Babylon to a
- * right-handed system to match, see RenderScene).
- */
+/** Mutable 3D vector, named like System.Numerics / Godot. Right-handed, Y-up, forward = -Z. */
 export class Vec3 {
 	public X: number;
 	public Y: number;

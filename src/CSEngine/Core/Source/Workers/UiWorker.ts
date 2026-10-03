@@ -4,19 +4,19 @@
 import { Logger } from "../Logging/Logger";
 import { UiController } from "./Ui/UiController";
 import type { GameLogicToUiMessage, MainToUiMessage, UiToGameLogicMessage, UiToMainMessage } from "./Protocol/UiProtocol";
+import { UiMsg } from "./Common/CommonEnums";
+import { WorkerScope } from "./Common/WorkerScope";
 
 // Own static buffer per realm - App.ts's timer doesn't flush this one.
 Logger.SetupAutoFlush();
 
-// lib is "dom" only here (no "webworker"), so `self` is typed as Window and its postMessage overload wants a
-// targetOrigin - narrow to the worker signature we actually have at runtime.
-const mainThread = self as unknown as { postMessage(message: UiToMainMessage): void; };
+const mainThread = WorkerScope();
 
 let controller: UiController | null = null;
 
 self.onmessage = (event: MessageEvent<MainToUiMessage>) => {
 	const message = event.data;
-	if (message.type === "init") {
+	if (message.type === UiMsg.Init) {
 		const gameLogicPort = message.gameLogicPort;
 		const created = new UiController(
 			(m: UiToMainMessage) => mainThread.postMessage(m),

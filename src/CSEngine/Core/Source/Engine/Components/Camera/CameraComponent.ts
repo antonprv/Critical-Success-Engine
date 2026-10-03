@@ -12,13 +12,8 @@ import type { InputService } from "../../Services/InputService";
 import type { ICameraSource } from "../../Services/RenderService";
 
 /**
- * Mouse-look camera that follows a target entity: first person by default, third person with a spring arm (a sphere
- * sweep through the physics world pulls the camera in front of walls - BepuSpringArm3D). Toggle at runtime with `ToggleKey`.
- *
- * A slim take on the Godot project's trait-based CameraComponent (FirstPerson / GeneralThirdPerson presets): same
- * conventions - look input is pixels * MouseSensitivity degrees, yaw += -dx, pitch -= dy clamped to +-MaxPitch.
- *
- * Yaw/pitch are kept in degrees; `GetForwardDirection` / `GetRightDirection` are what the character mover steers by.
+ * Mouse-look camera following a target: first person, or third person on a spring arm that a sphere sweep pulls in
+ * front of walls. Yaw/pitch in degrees; the mover steers by `GetForwardDirection` / `GetRightDirection`.
  */
 export class CameraComponent extends Component implements ICameraSource {
 	public TargetName = "Player";

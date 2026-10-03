@@ -46,6 +46,11 @@ export default defineConfig(({ mode }) => {
             sourcemap: isProduction,
             reportCompressedSize: false,
             rolldownOptions: {
+                // Two pages: the game, and the UI toolkit gallery. The key names the entry chunk (index-<hash>.js).
+                input: {
+                    index: resolve(RootDirectory, "index.html"),
+                    toolkit: resolve(RootDirectory, "toolkit.html"),
+                },
                 // The "plugin took 99% of the build" hint is noise for a build dominated by one big dependency.
                 checks: { pluginTimings: false },
             },

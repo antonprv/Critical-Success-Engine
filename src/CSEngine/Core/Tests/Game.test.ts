@@ -12,7 +12,7 @@ import { Comp, Ent } from "../Source/Engine/Core/EntityManifest";
 import { Meshes, Shapes } from "../Source/Engine/Core/Shapes";
 import { Quat } from "../Source/Engine/Math/Quat";
 import { Vec3 } from "../Source/Engine/Math/Vec3";
-import { Coin, FallRespawn, GameRules } from "../Source/Game/Scripts/CoinHunt";
+import { Coin, CoinHuntState, FallRespawn, GameRules } from "../Source/Game/Scripts/CoinHunt";
 import { CrateSpawner, Door, DoubleJumpTrait, Hazard, LaunchPad, Sprint } from "../Source/Game/Scripts/Recipes";
 import { BulletHit, HudText, JumpOnSpace, PlatformMover, Shooter, Spinner, TriggerZone } from "../Source/Game/Scripts/Scripts";
 import { DynamicBox, DynamicShape, StaticBox, WedgeTriangles } from "../Source/Game/SceneHelpers";
@@ -21,7 +21,7 @@ import { Health } from "../Source/Game/GuideExamples/HealthBar";
 import { Bumper, RangeFinder } from "../Source/Game/GuideExamples/PhysicsExamples";
 import { WindTrait } from "../Source/Game/GuideExamples/PlayerExamples";
 import { MProfile, type MovementContext } from "../Source/Engine/Components/Mover/MovementTypes";
-import { PhysOpType, PhysQueryType, PhysState } from "../Source/Workers/Common/CommonEnums";
+import { PhysOpType, PhysQueryType, PhysState, UiMsg } from "../Source/Workers/Common/CommonEnums";
 import type { PhysicsCommand } from "../Source/Workers/Protocol/PhysicsGameLogicProtocol";
 import { MakeEngine } from "./engine";
 
@@ -50,7 +50,7 @@ describe("sample scripts", () => {
 		t.world.FlushLifecycle();
 		t.frame();
 		t.engine.Ui.Flush(1000);
-		expect((t.uiMessages("hud")[0] as { lines: string[]; }).lines).toEqual(["one", "two"]);
+		expect((t.uiMessages(UiMsg.Hud)[0] as { lines: string[]; }).lines).toEqual(["one", "two"]);
 	});
 
 	it("TriggerZone recolours its mesh and toasts while somebody stands inside", () => {
@@ -67,7 +67,7 @@ describe("sample scripts", () => {
 		expect(zone.GetComponent(MeshRenderer)!.Color).toEqual([0, 1, 0]); // B is still inside
 		component.OnTriggerExit(b);
 		expect(zone.GetComponent(MeshRenderer)!.Color).toEqual([0, 0, 1]);
-		expect(t.uiMessages("toast").map((m) => m["message"])).toEqual(["A entered Pad", "B entered Pad", "A left Pad", "B left Pad"]);
+		expect(t.uiMessages(UiMsg.Toast).map((m) => m["message"])).toEqual(["A entered Pad", "B entered Pad", "A left Pad", "B left Pad"]);
 	});
 
 	it("TriggerZone works on an entity without a mesh", () => {
@@ -165,17 +165,17 @@ describe("Coin Hunt scripts", () => {
 		const { rules } = Game(30);
 		expect(rules.Total).toBe(2);
 		expect(rules.TimeLeft).toBe(30);
-		expect(rules.State).toBe("playing");
+		expect(rules.State).toBe(CoinHuntState.Playing);
 	});
 
 	it("collecting every coin wins (and says how fast); collecting after that changes nothing", () => {
 		const { t, rules } = Game();
 		rules.TimeLeft = 45;
 		rules.Collect();
-		expect(rules.State).toBe("playing");
+		expect(rules.State).toBe(CoinHuntState.Playing);
 		rules.Collect();
-		expect(rules.State).toBe("won");
-		expect(t.uiMessages("toast").at(-1)!["message"]).toBe("All coins collected in 15.0 s! Press R to play again.");
+		expect(rules.State).toBe(CoinHuntState.Won);
+		expect(t.uiMessages(UiMsg.Toast).at(-1)!["message"]).toBe("All coins collected in 15.0 s! Press R to play again.");
 
 		rules.Collect();
 		expect(rules.Collected).toBe(2);
@@ -187,8 +187,8 @@ describe("Coin Hunt scripts", () => {
 		expect(rules.TimeLeft).toBeCloseTo(50);
 		rules.TimeLeft = 0.5;
 		t.frame(1);
-		expect(rules.State).toBe("lost");
-		expect(t.uiMessages("toast").at(-1)!["message"]).toBe("Time's up! Press R to try again.");
+		expect(rules.State).toBe(CoinHuntState.Lost);
+		expect(t.uiMessages(UiMsg.Toast).at(-1)!["message"]).toBe("Time's up! Press R to try again.");
 		t.frame(5);
 		expect(rules.TimeLeft).toBe(0);
 	});
@@ -200,7 +200,7 @@ describe("Coin Hunt scripts", () => {
 		expect(t.scenes.Load).not.toHaveBeenCalled();
 		t.release("KeyR");
 
-		rules.State = "lost";
+		rules.State = CoinHuntState.Lost;
 		t.press("KeyR");
 		t.frame();
 		expect(t.scenes.Load).toHaveBeenCalledWith("test");
@@ -209,7 +209,7 @@ describe("Coin Hunt scripts", () => {
 	it("R with no current scene does nothing", () => {
 		const { t, rules } = Game();
 		t.scenes.CurrentSceneId = null;
-		rules.State = "won";
+		rules.State = CoinHuntState.Won;
 		t.press("KeyR");
 		t.frame();
 		expect(t.scenes.Load).not.toHaveBeenCalled();
@@ -219,16 +219,16 @@ describe("Coin Hunt scripts", () => {
 		const { t, rules } = Game();
 		t.frame();
 		t.engine.Ui.Flush(1000);
-		expect((t.uiMessages("hud").at(-1) as { lines: string[]; }).lines).toEqual(["Coins: 0 / 2", "Time: 60.0"]);
+		expect((t.uiMessages(UiMsg.Hud).at(-1) as { lines: string[]; }).lines).toEqual(["Coins: 0 / 2", "Time: 60.0"]);
 
-		rules.State = "won";
+		rules.State = CoinHuntState.Won;
 		t.frame();
 		t.engine.Ui.Flush(2000);
-		expect((t.uiMessages("hud").at(-1) as { lines: string[]; }).lines).toContain("YOU WIN - R to restart");
-		rules.State = "lost";
+		expect((t.uiMessages(UiMsg.Hud).at(-1) as { lines: string[]; }).lines).toContain("YOU WIN - R to restart");
+		rules.State = CoinHuntState.Lost;
 		t.frame();
 		t.engine.Ui.Flush(3000);
-		expect((t.uiMessages("hud").at(-1) as { lines: string[]; }).lines).toContain("TIME'S UP - R to restart");
+		expect((t.uiMessages(UiMsg.Hud).at(-1) as { lines: string[]; }).lines).toContain("TIME'S UP - R to restart");
 	});
 
 	it("a coin is picked up by the player only", () => {
@@ -315,7 +315,7 @@ describe("recipes", () => {
 		expect(player.Transform.Position.X).toBe(10);
 		t.step([{ id: player.Id, pos: [1, 0, 0] }]); // the simulation moves the player next to the spikes
 		expect(player.Transform.Position.ToTuple()).toEqual([0, 1.2, 8]);
-		expect(t.uiMessages("toast").at(-1)!["message"]).toBe("Ouch!");
+		expect(t.uiMessages(UiMsg.Toast).at(-1)!["message"]).toBe("Ouch!");
 	});
 
 	it("Hazard is harmless to a player without a character body (nothing to teleport)", () => {
@@ -434,22 +434,22 @@ describe("guide examples", () => {
 		t.world.FlushLifecycle();
 		t.frame(0);
 		t.engine.Ui.Flush(1000);
-		expect(t.uiMessages("hud")).toEqual([]);
+		expect(t.uiMessages(UiMsg.Hud)).toEqual([]);
 		t.frame(0.02);
 		t.engine.Ui.Flush(2000);
-		expect((t.uiMessages("hud")[0] as { lines: string[]; }).lines).toEqual(["FPS: 50"]);
+		expect((t.uiMessages(UiMsg.Hud)[0] as { lines: string[]; }).lines).toEqual(["FPS: 50"]);
 	});
 
 	it("Greeter greets its target, or complains that there is none", () => {
 		const t = MakeEngine();
 		t.world.Spawn(Ent("Greeter", [Comp(Greeter, { TargetName: "Nobody" })]));
 		t.world.FlushLifecycle();
-		expect(t.uiMessages("toast")[0]!["message"]).toBe('Greeter: nobody called "Nobody" here');
+		expect(t.uiMessages(UiMsg.Toast)[0]!["message"]).toBe('Greeter: nobody called "Nobody" here');
 
 		t.world.Spawn(Ent("Player", [], { position: [1, 2, 3] }));
 		t.world.Spawn(Ent("Greeter 2", [Comp(Greeter)]));
 		t.world.FlushLifecycle();
-		expect(t.uiMessages("toast")[1]!["message"]).toBe("Greeter 2 sees Player at (1.00, 2.00, 3.00)");
+		expect(t.uiMessages(UiMsg.Toast)[1]!["message"]).toBe("Greeter 2 sees Player at (1.00, 2.00, 3.00)");
 	});
 
 	it("Health shows a bar and cannot go below zero", () => {
@@ -462,7 +462,7 @@ describe("guide examples", () => {
 		expect(health.Current).toBe(0);
 		t.frame();
 		t.engine.Ui.Flush(1000);
-		expect(t.uiMessages("bars")[0]).toEqual({ type: "bars", bars: [{ id: "hp", label: "HP 0/100", value: 0 }] });
+		expect(t.uiMessages(UiMsg.Bars)[0]).toEqual({ type: UiMsg.Bars, bars: [{ id: "hp", label: "HP 0/100", value: 0 }] });
 	});
 
 	it("Bumper pushes rigid bodies away, and ignores other things", () => {
@@ -496,7 +496,7 @@ describe("guide examples", () => {
 		await settle();
 		t.frame();
 		t.engine.Ui.Flush(1000);
-		expect((t.uiMessages("hud")[0] as { lines: string[]; }).lines).toEqual(["Range: -"]);
+		expect((t.uiMessages(UiMsg.Hud)[0] as { lines: string[]; }).lines).toEqual(["Range: -"]);
 	});
 
 	it("WindTrait pushes only while airborne", () => {

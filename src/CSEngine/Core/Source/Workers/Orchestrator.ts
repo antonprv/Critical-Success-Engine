@@ -6,12 +6,7 @@ import { DomInputBridge } from "./OrchestratorUtils/DomInputBridge";
 import { GameWorkers } from "./OrchestratorUtils/GameWorkers";
 import { UiBridge } from "./OrchestratorUtils/UiBridge";
 
-/**
- * Composition root for the five-worker engine (render, physics, game logic, audio, UI). Holds no game state and runs
- * no simulation of its own - if you find yourself adding gameplay logic
- * here, it belongs in GameLogicWorker.ts instead. See GameWorkers for the
- * worker/channel wiring and DomInputBridge for the main-thread DOM side.
- */
+/** Composition root of the five workers. Holds no game state: gameplay belongs in GameLogicWorker. */
 export class Orchestrator {
 	private readonly _workers: GameWorkers;
 	private readonly _inputBridge: DomInputBridge;

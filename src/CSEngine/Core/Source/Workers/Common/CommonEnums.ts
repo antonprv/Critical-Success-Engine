@@ -97,3 +97,64 @@ export const enum SoundType {
 export const enum SoundAction {
     PlaySound = 0,
 }
+
+/** Message types between the main thread, UiWorker and GameLogic (UiProtocol.ts). */
+export const enum UiMsg {
+    // main -> UiWorker
+    Init = 0,
+    PointerLock,
+    PointerLockFailed,
+    SelectScene,
+    Resume,
+    // UiWorker -> main
+    State,
+    RequestPointerLock,
+    ExitPointerLock,
+    Toast,
+    // GameLogic -> UiWorker
+    Scenes,
+    LoadProgress,
+    LoadFinished,
+    LoadFailed,
+    Hud,
+    Bars,
+    // UiWorker -> GameLogic
+    LoadScene,
+    SetCapture,
+}
+
+/** Message types of the render worker: from the main thread and to GameLogic (RenderProtocol.ts, RenderGameLogicProtocol.ts). */
+export const enum RenderMsg {
+    // main -> RenderWorker
+    Init = 0,
+    Resize,
+    SetInspectorVisible,
+    // RenderWorker -> GameLogic
+    Ready,
+    AssetLoaded,
+    FrameRequest,
+    SyncAck,
+}
+
+/** main -> PhysicsWorker (PhysicsProtocol.ts). */
+export const enum PhysicsMsg {
+    Init = 0,
+    SetRunning,
+}
+
+/** main -> GameLogicWorker (GameLogicProtocol.ts). */
+export const enum GameLogicMsg {
+    Init = 0,
+    Input,
+}
+
+/** main -> AudioWorker (AudioProtocol.ts). */
+export const enum AudioMsg {
+    Init = 0,
+}
+
+/** Which variant of the menu is shown: before the first Play, or after the player released the mouse. */
+export const enum MenuMode {
+    Start = 0,
+    Paused,
+}

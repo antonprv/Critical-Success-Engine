@@ -4,7 +4,7 @@ The following tools were used to generate this project:
 - TypeScript Compiler (tsc)
 
 The following steps were used to generate this project:
-- Create project file (`LanternFestival.esproj`).
+- Create project file (`Core.esproj`).
 - Create `launch.json` to enable debugging.
 - Install npm packages and create `tsconfig.json`: `npm init && npm i --save-dev eslint @types/node typescript && npx tsc --init --sourceMap true`.
 - Create `app.ts`.

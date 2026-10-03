@@ -3,17 +3,16 @@
 
 import { Logger } from "../Logging/Logger";
 import { AudioBank } from "./Audio/AudioBank";
-import { SoundAction, SoundType as SoundKind } from "./Common/CommonEnums";
+import { AudioMsg, SoundAction, SoundType as SoundKind } from "./Common/CommonEnums";
 import type { AudioToMainMessage, MainToAudioMessage } from "./Protocol/AudioProtocol";
 import type { GameLogicToAudioMessage } from "./Protocol/GameLogicAudioProtocol";
+import { WorkerScope } from "./Common/WorkerScope";
 
 // No lazy construction needed - unlike a real-time AudioContext, AudioBank never
 // touches audio output, so there's nothing here that depends on a user gesture.
 const bank = new AudioBank();
 
-// lib is "dom" only here (no "webworker"), so `self` is typed as Window and its postMessage
-// overload wants a targetOrigin - narrow to the worker signature we actually have at runtime.
-const mainThread = self as unknown as { postMessage(message: unknown, transfer: Transferable[]): void; };
+const mainThread = WorkerScope();
 
 // Own static buffer per realm - App.ts's timer doesn't flush this one.
 Logger.SetupAutoFlush();
@@ -21,7 +20,7 @@ Logger.SetupAutoFlush();
 self.onmessage = (event: MessageEvent<MainToAudioMessage>) => {
 	const message = event.data;
 	switch (message.type) {
-		case "init":
+		case AudioMsg.Init:
 			message.gameLogicPort.onmessage = (e: MessageEvent<GameLogicToAudioMessage>) => {
 				if (e.data.action === SoundAction.PlaySound) void PlaySound(e.data.soundId, e.data.position);
 			};

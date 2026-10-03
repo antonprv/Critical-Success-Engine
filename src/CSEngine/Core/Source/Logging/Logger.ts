@@ -2,6 +2,7 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { LogType } from "./LogType";
+import { WorkerScope } from "../Workers/Common/WorkerScope";
 
 export class Logger {
 	private static readonly _sidecarUrl = "http://127.0.0.1:4790/log";
@@ -44,12 +45,7 @@ export class Logger {
 		Logger.Write(LogType.Debug, `Set ${propertyName} to ${String(value)}`);
 	}
 
-	/**
-	 * POSTs whatever has buffered since the last flush to the local sidecar -
-	 * a no-op off localhost, and a no-op if nothing new was logged. Safe to
-	 * call as often as you like from anywhere; see SetupAutoFlush for a
-	 * main-thread-only helper that calls this on a timer.
-	 */
+	/** Posts the lines buffered since the last flush to the local sidecar. No-op off localhost or when nothing is new. */
 	public static FlushToDisk(): void {
 		if (!Logger.IsLocalHost || Logger._buffer.length === 0) return;
 
@@ -65,19 +61,10 @@ export class Logger {
 		});
 	}
 
-	/**
-	 * Call once per realm that logs - App.ts for the main thread, and at the top
-	 * of any worker that calls Logger, since each realm has its own static
-	 * buffer and none of them flush on someone else's timer. Entirely optional -
-	 * without it, buffered lines just sit there until something else calls
-	 * FlushToDisk(). The tab-close flush only exists on the main thread.
-	 */
+	/** Flushes on a timer, and on tab close on the main thread. Call once per realm that logs (each has its own buffer). */
 	public static SetupAutoFlush(intervalMs = 5000): void {
 		setInterval(() => Logger.FlushToDisk(), intervalMs);
-		// Cast rather than reference `window` directly - this file also gets
-		// imported by worker code, whose lib.d.ts doesn't know "beforeunload".
-		const mainThread = self as unknown as { addEventListener?: (type: string, cb: () => void) => void; };
-		mainThread.addEventListener?.("beforeunload", () => Logger.FlushToDisk());
+		WorkerScope().addEventListener?.("beforeunload", () => Logger.FlushToDisk()); // the main thread only
 	}
 
 	// #region Private API

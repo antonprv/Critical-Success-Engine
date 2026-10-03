@@ -19,16 +19,9 @@ import {
 } from "./Traits/Traits";
 
 /**
- * The player's movement - port of Engine.Components.Mover.MoverComponent (a BepuCharacterBody3D that runs a trait-based
- * MovementMotor each physics step). Input -> WishDirection (camera-relative, horizontal) -> motor traits -> Velocity ->
- * MoveAndSlide.
- *
- * Differences forced by the worker split, none of them behavioural:
- *  - MoveAndSlide's result arrives with the next physics snapshot (see CharacterBody), so the motor's velocity is
- *    re-synced from the clipped velocity at the START of OnPhysicsUpdate instead of right after MoveAndSlide.
- *  - Because of that, change `Velocity` (knock-back, launch pads) from OnPhysicsUpdate - the next snapshot overwrites it.
- *
- * Keys: WASD move, Space jump, N noclip, 1-5 movement preset (Quake / Realistic / Hybrid / Doom3 / Quake-Strafe-Doom2016).
+ * Player movement (port of the Godot MoverComponent): input -> camera-relative wish direction -> movement traits ->
+ * Velocity -> MoveAndSlide. MoveAndSlide's result arrives with the next snapshot, so change `Velocity` from
+ * OnPhysicsUpdate. Keys: WASD, Space, N noclip, 1-5 movement presets.
  */
 export class MoverComponent extends CharacterBody {
 	public RotationSpeed = 6;

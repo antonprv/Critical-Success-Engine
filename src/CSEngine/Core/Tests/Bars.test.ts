@@ -7,6 +7,7 @@ import { SceneRegistry } from "../Source/Engine/Scenes/SceneRegistry";
 import { Health } from "../Source/Game/GuideExamples/HealthBar";
 import { UiController } from "../Source/Workers/Ui/UiController";
 import { Harness } from "./Harness";
+import { UiMsg, RenderMsg } from "../Source/Workers/Common/CommonEnums";
 
 describe("HUD bars (guide 06)", () => {
 	it("script -> UiService -> message -> UiController state", async () => {
@@ -14,13 +15,13 @@ describe("HUD bars (guide 06)", () => {
 			id: "t", name: "T", description: "", entities: [Ent("Hero", [Comp(Health, { Current: 40 })])],
 		}));
 		await harness.BootToScene();
-		harness.render.Receive({ type: "frame-request", frameId: 1 });
+		harness.render.Receive({ type: RenderMsg.FrameRequest, frameId: 1 });
 
-		const bars = harness.UiMessages("bars") as unknown as { bars: { id: string; label: string; value: number; }[]; }[];
+		const bars = harness.UiMessages(UiMsg.Bars) as unknown as { bars: { id: string; label: string; value: number; }[]; }[];
 		expect(bars.at(-1)?.bars).toEqual([{ id: "hp", label: "HP 40/100", value: 0.4 }]);
 
 		const ui = new UiController(() => undefined, () => undefined);
-		ui.OnGameLogicMessage({ type: "bars", bars: bars.at(-1)!.bars });
+		ui.OnGameLogicMessage({ type: UiMsg.Bars, bars: bars.at(-1)!.bars });
 		expect(ui.State.hud.bars).toHaveLength(1);
 	});
 });

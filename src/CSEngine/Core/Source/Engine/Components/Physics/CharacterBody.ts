@@ -9,16 +9,9 @@ import { Vec3 } from "../../Math/Vec3";
 import { PhysicsBody } from "./PhysicsBodies";
 
 /**
- * Kinematic capsule character controller - port of BepuCharacterBody3D. Drop-in replacement for Godot's
- * CharacterBody3D for code that computes a velocity and calls `MoveAndSlide` once per physics step: set `Velocity`,
- * call `MoveAndSlide(dt)`, then read `IsOnFloor`.
- *
- * Where the work happens: the collide-and-slide sweep (PhysicsWorld.MoveCharacter in C#) and the moving-platform carry
- * run inside the physics worker, right before the simulation step that consumes the command. The result - new
- * position, floor state, plane-clipped velocity - comes back with that step's snapshot, i.e. at the start of the NEXT
- * OnPhysicsUpdate. That is why `Velocity`/`IsOnFloor` are refreshed in OnPhysicsSync (before any script's
- * OnPhysicsUpdate): a script that does "read floor state -> compute velocity -> MoveAndSlide" sees exactly the same
- * sequence of values it would see with the synchronous Godot call, just one tick later in wall-clock terms.
+ * Kinematic capsule character (port of BepuCharacterBody3D): set `Velocity`, call `MoveAndSlide(dt)`, read `IsOnFloor`.
+ * The sweep runs in the physics worker and its result arrives with the next snapshot, applied in OnPhysicsSync, so
+ * scripts see the same sequence of values as with Godot's synchronous call, one step later.
  */
 export class CharacterBody extends PhysicsBody {
 	/** Total capsule height including both caps (Godot CapsuleShape3D.Height); `Radius` is the cap/cylinder radius. */
@@ -60,7 +53,10 @@ export class CharacterBody extends PhysicsBody {
 	public override Awake(): void {
 		this.Shape = Shapes.Capsule(this.Radius, this.Height);
 		super.Awake();
+	}
 
+	protected override CreateBody(): void {
+		super.CreateBody();
 		this.Engine.Physics.RegisterCharacter(this.Entity.Id);
 		this.Transform.IsPhysicsDriven = true;
 		this.Transform.PreviousPosition.CopyFrom(this.Transform.Position);

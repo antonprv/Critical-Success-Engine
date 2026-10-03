@@ -1,7 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-import type { RendMesh, RendOpType } from "../Common/CommonEnums";
+import type { RenderMsg, RendMesh, RendOpType } from "../Common/CommonEnums";
 import type { FlatTransform, TransformBatchPayload } from "./TransformProtocol";
 
 type Tuple3 = [number, number, number];
@@ -31,8 +31,8 @@ export type GameLogicToRenderMessage =
 	| { operation: RendOpType.Sync; token: number; };
 
 export type RenderToGameLogicMessage =
-	| { type: "ready"; }
-	| { type: "asset-loaded"; entityId: number; }
+	| { type: RenderMsg.Ready; }
+	| { type: RenderMsg.AssetLoaded; entityId: number; }
 	/** Posted once per rAF while fewer than two frames are outstanding - the frame clock for GameLogic's Update. */
-	| { type: "frame-request"; frameId: number; time: number; }
-	| { type: "sync-ack"; token: number; };
+	| { type: RenderMsg.FrameRequest; frameId: number; time: number; }
+	| { type: RenderMsg.SyncAck; token: number; };

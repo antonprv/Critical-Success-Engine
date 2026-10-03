@@ -2,21 +2,9 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 /**
- * Runs inside the page (page.addInitScript) BEFORE the app: replaces the Pointer Lock API with a simulation that follows the
- * rules browsers enforce, so the game's whole pause/resume state machine runs exactly as for a real player:
- *
- *  - requestPointerLock() is refused with NotAllowedError (+ a `pointerlockerror` event) unless a TRUSTED user input
- *    (click, key press, touch) happened in the last 5 seconds - the browsers' "user gesture" rule;
- *  - when granted, `document.pointerLockElement` is the element and `pointerlockchange` fires;
- *  - Esc releases the lock and the page never receives that key press - the browser swallows it;
- *  - document.exitPointerLock() releases it.
- *
- * Why not the real thing everywhere: with the real lock held, the headless Chromium used for local runs leaks hundreds of MB
- * per 10 seconds into the renderer (observed only with the lock really held; with the app merely believing it holds the
- * lock, memory stays flat) - fine for a few seconds, fatal for a longer test. The real lock is exercised by
- * real-pointer-lock.spec.ts, which stays short.
- *
- * Must be fully self-contained: Playwright serialises it with toString().
+ * Injected before the app: a Pointer Lock simulation following the browser rules (a trusted input within 5 s is required,
+ * Esc releases the lock and is swallowed). Headless Chromium leaks renderer memory while the real lock is held, so only
+ * real-pointer-lock.spec.ts uses the real one. Self-contained: Playwright serialises it with toString().
  */
 export function SimulatePointerLock(): void {
 	let locked: Element | null = null;

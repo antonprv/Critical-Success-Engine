@@ -10,9 +10,9 @@ import { CameraComponent } from "../Source/Engine/Components/Camera/CameraCompon
 import { MoverComponent } from "../Source/Engine/Components/Mover/MoverComponent";
 import { Comp, Ent } from "../Source/Engine/Core/EntityManifest";
 import { SceneRegistry } from "../Source/Engine/Scenes/SceneRegistry";
-import { AssetLoader } from "../Source/Game/AssetLoader";
+import { AssetLoader, AssetPriority } from "../Source/Game/AssetLoader";
 import { Logger } from "../Source/Logging/Logger";
-import { PhysBodyType, PhysObjectKind, PhysOpType, PhysOpType as Op, PhysShape, PhysState } from "../Source/Workers/Common/CommonEnums";
+import { MenuMode, PhysBodyType, PhysObjectKind, PhysOpType, PhysOpType as Op, PhysShape, PhysState, RenderMsg, UiMsg } from "../Source/Workers/Common/CommonEnums";
 import type { PhysicsBridgeExports } from "../Source/Workers/Physics/PhysicsBridgeContract";
 import { PhysicsWorld } from "../Source/Workers/Physics/PhysicsWorld";
 import { UiController } from "../Source/Workers/Ui/UiController";
@@ -61,7 +61,7 @@ describe("a camera looking straight up or down", () => {
 describe("GameLogicRuntime boot order", () => {
 	it("a renderer that was ready before Boot() is not waited for again", async () => {
 		const harness = new Harness(new SceneRegistry().Register({ id: "a", name: "a", description: "", entities: [] }));
-		harness.render.Receive({ type: "ready" });
+		harness.render.Receive({ type: RenderMsg.Ready });
 		harness.physics.Receive({ state: PhysState.Ready });
 		const boot = harness.runtime.Boot();
 		await harness.Pump();
@@ -81,8 +81,8 @@ describe("AssetLoader", () => {
 		vi.spyOn(managers._critical, "addMeshTask").mockImplementation(capture);
 		vi.spyOn(managers._critical, "addTextureTask").mockImplementation(capture);
 
-		assets.AddMesh("critical", "level", "/", "level.glb");
-		assets.AddTexture("critical", "sky", "/sky.png");
+		assets.AddMesh(AssetPriority.Critical, "level", "/", "level.glb");
+		assets.AddTexture(AssetPriority.Critical, "sky", "/sky.png");
 		tasks[0]!.onError!({ name: "level" }, "parse error");
 		tasks[1]!.onError!({ name: "sky" }, "decode", new Error("bad png"));
 
@@ -137,7 +137,7 @@ describe("PhysicsWorld edge commands", () => {
 describe("UiController", () => {
 	it("a scene that fails to load before the player ever played brings back the START menu", () => {
 		const ui = new UiController(() => undefined, () => undefined);
-		ui.OnGameLogicMessage({ type: "load-failed", sceneId: "x", message: "boom" });
-		expect(ui.State.menu).toMatchObject({ visible: true, mode: "start" });
+		ui.OnGameLogicMessage({ type: UiMsg.LoadFailed, sceneId: "x", message: "boom" });
+		expect(ui.State.menu).toMatchObject({ visible: true, mode: MenuMode.Start });
 	});
 });

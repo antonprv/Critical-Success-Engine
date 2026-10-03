@@ -2,14 +2,9 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import type { GameLogicToUiMessage, SceneInfo, UiBar } from "../../Workers/Protocol/UiProtocol";
+import { UiMsg } from "../../Workers/Common/CommonEnums";
 
-/**
- * GameLogic's handle on the UI. It only ever talks to UiWorker (which owns the UI state machine); the DOM/Vue side is
- * two hops away and never touched from here.
- *
- * HUD text is keyed (`SetHud("speed", "Speed 7.0")`) so independent components can each own a line without stepping on
- * each other; changes are coalesced and sent at most `HudIntervalMs` apart.
- */
+/** GameLogic's handle on the UI. HUD lines are keyed per owner and sent at most every `HudIntervalMs`. */
 export class UiService {
 	private static readonly HudIntervalMs = 100;
 
@@ -28,13 +23,13 @@ export class UiService {
 		this._port.postMessage(message);
 	}
 
-	public PublishScenes(scenes: SceneInfo[]): void { this.Post({ type: "scenes", scenes }); }
+	public PublishScenes(scenes: SceneInfo[]): void { this.Post({ type: UiMsg.Scenes, scenes }); }
 	public LoadProgress(sceneId: string, label: string, fraction: number): void {
-		this.Post({ type: "load-progress", sceneId, label, fraction });
+		this.Post({ type: UiMsg.LoadProgress, sceneId, label, fraction });
 	}
-	public LoadFinished(sceneId: string): void { this.Post({ type: "load-finished", sceneId }); }
-	public LoadFailed(sceneId: string, message: string): void { this.Post({ type: "load-failed", sceneId, message }); }
-	public Toast(message: string): void { this.Post({ type: "toast", message }); }
+	public LoadFinished(sceneId: string): void { this.Post({ type: UiMsg.LoadFinished, sceneId }); }
+	public LoadFailed(sceneId: string, message: string): void { this.Post({ type: UiMsg.LoadFailed, sceneId, message }); }
+	public Toast(message: string): void { this.Post({ type: UiMsg.Toast, message }); }
 
 	/** Pass `null` to remove the line. Lines are shown in key insertion order. */
 	public SetHud(key: string, text: string | null): void {
@@ -76,11 +71,11 @@ export class UiService {
 
 		if (this._hudDirty) {
 			this._hudDirty = false;
-			this.Post({ type: "hud", lines: [...this._hud.values()] });
+			this.Post({ type: UiMsg.Hud, lines: [...this._hud.values()] });
 		}
 		if (this._barsDirty) {
 			this._barsDirty = false;
-			this.Post({ type: "bars", bars: [...this._bars.values()] });
+			this.Post({ type: UiMsg.Bars, bars: [...this._bars.values()] });
 		}
 	}
 }

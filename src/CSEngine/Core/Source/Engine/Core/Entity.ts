@@ -13,8 +13,7 @@ export class Entity {
 	public readonly Transform = new Transform();
 	public readonly Engine: EngineContext;
 
-	/** Disabled entities skip all per-frame/per-step hooks. */
-	public Active = true;
+	private _active = true;
 
 	private readonly _components: Component[] = [];
 	private _destroyed = false;
@@ -23,6 +22,14 @@ export class Entity {
 		this.Id = id;
 		this.Name = name;
 		this.Engine = engine;
+	}
+
+	/** Inactive entities skip every per-frame and per-step hook. Changing it runs OnEnable / OnDisable on awake components. */
+	public get Active(): boolean { return this._active; }
+	public set Active(active: boolean) {
+		if (this._active === active) return;
+		this._active = active;
+		this.Engine.World.NotifyActiveChanged(this);
 	}
 
 	/** Top-to-bottom iteration order == manifest order. */

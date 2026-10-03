@@ -1,7 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-import type { InputEvtType as InputEvt } from "../Common/CommonEnums";
+import type { GameLogicMsg, InputEvtType as InputEvt } from "../Common/CommonEnums";
 
 export type InputEvent =
 	| { kind: InputEvt.KeyDown; code: string; }
@@ -13,10 +13,10 @@ export type InputEvent =
 
 export type MainToGameLogicMessage =
 	| {
-		type: "init";
+		type: GameLogicMsg.Init;
 		renderPort: MessagePort;
 		physicsPort: MessagePort;
 		audioPort: MessagePort;
 		uiPort: MessagePort;
 	}
-	| { type: "input"; event: InputEvent; };
+	| { type: GameLogicMsg.Input; event: InputEvent; };

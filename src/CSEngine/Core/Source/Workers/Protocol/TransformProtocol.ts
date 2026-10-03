@@ -17,11 +17,8 @@ export const BODY_STRIDE = 14; // [entityId, pos(3), quat(4), linearVelocity(3),
 export const CHARACTER_STRIDE = 9; // [entityId, isOnFloor(0/1), floorNormal(3), groundEntityId, velocity(3)]
 
 /**
- * Buffers here are always sent in the transfer list of their postMessage call: ownership moves between worker realms
- * instead of being structured-cloned. Whoever receives one reads it immediately or forwards it on; never hold onto a
- * buffer across a tick and expect to write into it - once transferred, the sender's view is permanently detached.
- *
- * `buffer.byteLength` may be larger than `count * stride * 8`: always iterate up to the explicit count.
+ * Sent in the transfer list: the receiver reads it right away and never keeps it. `buffer.byteLength` may exceed
+ * `count * stride * 8`, so iterate up to `count`.
  */
 export interface TransformBatchPayload {
 	entityCount: number;

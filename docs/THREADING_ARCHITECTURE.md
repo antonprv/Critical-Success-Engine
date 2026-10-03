@@ -1,4 +1,4 @@
-# LanternFestival threading architecture
+# Critical Success Engine threading architecture
 
 > **Update:** there are now **five** workers - a `UiWorker` was added (UI state/logic; Vue + Quasar on the main thread
 > only render it), and `gamelogic` became a component/scene runtime. The reasoning below still holds; for the current

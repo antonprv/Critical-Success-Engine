@@ -300,6 +300,11 @@ describe("vite.config.ts", () => {
 		expect(config.build.outDir).toBe(resolve(process.cwd(), "../Binaries/Core"));
 		expect(config.build.emptyOutDir).toBe(true);
 		expect(config.worker).toEqual({ format: "es" });
+		// Two pages: the game and the UI toolkit gallery.
+		expect((config.build as { rolldownOptions?: { input?: unknown; }; }).rolldownOptions?.input).toEqual({
+			index: resolve(process.cwd(), "index.html"),
+			toolkit: resolve(process.cwd(), "toolkit.html"),
+		});
 	});
 
 	it("development builds keep __DEV__ true and skip source maps", async () => {

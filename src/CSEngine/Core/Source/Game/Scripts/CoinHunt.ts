@@ -11,7 +11,11 @@ import { Vec3, type Vec3Tuple } from "../../Engine/Math/Vec3";
 import type { InputService } from "../../Engine/Services/InputService";
 import type { UiService } from "../../Engine/Services/UiService";
 
-type GameState = "playing" | "won" | "lost";
+export const enum CoinHuntState {
+	Playing = 0,
+	Won,
+	Lost,
+}
 
 /**
  * The referee: counts coins, runs the clock, decides win/lose, restarts on R. One of these lives on an entity called
@@ -24,7 +28,7 @@ export class GameRules extends Component {
 	public Total = 0;
 	public Collected = 0;
 	public TimeLeft = 0;
-	public State: GameState = "playing";
+	public State: CoinHuntState = CoinHuntState.Playing;
 
 	public override Start(): void {
 		// Start runs after EVERY entity's Awake, so all coins already exist here (Awake would be too early to count them).
@@ -33,28 +37,28 @@ export class GameRules extends Component {
 	}
 
 	public Collect(): void {
-		if (this.State !== "playing") return;
+		if (this.State !== CoinHuntState.Playing) return;
 
 		this.Collected++;
 		if (this.Collected >= this.Total) {
-			this.State = "won";
+			this.State = CoinHuntState.Won;
 			const seconds = (this.TimeLimitSeconds - this.TimeLeft).toFixed(1);
 			this.Engine.Ui.Toast(`All coins collected in ${seconds} s! Press R to play again.`);
 		}
 	}
 
 	public override Update(dt: number): void {
-		if (this.State !== "playing") return;
+		if (this.State !== CoinHuntState.Playing) return;
 
 		this.TimeLeft = Math.max(0, this.TimeLeft - dt);
 		if (this.TimeLeft === 0) {
-			this.State = "lost";
+			this.State = CoinHuntState.Lost;
 			this.Engine.Ui.Toast("Time's up! Press R to try again.");
 		}
 	}
 
 	public override OnInputUpdate(input: InputService): void {
-		if (this.State !== "playing" && input.JustPressed("KeyR")) {
+		if (this.State !== CoinHuntState.Playing && input.JustPressed("KeyR")) {
 			const scene = this.Engine.Scenes.CurrentSceneId;
 			if (scene) void this.Engine.Scenes.Load(scene); // everything, this component included, is rebuilt from the manifest
 		}
@@ -62,7 +66,7 @@ export class GameRules extends Component {
 
 	public override OnUIUpdate(ui: UiService): void {
 		ui.SetHud("game.coins", `Coins: ${this.Collected} / ${this.Total}`);
-		ui.SetHud("game.time", this.State === "playing" ? `Time: ${this.TimeLeft.toFixed(1)}` : this.State === "won" ? "YOU WIN - R to restart" : "TIME'S UP - R to restart");
+		ui.SetHud("game.time", this.State === CoinHuntState.Playing ? `Time: ${this.TimeLeft.toFixed(1)}` : this.State === CoinHuntState.Won ? "YOU WIN - R to restart" : "TIME'S UP - R to restart");
 	}
 }
 

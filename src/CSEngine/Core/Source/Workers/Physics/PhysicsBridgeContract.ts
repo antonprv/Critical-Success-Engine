@@ -5,13 +5,8 @@
 export type FlatNumbers = ArrayLike<number>;
 
 /**
- * The JS shape of Physics.Wasm.PhysicsBridge's [JSExport] surface (see Physics/Bridge/PhysicsBridge.cs). Kept as a
- * hand-written interface rather than generated, since the wasm build step doesn't run as part of this repo's own
- * TypeScript build - see Physics/Bridge/BUILD.md. Together with PhysicsBridge.cs this is the ONE place where the C#
- * <-> TypeScript boundary is spelled out: add a method to both and PhysicsWorld.ts can use it.
- *
- * Every id here (shapeId / bodyId / staticId) is minted by the bridge; ownerId is whatever the caller wants echoed back
- * in overlap events and sweep results - this engine passes the entity id.
+ * The JS surface of PhysicsBridge.cs's [JSExport] methods, written by hand because the wasm build is not part of the
+ * TypeScript build. Ids are minted by the bridge; `ownerId` is echoed back in events and sweeps (the entity id).
  */
 export interface PhysicsBridgeExports {
 	//#region World

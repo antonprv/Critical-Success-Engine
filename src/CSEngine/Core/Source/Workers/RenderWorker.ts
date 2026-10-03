@@ -2,7 +2,7 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { Logger } from "../Logging/Logger";
-import { RendOpType as RendOp } from "./Common/CommonEnums";
+import { RenderMsg, RendOpType as RendOp } from "./Common/CommonEnums";
 import { EntityMeshRegistry } from "./Render/EntityMeshRegistry";
 import { RenderScene } from "./Render/RenderScene";
 import type { CameraPose, GameLogicToRenderMessage, RenderToGameLogicMessage } from "./Protocol/RenderGameLogicProtocol";
@@ -12,10 +12,8 @@ import type { MainToRenderMessage } from "./Protocol/RenderProtocol";
 Logger.SetupAutoFlush();
 
 /**
- * Frame protocol: the render worker owns the display clock. Once per displayed frame it asks GameLogic for a frame
- * ("frame-request") - as long as fewer than MaxOutstanding requests are unanswered, so a slow GameLogic cannot build up
- * an ever-growing queue - and draws whatever the LATEST received frame says (poses + camera). The answer to a request
- * therefore shows up one or two displays frames later; GameLogic interpolates physics poses to hide that.
+ * The render worker owns the display clock: once per displayed frame it requests a frame from GameLogic (at most
+ * MaxOutstanding unanswered, so a slow GameLogic can't build a queue) and draws the latest one received.
  */
 const MaxOutstanding = 2;
 
@@ -29,30 +27,30 @@ let pendingFrame: { buffer: ArrayBuffer; entityCount: number; camera: CameraPose
 self.onmessage = (event: MessageEvent<MainToRenderMessage>) => {
 	const message = event.data;
 	switch (message.type) {
-		case "init":
+		case RenderMsg.Init:
 			Init(message);
 			break;
-		case "resize":
+		case RenderMsg.Resize:
 			renderScene?.Resize(message.width, message.height, message.devicePixelRatio);
 			break;
-		case "set-inspector-visible":
+		case RenderMsg.SetInspectorVisible:
 			// Inspector needs `document`, which a worker doesn't have - intentionally a no-op (see RenderScene).
 			break;
 	}
 };
 
-function Init(message: Extract<MainToRenderMessage, { type: "init"; }>): void {
+function Init(message: Extract<MainToRenderMessage, { type: RenderMsg.Init; }>): void {
 	const scene = new RenderScene(message.canvas, message.width, message.height, message.devicePixelRatio);
 	const registry = new EntityMeshRegistry(scene.Scene, scene.AssetLoader);
 	renderScene = scene;
 	const gameLogicPort = message.gameLogicPort;
 	const Post = (reply: RenderToGameLogicMessage): void => gameLogicPort.postMessage(reply);
 
-	registry.OnGltfLoaded = (entityId) => Post({ type: "asset-loaded", entityId });
+	registry.OnGltfLoaded = (entityId) => Post({ type: RenderMsg.AssetLoaded, entityId });
 	gameLogicPort.onmessage = (e: MessageEvent<GameLogicToRenderMessage>) => HandleGameLogicMessage(e.data, scene, registry, Post);
 
 	scene.RunRenderLoop(() => BeforeRender(scene, registry, Post));
-	Post({ type: "ready" });
+	Post({ type: RenderMsg.Ready });
 }
 
 function BeforeRender(scene: RenderScene, registry: EntityMeshRegistry, Post: (message: RenderToGameLogicMessage) => void): void {
@@ -64,7 +62,7 @@ function BeforeRender(scene: RenderScene, registry: EntityMeshRegistry, Post: (m
 
 	if (outstanding < MaxOutstanding) {
 		outstanding++;
-		Post({ type: "frame-request", frameId: nextFrameId++, time: performance.now() });
+		Post({ type: RenderMsg.FrameRequest, frameId: nextFrameId++, time: performance.now() });
 	}
 }
 
@@ -101,7 +99,7 @@ function HandleGameLogicMessage(
 			pendingFrame = { buffer: message.buffer, entityCount: message.entityCount, camera: message.camera };
 			break;
 		case RendOp.Sync:
-			Post({ type: "sync-ack", token: message.token });
+			Post({ type: RenderMsg.SyncAck, token: message.token });
 			break;
 	}
 }

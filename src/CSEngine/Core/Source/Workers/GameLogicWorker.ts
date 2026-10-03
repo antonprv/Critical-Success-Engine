@@ -6,6 +6,7 @@ import { Logger } from "../Logging/Logger";
 import { GameLogicRuntime } from "../Engine/Runtime/GameLogicRuntime";
 import { SceneRegistry } from "../Engine/Scenes/SceneRegistry";
 import type { MainToGameLogicMessage } from "./Protocol/GameLogicProtocol";
+import { GameLogicMsg } from "./Common/CommonEnums";
 
 /**
  * Thin shell: receives the four ports from the main thread, hands them to GameLogicRuntime (which is where everything
@@ -22,7 +23,7 @@ let runtime: GameLogicRuntime | null = null;
 
 self.onmessage = (event: MessageEvent<MainToGameLogicMessage>) => {
 	const message = event.data;
-	if (message.type === "init") {
+	if (message.type === GameLogicMsg.Init) {
 		runtime = new GameLogicRuntime(
 			{ render: message.renderPort, physics: message.physicsPort, audio: message.audioPort, ui: message.uiPort },
 			registry

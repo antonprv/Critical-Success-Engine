@@ -9,7 +9,7 @@ import { InputService } from "../Source/Engine/Services/InputService";
 import { PhysicsService } from "../Source/Engine/Services/PhysicsService";
 import { RenderService } from "../Source/Engine/Services/RenderService";
 import { UiService } from "../Source/Engine/Services/UiService";
-import { InputEvtType, PhysState } from "../Source/Workers/Common/CommonEnums";
+import { InputEvtType, PhysState, UiMsg } from "../Source/Workers/Common/CommonEnums";
 import type { PhysicsCommand, PhysicsToGameLogicMessage } from "../Source/Workers/Protocol/PhysicsGameLogicProtocol";
 import { BODY_STRIDE, CHARACTER_STRIDE } from "../Source/Workers/Protocol/TransformProtocol";
 import { FakePort } from "./Harness";
@@ -89,7 +89,7 @@ export function MakeEngine() {
 		},
 
 		/** Everything the UI service has sent. */
-		uiMessages: (type: string) => (ports.ui.sent as { type: string; }[]).filter((m) => m.type === type) as unknown as Record<string, unknown>[],
+		uiMessages: (type: UiMsg) => (ports.ui.sent as { type: UiMsg; }[]).filter((m) => m.type === type) as unknown as Record<string, unknown>[],
 
 		press(code: string): void { input.Handle({ kind: InputEvtType.KeyDown, code }); },
 		release(code: string): void { input.Handle({ kind: InputEvtType.KeyUp, code }); },

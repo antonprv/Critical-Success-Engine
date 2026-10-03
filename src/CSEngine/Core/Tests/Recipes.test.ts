@@ -15,7 +15,7 @@ import { CrateSpawner, Door, DoubleJumpMover, DoubleJumpTrait, LaunchPad, Sprint
 import { MoverComponent } from "../Source/Engine/Components/Mover/MoverComponent";
 import { CharacterBody } from "../Source/Engine/Components/Physics/CharacterBody";
 import { Harness, tick } from "./Harness";
-import { PhysOpType } from "../Source/Workers/Common/CommonEnums";
+import { PhysOpType, RenderMsg, UiMsg } from "../Source/Workers/Common/CommonEnums";
 
 const DoorShape = Shapes.Box(4, 4, 0.4);
 
@@ -38,7 +38,7 @@ describe("recipes (guide 08)", () => {
 			});
 			harness = new Harness(registry);
 			await harness.BootToScene();
-			harness.ui.Receive({ type: "set-capture", enabled: true });
+			harness.ui.Receive({ type: UiMsg.SetCapture, enabled: true });
 			harness.ClearSent();
 		});
 
@@ -70,7 +70,7 @@ describe("recipes (guide 08)", () => {
 			for (let i = 1; i <= 8; i++) {
 				await tick();
 				await new Promise((resolve) => setTimeout(resolve, 15));
-				harness.render.Receive({ type: "frame-request", frameId: i });
+				harness.render.Receive({ type: RenderMsg.FrameRequest, frameId: i });
 			}
 			expect(crates().length).toBeGreaterThan(0);
 			expect(crates().length).toBeLessThanOrEqual(2);
@@ -123,7 +123,7 @@ describe("recipes (guide 08)", () => {
 			});
 			const harness = new Harness(registry);
 			await harness.BootToScene();
-			harness.ui.Receive({ type: "set-capture", enabled: true });
+			harness.ui.Receive({ type: UiMsg.SetCapture, enabled: true });
 			harness.ClearSent();
 
 			const id = harness.runtime.Context.World.FindByName("Player")!.Id;
@@ -154,7 +154,7 @@ describe("recipes (guide 08)", () => {
 			});
 			harness = new Harness(registry);
 			await harness.BootToScene();
-			harness.ui.Receive({ type: "set-capture", enabled: true });
+			harness.ui.Receive({ type: UiMsg.SetCapture, enabled: true });
 			harness.ClearSent();
 			player = harness.runtime.Context.World.FindByName("Player")!.Id;
 			pad = harness.runtime.Context.World.FindByName("Pad")!.Id;
@@ -175,11 +175,11 @@ describe("recipes (guide 08)", () => {
 			const normal = mover.Profile!.MaxSpeed;
 
 			harness.runtime.HandleInput({ kind: 0, code: "ShiftLeft" });
-			harness.render.Receive({ type: "frame-request", frameId: 1 });
+			harness.render.Receive({ type: RenderMsg.FrameRequest, frameId: 1 });
 			expect(mover.Profile!.MaxSpeed).toBeCloseTo(normal * 2);
 
 			harness.runtime.HandleInput({ kind: 1, code: "ShiftLeft" });
-			harness.render.Receive({ type: "frame-request", frameId: 2 });
+			harness.render.Receive({ type: RenderMsg.FrameRequest, frameId: 2 });
 			expect(mover.Profile!.MaxSpeed).toBeCloseTo(normal);
 		});
 	});

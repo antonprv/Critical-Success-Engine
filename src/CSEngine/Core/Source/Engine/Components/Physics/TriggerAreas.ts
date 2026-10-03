@@ -13,11 +13,8 @@ import { Vec3 } from "../../Math/Vec3";
 import { PhysicsBody } from "./PhysicsBodies";
 
 /**
- * Non-solid sensor volume - the BEPU equivalent of Godot's Area3D (BepuTriggerArea3D). The narrow phase still
- * generates contacts so overlaps are detected, but no solver constraint exists, so nothing collides with it.
- *
- * Subclass and override `OnBodyEntered` / `OnBodyExited`, or put a component next to it that implements OnTriggerEnter.
- * Set `BuildAsStatic = false` for a trigger that moves (it then follows the entity's Transform).
+ * Non-solid sensor volume (Godot's Area3D). Override `OnBodyEntered` / `OnBodyExited`. `BuildAsStatic = false` makes it
+ * follow the entity's Transform.
  */
 export class TriggerArea extends PhysicsBody {
 	public BuildAsStatic = true;
@@ -57,12 +54,9 @@ export class TriggerArea extends PhysicsBody {
 }
 
 /**
- * Lightweight trigger that never touches the physics engine (BepuTriggerAreaSimple): each physics step it checks
- * whether ONE tracked target entity (typically the player) is inside its shape. Two stages: a cheap point-in-shape test
- * every step decides enter/exit, and a swept segment test from the last sampled position to the current one catches a fast
- * target that crossed the whole volume between two samples (it then gets an enter immediately followed by an exit).
- *
- * Supports Box / Sphere / Capsule shapes. The target is treated as a point - inflate the shape for its radius.
+ * Trigger for ONE target entity without the physics engine: a point-in-shape test decides enter/exit each step, and a
+ * swept segment test catches a target that crossed the whole volume between two steps (enter then exit).
+ * Box, Sphere and Capsule; the target is a point, so inflate the shape by its radius.
  */
 export class SimpleTriggerArea extends Component {
 	public Shape: PhysicsShapeDescriptor = Shapes.Box(2, 2, 2);

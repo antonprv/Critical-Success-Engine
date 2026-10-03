@@ -7,6 +7,13 @@
 import { Vec3 } from "../../../Math/Vec3";
 import { Doom3Constants, MovementTrait, type MovementContext } from "../MovementTypes";
 
+/** Quake's PM_Accelerate: adds up to `accelSpeed` along `wishDir`, never past `wishSpeed` in that direction. */
+function AccelerateAlong(velocity: Vec3, wishDir: Vec3, wishSpeed: number, accelSpeed: number): void {
+	const addSpeed = wishSpeed - velocity.Dot(wishDir);
+	if (addSpeed <= 0) return;
+	velocity.AddInPlace(wishDir.Mul(Math.min(accelSpeed, addSpeed)));
+}
+
 //#region Common
 
 export class GravityTrait extends MovementTrait {
@@ -91,15 +98,7 @@ export class QuakeAirStrafeTrait extends MovementTrait {
 		const wishDir = ctx.WishDirection;
 		if (wishDir.IsNearlyZero()) return;
 
-		const wishSpeed = ctx.Profile.AirMaxSpeed;
-		const currentSpeed = velocity.Dot(wishDir);
-		const addSpeed = wishSpeed - currentSpeed;
-		if (addSpeed <= 0) return;
-
-		let accel = ctx.Profile.AirAcceleration * delta;
-		if (accel > addSpeed) accel = addSpeed;
-
-		velocity.AddInPlace(wishDir.Mul(accel));
+		AccelerateAlong(velocity, wishDir, ctx.Profile.AirMaxSpeed, ctx.Profile.AirAcceleration * delta);
 	}
 }
 
@@ -116,18 +115,7 @@ export class Doom3AccelerateTrait extends MovementTrait {
 		const wishspeed = ctx.Profile.MaxSpeed * inputMag;
 		const accel = ctx.IsOnFloor ? Doom3Constants.PM_ACCELERATE : Doom3Constants.PM_AIRACCELERATE;
 
-		Doom3AccelerateTrait.Accelerate(wishdir, wishspeed, accel, velocity, delta);
-	}
-
-	private static Accelerate(wishdir: Vec3, wishspeed: number, accel: number, velocity: Vec3, frametime: number): void {
-		const currentspeed = velocity.Dot(wishdir);
-		const addspeed = wishspeed - currentspeed;
-		if (addspeed <= 0) return;
-
-		let accelspeed = accel * frametime * wishspeed;
-		if (accelspeed > addspeed) accelspeed = addspeed;
-
-		velocity.AddInPlace(wishdir.Mul(accelspeed));
+		AccelerateAlong(velocity, wishdir, wishspeed, accel * delta * wishspeed);
 	}
 }
 
@@ -189,14 +177,7 @@ export class Doom3GroundAccelTrait extends MovementTrait {
 		const wishdir = ctx.WishDirection.Normalized();
 		const wishspeed = ctx.Profile.MaxSpeed * inputMag;
 
-		const currentspeed = velocity.Dot(wishdir);
-		const addspeed = wishspeed - currentspeed;
-		if (addspeed <= 0) return;
-
-		let accelspeed = Doom3Constants.PM_ACCELERATE * delta * wishspeed;
-		if (accelspeed > addspeed) accelspeed = addspeed;
-
-		velocity.AddInPlace(wishdir.Mul(accelspeed));
+		AccelerateAlong(velocity, wishdir, wishspeed, Doom3Constants.PM_ACCELERATE * delta * wishspeed);
 	}
 }
 
@@ -208,14 +189,7 @@ export class StrafeAirControlTrait extends MovementTrait {
 		if (wishDir.IsNearlyZero()) return;
 
 		const wishSpeed = ctx.Profile.AirMaxSpeed;
-		const currentSpeed = velocity.Dot(wishDir);
-		const addSpeed = wishSpeed - currentSpeed;
-		if (addSpeed <= 0) return;
-
-		let accelSpeed = ctx.Profile.AirAcceleration * delta * wishSpeed;
-		if (accelSpeed > addSpeed) accelSpeed = addSpeed;
-
-		velocity.AddInPlace(wishDir.Mul(accelSpeed));
+		AccelerateAlong(velocity, wishDir, wishSpeed, ctx.Profile.AirAcceleration * delta * wishSpeed);
 	}
 }
 
@@ -235,7 +209,8 @@ export class HybridGroundTrait extends MovementTrait {
 	}
 }
 
-export class HybridAirControlTrait extends MovementTrait {
+/** Pulls horizontal velocity towards `AirMaxSpeed` along the wish direction, `AirControl` per second, in the air only. */
+export abstract class LerpAirControlTrait extends MovementTrait {
 	public override Process(ctx: MovementContext, velocity: Vec3, delta: number): void {
 		if (ctx.IsOnFloor) return;
 
@@ -249,6 +224,8 @@ export class HybridAirControlTrait extends MovementTrait {
 		velocity.Z = horizontal.Z;
 	}
 }
+
+export class HybridAirControlTrait extends LerpAirControlTrait {}
 
 //#endregion
 
@@ -303,20 +280,7 @@ export class SmoothStopTrait extends MovementTrait {
 	}
 }
 
-export class ClampedAirControlTrait extends MovementTrait {
-	public override Process(ctx: MovementContext, velocity: Vec3, delta: number): void {
-		if (ctx.IsOnFloor) return;
-
-		const wishDir = ctx.WishDirection;
-		if (wishDir.IsNearlyZero()) return;
-
-		const target = wishDir.Mul(ctx.Profile.AirMaxSpeed);
-		const horizontal = new Vec3(velocity.X, 0, velocity.Z).Lerp(target, ctx.Profile.AirControl * delta);
-
-		velocity.X = horizontal.X;
-		velocity.Z = horizontal.Z;
-	}
-}
+export class ClampedAirControlTrait extends LerpAirControlTrait {}
 
 //#endregion
 

@@ -17,14 +17,8 @@ import { AssetLoader } from "../../Game/AssetLoader";
 import type { CameraPose } from "../Protocol/RenderGameLogicProtocol";
 
 /**
- * Owns the Babylon Engine/Scene pair, the camera and the lights - nothing here knows about entities (see
- * EntityMeshRegistry) or the message protocol (see RenderWorker).
- *
- * Conventions: the scene is RIGHT-handed, Y-up, camera forward = -Z - the same as Godot and Bepu, so poses coming from
- * the simulation are applied verbatim, with no axis flipping anywhere.
- *
- * KNOWN LIMITATION: Babylon's Inspector (scene.debugLayer) needs `document`, which doesn't exist inside a worker -
- * see docs/THREADING_ARCHITECTURE.md "Dev tooling".
+ * The Babylon engine, scene, camera and lights. Right-handed, Y-up, forward = -Z like Godot and BEPU, so simulation
+ * poses apply without axis flips. The Inspector is unavailable: it needs `document`, which workers don't have.
  */
 export class RenderScene {
 	private readonly _engine: Engine;

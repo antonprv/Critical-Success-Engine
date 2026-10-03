@@ -6,15 +6,8 @@ import { SoundAction, SoundType } from "../Workers/Common/CommonEnums";
 import type { AudioToMainMessage } from "../Workers/Protocol/AudioProtocol";
 
 /**
- * Owns the one real-time AudioContext for the whole game. AudioWorker never
- * plays sound itself - see AudioBank's doc comment for why a worker can't
- * be trusted to have a working audio output everywhere - it only resolves
- * sound ids into either ready-to-play PCM or, when it couldn't decode
- * locally, the raw encoded bytes, and hands them here over its own
- * postMessage channel back to main. Per play, the main thread only ever
- * does a cheap AudioBuffer copy (already-decoded case) or, at most once per
- * sound id, a decodeAudioData call that the browser itself runs off the JS
- * main thread - neither reintroduces the stutter this split exists to avoid.
+ * The game's single AudioContext. AudioWorker resolves sounds; here they are only copied into an AudioBuffer, or
+ * decoded once per sound id when the worker could not decode them.
  */
 export class AudioPlayer {
 	private readonly _context: AudioContext;

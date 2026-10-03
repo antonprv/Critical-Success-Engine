@@ -1,15 +1,15 @@
 <!-- Created by Anton Piruev in 2026. Any direct commercial use of derivative work is strictly prohibited. -->
 <script setup lang="ts">
 import { computed } from "vue";
+import { XpProgressVariant } from "./XpProgressVariant";
 
 const props = withDefaults(defineProps<{
 	/** 0..1 - clamped. */
 	value: number;
-	/** "boot": the XP start-up bar (blue blocks in a black capsule). "luna": the file-copy bar (green blocks in a white well). */
-	variant?: "boot" | "luna";
+	variant?: XpProgressVariant;
 	/** Accessible name of the bar. */
 	label: string;
-}>(), { variant: "luna" });
+}>(), { variant: XpProgressVariant.Luna });
 
 const percent = computed(() => Math.round(Math.min(1, Math.max(0, props.value)) * 100));
 </script>

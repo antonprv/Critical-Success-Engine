@@ -2,7 +2,7 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { Logger } from "../Logging/Logger";
-import { PhysState } from "./Common/CommonEnums";
+import { PhysicsMsg, PhysState } from "./Common/CommonEnums";
 import { PhysicsWasmLoader } from "./Physics/PhysicsWasmLoader";
 import { PhysicsWorld } from "./Physics/PhysicsWorld";
 import type { GameLogicToPhysicsMessage, PhysicsToGameLogicMessage } from "./Protocol/PhysicsGameLogicProtocol";
@@ -94,7 +94,7 @@ function HandleGameLogicMessage(message: GameLogicToPhysicsMessage): void {
 	world.ApplyCommands(message.commands, (reply) => Post(reply));
 }
 
-function InitializeWorld(message: MainToPhysicsMessage & { type: "init"; }): void {
+function InitializeWorld(message: MainToPhysicsMessage & { type: PhysicsMsg.Init; }): void {
 	gameLogicPort = message.gameLogicPort;
 	fixedTimestepMs = message.fixedTimestepMs;
 	gameLogicPort.onmessage = (event: MessageEvent<GameLogicToPhysicsMessage>) => HandleGameLogicMessage(event.data);
@@ -140,7 +140,7 @@ function InitializeWorld(message: MainToPhysicsMessage & { type: "init"; }): voi
 // then never resolves *or* rejects (a silent hang).
 self.addEventListener("message", (event: MessageEvent<MainToPhysicsMessage>) => {
 	const message = event.data;
-	if (message.type === "init") {
+	if (message.type === PhysicsMsg.Init) {
 		InitializeWorld(message);
 	} else {
 		SetRunning(message.running);

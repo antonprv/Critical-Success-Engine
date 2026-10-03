@@ -6,22 +6,16 @@ import type { Scene } from "@babylonjs/core/scene";
 
 import { Logger } from "../Logging/Logger";
 
+export const enum AssetPriority {
+	/** Needed for the first playable frame; awaited before the loading screen hides. */
+	Critical = 0,
+	/** Streams in after the game is playable. */
+	Background,
+}
+
 /**
- * Two-tier asset streaming.
- *
- * - "critical": whatever is needed to render the first playable frame
- *   (e.g. the player model, the first level chunk). Loaded with
- *   `LoadCriticalAsync()`, which the caller awaits before hiding the
- *   loading screen.
- * - "background": everything else (later levels, ambience, extra
- *   skins). Kicked off with `LoadBackgroundInBackground()` right after
- *   the game becomes playable; it never blocks the render loop, and
- *   `OnBackgroundProgress` lets you show a small non-blocking indicator for it.
- *
- * This intentionally wraps Babylon's own `AssetsManager` rather than
- * replacing it - two separate managers (one per tier) is enough to
- * get independent progress tracking and independent "useDefaultLoadingScreen"
- * behavior for each.
+ * Two-tier asset loading over Babylon's AssetsManager: Critical assets are awaited before the loading screen hides
+ * (`LoadCriticalAsync`), Background assets stream in afterwards (`LoadBackgroundInBackground`, `OnBackgroundProgress`).
  */
 export class AssetLoader {
 	private readonly _scene: Scene;
@@ -45,23 +39,15 @@ export class AssetLoader {
 		this._background.onFinish = () => this.OnBackgroundIdle?.();
 	}
 
-	/**
-	 * Registers a glTF/glb mesh task on the given tier. Callers add
-	 * tasks, then call LoadCriticalAsync()/LoadBackgroundInBackground()
-	 * once all tasks for that tier are registered.
-	 *
-	 * Example:
-	 *   assetLoader.AddMesh("critical", "hero", "assets/models/", "hero.glb");
-	 *   assetLoader.AddMesh("background", "level2", "assets/models/", "level2.glb");
-	 */
+	/** Registers a glTF/glb mesh on a tier; call the tier's load method once all its tasks are added. */
 	public AddMesh(
-		priority: "critical" | "background",
+		priority: AssetPriority,
 		taskName: string,
 		rootUrl: string,
 		sceneFilename: string,
 		onLoaded?: (meshes: import("@babylonjs/core/Meshes/abstractMesh").AbstractMesh[]) => void
 	): void {
-		const manager = priority === "critical" ? this._critical : this._background;
+		const manager = priority === AssetPriority.Critical ? this._critical : this._background;
 		const task = manager.addMeshTask(taskName, "", rootUrl, sceneFilename);
 		task.onSuccess = (t) => onLoaded?.(t.loadedMeshes);
 		task.onError = (t, message, exception) =>
@@ -72,19 +58,19 @@ export class AssetLoader {
 	 * Registers a texture task on the given tier.
 	 */
 	public AddTexture(
-		priority: "critical" | "background",
+		priority: AssetPriority,
 		taskName: string,
 		url: string,
 		onLoaded?: (texture: import("@babylonjs/core/Materials/Textures/texture").Texture) => void
 	): void {
-		const manager = priority === "critical" ? this._critical : this._background;
+		const manager = priority === AssetPriority.Critical ? this._critical : this._background;
 		const task = manager.addTextureTask(taskName, url);
 		task.onSuccess = (t) => onLoaded?.(t.texture);
 		task.onError = (t, message, exception) =>
 			Logger.LogException(exception ?? message, `[AssetLoader] failed to load ${t.name}: ${message}`);
 	}
 
-	/** Awaited before the loading screen is hidden — keep this list short. */
+	/** Awaited before the loading screen is hidden - keep this list short. */
 	public LoadCriticalAsync(): Promise<void> {
 		return new Promise((resolve, reject) => {
 			this._critical.onFinish = () => resolve();
@@ -94,7 +80,7 @@ export class AssetLoader {
 		});
 	}
 
-	/** Fire-and-forget — call once the game is already playable. */
+	/** Fire-and-forget - call once the game is already playable. */
 	public LoadBackgroundInBackground(): void {
 		this._background.load();
 	}

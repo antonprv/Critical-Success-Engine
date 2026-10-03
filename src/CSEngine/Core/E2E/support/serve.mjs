@@ -1,15 +1,10 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-// Used by playwright.config.ts as the web server of one test variant: builds the site exactly like `pnpm build` (production
-// mode, same vite.config.ts) into .e2e/<variant>/dist and serves it with `vite preview`.
-//
-//   node E2E/support/serve.mjs mock 4173   physics = the stand-in runtime from E2E/fixtures/mock-physics
-//   node E2E/support/serve.mjs none 4174   no physics build at all (what a checkout without a .NET build looks like)
-//   node E2E/support/serve.mjs real 4175   physics = the real publish output at its default location (CI, after the wasm step)
-//
-// The `mock` variant also runs the log sink on :4790 - the address Logger.ts posts to from localhost pages - so the browser
-// never sees a refused connection, and the tests can read back everything the game logged (GET /lines).
+// Web server of one E2E variant: builds the site like `pnpm build` into .e2e/<variant>/dist and serves it with `vite preview`.
+//   mock 4173 - the stand-in physics runtime from E2E/fixtures/mock-physics, plus the log sink on :4790 (GET /lines)
+//   none 4174 - no physics build at all
+//   real 4175 - the real publish output (CI, after the wasm step)
 
 import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";

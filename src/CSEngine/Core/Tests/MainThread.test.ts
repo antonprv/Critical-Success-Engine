@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AudioPlayer } from "../Source/Audio/AudioPlayer";
 import { CreateUi } from "../Source/Ui/CreateUi";
 import { UiStore } from "../Source/Ui/UiStore";
-import { InputEvtType, SoundAction, SoundType } from "../Source/Workers/Common/CommonEnums";
+import { InputEvtType, MenuMode, PhysicsMsg, RenderMsg, SoundAction, SoundType, UiMsg } from "../Source/Workers/Common/CommonEnums";
 import { DomInputBridge } from "../Source/Workers/OrchestratorUtils/DomInputBridge";
 import type { GameWorkers } from "../Source/Workers/OrchestratorUtils/GameWorkers";
 import { UiBridge } from "../Source/Workers/OrchestratorUtils/UiBridge";
@@ -124,7 +124,7 @@ describe("the Vue/Quasar UI (Windows XP look)", () => {
 		await settle();
 		const overlay = root.querySelector(".loading-overlay")!;
 		expect(overlay.textContent).toContain("Starting renderer…");
-		expect(overlay.textContent).toContain("Lantern Festival");
+		expect(overlay.textContent).toContain("Games Sample");
 		const bar = overlay.querySelector("[role=progressbar]")!;
 		expect(bar.classList.contains("xp-progress--boot")).toBe(true);
 		expect(bar.getAttribute("aria-valuenow")).toBe("30");
@@ -146,12 +146,12 @@ describe("the Vue/Quasar UI (Windows XP look)", () => {
 		const { store, root, app } = Mount();
 		const resume = vi.fn(), select = vi.fn();
 		store.Actions = { Resume: resume, SelectScene: select };
-		store.ApplyPatch({ loading: { visible: false, label: "", fraction: 1 }, menu: { visible: true, mode: "start", currentSceneId: "b", scenes } });
+		store.ApplyPatch({ loading: { visible: false, label: "", fraction: 1 }, menu: { visible: true, mode: MenuMode.Start, currentSceneId: "b", scenes } });
 		await settle();
 
 		const card = root.querySelector(".menu-card")!;
 		expect(card.getAttribute("role")).toBe("dialog");
-		expect(card.querySelector(".titlebar")!.textContent).toContain("Lantern Festival");
+		expect(card.querySelector(".titlebar")!.textContent).toContain("Games Sample");
 		expect(card.textContent).toContain("Ready");
 		expect(card.textContent).toContain("Click Play to take control of the mouse.");
 		const items = [...card.querySelectorAll(".q-item")];
@@ -172,7 +172,7 @@ describe("the Vue/Quasar UI (Windows XP look)", () => {
 		const { store, root, app } = Mount();
 		const resume = vi.fn();
 		store.Actions = { Resume: resume, SelectScene: vi.fn() };
-		store.ApplyPatch({ loading: { visible: false, label: "", fraction: 1 }, menu: { visible: true, mode: "paused", currentSceneId: "a", scenes } });
+		store.ApplyPatch({ loading: { visible: false, label: "", fraction: 1 }, menu: { visible: true, mode: MenuMode.Paused, currentSceneId: "a", scenes } });
 		await settle();
 
 		const close = root.querySelector<HTMLButtonElement>(".titlebar__close")!;
@@ -186,7 +186,7 @@ describe("the Vue/Quasar UI (Windows XP look)", () => {
 		const { store, root, app } = Mount();
 		store.ApplyPatch({
 			loading: { visible: true, label: "Loading…", fraction: 0.5 },
-			menu: { visible: true, mode: "paused", currentSceneId: null, scenes: [scenes[0]!] },
+			menu: { visible: true, mode: MenuMode.Paused, currentSceneId: null, scenes: [scenes[0]!] },
 		});
 		await settle();
 		const card = root.querySelector(".menu-card")!;
@@ -205,10 +205,10 @@ describe("the Vue/Quasar UI (Windows XP look)", () => {
 		const clear = vi.spyOn(globalThis, "clearInterval");
 		try {
 			const { store, root, app } = Mount();
-			store.ApplyPatch({ loading: { visible: false, label: "", fraction: 1 }, menu: { visible: true, mode: "start", currentSceneId: null, scenes } });
+			store.ApplyPatch({ loading: { visible: false, label: "", fraction: 1 }, menu: { visible: true, mode: MenuMode.Start, currentSceneId: null, scenes } });
 			await nextTick();
 			const taskbar = root.querySelector(".taskbar")!;
-			expect(taskbar.querySelector(".task-button")!.textContent).toBe("Lantern Festival");
+			expect(taskbar.querySelector(".task-button")!.textContent).toBe("Games Sample");
 			expect(taskbar.textContent).toContain("174 BPM");
 			expect(taskbar.querySelectorAll(".equalizer__bar")).toHaveLength(5);
 			expect(taskbar.querySelector(".clock")!.textContent).toBe("09:05");
@@ -272,15 +272,15 @@ describe("UiBridge", () => {
 
 		store.Actions.Resume();
 		expect(canvas.requestPointerLock).toHaveBeenCalled();
-		expect(sent()).toContainEqual({ type: "resume" });
+		expect(sent()).toContainEqual({ type: UiMsg.Resume });
 
 		store.Actions.SelectScene("coin-hunt");
-		expect(sent()).toContainEqual({ type: "select-scene", sceneId: "coin-hunt" });
+		expect(sent()).toContainEqual({ type: UiMsg.SelectScene, sceneId: "coin-hunt" });
 	});
 
 	it("applies state patches from the UI worker", () => {
 		const { store, fromUi } = Make();
-		fromUi({ type: "state", patch: { hud: { visible: true, lines: ["x"], bars: [] } } });
+		fromUi({ type: UiMsg.State, patch: { hud: { visible: true, lines: ["x"], bars: [] } } });
 		expect(store.State.hud.lines).toEqual(["x"]);
 	});
 
@@ -288,22 +288,22 @@ describe("UiBridge", () => {
 		const { canvas, fromUi, sent } = Make();
 
 		canvas.requestPointerLock = vi.fn(() => Promise.resolve()) as never;
-		fromUi({ type: "request-pointer-lock" });
+		fromUi({ type: UiMsg.RequestPointerLock });
 		expect(canvas.requestPointerLock).toHaveBeenCalledTimes(1);
 
 		canvas.requestPointerLock = vi.fn(() => undefined) as never; // older browsers return nothing
-		fromUi({ type: "request-pointer-lock" });
+		fromUi({ type: UiMsg.RequestPointerLock });
 
 		canvas.requestPointerLock = vi.fn(() => Promise.reject(new DOMException("no", "NotAllowedError"))) as never;
-		fromUi({ type: "request-pointer-lock" });
+		fromUi({ type: UiMsg.RequestPointerLock });
 		await Promise.resolve();
 		await Promise.resolve();
 		canvas.requestPointerLock = vi.fn(() => { throw new Error("not allowed"); }) as never;
-		fromUi({ type: "request-pointer-lock" });
-		expect(sent().filter((m) => (m as { type: string; }).type === "pointer-lock-failed")).toHaveLength(2);
+		fromUi({ type: UiMsg.RequestPointerLock });
+		expect(sent().filter((m) => (m as { type: UiMsg; }).type === UiMsg.PointerLockFailed)).toHaveLength(2);
 
 		document.exitPointerLock = vi.fn();
-		fromUi({ type: "exit-pointer-lock" });
+		fromUi({ type: UiMsg.ExitPointerLock });
 		expect(document.exitPointerLock).toHaveBeenCalled();
 	});
 
@@ -315,7 +315,7 @@ describe("UiBridge", () => {
 		notify.create = create;
 		try {
 			const { fromUi } = Make();
-			fromUi({ type: "toast", message: "Hello" });
+			fromUi({ type: UiMsg.Toast, message: "Hello" });
 			expect(create).toHaveBeenCalledWith(expect.objectContaining({ message: "Hello" }));
 		} finally {
 			notify.create = original;
@@ -330,7 +330,7 @@ describe("UiBridge", () => {
 		document.dispatchEvent(new Event("pointerlockchange"));
 		document.dispatchEvent(new Event("pointerlockerror"));
 
-		expect(sent()).toEqual(expect.arrayContaining([{ type: "pointer-lock", locked: true }, { type: "pointer-lock", locked: false }, { type: "pointer-lock-failed" }]));
+		expect(sent()).toEqual(expect.arrayContaining([{ type: UiMsg.PointerLock, locked: true }, { type: UiMsg.PointerLock, locked: false }, { type: UiMsg.PointerLockFailed }]));
 	});
 });
 
@@ -395,7 +395,7 @@ describe("DomInputBridge", () => {
 	it("tells the renderer about window resizes", () => {
 		const { workers } = Make();
 		window.dispatchEvent(new Event("resize"));
-		expect(workers.RenderWorker.sent[0]!.message).toMatchObject({ type: "resize", width: 0, height: 0, devicePixelRatio: window.devicePixelRatio });
+		expect(workers.RenderWorker.sent[0]!.message).toMatchObject({ type: RenderMsg.Resize, width: 0, height: 0, devicePixelRatio: window.devicePixelRatio });
 	});
 
 	it("unlocks audio on the first click or key press, once", () => {
@@ -476,8 +476,8 @@ describe("GameWorkers and Orchestrator", () => {
 
 		const init = (worker: Worker) => (worker as unknown as FakeWorker).sent[0]!;
 		const render = init(workers.RenderWorker), physics = init(workers.PhysicsWorker), logic = init(workers.GameLogicWorker), audio = init(workers.AudioWorker), ui = init(workers.UiWorker);
-		expect(render.message).toMatchObject({ type: "init", canvas: { offscreen: true }, devMode: true });
-		expect(physics.message).toMatchObject({ type: "init", settings: { gravity: [0, -20, 0] } });
+		expect(render.message).toMatchObject({ type: RenderMsg.Init, canvas: { offscreen: true }, devMode: true });
+		expect(physics.message).toMatchObject({ type: PhysicsMsg.Init, settings: { gravity: [0, -20, 0] } });
 		expect((physics.message as { fixedTimestepMs: number; }).fixedTimestepMs).toBeGreaterThan(0);
 
 		// Each GameLogic port is the other end of the channel handed to that worker.

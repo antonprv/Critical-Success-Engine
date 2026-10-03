@@ -7,7 +7,7 @@
 import { GameLogicRuntime } from "../Source/Engine/Runtime/GameLogicRuntime";
 import { SceneRegistry } from "../Source/Engine/Scenes/SceneRegistry";
 import { RegisterGameScenes } from "../Source/Game/GameScenes";
-import { PhysOpType, PhysState, RendOpType } from "../Source/Workers/Common/CommonEnums";
+import { PhysOpType, PhysState, RenderMsg, RendOpType, UiMsg } from "../Source/Workers/Common/CommonEnums";
 import type { PhysicsCommand } from "../Source/Workers/Protocol/PhysicsGameLogicProtocol";
 import { BODY_STRIDE, CHARACTER_STRIDE } from "../Source/Workers/Protocol/TransformProtocol";
 
@@ -49,7 +49,7 @@ export class Harness {
 			}
 			for (; this._renderSeen < this.render.sent.length; this._renderSeen++) {
 				const message = this.render.sent[this._renderSeen] as { operation: RendOpType; token?: number; };
-				if (message.operation === RendOpType.Sync) this.render.Receive({ type: "sync-ack", token: message.token });
+				if (message.operation === RendOpType.Sync) this.render.Receive({ type: RenderMsg.SyncAck, token: message.token });
 			}
 		}
 	}
@@ -70,13 +70,13 @@ export class Harness {
 		return this.physics.sent.flatMap((_, i) => this.PhysicsBatch(i));
 	}
 
-	public UiMessages(type: string): { type: string; [key: string]: unknown; }[] {
-		return (this.ui.sent as { type: string; }[]).filter((m) => m.type === type);
+	public UiMessages(type: UiMsg): { type: UiMsg; [key: string]: unknown; }[] {
+		return (this.ui.sent as { type: UiMsg; }[]).filter((m) => m.type === type);
 	}
 
 	public async BootToScene(): Promise<void> {
 		void this.runtime.Boot();
-		this.render.Receive({ type: "ready" });
+		this.render.Receive({ type: RenderMsg.Ready });
 		this.physics.Receive({ state: PhysState.Ready });
 		await this.Pump();
 	}

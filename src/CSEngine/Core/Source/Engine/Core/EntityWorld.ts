@@ -14,11 +14,8 @@ import type { EntityManifest } from "./EntityManifest";
 type Hook = (component: Component) => void;
 
 /**
- * The live set of entities and the driver of every component hook. All iteration is "entities in spawn order, each
- * entity's components top to bottom" (the manifest order) - that determinism is the contract scripts can rely on.
- *
- * Structural changes are deferred so no hook ever sees the collection change under its feet: entities spawned during a
- * pass are picked up by the next pass, and Destroy() takes effect (OnDestroy + removal) at the end of the pass.
+ * The live entities and the driver of every hook: entities in spawn order, components in manifest order. Spawns and
+ * destroys during a pass take effect after it, so no hook sees the collection change.
  */
 export class EntityWorld {
 	private readonly _engine: EngineContext;
@@ -141,7 +138,7 @@ export class EntityWorld {
 			if (!entity.Active || entity.IsDestroyed) continue;
 
 			const components = entity.Components;
-			for (let j = 0; j < components.length; j++) {
+			for (let j = 0; j < components.length && entity.Active; j++) {
 				const component = components[j]!;
 				if (!component.Enabled || !component._started) continue;
 				EntityWorld.Run(component, name, hook);
@@ -167,6 +164,14 @@ export class EntityWorld {
 
 	public RunPhysicsUpdate(dt: number): void {
 		this.ForEachComponent((c) => c.OnPhysicsUpdate(dt), "OnPhysicsUpdate");
+	}
+
+	public NotifyActiveChanged(entity: Entity): void {
+		for (const component of entity.Components) {
+			if (!component._awoken) continue;
+			if (entity.Active) EntityWorld.Run(component, "OnEnable", (c) => c.OnEnable());
+			else EntityWorld.Run(component, "OnDisable", (c) => c.OnDisable());
+		}
 	}
 
 	/** Both sides get the callback, each with the other entity as argument (like Unity - Godot only notifies the Area). */

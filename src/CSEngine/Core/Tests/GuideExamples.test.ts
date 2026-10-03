@@ -17,13 +17,13 @@ import { BallPitScene } from "../Source/Game/GuideExamples/BallPitScene";
 import { BallGun, InitialVelocity } from "../Source/Game/GuideExamples/ComponentExamples";
 import { Bumper, RangeFinder } from "../Source/Game/GuideExamples/PhysicsExamples";
 import { TunedCamera, TunedPlayer, WindyMover } from "../Source/Game/GuideExamples/PlayerExamples";
-import { PhysOpType, PhysState } from "../Source/Workers/Common/CommonEnums";
+import { PhysOpType, PhysState, RenderMsg, UiMsg } from "../Source/Workers/Common/CommonEnums";
 import { Harness } from "./Harness";
 
 async function Boot(...entities: Parameters<SceneRegistry["Register"]>[0]["entities"]): Promise<Harness> {
 	const harness = new Harness(new SceneRegistry().Register({ id: "t", name: "T", description: "", entities }));
 	await harness.BootToScene();
-	harness.ui.Receive({ type: "set-capture", enabled: true });
+	harness.ui.Receive({ type: UiMsg.SetCapture, enabled: true });
 	harness.ClearSent();
 	return harness;
 }
@@ -63,8 +63,8 @@ describe("guide 03: components", () => {
 		);
 
 		harness.runtime.HandleInput({ kind: 3, button: 0 }); // InputEvtType.PointerDown
-		harness.render.Receive({ type: "frame-request", frameId: 1 }); // click handled; entity spawned
-		harness.render.Receive({ type: "frame-request", frameId: 2 }); // its Awake/Start ran at the start of this frame
+		harness.render.Receive({ type: RenderMsg.FrameRequest, frameId: 1 }); // click handled; entity spawned
+		harness.render.Receive({ type: RenderMsg.FrameRequest, frameId: 2 }); // its Awake/Start ran at the start of this frame
 
 		const ball = harness.runtime.Context.World.FindByName("Thrown Ball");
 		expect(ball).toBeDefined();
@@ -111,9 +111,9 @@ describe("guide 04: physics", () => {
 			result: { hit: true, position: [0, 1, -7], point: [0, 1, -7.5], normal: [0, 0, 1], distance: 7.5, hitEntityId: 0 },
 		});
 		await new Promise((resolve) => setTimeout(resolve, 0));
-		harness.render.Receive({ type: "frame-request", frameId: 1 });
+		harness.render.Receive({ type: RenderMsg.FrameRequest, frameId: 1 });
 
-		const hud = (harness.UiMessages("hud") as unknown as { lines: string[]; }[]).flatMap((m) => m.lines);
+		const hud = (harness.UiMessages(UiMsg.Hud) as unknown as { lines: string[]; }[]).flatMap((m) => m.lines);
 		expect(hud).toContain("Range: 7.5 m");
 		expect(finder.IsDestroyed).toBe(false);
 	});

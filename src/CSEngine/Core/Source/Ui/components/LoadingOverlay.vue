@@ -1,7 +1,9 @@
 <!-- Created by Anton Piruev in 2026. Any direct commercial use of derivative work is strictly prohibited. -->
 <script setup lang="ts">
 import type { UiLoadingState } from "../../Workers/Protocol/UiProtocol";
+import { EngineName, GameTitle } from "../Branding";
 import XpProgress from "./XpProgress.vue";
+import { XpProgressVariant } from "./XpProgressVariant";
 
 defineProps<{ loading: UiLoadingState }>();
 </script>
@@ -11,12 +13,12 @@ defineProps<{ loading: UiLoadingState }>();
 		<div v-if="loading.visible" class="loading-overlay">
 			<!-- The XP start-up screen: black, the name in white, the progress capsule under it, the maker bottom right. -->
 			<div class="boot">
-				<h1 class="boot__title">Lantern Festival</h1>
-				<XpProgress class="boot__bar" variant="boot" :value="loading.fraction" label="Loading" />
+				<h1 class="boot__title">{{ GameTitle }}</h1>
+				<XpProgress class="boot__bar" :variant="XpProgressVariant.Boot" :value="loading.fraction" label="Loading" />
 				<p class="boot__label">{{ loading.label }}</p>
 			</div>
 
-			<p class="engine-mark">Critical Success Engine</p>
+			<p class="engine-mark">{{ EngineName }}</p>
 		</div>
 	</transition>
 </template>

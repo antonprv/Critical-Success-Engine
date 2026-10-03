@@ -4,12 +4,7 @@
 import { Logger } from "../../Logging/Logger";
 import type { DotnetRuntimeApi, PhysicsBridgeExports } from "./PhysicsBridgeContract";
 
-/**
- * Boots the physics-wasm .NET runtime inside the worker and hands back the
- * PhysicsBridge exports. This is the ONLY thing this class does - it knows
- * nothing about shapes, bodies or stepping (see PhysicsWorld for that side
- * of things).
- */
+/** Boots the .NET wasm runtime in the worker and returns the PhysicsBridge exports. */
 export class PhysicsWasmLoader {
 	private readonly _dotnetJsUrl: string;
 
@@ -44,21 +39,9 @@ export class PhysicsWasmLoader {
 	}
 
 	/**
-	 * Every .wasm asset under _framework/ (the wasm-tools native runtime AND every
-	 * Webcil-wrapped managed assembly, which also carries a .wasm extension) is
-	 * published gzip-only - see GzipCompressWasmAssets.targets. There is no
-	 * uncompressed fallback on disk, so any .wasm resource dotnet.js asks for is
-	 * intercepted here and loaded from its `.gz` sibling.
-	 *
-	 * Some static-file servers (notably Vite's dev server) transparently set
-	 * `Content-Encoding: gzip` on requests for a `.gz`-suffixed file, which makes
-	 * the browser's own fetch() silently undo the compression before this code
-	 * ever sees the bytes - other hosts may not do this at all. So we check the
-	 * gzip magic bytes (1F 8B) on what we actually received: if present, we
-	 * decompress ourselves; if absent, the transport already did it for us and
-	 * the bytes are used as-is. This works uniformly for the native runtime
-	 * (raw WASM once decompressed) and for Webcil-wrapped managed assemblies
-	 * (which don't carry a WASM magic number at all, so we can't key off that).
+	 * Every .wasm under _framework/ is published gzip-only, so .wasm requests are served from their `.gz` sibling. Some
+	 * servers (Vite's dev server) send that file with `Content-Encoding: gzip` and the browser already inflates it, so the
+	 * gzip magic bytes decide whether to decompress here.
 	 */
 	private LoadGzippedWasmAsset(type: string, name: string, defaultUri: string): Promise<Response | undefined> | undefined {
 		if (!defaultUri.endsWith(".wasm")) {

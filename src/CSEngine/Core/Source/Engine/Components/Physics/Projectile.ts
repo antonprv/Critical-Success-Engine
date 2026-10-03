@@ -5,8 +5,10 @@ import { PhysBodyType, PhysObjectKind } from "../../../Workers/Common/CommonEnum
 import type { Entity } from "../../Core/Entity";
 import { CollisionLayer } from "../../Core/CollisionLayer";
 import { Shapes } from "../../Core/Shapes";
+import { Despawn } from "../../Core/EntityPool";
 import { Vec3 } from "../../Math/Vec3";
 import { PhysicsBody } from "./PhysicsBodies";
+import { DefaultGravity } from "../../../Workers/Common/EngineConstants";
 
 /** Implement on any component of a projectile's entity to get the single, unambiguous "first hit" callback. */
 export interface IProjectileHitListener {
@@ -18,19 +20,15 @@ function IsHitListener(component: object): component is IProjectileHitListener {
 }
 
 /**
- * Small fast-moving body (bullets, rockets, grenades) - port of BepuProjectile3D. Each physics step it sweeps a sphere
- * along `Velocity * dt` instead of leaning on the solver: a solver contact means "bounce/rest", a sweep hit means "stop
- * here, tell me exactly what and where, once" - and it cannot tunnel at any speed, because the sweep IS the movement.
- *
- * The sweep runs in the physics worker, so the answer arrives a little later; time that passes while a query is in
- * flight is accumulated and swept in the next one, so the projectile never slows down because of the round trip.
+ * Fast body (bullets, rockets), port of BepuProjectile3D. Each step it sweeps a sphere along `Velocity * dt` instead of
+ * using the solver, so it can't tunnel. Time spent waiting for a sweep result is added to the next sweep.
  */
 export class Projectile extends PhysicsBody {
 	public Radius = 0.05;
 	public MaxLifetimeSeconds = 5;
 	public DestroyOnHit = true;
 	public ApplyGravity = false;
-	public Gravity = -20;
+	public Gravity = DefaultGravity[1];
 
 	public readonly Velocity = new Vec3();
 
@@ -41,6 +39,8 @@ export class Projectile extends PhysicsBody {
 	private _resolved = false;
 	private _queryInFlight = false;
 	private _pendingDt = 0;
+	/** Bumped on every reuse, so a sweep answer from a previous life is recognised and dropped. */
+	private _life = 0;
 
 	public constructor() {
 		super();
@@ -53,6 +53,15 @@ export class Projectile extends PhysicsBody {
 		super.Awake();
 	}
 
+	public override OnEnable(): void {
+		this._life++;
+		this._lifetime = 0;
+		this._resolved = false;
+		this._queryInFlight = false;
+		this._pendingDt = 0;
+		super.OnEnable();
+	}
+
 	public override OnPhysicsUpdate(dt: number): void {
 		if (this._resolved) return;
 
@@ -62,18 +71,20 @@ export class Projectile extends PhysicsBody {
 
 		if (this._lifetime >= this.MaxLifetimeSeconds) {
 			this._resolved = true;
-			this.Entity.Destroy();
+			Despawn(this.Entity);
 			return;
 		}
 		if (this._queryInFlight) return;
 
 		this._queryInFlight = true;
 		const sweepDt = this._pendingDt;
+		const life = this._life;
 		this._pendingDt = 0;
 
 		void this.Engine.Physics
 			.SweepProjectile(this.Entity.Id, this.Transform.Position, this.Velocity, sweepDt, this.Radius, this.Layer, this.Mask)
 			.then((result) => {
+				if (life !== this._life) return;
 				this._queryInFlight = false;
 				if (this._resolved || this.Entity.IsDestroyed) return;
 
@@ -87,7 +98,7 @@ export class Projectile extends PhysicsBody {
 				for (const component of this.Entity.Components) {
 					if (IsHitListener(component)) component.OnProjectileHit(Vec3.FromTuple(result.point), Vec3.FromTuple(result.normal), hitEntity);
 				}
-				if (this.DestroyOnHit) this.Entity.Destroy();
+				if (this.DestroyOnHit) Despawn(this.Entity);
 			});
 	}
 }

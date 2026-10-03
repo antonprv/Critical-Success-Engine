@@ -7,9 +7,9 @@ test.describe("a visitor opens the site", () => {
 	test("sees the start menu with every scene once the game has loaded", async ({ game, page }) => {
 		await game.open();
 
-		await expect(page).toHaveTitle("Lantern Festival");
+		await expect(page).toHaveTitle("Games Sample");
 		await expect(page.locator("#boot-splash")).toHaveCount(0); // replaced by the Vue/Quasar UI
-		await expect(game.menu).toContainText("Lantern Festival");
+		await expect(game.menu).toContainText("Games Sample");
 		await expect(game.menu).toContainText("Click Play to take control of the mouse");
 		await expect(game.playButton).toHaveText("Play");
 

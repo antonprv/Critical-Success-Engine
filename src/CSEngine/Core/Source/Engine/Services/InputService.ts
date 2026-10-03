@@ -5,15 +5,8 @@ import { InputEvtType } from "../../Workers/Common/CommonEnums";
 import type { InputEvent } from "../../Workers/Protocol/GameLogicProtocol";
 
 /**
- * Keyboard/mouse state as the game sees it. Mouse buttons are addressed as "Mouse0", "Mouse1", ... so everything is
- * queried the same way (`IsKeyDown("Mouse0")`).
- *
- * Mirrors Engine.Services.Input.InputService from the Godot project: while `CapturePlayerInput` is false (the pause
- * menu is up, nothing has the pointer) every query reports "nothing pressed" and mouse movement is not accumulated.
- *
- * "Just pressed" has two clocks, because scripts run on two: `JustPressed` is true for the rendered frame in which the
- * key went down (use from Update / OnInputUpdate), `JustPressedPhysics` stays true until the next physics step has
- * seen it (use from OnPhysicsUpdate - a tap shorter than one step is never lost).
+ * Keyboard and mouse state ("Mouse0", "Mouse1"... for buttons). While `CapturePlayerInput` is false every query reports
+ * nothing pressed. `JustPressed` lasts one rendered frame; `JustPressedPhysics` lasts until the next physics step.
  */
 export class InputService {
 	private _capture = false;

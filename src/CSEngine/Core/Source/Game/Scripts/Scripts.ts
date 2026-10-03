@@ -7,6 +7,7 @@
 import { CollisionLayer } from "../../Engine/Core/CollisionLayer";
 import { Component } from "../../Engine/Core/Component";
 import { Comp, Ent } from "../../Engine/Core/EntityManifest";
+import { EntityPool } from "../../Engine/Core/EntityPool";
 import type { Entity } from "../../Engine/Core/Entity";
 import { MeshForShape, Shapes } from "../../Engine/Core/Shapes";
 import { CameraComponent } from "../../Engine/Components/Camera/CameraComponent";
@@ -77,10 +78,13 @@ export class PlatformMover extends Component {
 	}
 }
 
-/** Left mouse button fires a projectile from the camera along its view direction. */
+/** Click to shoot. Bullets come from a pool of `MaxBullets`; when all are in flight, the oldest one is reused. */
 export class Shooter extends Component {
 	public CameraName = "Camera";
 	public Speed = 40;
+	public MaxBullets = 32;
+
+	private _bullets: EntityPool | null = null;
 
 	public override OnInputUpdate(input: InputService): void {
 		if (!input.JustPressed("Mouse0")) return;
@@ -89,16 +93,19 @@ export class Shooter extends Component {
 		if (!camera) return;
 
 		const forward = camera.GetForwardDirection();
-		const origin = camera.Transform.Position.Add(forward.Mul(1.2));
-		const shape = Shapes.Sphere(0.1);
+		this._bullets ??= new EntityPool(this.Engine.World, Shooter.Bullet, { MaxSize: this.MaxBullets });
+		this._bullets.Acquire(camera.Transform.Position.Add(forward.Mul(1.2)), (bullet) => {
+			bullet.RequireComponent(Projectile).Velocity.CopyFrom(forward.Mul(this.Speed));
+		});
+	}
 
-		const bullet = this.Engine.World.Spawn(Ent("Bullet", [
+	private static Bullet() {
+		const shape = Shapes.Sphere(0.1);
+		return Ent("Bullet", [
 			Comp(MeshRenderer, { Mesh: MeshForShape(shape), Color: [1, 0.8, 0.2] }),
 			Comp(Projectile, { Radius: 0.1, ApplyGravity: true, Gravity: -4, MaxLifetimeSeconds: 4, Mask: CollisionLayer.World | CollisionLayer.Prop }),
 			Comp(BulletHit),
-		], { position: origin.ToTuple() }));
-
-		bullet.RequireComponent(Projectile).Velocity.CopyFrom(forward.Mul(this.Speed));
+		]);
 	}
 }
 

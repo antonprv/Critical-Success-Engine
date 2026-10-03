@@ -13,7 +13,7 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Scene } from "@babylonjs/core/scene";
 
-import type { AssetLoader } from "../../Game/AssetLoader";
+import { AssetPriority, type AssetLoader } from "../../Game/AssetLoader";
 import { RendMesh } from "../Common/CommonEnums";
 import type { MeshDescriptor } from "../Protocol/RenderGameLogicProtocol";
 import type { FlatTransform } from "../Protocol/TransformProtocol";
@@ -62,7 +62,7 @@ export class EntityMeshRegistry {
 				mesh = EntityMeshRegistry.BuildTriangleMesh(name, descriptor.vertices, this._scene);
 				break;
 			case RendMesh.Gltf:
-				this._assetLoader.AddMesh("background", name, descriptor.rootUrl, descriptor.sceneFilename, (meshes) => {
+				this._assetLoader.AddMesh(AssetPriority.Background, name, descriptor.rootUrl, descriptor.sceneFilename, (meshes) => {
 					const root = meshes[0];
 					if (!root) return;
 					EntityMeshRegistry.ApplyTransform(root, transform[0], transform[1], transform[2], transform[3], transform[4], transform[5], transform[6]);

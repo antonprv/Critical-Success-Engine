@@ -46,12 +46,7 @@ function RegisterShutdownHooks() {
 	});
 }
 
-/**
- * Spawns Tools/LogServer.mjs as a child process, unless something is already
- * listening on its port (another dev server instance already started one,
- * or someone ran it manually) - safe to call from both bundlers without
- * ever double-spawning it.
- */
+/** Spawns Tools/LogServer.mjs unless it is missing or something already listens on its port. */
 export async function StartLogServerSidecar() {
 	if (childProcess || !existsSync(SidecarScript) || (await IsPortTaken(SidecarPort))) return;
 
