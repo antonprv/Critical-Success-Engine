@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { quasar, transformAssetUrls } from "@quasar/vite-plugin";
+import tailwindcss from "@tailwindcss/vite";
 import vue from "@vitejs/plugin-vue";
 import { defineConfig } from "vite";
 
@@ -25,6 +26,8 @@ export default defineConfig(({ mode }) => {
             vue({ template: { transformAssetUrls } }),
             // Auto-imports only the Quasar components the templates actually use (q-btn, q-card, ...).
             quasar(),
+            // The UI toolkit's Tailwind kit (Source/Toolkit/Styles/tailwind-kit.css).
+            tailwindcss(),
             PhysicsWasmPlugin(PhysicsWasmFrameworkDirectory),
             LogServerPlugin(),
         ],
@@ -46,10 +49,11 @@ export default defineConfig(({ mode }) => {
             sourcemap: isProduction,
             reportCompressedSize: false,
             rolldownOptions: {
-                // Two pages: the game, and the UI toolkit gallery. The key names the entry chunk (index-<hash>.js).
+                // Three pages: the game, the UI toolkit gallery and the UI designer. The key names the entry chunk (index-<hash>.js).
                 input: {
                     index: resolve(RootDirectory, "index.html"),
                     toolkit: resolve(RootDirectory, "toolkit.html"),
+                    designer: resolve(RootDirectory, "designer.html"),
                 },
                 // The "plugin took 99% of the build" hint is noise for a build dominated by one big dependency.
                 checks: { pluginTimings: false },

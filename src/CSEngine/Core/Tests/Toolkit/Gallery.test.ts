@@ -25,7 +25,7 @@ describe("toolkit gallery", () => {
 
 	it("picking a theme restyles everything and is logged", async () => {
 		const wrapper = Mount();
-		const radios = windowByTitle(wrapper, "Themes").findAll("[role=radio]");
+		const radios = windowByTitle(wrapper, "Themes").findAll(".gallery-classic [role=radio]");
 		expect(radios).toHaveLength(12);
 		await radios[0]!.trigger("click");
 		expect(wrapper.get(".win-root").classes()).toEqual(expect.arrayContaining(["win-family--classic", "win-theme--win98"]));
@@ -93,6 +93,35 @@ describe("toolkit gallery", () => {
 		const push = windowByTitle(wrapper, "Controls").findAll("button.win-button").find((b) => b.text() === "Push me")!;
 		for (let i = 0; i < 45; i++) await push.trigger("keydown", { code: "Enter" });
 		expect(logLines(wrapper)).toHaveLength(40);
+		wrapper.unmount();
+	});
+});
+
+describe("the Tailwind kit in the gallery", () => {
+	it("switching the kit to Tailwind shows its options; accent, neutral, radius and dark restyle everything and are logged", async () => {
+		const wrapper = Mount();
+		const themes = windowByTitle(wrapper, "Themes");
+		expect(themes.find(".gallery-tailwind").exists()).toBe(false);
+		await themes.findAll(".gallery-kit [role=radio]")[1]!.trigger("click");
+		expect(wrapper.get(".win-root").classes()).toEqual(expect.arrayContaining(["win-kit--tailwind", "tw-accent--indigo", "tw-neutral--zinc", "tw-radius--md"]));
+		expect(themes.find(".gallery-classic").exists()).toBe(false);
+
+		const choose = async (index: number, option: string) => {
+			await themes.findAll(".gallery-tailwind [role=combobox]")[index]!.trigger("click");
+			await themes.findAll(".gallery-tailwind [role=option]").find((o) => o.text() === option)!.trigger("click");
+		};
+		await choose(0, "rose");
+		await choose(1, "stone");
+		await choose(2, "full");
+		await themes.get(".gallery-tailwind .win-checkbox").trigger("click");
+		expect(wrapper.get(".win-root").classes()).toEqual(expect.arrayContaining(["tw-accent--rose", "tw-neutral--stone", "tw-radius--full", "tw-dark"]));
+		await themes.get(".gallery-tailwind .win-checkbox").trigger("click");
+		expect(wrapper.get(".win-root").classes()).not.toContain("tw-dark");
+		expect(logLines(wrapper).slice(0, 6).reverse()).toEqual(["Kit: Tailwind", "Accent: rose", "Neutral: stone", "Radius: full", "Dark: on", "Dark: off"]);
+
+		await themes.findAll(".gallery-kit [role=radio]")[0]!.trigger("click");
+		expect(wrapper.get(".win-root").classes()).toContain("win-kit--classic");
+		expect(logLines(wrapper)[0]).toBe("Kit: Classic");
 		wrapper.unmount();
 	});
 });

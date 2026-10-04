@@ -1,6 +1,6 @@
 <!-- Created by Anton Piruev in 2026. Any direct commercial use of derivative work is strictly prohibited. -->
 <script setup lang="ts">
-import { ref, shallowRef } from "vue";
+import { reactive, ref, shallowRef } from "vue";
 import { ButtonController } from "../Controls/ButtonController";
 import { CheckBoxController, CheckState } from "../Controls/CheckBoxController";
 import { ComboBoxController } from "../Controls/ComboBoxController";
@@ -20,6 +20,7 @@ import { TooltipController } from "../Controls/TooltipController";
 import { TreeViewController } from "../Controls/TreeViewController";
 import { WindowController, WindowState } from "../Controls/WindowController";
 import { WindowManager } from "../Controls/WindowManager";
+import { DefaultTailwindTheme, TailwindAccents, TailwindNeutrals, TailwindRadii, WinKit, type TailwindTheme } from "../Core/Kits";
 import { AllThemes, GetTheme, WinTheme } from "../Core/Themes";
 import { UseControl } from "../Core/UseControl";
 import WinButton from "../Components/WinButton.vue";
@@ -59,6 +60,31 @@ const themes = UseControl(new RadioGroupController({ Options: AllThemes.map((t) 
 themes.Events.On("change", (value) => {
 	theme.value = value;
 	Log("Theme", GetTheme(value).Name);
+});
+// The kit: classic Windows themes, or the Tailwind kit with its palettes, radius and dark mode.
+const kit = ref(WinKit.Classic);
+const kits = UseControl(new RadioGroupController({ Options: [{ Value: WinKit.Classic, Label: "Windows (Classic)" }, { Value: WinKit.Tailwind, Label: "Tailwind" }], Value: WinKit.Classic }));
+kits.Events.On("change", (value) => {
+	kit.value = value;
+	Log("Kit", value === WinKit.Tailwind ? "Tailwind" : "Classic");
+});
+
+const tailwind = reactive<TailwindTheme>({ ...DefaultTailwindTheme });
+function TailwindChoice(values: readonly string[], field: "Accent" | "Neutral" | "Radius"): ComboBoxController<string> {
+	const combo = UseControl(new ComboBoxController({ Options: values.map((v) => ({ Value: v, Label: v })), SelectedIndex: values.indexOf(tailwind[field]) }));
+	combo.Events.On("change", (_index, value) => {
+		tailwind[field] = value;
+		Log(field, value);
+	});
+	return combo;
+}
+const accents = TailwindChoice(TailwindAccents, "Accent");
+const neutrals = TailwindChoice(TailwindNeutrals, "Neutral");
+const radii = TailwindChoice(TailwindRadii, "Radius");
+const dark = UseControl(new CheckBoxController({ Label: "Dark mode" }));
+dark.Events.On("change", () => {
+	tailwind.Dark = dark.Checked;
+	Log("Dark", ["off", "on"][Number(dark.Checked)]!);
 });
 //#endregion
 
@@ -162,7 +188,7 @@ ask.Events.On("click", () => {
 const manager = UseControl(new WindowManager());
 const StateNames = { [WindowState.Normal]: "normal", [WindowState.Minimized]: "minimized", [WindowState.Maximized]: "maximized" };
 const windows = [
-	new WindowController({ Title: "Themes", X: 12, Y: 12, Width: 250, Height: 340 }),
+	new WindowController({ Title: "Themes", X: 12, Y: 12, Width: 250, Height: 400 }),
 	new WindowController({ Title: "Controls", X: 276, Y: 12, Width: 380, Height: 360 }),
 	new WindowController({ Title: "Explorer", X: 120, Y: 200, Width: 560, Height: 300 }),
 	new WindowController({ Title: "More controls", X: 160, Y: 60, Width: 420, Height: 330 }),
@@ -184,10 +210,19 @@ for (const window of windows) {
 </script>
 
 <template>
-	<WinThemeProvider :theme="theme" class="gallery">
+	<WinThemeProvider :theme="theme" :kit="kit" :tailwind="tailwind" class="gallery">
 		<WinDesktop :manager="manager">
 			<WinWindow :controller="themesWindow" :manager="manager">
-				<WinRadioGroup :controller="themes" />
+				<WinRadioGroup :controller="kits" class="gallery-kit" />
+				<div v-if="kit === WinKit.Classic" class="gallery-classic">
+					<WinRadioGroup :controller="themes" />
+				</div>
+				<div v-else class="gallery-tailwind">
+					<label>Accent <WinComboBox :controller="accents" /></label>
+					<label>Neutral <WinComboBox :controller="neutrals" /></label>
+					<label>Radius <WinComboBox :controller="radii" /></label>
+					<WinCheckBox :controller="dark" />
+				</div>
 			</WinWindow>
 
 			<WinWindow :controller="controlsWindow" :manager="manager">
@@ -247,6 +282,9 @@ for (const window of windows) {
 <style scoped>
 .gallery { height: 100%; }
 .gallery-row { display: flex; gap: 8px; margin: 6px 0; }
+.gallery-kit { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid currentColor; border-bottom-color: color-mix(in srgb, currentColor 25%, transparent); }
+.gallery-tailwind { display: flex; flex-direction: column; gap: 8px; }
+.gallery-tailwind > label:not(.win-checkbox) { display: grid; grid-template-columns: 64px 1fr; align-items: center; gap: 6px; }
 .gallery-explorer { display: grid; grid-template-columns: 180px 1fr; gap: 4px; height: calc(100% - 24px); margin-top: 2px; }
 .gallery-log { margin: 0; padding: 0 0 0 14px; font-family: "Lucida Console", "Courier New", monospace; }
 </style>

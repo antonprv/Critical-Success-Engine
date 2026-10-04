@@ -1,0 +1,24 @@
+{
+  "Format": 1,
+  "Name": "Login dialog",
+  "Script": "LoginDialog",
+  "Root": {
+    "Name": "Root", "Type": "canvas", "X": 0, "Y": 0, "Width": 800, "Height": 500, "Props": {},
+    "Children": [
+      {
+        "Name": "LoginWindow", "Type": "window", "X": 216, "Y": 96, "Width": 344, "Height": 232,
+        "Props": { "Title": "Log in", "Minimizable": false, "Maximizable": false, "Resizable": false, "AcceptButton": "OkButton", "CancelButton": "CancelButton" },
+        "Children": [
+          { "Name": "UserLabel", "Type": "label", "X": 16, "Y": 16, "Width": 80, "Height": 16, "Props": { "Text": "User name:" } },
+          { "Name": "UserName", "Type": "textbox", "X": 104, "Y": 12, "Width": 200, "Height": 21, "Props": { "Placeholder": "Your name" } },
+          { "Name": "PasswordLabel", "Type": "label", "X": 16, "Y": 48, "Width": 80, "Height": 16, "Props": { "Text": "Password:" } },
+          { "Name": "Password", "Type": "textbox", "X": 104, "Y": 44, "Width": 200, "Height": 21, "Props": { "Password": true } },
+          { "Name": "Remember", "Type": "checkbox", "X": 104, "Y": 76, "Width": 160, "Height": 17, "Props": { "Text": "Remember me" } },
+          { "Name": "OkButton", "Type": "button", "X": 144, "Y": 112, "Width": 75, "Height": 23, "Props": { "Text": "OK", "Default": true, "CausesValidation": true, "DialogResult": "OK" } },
+          { "Name": "CancelButton", "Type": "button", "X": 228, "Y": 112, "Width": 75, "Height": 23, "Props": { "Text": "Cancel" } },
+          { "Name": "Status", "Type": "statusbar", "X": 0, "Y": 152, "Width": 330, "Height": 22, "Props": { "Panels": ["Enter your name"] } }
+        ]
+      }
+    ]
+  }
+}

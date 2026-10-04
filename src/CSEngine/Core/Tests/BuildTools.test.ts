@@ -300,10 +300,11 @@ describe("vite.config.ts", () => {
 		expect(config.build.outDir).toBe(resolve(process.cwd(), "../Binaries/Core"));
 		expect(config.build.emptyOutDir).toBe(true);
 		expect(config.worker).toEqual({ format: "es" });
-		// Two pages: the game and the UI toolkit gallery.
+		// Three pages: the game, the UI toolkit gallery and the UI designer.
 		expect((config.build as { rolldownOptions?: { input?: unknown; }; }).rolldownOptions?.input).toEqual({
 			index: resolve(process.cwd(), "index.html"),
 			toolkit: resolve(process.cwd(), "toolkit.html"),
+			designer: resolve(process.cwd(), "designer.html"),
 		});
 	});
 
@@ -318,6 +319,7 @@ describe("vite.config.ts", () => {
 		const names = ((config.plugins ?? []) as PluginOption[]).flat(3).map((p) => (p as { name?: string; } | null)?.name).filter(Boolean);
 		expect(names).toEqual(expect.arrayContaining(["vite:vue", "physics-wasm", "log-server-sidecar"]));
 		expect(names.some((n) => String(n).includes("quasar"))).toBe(true);
+		expect(names.some((n) => String(n).includes("tailwindcss"))).toBe(true);
 		expect(config.server).toMatchObject({ host: "127.0.0.1", port: 5173, strictPort: true });
 		expect(config.preview).toMatchObject({ host: "127.0.0.1", port: 4173, strictPort: true });
 		expect(config.assetsInclude).toContain("**/*.glb");

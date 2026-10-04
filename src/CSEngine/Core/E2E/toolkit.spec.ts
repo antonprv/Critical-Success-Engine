@@ -19,7 +19,7 @@ test.describe("UI toolkit gallery", () => {
 
 	test("every theme can be picked, and each one actually changes how windows look", async ({ game }) => {
 		const page = game.page;
-		const radios = windowNamed(page, "Themes").getByRole("radio");
+		const radios = windowNamed(page, "Themes").locator(".gallery-classic").getByRole("radio");
 		await expect(radios).toHaveCount(12);
 		const looks = new Set<string>();
 		for (let i = 0; i < 12; i++) {
@@ -168,5 +168,47 @@ test.describe("UI toolkit gallery: More controls", () => {
 		await page.keyboard.press("Escape");
 		await expect(dialog).toHaveCount(0);
 		await expect(logLines(page).first()).toHaveText("Message box: Cancel");
+	});
+});
+
+test.describe("UI toolkit gallery: the Tailwind kit", () => {
+	/** The colour a CSS variable resolves to, as the browser computes it (so oklch values compare exactly). */
+	const Resolve = (page: Page, variable: string) => page.evaluate((name) => {
+		const probe = document.createElement("div");
+		probe.style.backgroundColor = `var(${name})`;
+		document.querySelector(".win-root")!.appendChild(probe);
+		const color = getComputedStyle(probe).backgroundColor;
+		probe.remove();
+		return color;
+	}, variable);
+	const style = (locator: Locator, property: string) => locator.evaluate((el, p) => getComputedStyle(el).getPropertyValue(p), property);
+
+	test.beforeEach(async ({ game }) => {
+		await game.page.goto("/toolkit.html");
+		await windowNamed(game.page, "Themes").locator(".gallery-kit").getByRole("radio").nth(1).click();
+		await expect(game.page.locator(".win-root")).toHaveClass(/win-kit--tailwind/);
+	});
+
+	test("buttons, windows and radius follow the Tailwind theme; nothing of the classic kit leaks in", async ({ game }) => {
+		const page = game.page;
+		const push = windowNamed(page, "Controls").getByRole("button", { name: "Push me" });
+		// Colours animate (transition-colors): wait for them to settle instead of sampling mid-transition.
+		await expect.poll(() => style(push, "background-color")).toBe(await Resolve(page, "--color-indigo-600"));
+		expect(await style(push, "min-width")).toBe("80px"); // Tailwind's min-w-20, not the classic 75px
+
+		const themes = windowNamed(page, "Themes");
+		const pick = async (index: number, option: string) => {
+			await themes.locator(".gallery-tailwind [role=combobox]").nth(index).click();
+			await themes.locator(".gallery-tailwind [role=option]", { hasText: new RegExp(`^${option}$`) }).click();
+		};
+		await pick(0, "rose");
+		await expect.poll(() => style(push, "background-color")).toBe(await Resolve(page, "--color-rose-600"));
+
+		await themes.locator(".gallery-tailwind .win-checkbox").click();
+		const log = windowNamed(page, "Event log");
+		await expect.poll(() => style(log, "background-color")).toBe(await Resolve(page, "--color-zinc-900"));
+
+		await pick(2, "full");
+		await expect.poll(() => style(log, "border-top-left-radius")).toBe("9999px");
 	});
 });

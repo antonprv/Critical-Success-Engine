@@ -76,6 +76,28 @@ dialog.Events.On("closing", (event) => { if (!save.Enabled) event.Cancel(); });
 `AllThemes` - список с названиями и годами, `GetTheme(id)` - описание одной темы. Цвета каждой темы - CSS-переменные
 в `Toolkit/Styles/toolkit.css` (`--face`, `--title-1`, `--select`...): свою тему можно сделать, переопределив их.
 
+## Наборы оформления: Classic и Tailwind
+
+Одни и те же компоненты, контроллеры, события, скины и редактор - два набора стилей (`WinKit`):
+
+- **Classic** - темы Windows 98 - 7 выше; стили - `Toolkit/Styles/classic-kit.css`, все правила внутри `.win-kit--classic`;
+- **Tailwind** - каждый компонент нарисован утилитами Tailwind CSS 4 на его дизайн-токенах (`Toolkit/Styles/tailwind-kit.css`).
+  Тема набора (`TailwindTheme`, `Core/Kits.ts`):
+  - `Accent` - любая из 26 палитр Tailwind (red ... rose, а также slate ... taupe);
+  - `Neutral` - серая семья для поверхностей, линий и текста: slate, gray, zinc, neutral, stone, mauve, olive, mist, taupe;
+  - `Dark` - светлый или тёмный режим;
+  - `Radius` - шкала радиусов Tailwind: none, xs ... 4xl, full.
+
+```vue
+<WinThemeProvider :theme="WinTheme.XpBlue" :kit="WinKit.Tailwind" :tailwind="{ Accent: 'emerald', Neutral: 'slate', Dark: true, Radius: 'lg' }">
+```
+
+Компоненты используют смысловые цвета (`panel`, `ink`, `line`, `primary`, `selected`...), которые тема сводит к своим
+палитрам - поэтому всё переключается на лету. Скин накладывается поверх любого набора одинаково: он опирается на те же
+смысловые классы компонентов (`win-button--pressed`, `win-window--inactive`...). В галерее набор и тема Tailwind
+выбираются в окне Themes, в редакторе - справа вверху. Свой набор - это ещё одна таблица стилей по тем же классам,
+внутри своего класса набора.
+
 ## Элементы
 
 | Компонент + контроллер | Состояние (поля) | События | Поведение |
