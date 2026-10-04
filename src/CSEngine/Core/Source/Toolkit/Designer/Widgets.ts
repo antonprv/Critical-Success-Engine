@@ -180,7 +180,7 @@ const LabelView = defineComponent({
 const ImageView = defineComponent({
 	props: ViewProps,
 	setup: (props) => () => (props.node.Props["Source"]
-		? h("img", { class: "win-layout__image", src: props.node.Props["Source"], alt: "", style: { objectFit: props.node.Props["Fit"] } })
+		? h("img", { class: "win-layout__image", src: props.node.Props["Source"], alt: "", draggable: false, style: { objectFit: props.node.Props["Fit"] } })
 		: h("div", { class: "win-layout__image-placeholder" }, "Image")),
 });
 

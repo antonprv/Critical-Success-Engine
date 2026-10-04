@@ -306,3 +306,22 @@ describe("DesignerController: edge keys", () => {
 		expect(designer.Mode).toBe(DesignerMode.Design);
 	});
 });
+
+describe("DesignerController: edit sessions", () => {
+	it("everything changed between BeginEdit and EndEdit is one undo step; a session with no change adds none", () => {
+		const designer = new DesignerController();
+		designer.Add(WidgetType.Button);
+		designer.BeginEdit();
+		designer.EndEdit();
+		designer.BeginEdit();
+		designer.SetProp("Button1", "Text", "P");
+		designer.SetProp("Button1", "Text", "Pl");
+		designer.SetProp("Button1", "Text", "Play");
+		designer.EndEdit();
+		designer.Undo();
+		expect(designer.Find("Button1")!.Props["Text"]).toBe("Button");
+		designer.Undo();
+		expect(designer.Find("Button1")).toBeUndefined();
+		expect(designer.CanUndo).toBe(false);
+	});
+});

@@ -287,7 +287,16 @@ export class PhysicsWorld {
 	private WritePose(body: BodyEntry, transform: FlatTransform): void {
 		const [px, py, pz, qx, qy, qz, qw] = transform;
 		const worldOffset = Quat.FromTuple([qx, qy, qz, qw]).Rotate(Vec3.FromTuple(body.centroidOffset));
-		this._bridge.SetBodyPose(body.handle, px + worldOffset.X, py + worldOffset.Y, pz + worldOffset.Z, qx, qy, qz, qw);
+		this.SetPoseAwake(body, px + worldOffset.X, py + worldOffset.Y, pz + worldOffset.Z, qx, qy, qz, qw);
+	}
+
+	/**
+	 * BEPU recomputes broad-phase bounds only for awake bodies: a pose written into a sleeping one moves it without
+	 * finding new overlaps (a character that stood still and then walked through a coin never touched it).
+	 */
+	private SetPoseAwake(body: BodyEntry, px: number, py: number, pz: number, qx: number, qy: number, qz: number, qw: number): void {
+		this._bridge.SetAwakeState(body.handle, true);
+		this._bridge.SetBodyPose(body.handle, px, py, pz, qx, qy, qz, qw);
 	}
 
 	//#endregion
@@ -528,7 +537,7 @@ export class PhysicsWorld {
 			character.velocity = [r[8]!, r[9]!, r[10]!];
 
 			character.position = [r[0]!, r[1]!, r[2]!];
-			this._bridge.SetBodyPose(body.handle, r[0]!, r[1]!, r[2]!, 0, 0, 0, 1);
+			this.SetPoseAwake(body, r[0]!, r[1]!, r[2]!, 0, 0, 0, 1);
 			this._bridge.SetLinearVelocity(body.handle, ...(dt > 0 ? character.velocity : ([0, 0, 0] as Tuple3)));
 		}
 	}

@@ -31,12 +31,14 @@ const Edges: { Edge: ResizeEdge; Name: string; }[] = [
 
 function OnTitlePointerDown(event: PointerEvent): void {
 	if (event.button !== 0) return;
+	event.preventDefault(); // no text selection while dragging the window
 	c.BeginDrag(event.clientX, event.clientY);
 	track((move) => c.DragTo(move.clientX, move.clientY), () => c.EndDrag());
 }
 
 function OnBorderPointerDown(event: PointerEvent, edge: ResizeEdge): void {
 	if (event.button !== 0) return;
+	event.preventDefault();
 	c.BeginResize(edge, event.clientX, event.clientY);
 	track((move) => c.ResizeTo(move.clientX, move.clientY), () => c.EndResize());
 }

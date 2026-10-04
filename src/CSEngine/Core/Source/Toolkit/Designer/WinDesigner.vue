@@ -10,10 +10,10 @@ import { UsePointerTracking } from "../Core/PointerTracking";
 import { DefaultTailwindTheme, TailwindAccents, TailwindNeutrals, WinKit, type TailwindTheme } from "../Core/Kits";
 import { AllThemes, WinTheme } from "../Core/Themes";
 import { UseControl } from "../Core/UseControl";
-import WinCheckBox from "../Components/WinCheckBox.vue";
 import WinComboBox from "../Components/WinComboBox.vue";
 import WinMenuBar from "../Components/WinMenuBar.vue";
 import WinStatusBar from "../Components/WinStatusBar.vue";
+import WinSwitch from "../Components/WinSwitch.vue";
 import WinThemeProvider from "../Components/WinThemeProvider.vue";
 import WinToolbar from "../Components/WinToolbar.vue";
 import { ParseSkin, PartInfo, SkinPart, SkinParts, SkinState, type Box4, type PartStyle, type SkinSprite } from "../Skins/Skin";
@@ -109,7 +109,7 @@ function TailwindChoice(values: readonly string[], field: "Accent" | "Neutral"):
 }
 const accents = TailwindChoice(TailwindAccents, "Accent");
 const neutrals = TailwindChoice(TailwindNeutrals, "Neutral");
-const dark = UseControl(new CheckBoxController({ Label: "Dark" }));
+const dark = UseControl(new CheckBoxController({ Label: "Dark mode" }));
 dark.Events.On("change", () => { tailwind.Dark = dark.Checked; });
 
 //#endregion
@@ -170,6 +170,7 @@ function OnCanvasPointerDown(event: PointerEvent): void {
 	const element = target.closest<HTMLElement>("[data-name]");
 	if (!element) return;
 	const name = element.dataset["name"]!;
+	event.preventDefault(); // the canvas is edited, not selected as text or dragged as images
 	designer.Select(name);
 	if (name === designer.Layout.Root.Name) return;
 
@@ -199,12 +200,19 @@ function WithSelected(action: (name: string) => void): void {
 
 const InputValue = (event: Event): string => (event.target as HTMLInputElement).value;
 
+/** The name applies as soon as it is a valid unique identifier; until then the field is marked and the old name kept. */
+const nameInvalid = ref(false);
 function OnRename(event: Event): void {
-	const name = designer.SelectedName!;
 	const wanted = InputValue(event);
-	if (designer.Rename(name, wanted)) return;
-	message.value = `"${wanted}" is not a valid unique name`;
-	(event.target as HTMLInputElement).value = name;
+	nameInvalid.value = !designer.Rename(designer.SelectedName!, wanted);
+	if (nameInvalid.value) message.value = `"${wanted}" is not a valid unique name`;
+}
+
+function OnNameBlur(event: Event): void {
+	designer.EndEdit();
+	if (!nameInvalid.value) return;
+	nameInvalid.value = false;
+	(event.target as HTMLInputElement).value = designer.SelectedName!;
 }
 
 function OnReparent(event: Event): void {
@@ -215,8 +223,10 @@ function OnReparent(event: Event): void {
 }
 
 function OnGeometry(field: "X" | "Y" | "Width" | "Height", event: Event): void {
+	const value = parseFloat(InputValue(event));
+	if (Number.isNaN(value)) return; // still typing ("", "-")
 	const node = selected.value!;
-	const geometry = { X: node.X, Y: node.Y, Width: node.Width, Height: node.Height, [field]: Number(InputValue(event)) };
+	const geometry = { X: node.X, Y: node.Y, Width: node.Width, Height: node.Height, [field]: value };
 	if (field === "X" || field === "Y") designer.MoveTo(node.Name, geometry.X, geometry.Y);
 	else designer.ResizeTo(node.Name, geometry.Width, geometry.Height);
 }
@@ -227,7 +237,7 @@ function OnProp(kind: PropKind, key: string, event: Event): void {
 	if (kind === PropKind.Boolean) designer.SetProp(name, key, element.checked);
 	else if (kind === PropKind.Lines) designer.SetProp(name, key, element.value.split("\n").filter((line) => line !== ""));
 	else if (kind === PropKind.Text || kind === PropKind.Choice) designer.SetProp(name, key, element.value);
-	else if (!designer.SetProp(name, key, parseFloat(element.value))) element.value = String(selected.value!.Props[key]);
+	else designer.SetProp(name, key, parseFloat(element.value)); // a partial number ("", "-") is not a number: ignored
 }
 
 //#endregion
@@ -359,12 +369,12 @@ async function OnOpen(event: Event): Promise<void> {
 			<div class="win-designer__bar">
 				<WinMenuBar :controller="menu" />
 				<WinToolbar :controller="toolbar" class="win-designer__toolbar" />
-				<div class="win-designer__kit"><WinComboBox :controller="kits" /></div>
-				<div v-if="kit === WinKit.Classic" class="win-designer__theme"><WinComboBox :controller="themes" /></div>
+				<label class="win-designer__kit"><span class="win-designer__bar-label">Kit</span><WinComboBox :controller="kits" /></label>
+				<label v-if="kit === WinKit.Classic" class="win-designer__theme"><span class="win-designer__bar-label">Theme</span><WinComboBox :controller="themes" /></label>
 				<div v-else class="win-designer__tailwind">
-					<WinComboBox :controller="accents" />
-					<WinComboBox :controller="neutrals" />
-					<WinCheckBox :controller="dark" />
+					<label><span class="win-designer__bar-label">Accent</span><WinComboBox :controller="accents" /></label>
+					<label><span class="win-designer__bar-label">Neutral</span><WinComboBox :controller="neutrals" /></label>
+					<WinSwitch :controller="dark" />
 				</div>
 				<input ref="openInput" class="win-designer__open" type="file" accept=".json,application/json" hidden @change="OnOpen">
 			</div>
@@ -422,7 +432,7 @@ async function OnOpen(event: Event): Promise<void> {
 					<template v-if="detailsTab === 'properties'">
 					<fieldset class="win-groupbox">
 						<legend class="win-groupbox__title">Layout</legend>
-						<label>Name <input class="win-textbox" data-field="LayoutName" :value="designer.Layout.Name" @keydown.enter="Commit" @change="designer.SetLayoutName(InputValue($event))"></label>
+						<label>Name <input class="win-textbox" data-field="LayoutName" :value="designer.Layout.Name" @keydown.enter="Commit" @focus="designer.BeginEdit()" @blur="designer.EndEdit()" @input="designer.SetLayoutName(InputValue($event))"></label>
 						<label>Script
 							<select class="win-textbox" data-field="Script" :value="designer.Layout.Script" @change="designer.SetScript(InputValue($event))">
 								<option value="">(none)</option>
@@ -433,7 +443,7 @@ async function OnOpen(event: Event): Promise<void> {
 
 					<fieldset v-if="selected" class="win-groupbox">
 						<legend class="win-groupbox__title">{{ widgets.Get(selected.Type)!.Label }}</legend>
-						<label>Name <input class="win-textbox" data-field="Name" :value="selected.Name" @keydown.enter="Commit" @change="OnRename"></label>
+						<label>Name <input class="win-textbox" :class="{ 'win-designer__field--invalid': nameInvalid }" data-field="Name" :value="selected.Name" @keydown.enter="Commit" @focus="designer.BeginEdit()" @blur="OnNameBlur" @input="OnRename"></label>
 						<template v-if="!isRoot">
 							<label>Parent
 								<select class="win-textbox" data-field="Parent" :value="designer.ParentOf(selected.Name)!.Name" @change="OnReparent">
@@ -441,7 +451,7 @@ async function OnOpen(event: Event): Promise<void> {
 								</select>
 							</label>
 							<label v-for="key in (['X', 'Y', 'Width', 'Height'] as const)" :key="key">{{ key }}
-								<input class="win-textbox" type="number" :data-field="key" :value="selected[key]" @keydown.enter="Commit" @change="OnGeometry(key, $event)">
+								<input class="win-textbox" type="number" :data-field="key" :value="selected[key]" @keydown.enter="Commit" @focus="designer.BeginEdit()" @blur="designer.EndEdit()" @input="OnGeometry(key, $event)">
 							</label>
 						</template>
 						<label v-for="prop in widgets.Get(selected.Type)!.Props" :key="prop.Key" :class="`win-designer__prop--${prop.Kind}`">{{ prop.Label }}
@@ -449,8 +459,8 @@ async function OnOpen(event: Event): Promise<void> {
 							<select v-else-if="prop.Kind === PropKind.Choice" class="win-textbox" :data-prop="prop.Key" :value="selected.Props[prop.Key]" @change="OnProp(prop.Kind, prop.Key, $event)">
 								<option v-for="choice in prop.Choices" :key="choice" :value="choice">{{ choice }}</option>
 							</select>
-							<textarea v-else-if="prop.Kind === PropKind.Lines" class="win-textbox" :data-prop="prop.Key" :value="(selected.Props[prop.Key] as string[]).join('\n')" @change="OnProp(prop.Kind, prop.Key, $event)" />
-							<input v-else class="win-textbox" :type="prop.Kind === PropKind.Number ? 'number' : 'text'" :data-prop="prop.Key" :value="selected.Props[prop.Key]" @keydown.enter="Commit" @change="OnProp(prop.Kind, prop.Key, $event)">
+							<textarea v-else-if="prop.Kind === PropKind.Lines" class="win-textbox" :data-prop="prop.Key" :value="(selected.Props[prop.Key] as string[]).join('\n')" @focus="designer.BeginEdit()" @blur="designer.EndEdit()" @input="OnProp(prop.Kind, prop.Key, $event)" />
+							<input v-else class="win-textbox" :type="prop.Kind === PropKind.Number ? 'number' : 'text'" :data-prop="prop.Key" :value="selected.Props[prop.Key]" @keydown.enter="Commit" @focus="designer.BeginEdit()" @blur="designer.EndEdit()" @input="OnProp(prop.Kind, prop.Key, $event)">
 						</label>
 					</fieldset>
 					<p v-else class="win-designer__hint">Select a widget on the canvas or in the hierarchy.</p>
@@ -494,10 +504,10 @@ async function OnOpen(event: Event): Promise<void> {
 								<img class="win-designer__sprite-preview" :src="sprite.Image" alt="">
 								<label>Slice (T R B L)
 									<span class="win-designer__row">
-										<input v-for="(value, index) in sprite.Slice" :key="index" class="win-textbox" type="number" :data-skin="`Slice${index}`" :value="value" @keydown.enter="Commit" @change="OnSlice(index, $event)">
+										<input v-for="(value, index) in sprite.Slice" :key="index" class="win-textbox" type="number" :data-skin="`Slice${index}`" :value="value" @keydown.enter="Commit" @focus="designer.BeginEdit()" @blur="designer.EndEdit()" @input="OnSlice(index, $event)">
 									</span>
 								</label>
-								<label>Border (px) <input class="win-textbox" type="number" data-skin="Border" :value="sprite.Border?.[0] ?? ''" placeholder="= slice" @keydown.enter="Commit" @change="OnBorder"></label>
+								<label>Border (px) <input class="win-textbox" type="number" data-skin="Border" :value="sprite.Border?.[0] ?? ''" placeholder="= slice" @keydown.enter="Commit" @focus="designer.BeginEdit()" @blur="designer.EndEdit()" @input="OnBorder"></label>
 								<label>Repeat
 									<select class="win-textbox" data-skin="Repeat" :value="sprite.Repeat ?? 'stretch'" @change="SetStyle('Sprite', { ...sprite, Repeat: InputValue($event) as 'stretch' })">
 										<option value="stretch">stretch</option><option value="round">round</option><option value="repeat">repeat</option>
@@ -509,12 +519,12 @@ async function OnOpen(event: Event): Promise<void> {
 						<fieldset class="win-groupbox">
 							<legend class="win-groupbox__title">Look</legend>
 							<label v-for="field in (['Background', 'TextColor', 'Font', 'Shadow'] as const)" :key="field">{{ field }}
-								<input class="win-textbox" :data-skin="field" :value="skinStyle[field] ?? ''" @keydown.enter="Commit" @change="OnSkinText(field, $event)">
+								<input class="win-textbox" :data-skin="field" :value="skinStyle[field] ?? ''" @keydown.enter="Commit" @focus="designer.BeginEdit()" @blur="designer.EndEdit()" @input="OnSkinText(field, $event)">
 							</label>
 							<label v-for="field in (['FontSize', 'Radius', 'MinHeight'] as const)" :key="field">{{ field }}
-								<input class="win-textbox" type="number" :data-skin="field" :value="skinStyle[field] ?? ''" @keydown.enter="Commit" @change="OnSkinNumber(field, $event)">
+								<input class="win-textbox" type="number" :data-skin="field" :value="skinStyle[field] ?? ''" @keydown.enter="Commit" @focus="designer.BeginEdit()" @blur="designer.EndEdit()" @input="OnSkinNumber(field, $event)">
 							</label>
-							<label>Padding <input class="win-textbox" type="number" data-skin="Padding" :value="skinStyle.Padding?.[0] ?? ''" @keydown.enter="Commit" @change="OnPadding"></label>
+							<label>Padding <input class="win-textbox" type="number" data-skin="Padding" :value="skinStyle.Padding?.[0] ?? ''" @keydown.enter="Commit" @focus="designer.BeginEdit()" @blur="designer.EndEdit()" @input="OnPadding"></label>
 							<button type="button" class="win-button" data-skin="Clear" @click="designer.ClearSkinState(skinPart, skinState)">Clear this state</button>
 						</fieldset>
 					</template>
@@ -527,31 +537,60 @@ async function OnOpen(event: Event): Promise<void> {
 </template>
 
 <style scoped>
-.win-designer-root { height: 100%; }
-.win-designer { display: flex; flex-direction: column; height: 100%; background: var(--face); outline: none; }
-.win-designer__bar { display: flex; align-items: center; gap: 8px; padding: 2px 4px; border-bottom: 1px solid var(--shadow); }
+/*
+ * The designer's own chrome: kit-neutral colours. Each one is the Tailwind kit's token, falling back to the classic
+ * theme's variable, so the whole editor (not just its buttons) follows the kit, its palettes and dark mode.
+ */
+.win-designer-root {
+	--d-surface: var(--kit-surface, var(--face));
+	--d-panel: var(--kit-panel, var(--face));
+	--d-field: var(--kit-field, var(--window));
+	--d-ink: var(--kit-ink, var(--text));
+	--d-muted: var(--kit-muted, var(--shadow));
+	--d-line: var(--kit-line, var(--shadow));
+	--d-selected: var(--kit-selected, var(--select));
+	--d-selected-ink: var(--kit-selected-ink, var(--select-text));
+	height: 100%;
+}
+.win-designer { display: flex; flex-direction: column; height: 100%; background: var(--d-panel); color: var(--d-ink); outline: none; user-select: none; }
+.win-designer input, .win-designer textarea { user-select: text; }
+.win-designer__bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 4px 8px; border-bottom: 1px solid var(--d-line); background: var(--d-panel); }
 .win-designer__kit { margin-left: auto; }
-.win-designer__tailwind { display: flex; align-items: center; gap: 6px; }
-.win-designer__main { display: grid; grid-template-columns: 180px 1fr 260px; flex: 1; min-height: 0; }
+.win-designer__kit, .win-designer__theme, .win-designer__tailwind label { display: inline-flex; align-items: center; gap: 6px; }
+.win-designer__tailwind { display: flex; align-items: center; gap: 12px; }
+.win-designer__bar-label { font-size: 0.85em; color: var(--d-muted); white-space: nowrap; }
+.win-designer__main { display: grid; grid-template-columns: 180px 1fr 260px; flex: 1; min-height: 0; background: var(--d-surface); }
 .win-designer__side,
-.win-designer__details { display: flex; flex-direction: column; gap: 4px; padding: 4px; overflow: auto; }
-.win-designer__palette { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+.win-designer__details { display: flex; flex-direction: column; gap: 6px; padding: 6px; overflow: auto; background: var(--d-panel); }
+.win-designer__side { border-right: 1px solid var(--d-line); }
+.win-designer__details { border-left: 1px solid var(--d-line); }
+.win-designer__palette { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
 .win-designer__palette-item { min-width: 0; padding: 0 4px; font-size: 10px; cursor: grab; }
 .win-designer__hierarchy { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-.win-designer__hierarchy-tools { display: flex; gap: 2px; margin-bottom: 3px; }
+.win-designer__hierarchy-tools { display: flex; gap: 2px; margin-bottom: 4px; }
 .win-designer__hierarchy-tools .win-button { min-width: 0; flex: 1; padding: 0; }
 .win-designer__tree { flex: 1; min-height: 60px; }
-.win-designer__tree-item { padding-right: 4px; cursor: default; white-space: nowrap; }
-.win-designer__tree-item--selected { background: var(--select); color: var(--select-text); }
-.win-designer__canvas { position: relative; overflow: auto; padding: 16px; background: repeating-conic-gradient(rgba(0, 0, 0, 0.04) 0 25%, transparent 0 50%) 0 0 / 16px 16px; }
-.win-designer__log { position: absolute; right: 8px; bottom: 8px; width: 260px; max-height: 40%; margin: 0; padding: 4px 4px 4px 18px; overflow: auto; background: #ffffe1; border: 1px solid #000; font: 11px "Lucida Console", monospace; }
+.win-designer__tree-item { padding: 1px 4px; border-radius: 3px; cursor: default; white-space: nowrap; }
+.win-designer__tree-item--selected { background: var(--d-selected); color: var(--d-selected-ink); }
+/* A dot grid on the snap step (8 px), drawn in the text colour so it suits light and dark alike. */
+.win-designer__canvas {
+	position: relative;
+	overflow: auto;
+	padding: 16px;
+	background-color: var(--d-surface);
+	background-image: radial-gradient(color-mix(in srgb, var(--d-ink) 16%, transparent) 1px, transparent 1.5px);
+	background-size: 8px 8px;
+	background-position: 16px 16px;
+}
+.win-designer__log { position: absolute; right: 8px; bottom: 8px; width: 260px; max-height: 40%; margin: 0; padding: 4px 4px 4px 18px; overflow: auto; background: var(--d-panel); color: var(--d-ink); border: 1px solid var(--d-line); border-radius: 4px; font: 11px "Lucida Console", monospace; user-select: text; }
 .win-designer__details label { display: grid; grid-template-columns: 90px 1fr; align-items: center; gap: 4px; margin: 3px 0; }
 .win-designer__details .win-textbox { min-width: 0; width: 100%; }
+.win-designer__field--invalid { outline: 2px solid #d40000 !important; outline-offset: -1px; }
 .win-designer__prop--boolean { grid-template-columns: 90px auto !important; justify-content: start; }
-.win-designer__hint { color: var(--shadow); }
+.win-designer__hint { color: var(--d-muted); }
 .win-designer__tabs { display: flex; gap: 2px; }
 .win-designer__row { display: flex; gap: 4px; align-items: center; }
 .win-designer__row .win-textbox { width: 0; flex: 1; }
 .win-designer__file { display: inline-flex; align-items: center; justify-content: center; }
-.win-designer__sprite-preview { max-width: 100%; max-height: 64px; margin: 4px 0; image-rendering: pixelated; border: 1px dashed var(--shadow); }
+.win-designer__sprite-preview { max-width: 100%; max-height: 64px; margin: 4px 0; image-rendering: pixelated; border: 1px dashed var(--d-line); }
 </style>

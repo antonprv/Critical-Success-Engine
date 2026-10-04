@@ -113,9 +113,9 @@ describe("the Tailwind kit in the gallery", () => {
 		await choose(0, "rose");
 		await choose(1, "stone");
 		await choose(2, "full");
-		await themes.get(".gallery-tailwind .win-checkbox").trigger("click");
+		await themes.get(".gallery-tailwind .win-switch").trigger("click");
 		expect(wrapper.get(".win-root").classes()).toEqual(expect.arrayContaining(["tw-accent--rose", "tw-neutral--stone", "tw-radius--full", "tw-dark"]));
-		await themes.get(".gallery-tailwind .win-checkbox").trigger("click");
+		await themes.get(".gallery-tailwind .win-switch").trigger("click");
 		expect(wrapper.get(".win-root").classes()).not.toContain("tw-dark");
 		expect(logLines(wrapper).slice(0, 6).reverse()).toEqual(["Kit: Tailwind", "Accent: rose", "Neutral: stone", "Radius: full", "Dark: on", "Dark: off"]);
 

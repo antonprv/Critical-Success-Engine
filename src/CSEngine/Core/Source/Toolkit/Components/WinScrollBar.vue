@@ -33,6 +33,7 @@ function OnTrackPointerDown(event: PointerEvent): void {
 }
 
 function OnThumbPointerDown(event: PointerEvent): void {
+	event.preventDefault();
 	const { Position, Length } = Measure(event);
 	const grab = Position - c.ThumbPosition * Length;
 	const free = Math.max(1, Length * (1 - c.ThumbSize));

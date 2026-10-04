@@ -49,6 +49,7 @@ export class DesignerController {
 	private _undo: string[] = [];
 	private _redo: string[] = [];
 	private _gesture = false;
+	private _editPending = false;
 
 	/** `widgets`: the widget types this designer offers and understands (built-ins plus your own). */
 	public constructor(layout?: UiLayout, public readonly Widgets: WidgetRegistry = BuiltInWidgets) {
@@ -213,6 +214,16 @@ export class DesignerController {
 		this._gesture = false;
 	}
 
+	/** Starts editing a field: its changes, however many, become one undo step, recorded at the first real change. */
+	public BeginEdit(): void {
+		this._editPending = true;
+	}
+
+	public EndEdit(): void {
+		this._editPending = false;
+		this._gesture = false;
+	}
+
 	//#endregion
 
 	//#region properties
@@ -372,6 +383,10 @@ export class DesignerController {
 
 	private Record(): void {
 		if (this._gesture) return;
+		if (this._editPending) {
+			this._editPending = false;
+			this._gesture = true;
+		}
 		this._undo.push(SerializeLayout(this._layout));
 		if (this._undo.length > MaxUndo) this._undo.shift();
 		this._redo = [];

@@ -166,8 +166,10 @@ describe("WinDesigner: details panel", () => {
 		await field(wrapper, "Name").setValue("PlayButton");
 		expect(designer.SelectedName).toBe("PlayButton");
 		await field(wrapper, "Name").setValue("not valid");
-		expect((field(wrapper, "Name").element as HTMLInputElement).value).toBe("PlayButton");
 		expect(status(wrapper)[0]).toBe('"not valid" is not a valid unique name');
+		await field(wrapper, "Name").trigger("blur"); // leaving the field brings the last valid name back
+		expect((field(wrapper, "Name").element as HTMLInputElement).value).toBe("PlayButton");
+		await field(wrapper, "Name").trigger("blur");
 
 		const name = field(wrapper, "Name").element as HTMLInputElement;
 		name.focus();
@@ -223,6 +225,80 @@ describe("WinDesigner: details panel", () => {
 		await field(wrapper, "Script").setValue("Greeter");
 		expect(designer.Layout).toMatchObject({ Name: "Main menu", Script: "Greeter" });
 		expect(wrapper.find(".win-designer__hint").exists()).toBe(true);
+	});
+});
+
+describe("WinDesigner: live editing", () => {
+	const typeInto = async (element: Element, value: string) => {
+		(element as HTMLInputElement).value = value;
+		element.dispatchEvent(new Event("input", { bubbles: true }));
+		await nextTick();
+	};
+
+	it("fields apply while typing (no Enter needed), and everything typed into one field is a single undo step", async () => {
+		const { wrapper, designer } = Mount();
+		designer.Add(WidgetType.Button);
+		await nextTick();
+		const text = wrapper.get('[data-prop="Text"]').element;
+		text.dispatchEvent(new FocusEvent("focus"));
+		await typeInto(text, "P");
+		await typeInto(text, "Pl");
+		await typeInto(text, "Play");
+		expect(designer.Find("Button1")!.Props["Text"]).toBe("Play");
+		expect(wrapper.get('.win-designer__canvas [data-name="Button1"] button').text()).toBe("Play");
+		text.dispatchEvent(new FocusEvent("blur"));
+		designer.Undo();
+		expect(designer.Find("Button1")!.Props["Text"]).toBe("Button");
+
+		const x = wrapper.get('[data-field="X"]').element;
+		x.dispatchEvent(new FocusEvent("focus"));
+		await typeInto(x, "4");
+		await typeInto(x, "40");
+		await typeInto(x, "");
+		x.dispatchEvent(new FocusEvent("blur"));
+		expect(designer.Find("Button1")!.X).toBe(40); // an empty or partial number doesn't move it
+		await typeInto(wrapper.get('[data-prop="Enabled"]').element, "");
+	});
+
+	it("focusing and leaving any field without changing it adds no undo step", async () => {
+		const { wrapper, designer } = Mount();
+		designer.Add(WidgetType.ListBox);
+		designer.SetSkinStyle("button" as never, "normal" as never, "Sprite", { Image: "a.png", Slice: [8, 8, 8, 8] });
+		const undoDepth = () => { let n = 0; while (designer.CanUndo) { designer.Undo(); n++; } return n; };
+		await nextTick();
+		const visit = (selector: string) => {
+			for (const element of wrapper.findAll(selector)) {
+				element.element.dispatchEvent(new FocusEvent("focus"));
+				element.element.dispatchEvent(new FocusEvent("blur"));
+			}
+		};
+		visit('[data-field="LayoutName"]');
+		visit('[data-prop="Items"]');
+		await wrapper.get('[data-tab="skin"]').trigger("click");
+		for (const name of ["Slice0", "Slice1", "Slice2", "Slice3", "Border", "Background", "TextColor", "Font", "Shadow", "FontSize", "Radius", "MinHeight", "Padding"]) visit(`[data-skin="${name}"]`);
+		expect(undoDepth()).toBe(2); // the Add and the sprite: visits changed nothing
+	});
+
+	it("a name applies as soon as it is valid; while it isn't, the field is marked and the name kept", async () => {
+		const { wrapper, designer } = Mount();
+		designer.Add(WidgetType.Button);
+		await nextTick();
+		const name = wrapper.get('[data-field="Name"]');
+		await typeInto(name.element, "Play Button");
+		expect(designer.SelectedName).toBe("Button1");
+		expect(name.classes()).toContain("win-designer__field--invalid");
+		await typeInto(name.element, "PlayButton");
+		expect(designer.SelectedName).toBe("PlayButton");
+		expect(wrapper.get('[data-field="Name"]').classes()).not.toContain("win-designer__field--invalid");
+	});
+
+	it("the bar's lists are labelled, and dark mode is a switch", async () => {
+		const { wrapper } = Mount();
+		expect(wrapper.findAll(".win-designer__bar-label").map((l) => l.text())).toEqual(["Kit", "Theme"]);
+		await wrapper.get(".win-designer__kit [role=combobox]").trigger("click");
+		await wrapper.findAll(".win-designer__kit [role=option]")[1]!.trigger("click");
+		expect(wrapper.findAll(".win-designer__bar-label").map((l) => l.text())).toEqual(["Kit", "Accent", "Neutral"]);
+		expect(wrapper.find(".win-designer__tailwind [role=switch]").exists()).toBe(true);
 	});
 });
 
@@ -323,7 +399,7 @@ describe("WinDesigner: menus, files, keys", () => {
 		};
 		await pick(0, "emerald");
 		await pick(1, "slate");
-		await wrapper.get(".win-designer__tailwind .win-checkbox").trigger("click");
+		await wrapper.get(".win-designer__tailwind .win-switch").trigger("click");
 		expect(wrapper.get(".win-root").classes()).toEqual(expect.arrayContaining(["tw-accent--emerald", "tw-neutral--slate", "tw-dark"]));
 		await kit.trigger("click");
 		await wrapper.findAll(".win-designer__kit [role=option]")[0]!.trigger("click");

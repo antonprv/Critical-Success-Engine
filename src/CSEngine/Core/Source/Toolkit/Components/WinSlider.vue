@@ -25,6 +25,7 @@ const StopDrag = (): void => {
 };
 
 function OnTrackPointerDown(event: PointerEvent): void {
+	event.preventDefault(); // no text selection while dragging the thumb
 	MoveTo(event.clientX);
 	window.addEventListener("pointermove", OnPointerMove);
 	window.addEventListener("pointerup", StopDrag);

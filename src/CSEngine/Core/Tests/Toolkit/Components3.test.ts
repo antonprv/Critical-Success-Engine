@@ -273,3 +273,28 @@ describe("WinStatusBar, WinToolbar and WinGroupBox", () => {
 		expect(wrapper.get("fieldset p").text()).toBe("inside");
 	});
 });
+
+describe("WinSwitch", () => {
+	it("is a toggle switch over a check box controller: click and Space flip it, role and aria-checked follow", async () => {
+		const { default: WinSwitch } = await import("../../Source/Toolkit/Components/WinSwitch.vue");
+		const { CheckBoxController } = await import("../../Source/Toolkit/Controls/CheckBoxController");
+		const controller = UseControl(new CheckBoxController({ Label: "Dark mode" }));
+		const wrapper = mount(WinSwitch, { props: { controller } });
+		const knob = wrapper.get("[role=switch]");
+		expect(knob.attributes("aria-checked")).toBe("false");
+		expect(wrapper.text()).toBe("Dark mode");
+		await wrapper.get(".win-switch").trigger("click");
+		expect(knob.attributes("aria-checked")).toBe("true");
+		await knob.trigger("keydown", { code: "Space" });
+		expect(controller.Checked).toBe(false);
+		const tab = new KeyboardEvent("keydown", { code: "Tab", cancelable: true });
+		knob.element.dispatchEvent(tab);
+		expect(tab.defaultPrevented).toBe(false);
+		expect(wrapper.emitted("change")).toHaveLength(2);
+		controller.SetEnabled(false);
+		await nextTick();
+		expect(wrapper.get(".win-switch").classes()).toContain("win-switch--disabled");
+		expect(knob.attributes("tabindex")).toBe("-1");
+		expect(mount(WinSwitch).text()).toBe("");
+	});
+});

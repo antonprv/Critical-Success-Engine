@@ -114,6 +114,23 @@ describe("PhysicsWorld (physics worker side) - everything the commands can do", 
 			apply({ operation: PhysOpType.MoveCharacter, entityId: 2, velocity: [0, 0, 0], layer: 1, mask: -1 });
 		});
 
+		it("every pose write (teleport, kinematic pose, character move) wakes the body first: BEPU only updates the broad-phase bounds of awake bodies, so a sleeping character would walk through coins without overlapping them", () => {
+			const { bridge, apply, spawn, world } = Setup();
+			const calls: string[] = [];
+			bridge.SetAwakeState!.mockImplementation((handle: number, awake: boolean) => { calls.push(`awake ${handle} ${awake}`); });
+			bridge.SetBodyPose!.mockImplementation((handle: number) => { calls.push(`pose ${handle}`); });
+			spawn(1, PhysBodyType.Kinematic);
+			spawn(2, PhysBodyType.Kinematic, Capsule, { objectKind: PhysObjectKind.Character });
+			apply({ operation: PhysOpType.SetPose, entityId: 1, transform: [1, 0, 0, 0, 0, 0, 1] });
+			apply({ operation: PhysOpType.SetKinematicPose, entityId: 1, transform: [2, 0, 0, 0, 0, 0, 1] });
+			apply({ operation: PhysOpType.MoveCharacter, entityId: 2, velocity: [1, 0, 0], layer: 1, mask: -1 });
+			world.Step(1 / 60);
+
+			const poses = calls.flatMap((call, i) => (call.startsWith("pose") ? [[calls[i - 1], call]] : []));
+			expect(poses.length).toBeGreaterThanOrEqual(3);
+			for (const [before, pose] of poses) expect(before).toBe(`awake ${pose!.split(" ")[1]} true`);
+		});
+
 		it("velocity, angular velocity, impulse and awake commands wake the body first and ignore unknown / static ids", () => {
 			const { bridge, apply, spawn } = Setup();
 			spawn(1, PhysBodyType.Dynamic);

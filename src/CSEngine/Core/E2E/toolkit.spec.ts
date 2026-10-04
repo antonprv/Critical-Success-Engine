@@ -204,11 +204,46 @@ test.describe("UI toolkit gallery: the Tailwind kit", () => {
 		await pick(0, "rose");
 		await expect.poll(() => style(push, "background-color")).toBe(await Resolve(page, "--color-rose-600"));
 
-		await themes.locator(".gallery-tailwind .win-checkbox").click();
+		await themes.locator(".gallery-tailwind .win-switch").click();
 		const log = windowNamed(page, "Event log");
 		await expect.poll(() => style(log, "background-color")).toBe(await Resolve(page, "--color-zinc-900"));
 
 		await pick(2, "full");
 		await expect.poll(() => style(log, "border-top-left-radius")).toBe("9999px");
+	});
+});
+
+test.describe("UI toolkit gallery: classic chrome geometry", () => {
+	/** Centre of a pseudo-element relative to its host's box, from computed left/top/width/height and the host size. */
+	// left/top of an absolutely placed pseudo-element count from the host's padding edge, so the host's border is added.
+	const PseudoCentre = (locator: Locator, pseudo: "::before" | "::after") => locator.evaluate((el, which) => {
+		const style = getComputedStyle(el, which);
+		const hostStyle = getComputedStyle(el);
+		const host = el.getBoundingClientRect();
+		const left = parseFloat(hostStyle.borderLeftWidth) + parseFloat(style.left);
+		const top = parseFloat(hostStyle.borderTopWidth) + parseFloat(style.top);
+		return { dx: left + parseFloat(style.width) / 2 - host.width / 2, dy: top + parseFloat(style.height) / 2 - host.height / 2 };
+	}, pseudo);
+
+	test("in every classic theme the title bar buttons sit inside the window and their close cross and the check marks are centred", async ({ game }) => {
+		const page = game.page;
+		await page.goto("/toolkit.html");
+		const controls = windowNamed(page, "Controls");
+		await controls.click({ position: { x: 300, y: 90 } });
+		await controls.locator(".win-checkbox").first().click();
+		const radios = windowNamed(page, "Themes").locator(".gallery-classic").getByRole("radio");
+		for (let i = 0; i < 12; i++) {
+			await radios.nth(i).click();
+			const theme = await page.locator(".win-root").getAttribute("class");
+			const frame = (await controls.boundingBox())!;
+			for (const button of await controls.locator(".win-window__button").all()) {
+				const box = (await button.boundingBox())!;
+				expect(box.y, `${theme}: title button above the window`).toBeGreaterThanOrEqual(frame.y - 0.5);
+			}
+			const cross = await PseudoCentre(controls.locator(".win-window__button--close"), "::before");
+			expect(Math.abs(cross.dx) + Math.abs(cross.dy), `${theme}: close cross off-centre by ${JSON.stringify(cross)}`).toBeLessThanOrEqual(1);
+			const check = await PseudoCentre(controls.locator('.win-checkbox__box[aria-checked="true"]').first(), "::after");
+			expect(Math.abs(check.dx) + Math.abs(check.dy), `${theme}: check mark off-centre by ${JSON.stringify(check)}`).toBeLessThanOrEqual(1);
+		}
 	});
 });

@@ -37,6 +37,7 @@ import WinScrollBar from "../Components/WinScrollBar.vue";
 import WinSlider from "../Components/WinSlider.vue";
 import WinSpinner from "../Components/WinSpinner.vue";
 import WinStatusBar from "../Components/WinStatusBar.vue";
+import WinSwitch from "../Components/WinSwitch.vue";
 import WinTabs from "../Components/WinTabs.vue";
 import WinTextBox from "../Components/WinTextBox.vue";
 import WinThemeProvider from "../Components/WinThemeProvider.vue";
@@ -221,7 +222,7 @@ for (const window of windows) {
 					<label>Accent <WinComboBox :controller="accents" /></label>
 					<label>Neutral <WinComboBox :controller="neutrals" /></label>
 					<label>Radius <WinComboBox :controller="radii" /></label>
-					<WinCheckBox :controller="dark" />
+					<WinSwitch :controller="dark" />
 				</div>
 			</WinWindow>
 
@@ -284,7 +285,7 @@ for (const window of windows) {
 .gallery-row { display: flex; gap: 8px; margin: 6px 0; }
 .gallery-kit { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid currentColor; border-bottom-color: color-mix(in srgb, currentColor 25%, transparent); }
 .gallery-tailwind { display: flex; flex-direction: column; gap: 8px; }
-.gallery-tailwind > label:not(.win-checkbox) { display: grid; grid-template-columns: 64px 1fr; align-items: center; gap: 6px; }
+.gallery-tailwind > label:not(.win-switch) { display: grid; grid-template-columns: 64px 1fr; align-items: center; gap: 6px; }
 .gallery-explorer { display: grid; grid-template-columns: 180px 1fr; gap: 4px; height: calc(100% - 24px); margin-top: 2px; }
 .gallery-log { margin: 0; padding: 0 0 0 14px; font-family: "Lucida Console", "Courier New", monospace; }
 </style>

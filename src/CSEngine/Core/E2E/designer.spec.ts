@@ -153,3 +153,51 @@ test.describe("UI designer: Tailwind kit", () => {
 		await expect.poll(() => ok.evaluate((el) => getComputedStyle(el).borderImageSource)).toContain("data:image/svg+xml");
 	});
 });
+
+test.describe("UI designer: Tailwind look", () => {
+	const Resolve = (page: Page, variable: string) => page.evaluate((name) => {
+		const probe = document.createElement("div");
+		probe.style.backgroundColor = `var(${name})`;
+		document.querySelector(".win-root")!.appendChild(probe);
+		const color = getComputedStyle(probe).backgroundColor;
+		probe.remove();
+		return color;
+	}, variable);
+	const Background = (page: Page, selector: string) => page.locator(selector).first().evaluate((el) => getComputedStyle(el).backgroundColor);
+
+	test.beforeEach(async ({ game }) => {
+		await game.page.setViewportSize({ width: 1280, height: 720 });
+		await game.page.goto("/designer.html");
+		await game.page.locator(".win-designer__kit [role=combobox]").click();
+		await game.page.locator(".win-designer__kit [role=option]", { hasText: "Tailwind" }).click();
+	});
+
+	test("dark mode paints the whole editor, and the neutral palette visibly changes it", async ({ game }) => {
+		const page = game.page;
+		await page.locator(".win-designer__tailwind .win-switch").click();
+		await expect.poll(() => Background(page, ".win-designer__side")).toBe(await Resolve(page, "--color-zinc-900"));
+		expect(await Background(page, ".win-designer__bar")).toBe(await Resolve(page, "--color-zinc-900"));
+		await page.locator(".win-designer__tailwind label", { hasText: "Neutral" }).locator("[role=combobox]").click();
+		await page.locator(".win-designer__tailwind [role=option]", { hasText: /^slate$/ }).click();
+		await expect.poll(() => Background(page, ".win-designer__side")).toBe(await Resolve(page, "--color-slate-900"));
+	});
+
+	test("the selected widget is highlighted in the hierarchy; widgets on the canvas are exactly their size", async ({ game }) => {
+		const page = game.page;
+		await page.locator(".win-designer__tree-item", { hasText: "OkButton" }).click();
+		expect(await Background(page, ".win-designer__tree-item--selected")).not.toBe("rgba(0, 0, 0, 0)");
+		const node = (await canvasNode(page, "OkButton").boundingBox())!;
+		const button = (await canvasNode(page, "OkButton").locator("button").boundingBox())!;
+		expect([Math.round(button.width), Math.round(button.height)]).toEqual([Math.round(node.width), Math.round(node.height)]);
+	});
+
+	test("dragging across the canvas selects no text", async ({ game }) => {
+		const page = game.page;
+		const label = (await canvasNode(page, "UserLabel").boundingBox())!;
+		await page.mouse.move(label.x + 2, label.y + 4);
+		await page.mouse.down();
+		await page.mouse.move(label.x + 200, label.y + 60, { steps: 5 });
+		await page.mouse.up();
+		expect(await page.evaluate(() => window.getSelection()!.toString())).toBe("");
+	});
+});
