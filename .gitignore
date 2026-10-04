@@ -65,3 +65,7 @@ stats.json
 
 # === File tree checks ===
 file-tree.txt
+git-filetree.txt
+
+# === Python / Tooling ===
+**/venv/
