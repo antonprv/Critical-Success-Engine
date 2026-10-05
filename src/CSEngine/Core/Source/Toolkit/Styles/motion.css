@@ -1,0 +1,52 @@
+/*
+ * Motion in the manner of Windows 11 (Fluent): things arrive fast and settle softly, leave quickly. Shared by every kit;
+ * switched off when the system asks for reduced motion.
+ */
+.win-root {
+	--win-ease-out: cubic-bezier(0.1, 0.9, 0.2, 1);
+	--win-ease-in: cubic-bezier(0.7, 0, 1, 0.5);
+	--win-fast: 83ms;
+	--win-normal: 167ms;
+	--win-slow: 250ms;
+}
+
+/* Windows: open by growing in, close and minimize by shrinking away; maximize / restore glide. */
+.win-window-enter-active { animation: win-window-in var(--win-slow) var(--win-ease-out); }
+.win-window-leave-active { animation: win-window-out var(--win-normal) var(--win-ease-in) forwards; pointer-events: none; }
+.win-window--settling { transition: left var(--win-slow) var(--win-ease-out), top var(--win-slow) var(--win-ease-out), width var(--win-slow) var(--win-ease-out), height var(--win-slow) var(--win-ease-out); }
+@keyframes win-window-in { from { opacity: 0; transform: scale(0.94); } }
+@keyframes win-window-out { to { opacity: 0; transform: scale(0.94) translateY(16px); } }
+
+/* Flyouts (menus, combo box lists): slide a few pixels from where they open, and fade. */
+.win-flyout-enter-active { animation: win-flyout-in var(--win-normal) var(--win-ease-out); }
+.win-flyout-leave-active { animation: win-fade-out var(--win-fast) linear forwards; }
+@keyframes win-flyout-in { from { opacity: 0; transform: translateY(-6px); } }
+@keyframes win-fade-out { to { opacity: 0; } }
+
+.win-tip-enter-active { animation: win-fade-in var(--win-normal) var(--win-ease-out); }
+.win-tip-leave-active { animation: win-fade-out var(--win-fast) linear forwards; }
+@keyframes win-fade-in { from { opacity: 0; } }
+
+/* Modals: the backdrop fades in, the dialog rises and grows into place. */
+.win-modal-enter-active { animation: win-fade-in var(--win-normal) linear; }
+.win-modal-enter-active .win-messagebox__dialog,
+.win-modal-enter-active.win-dialog-host__modal > .win-layout { animation: win-modal-in var(--win-slow) var(--win-ease-out); }
+.win-modal-leave-active { animation: win-fade-out var(--win-normal) var(--win-ease-in) forwards; }
+@keyframes win-modal-in { from { opacity: 0; transform: translateY(12px) scale(0.96); } }
+
+/* Small things: a pressed button sinks a little, a check mark pops in, selections fade. */
+.win-button { transition: transform var(--win-fast) ease-out, background-color var(--win-fast) linear, box-shadow var(--win-fast) linear, color var(--win-fast) linear; }
+.win-button--pressed { transform: scale(0.97); }
+.win-checkbox__box[aria-checked="true"]::after,
+.win-radio__dot[aria-checked="true"]::after { animation: win-pop var(--win-normal) var(--win-ease-out); }
+@keyframes win-pop { from { transform: scale(0.4); opacity: 0; } }
+.win-listview__row,
+.win-tree__label,
+.win-menu__item,
+.win-tab,
+.win-toolbar__button,
+.win-taskbar__button { transition: background-color var(--win-fast) linear, color var(--win-fast) linear, border-color var(--win-normal) var(--win-ease-out); }
+
+@media (prefers-reduced-motion: reduce) {
+	.win-root *, .win-root *::before, .win-root *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }
+}

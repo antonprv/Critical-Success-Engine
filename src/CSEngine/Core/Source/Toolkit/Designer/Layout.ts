@@ -2,6 +2,7 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { ValidateSkin, type Skin } from "../Skins/Skin";
+import { AnchorModes, type AnchorMode } from "./Anchors";
 import { BuiltInWidgets, IsValidProp, WidgetType, type PropValue, type WidgetRegistry } from "./Widgets";
 
 export { PropKind, WidgetType } from "./Widgets";
@@ -18,6 +19,14 @@ export interface LayoutNode {
 	Height: number;
 	Props: Record<string, PropValue>;
 	Children?: LayoutNode[];
+	/** How X/Width are pinned to the parent (Start when absent); see Anchors.ts. */
+	AnchorX?: AnchorMode;
+	/** How Y/Height are pinned to the parent (Start when absent). */
+	AnchorY?: AnchorMode;
+	/** The right margin of a horizontally stretched widget. */
+	Right?: number;
+	/** The bottom margin of a vertically stretched widget. */
+	Bottom?: number;
 }
 
 /** A UI asset: what the designer saves and the runtime loads (UMG's Widget Blueprint). */
@@ -77,6 +86,14 @@ function ParseNode(raw: unknown, names: Set<string>, widgets: WidgetRegistry): L
 	node.Height = raw["Height"] as number;
 	for (const prop of definition.Props) {
 		if (IsValidProp(prop, rawProps[prop.Key])) node.Props[prop.Key] = rawProps[prop.Key] as PropValue;
+	}
+
+	// Anchors: a known mode and finite margins are kept; anything else falls back to the default (Start, no margin).
+	for (const key of ["AnchorX", "AnchorY"] as const) {
+		if (AnchorModes.includes(raw[key] as AnchorMode)) node[key] = raw[key] as AnchorMode;
+	}
+	for (const key of ["Right", "Bottom"] as const) {
+		if (typeof raw[key] === "number" && Number.isFinite(raw[key])) node[key] = raw[key] as number;
 	}
 
 	if (raw["Children"] !== undefined && !definition.Container) throw new LayoutError(`"${name}" can't hold widgets`);

@@ -8,6 +8,7 @@ import { UseSkinStyle } from "../Skins/UseSkinStyle";
 import "../Styles/classic-kit.css";
 import "../Styles/tailwind-kit.css";
 import "../Styles/layout.css";
+import "../Styles/motion.css";
 
 /** `theme` picks the Windows look of the Classic kit; `tailwind` the look of the Tailwind kit. A skin goes on top of either. */
 const props = withDefaults(defineProps<{ theme: WinTheme; kit?: WinKit; tailwind?: TailwindTheme; skin?: Skin | null; }>(), { kit: WinKit.Classic, tailwind: () => ({ ...DefaultTailwindTheme }), skin: null });

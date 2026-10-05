@@ -4,12 +4,25 @@
 import { EventHub } from "../Core/EventHub";
 import { EmptySkin, PartInfo, type PartStyle, type Skin, type SkinPart, type SkinState } from "../Skins/Skin";
 import type { KeyModifiers } from "../Controls/TabsController";
+import { AnchorMode, Reanchor } from "./Anchors";
 import { CreateNode, NewLayout, ParseLayout, SerializeLayout, type LayoutNode, type PropValue, type UiLayout } from "./Layout";
 import { BuiltInWidgets, IsValidProp, type WidgetRegistry } from "./Widgets";
 
 export const enum DesignerMode {
 	Design = "design",
 	Preview = "preview",
+}
+
+export type DragHandle = "move" | "right" | "bottom" | "corner";
+
+/** One axis of a drag: `move` shifts the widget, `grow` moves its far edge. Offsets are relative to the anchor. */
+function DragAxis(mode: AnchorMode | undefined, offset: number, size: number, far: number | undefined, move: number, grow: number): { offset: number; size: number; far?: number; } {
+	switch (mode) {
+		case AnchorMode.End: return { offset: offset - move - grow, size: size + grow };
+		case AnchorMode.Center: return { offset: offset + move + grow / 2, size: size + grow };
+		case AnchorMode.Stretch: return { offset: offset + move, size, far: (far ?? 0) - move - grow };
+		default: return { offset: offset + move, size: size + grow };
+	}
 }
 
 export interface HierarchyEntry {
@@ -202,6 +215,44 @@ export class DesignerController {
 			node.Width = Math.max(this.Grid, this.SnapValue(width));
 			node.Height = Math.max(this.Grid, this.SnapValue(height));
 		});
+	}
+
+	/**
+	 * A mouse drag from `start` (the widget as it was when the drag began) by dx/dy, for whatever anchors it has: a right-
+	 * anchored widget's margin shrinks as it moves right, a stretched one moves both edges. Results snap to the grid.
+	 */
+	public DragTo(name: string, start: LayoutNode, dx: number, dy: number, handle: DragHandle): void {
+		const node = this.Find(name);
+		if (!node || node === this._layout.Root) return;
+		const moveX = handle === "move", moveY = handle === "move";
+		const sizeX = handle === "right" || handle === "corner", sizeY = handle === "bottom" || handle === "corner";
+		const x = DragAxis(start.AnchorX, start.X, start.Width, start.Right, moveX ? dx : 0, sizeX ? dx : 0);
+		const y = DragAxis(start.AnchorY, start.Y, start.Height, start.Bottom, moveY ? dy : 0, sizeY ? dy : 0);
+		// Only what the drag changes snaps to the grid: a move keeps an off-grid size, a resize an off-grid position.
+		const snap = (value: number, before: number | undefined): number => (value === before ? value : this.SnapValue(value));
+		this.Mutate(() => {
+			node.X = snap(x.offset, start.X);
+			node.Y = snap(y.offset, start.Y);
+			node.Width = Math.max(this.Grid, snap(x.size, start.Width));
+			node.Height = Math.max(this.Grid, snap(y.size, start.Height));
+			if (x.far !== undefined) node.Right = snap(x.far, start.Right);
+			if (y.far !== undefined) node.Bottom = snap(y.far, start.Bottom);
+		});
+	}
+
+	/** The far margin (Right or Bottom) of a stretched widget. */
+	public SetFarMargin(name: string, field: "Right" | "Bottom", value: number): void {
+		const node = this.Find(name);
+		if (!node) return;
+		this.Mutate(() => { node[field] = this.SnapValue(value); });
+	}
+
+	/** New anchors for a widget, keeping it where it is inside a parent of the given (measured) size. */
+	public SetAnchors(name: string, anchorX: AnchorMode, anchorY: AnchorMode, parentWidth: number, parentHeight: number): void {
+		const parent = this.ParentOf(name);
+		if (!parent) return;
+		const index = parent.Children!.findIndex((child) => child.Name === name);
+		this.Mutate(() => { parent.Children![index] = Reanchor(parent.Children![index]!, anchorX, anchorY, parentWidth, parentHeight); });
 	}
 
 	/** Starts a mouse drag: one undo step for the whole drag, however many moves it makes. */

@@ -1,6 +1,7 @@
 <!-- Created by Anton Piruev in 2026. Any direct commercial use of derivative work is strictly prohibited. -->
 <script setup lang="ts">
 import { computed } from "vue";
+import { NodeStyle } from "./Anchors";
 import type { LayoutNode } from "./Layout";
 import type { UiDocument } from "./UiDocument";
 
@@ -9,7 +10,8 @@ const props = defineProps<{ document: UiDocument; node: LayoutNode; design: bool
 /** The widget's component comes from the document's registry: built-in and custom widgets are drawn the same way. */
 const definition = computed(() => props.document.Widgets.Get(props.node.Type)!);
 const controller = computed(() => props.document.Find(props.node.Name)!.Controller);
-const style = computed(() => ({ left: `${props.node.X}px`, top: `${props.node.Y}px`, width: `${props.node.Width}px`, height: `${props.node.Height}px` }));
+/** The root fills the view; every other widget sits at its anchors (see Anchors.ts), so the layout reflows by itself. */
+const style = computed(() => (props.node === props.document.Layout.Root ? { left: "0px", top: "0px", right: "0px", bottom: "0px" } : NodeStyle(props.node)));
 const isSelected = computed(() => props.design && props.node.Name === props.selected);
 /** The message of the last failed validation on this widget (shown like WinForms' ErrorProvider). */
 const error = computed(() => props.document.ErrorOf(props.node.Name));

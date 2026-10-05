@@ -3,6 +3,7 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { describe, expect, it, vi } from "vitest";
+import type { AnchorMode as AnchorKind } from "../../../Source/Toolkit/Designer/Anchors";
 import { DesignerController, DesignerMode } from "../../../Source/Toolkit/Designer/DesignerController";
 import { NewLayout, SerializeLayout, WidgetType } from "../../../Source/Toolkit/Designer/Layout";
 
@@ -323,5 +324,83 @@ describe("DesignerController: edit sessions", () => {
 		designer.Undo();
 		expect(designer.Find("Button1")).toBeUndefined();
 		expect(designer.CanUndo).toBe(false);
+	});
+});
+
+describe("DesignerController: anchors", () => {
+	it("SetAnchors re-anchors in place (one undo step); unknown names are ignored", async () => {
+		const { AnchorMode, NodeRect } = await import("../../../Source/Toolkit/Designer/Anchors");
+		const designer = new DesignerController();
+		const button = designer.Add(WidgetType.Button, { X: 16, Y: 16 });
+		const before = NodeRect(button, 800, 500);
+		designer.SetAnchors(button.Name, AnchorMode.End, AnchorMode.Stretch, 800, 500);
+		const after = designer.Find(button.Name)!;
+		expect([after.AnchorX, after.AnchorY]).toEqual([AnchorMode.End, AnchorMode.Stretch]);
+		expect(NodeRect(after, 800, 500)).toEqual(before);
+		designer.SetAnchors("Nope", AnchorMode.End, AnchorMode.End, 1, 1);
+		designer.Undo();
+		expect(designer.Find(button.Name)!.AnchorX).toBeUndefined();
+	});
+
+	it("DragTo moves and resizes by the pointer's movement, whatever the anchors, snapped to the grid", async () => {
+		const { AnchorMode } = await import("../../../Source/Toolkit/Designer/Anchors");
+		const designer = new DesignerController();
+		const Make = (anchorX: AnchorKind, anchorY: AnchorKind) => {
+			const node = designer.Add(WidgetType.Button, { Parent: "Root" });
+			Object.assign(node, { X: 40, Y: 40, Width: 80, Height: 24, AnchorX: anchorX, AnchorY: anchorY, Right: 40, Bottom: 40 });
+			return node;
+		};
+		const cases: [AnchorKind, string, number, number, Partial<Record<string, number>>][] = [
+			[AnchorMode.Start, "move", 17, 9, { X: 56, Y: 48 }],
+			[AnchorMode.End, "move", 17, 9, { X: 24, Y: 32 }],
+			[AnchorMode.Center, "move", 17, 9, { X: 56, Y: 48 }],
+			[AnchorMode.Stretch, "move", 17, 9, { X: 56, Right: 24, Y: 48, Bottom: 32 }],
+			[AnchorMode.Start, "corner", 15, 7, { Width: 96, Height: 32 }],
+			[AnchorMode.End, "corner", 15, 7, { X: 24, Width: 96, Y: 32, Height: 32 }],
+			[AnchorMode.Center, "corner", 16, 16, { X: 48, Width: 96, Y: 48, Height: 40 }], // the centre moves by half
+			[AnchorMode.Stretch, "corner", 15, 7, { Right: 24, Bottom: 32 }],
+			[AnchorMode.Start, "right", 15, 99, { Width: 96, Height: 24 }],
+			[AnchorMode.Start, "bottom", 99, 7, { Width: 80, Height: 32 }],
+		];
+		for (const [mode, handle, dx, dy, expected] of cases) {
+			const node = Make(mode, mode);
+			const start = { ...node };
+			designer.DragTo(node.Name, start, dx, dy, handle as never);
+			expect(designer.Find(node.Name), `${mode} ${handle}`).toMatchObject(expected);
+		}
+		const tiny = Make(AnchorMode.Start, AnchorMode.Start);
+		designer.DragTo(tiny.Name, { ...tiny }, -500, -500, "corner" as never);
+		expect([designer.Find(tiny.Name)!.Width, designer.Find(tiny.Name)!.Height]).toEqual([8, 8]); // never below the grid
+		designer.DragTo("Nope", { ...tiny }, 1, 1, "move" as never);
+		designer.DragTo("Root", { ...designer.Layout.Root }, 50, 50, "move" as never);
+		expect(designer.Layout.Root.X).toBe(0);
+	});
+});
+
+describe("DesignerController: anchor edges", () => {
+	it("dragging a stretched widget without far margins starts them from the edge; SetFarMargin ignores unknown names", async () => {
+		const { AnchorMode } = await import("../../../Source/Toolkit/Designer/Anchors");
+		const designer = new DesignerController();
+		const node = designer.Add(WidgetType.Button, { X: 16, Y: 16 });
+		Object.assign(node, { AnchorX: AnchorMode.Stretch, AnchorY: AnchorMode.Stretch });
+		designer.DragTo(node.Name, { ...node }, 16, 8, "move");
+		expect([designer.Find(node.Name)!.Right, designer.Find(node.Name)!.Bottom]).toEqual([-16, -8]);
+		designer.SetFarMargin("Nope", "Right", 4);
+		designer.SetFarMargin(node.Name, "Bottom", 13);
+		expect(designer.Find(node.Name)!.Bottom).toBe(16);
+	});
+});
+
+describe("DesignerController: dragging changes only what it moves", () => {
+	it("a move keeps an off-grid size; a resize keeps an off-grid position", () => {
+		const designer = new DesignerController();
+		const node = designer.Add(WidgetType.Button);
+		Object.assign(node, { X: 37, Y: 21, Width: 75, Height: 23 });
+		designer.DragTo(node.Name, { ...node }, 16, 8, "move");
+		expect([node.Width, node.Height]).toEqual([75, 23]);
+		expect([node.X, node.Y]).toEqual([56, 32]);
+		Object.assign(node, { X: 37, Y: 21 });
+		designer.DragTo(node.Name, { ...node }, 16, 8, "corner");
+		expect([node.X, node.Y, node.Width, node.Height]).toEqual([37, 21, 88, 32]);
 	});
 });

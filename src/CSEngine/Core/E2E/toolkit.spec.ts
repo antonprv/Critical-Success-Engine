@@ -247,3 +247,32 @@ test.describe("UI toolkit gallery: classic chrome geometry", () => {
 		}
 	});
 });
+
+test.describe("UI toolkit gallery: Windows 11 motion", () => {
+	test("menus slide in, windows shrink away when minimized and grow back when restored", async ({ game }) => {
+		const page = game.page;
+		await page.goto("/toolkit.html");
+		const explorer = windowNamed(page, "Explorer");
+		await explorer.click({ position: { x: 300, y: 200 } });
+		// Click and read within the page, two frames later: the slide-in lasts only 167 ms.
+		const animation = await explorer.locator(".win-menubar__item", { hasText: "File" }).evaluate(async (item) => {
+			(item as HTMLElement).click();
+			await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+			return getComputedStyle(item.parentElement!.querySelector(".win-menu__levels")!).animationName;
+		});
+		expect(animation).toBe("win-flyout-in");
+
+		await page.mouse.click(5, 5);
+		/** Clicks inside the page and reports which of the classes exist two frames later. */
+		const ClickAndSee = (selector: string, classes: string[]) => page.evaluate(async ({ selector, classes }) => {
+			(document.querySelector(selector) as HTMLElement).click();
+			await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+			return classes.filter((name) => document.querySelector(`.${name}`) !== null);
+		}, { selector, classes });
+		expect(await ClickAndSee('.win-window[aria-label="Controls"] [aria-label=Minimize]', ["win-window-leave-active"])).toEqual(["win-window-leave-active"]);
+		await expect(windowNamed(page, "Controls")).toHaveCount(0);
+		const task = await page.locator(".win-taskbar__button", { hasText: /^\s*Controls\s*$/ }).evaluate((el) => [...el.parentElement!.children].indexOf(el) + 1);
+		expect(await ClickAndSee(`.win-taskbar__button:nth-child(${task})`, ["win-window-enter-active"])).toEqual(["win-window-enter-active"]);
+		await expect(windowNamed(page, "Controls")).toBeVisible();
+	});
+});

@@ -32,6 +32,7 @@ onUnmounted(() => window.removeEventListener("pointerdown", OnWindowPointerDown,
 	>
 		<span class="win-combobox__text">{{ c.SelectedOption?.Label ?? "" }}</span>
 		<span class="win-combobox__arrow" />
+		<Transition name="win-flyout">
 		<ul v-if="c.Open" role="listbox" class="win-combobox__list">
 			<li
 				v-for="(option, index) in c.Options"
@@ -45,5 +46,6 @@ onUnmounted(() => window.removeEventListener("pointerdown", OnWindowPointerDown,
 				{{ option.Label }}
 			</li>
 		</ul>
+		</Transition>
 	</div>
 </template>

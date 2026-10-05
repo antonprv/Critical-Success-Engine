@@ -9,10 +9,10 @@ defineProps<{ service: DialogService; }>();
 </script>
 
 <template>
-	<div class="win-dialog-host">
+	<TransitionGroup name="win-modal" tag="div" class="win-dialog-host">
 		<div v-for="dialog in service.Open" :key="dialog.Id" class="win-dialog-host__modal">
-			<WinLayoutView v-if="dialog.Document" :document="dialog.Document" />
+			<WinLayoutView v-if="dialog.Document" :document="dialog.Document" :width="dialog.Document.Layout.Root.Width" :height="dialog.Document.Layout.Root.Height" />
 			<WinMessageBox v-else :controller="dialog.MessageBox!" />
 		</div>
-	</div>
+	</TransitionGroup>
 </template>

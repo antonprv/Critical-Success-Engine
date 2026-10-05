@@ -27,6 +27,7 @@ onMounted(() => buttons.value[c.DefaultButton]!.focus());
 </script>
 
 <template>
+	<Transition name="win-modal">
 	<div v-if="!c.Closed" class="win-messagebox">
 		<section role="alertdialog" class="win-window win-messagebox__dialog" :aria-label="c.Title" tabindex="-1" @keydown="c.KeyDown($event.code)">
 			<header class="win-window__titlebar">
@@ -52,4 +53,5 @@ onMounted(() => buttons.value[c.DefaultButton]!.focus());
 			</div>
 		</section>
 	</div>
+	</Transition>
 </template>

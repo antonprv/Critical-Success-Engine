@@ -201,3 +201,27 @@ test.describe("UI designer: Tailwind look", () => {
 		expect(await page.evaluate(() => window.getSelection()!.toString())).toBe("");
 	});
 });
+
+test.describe("UI designer: anchors and screen sizes", () => {
+	test("a widget anchored to the bottom-right keeps its margins on every screen size, and nothing scrolls", async ({ game }) => {
+		const page = game.page;
+		await page.setViewportSize({ width: 1280, height: 720 });
+		await page.goto("/designer.html");
+		await page.locator(".win-designer__tree-item", { hasText: "LoginWindow" }).click();
+		await page.locator('[data-field="AnchorX"]').selectOption("end");
+		await page.locator('[data-field="AnchorY"]').selectOption("end");
+		const margins = async () => {
+			const view = (await page.locator(".win-designer__canvas .win-layout").boundingBox())!;
+			const box = (await canvasNode(page, "LoginWindow").boundingBox())!;
+			return [Math.round(view.x + view.width - box.x - box.width), Math.round(view.y + view.height - box.y - box.height)];
+		};
+		const before = await margins();
+		await toolbarButton(page, "Preview").click();
+		for (const size of ["1024x768", "390x844", "1920x1080"]) {
+			await page.locator('[data-field="Screen"]').selectOption(size);
+			expect(await margins(), size).toEqual(before);
+			const scroll = await page.locator(".win-designer__canvas .win-layout").evaluate((el) => [el.scrollWidth - el.clientWidth, el.scrollHeight - el.clientHeight]);
+			expect(scroll.every((extra) => extra <= 0), `${size}: the layout scrolls`).toBe(true);
+		}
+	});
+});

@@ -14,6 +14,6 @@ defineExpose({ controller: c });
 <template>
 	<span class="win-tooltip-host" @pointerenter="c.PointerEnter()" @pointerleave="c.PointerLeave()" @pointerdown="c.PointerDown()">
 		<slot />
-		<span v-if="c.Shown" role="tooltip" class="win-tooltip">{{ c.Text }}</span>
+		<Transition name="win-tip"><span v-if="c.Shown" role="tooltip" class="win-tooltip">{{ c.Text }}</span></Transition>
 	</span>
 </template>

@@ -10,7 +10,8 @@ import WinLayoutNode from "./WinLayoutNode.vue";
  * Draws a UI document: live in a game or app (and in the designer's preview), or as the designer's canvas when `design`
  * is set (controls don't react, the selected widget is outlined with resize handles).
  */
-const props = withDefaults(defineProps<{ document: UiDocument; design?: boolean; selected?: string | null; }>(), { design: false, selected: null });
+/** `width` / `height`: the screen to lay the UI out on, in pixels; without them it fills its host. */
+const props = withDefaults(defineProps<{ document: UiDocument; design?: boolean; selected?: string | null; width?: number | null; height?: number | null; }>(), { design: false, selected: null, width: null, height: null });
 
 // The layout's skin styles this view only (not, say, the designer around it).
 UseSkinStyle(() => props.document.Layout.Skin ?? null);
@@ -19,7 +20,11 @@ watchEffect(() => props.document.NotifyShown(), { flush: "post" });
 </script>
 
 <template>
-	<div class="win-layout" :class="[{ 'win-layout--design': design }, document.Layout.Skin ? ['win-skin', SkinClass(document.Layout.Skin)] : []]">
+	<div
+		class="win-layout"
+		:class="[{ 'win-layout--design': design }, document.Layout.Skin ? ['win-skin', SkinClass(document.Layout.Skin)] : []]"
+		:style="{ width: width === null ? '100%' : `${width}px`, height: height === null ? '100%' : `${height}px` }"
+	>
 		<WinLayoutNode :key="document.Id" :document="document" :node="document.Layout.Root" :design="design" :selected="selected" />
 	</div>
 </template>

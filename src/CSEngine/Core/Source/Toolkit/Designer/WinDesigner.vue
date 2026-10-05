@@ -4,6 +4,7 @@ import { computed, onUnmounted, reactive, ref, shallowRef, watchEffect } from "v
 import { CheckBoxController } from "../Controls/CheckBoxController";
 import { ComboBoxController } from "../Controls/ComboBoxController";
 import { MenuController } from "../Controls/MenuController";
+import { SplitterController } from "../Controls/SplitterController";
 import { StatusBarController } from "../Controls/StatusBarController";
 import { ToolbarController } from "../Controls/ToolbarController";
 import { UsePointerTracking } from "../Core/PointerTracking";
@@ -12,13 +13,15 @@ import { AllThemes, WinTheme } from "../Core/Themes";
 import { UseControl } from "../Core/UseControl";
 import WinComboBox from "../Components/WinComboBox.vue";
 import WinMenuBar from "../Components/WinMenuBar.vue";
+import WinSplitter from "../Components/WinSplitter.vue";
 import WinStatusBar from "../Components/WinStatusBar.vue";
 import WinSwitch from "../Components/WinSwitch.vue";
 import WinThemeProvider from "../Components/WinThemeProvider.vue";
 import WinToolbar from "../Components/WinToolbar.vue";
 import { ParseSkin, PartInfo, SkinPart, SkinParts, SkinState, type Box4, type PartStyle, type SkinSprite } from "../Skins/Skin";
 import { SkinPresets } from "../Skins/SkinPresets";
-import { DesignerController, DesignerMode } from "./DesignerController";
+import { AnchorMode } from "./Anchors";
+import { DesignerController, DesignerMode, type DragHandle } from "./DesignerController";
 import { PropKind, SerializeLayout, type LayoutNode, type UiLayout } from "./Layout";
 import { UiDocument } from "./UiDocument";
 import { UiScriptRegistry } from "./UiScript";
@@ -36,6 +39,10 @@ const designer = UseControl(new DesignerController(props.layout, widgets));
 defineExpose({ designer });
 
 const message = ref("Ready");
+
+// The side panels are resizable: palette and hierarchy on the left, details on the right.
+const leftPanel = UseControl(new SplitterController({ Size: 180, Min: 140, Max: 420 }));
+const rightPanel = UseControl(new SplitterController({ Size: 260, Min: 200, Max: 560, Reverse: true }));
 const track = UsePointerTracking();
 const openInput = ref<HTMLInputElement>();
 
@@ -174,16 +181,12 @@ function OnCanvasPointerDown(event: PointerEvent): void {
 	designer.Select(name);
 	if (name === designer.Layout.Root.Name) return;
 
-	const node = designer.Find(name)!;
-	const start = { X: node.X, Y: node.Y, Width: node.Width, Height: node.Height, PointerX: event.clientX, PointerY: event.clientY };
-	const handle = target.closest<HTMLElement>("[data-handle]")?.dataset["handle"];
+	// The widget as the drag found it; DragTo applies the pointer's movement to it according to its anchors.
+	const start = { ...designer.Find(name)! };
+	const pointer = { X: event.clientX, Y: event.clientY };
+	const handle = (target.closest<HTMLElement>("[data-handle]")?.dataset["handle"] ?? "move") as DragHandle;
 	designer.BeginGesture();
-	track((move) => {
-		const dx = move.clientX - start.PointerX;
-		const dy = move.clientY - start.PointerY;
-		if (handle) designer.ResizeTo(name, start.Width + (handle === "bottom" ? 0 : dx), start.Height + (handle === "right" ? 0 : dy));
-		else designer.MoveTo(name, start.X + dx, start.Y + dy);
-	}, () => designer.EndGesture());
+	track((move) => designer.DragTo(name, start, move.clientX - pointer.X, move.clientY - pointer.Y, handle), () => designer.EndGesture());
 }
 
 //#endregion
@@ -222,14 +225,50 @@ function OnReparent(event: Event): void {
 	(event.target as HTMLSelectElement).value = designer.ParentOf(name)!.Name;
 }
 
-function OnGeometry(field: "X" | "Y" | "Width" | "Height", event: Event): void {
+type GeometryField = "X" | "Y" | "Width" | "Height" | "Right" | "Bottom";
+/** What X and Y mean under each anchor mode (horizontal, vertical). */
+const OffsetLabels: Record<AnchorMode, [string, string]> = {
+	[AnchorMode.Start]: ["Left", "Top"],
+	[AnchorMode.End]: ["Right margin", "Bottom margin"],
+	[AnchorMode.Center]: ["Offset X", "Offset Y"],
+	[AnchorMode.Stretch]: ["Left margin", "Top margin"],
+};
+/** The geometry fields of the selected widget: for the root its design size; otherwise offsets and sizes per its anchors. */
+const geometryFields = computed<{ Field: GeometryField; Label: string; }[]>(() => {
+	const node = selected.value!;
+	if (isRoot.value) return [{ Field: "Width", Label: "Width" }, { Field: "Height", Label: "Height" }];
+	const anchorX = node.AnchorX ?? AnchorMode.Start, anchorY = node.AnchorY ?? AnchorMode.Start;
+	return [
+		{ Field: "X", Label: OffsetLabels[anchorX][0] },
+		{ Field: "Y", Label: OffsetLabels[anchorY][1] },
+		anchorX === AnchorMode.Stretch ? { Field: "Right", Label: "Right margin" } : { Field: "Width", Label: "Width" },
+		anchorY === AnchorMode.Stretch ? { Field: "Bottom", Label: "Bottom margin" } : { Field: "Height", Label: "Height" },
+	];
+});
+
+function OnGeometry(field: GeometryField, event: Event): void {
 	const value = parseFloat(InputValue(event));
 	if (Number.isNaN(value)) return; // still typing ("", "-")
 	const node = selected.value!;
 	const geometry = { X: node.X, Y: node.Y, Width: node.Width, Height: node.Height, [field]: value };
-	if (field === "X" || field === "Y") designer.MoveTo(node.Name, geometry.X, geometry.Y);
+	if (field === "Right" || field === "Bottom") designer.SetFarMargin(node.Name, field, value);
+	else if (field === "X" || field === "Y") designer.MoveTo(node.Name, geometry.X, geometry.Y);
 	else designer.ResizeTo(node.Name, geometry.Width, geometry.Height);
 }
+
+const canvas = ref<HTMLElement>();
+/** New anchors keep the widget in place: the parent's size is measured on the canvas. */
+function OnAnchor(axis: "AnchorX" | "AnchorY", event: Event): void {
+	const node = selected.value!;
+	const anchors = { AnchorX: node.AnchorX ?? AnchorMode.Start, AnchorY: node.AnchorY ?? AnchorMode.Start, [axis]: InputValue(event) as AnchorMode };
+	const parent = canvas.value!.querySelector<HTMLElement>(`[data-container="${designer.ParentOf(node.Name)!.Name}"]`)!;
+	designer.SetAnchors(node.Name, anchors.AnchorX, anchors.AnchorY, parent.clientWidth, parent.clientHeight);
+}
+
+/** The screen the layout is shown on, in design and in preview: its own design size or a common resolution. */
+const ScreenSizes = ["640x480", "800x600", "1024x768", "1280x720", "1366x768", "1600x900", "1920x1080", "2560x1440", "390x844", "768x1024"];
+const screen = ref("layout");
+const screenSize = computed(() => (screen.value === "layout" ? [designer.Layout.Root.Width, designer.Layout.Root.Height] : screen.value.split("x").map(Number)) as [number, number]);
 
 function OnProp(kind: PropKind, key: string, event: Event): void {
 	const element = event.target as HTMLInputElement;
@@ -379,7 +418,7 @@ async function OnOpen(event: Event): Promise<void> {
 				<input ref="openInput" class="win-designer__open" type="file" accept=".json,application/json" hidden @change="OnOpen">
 			</div>
 
-			<div class="win-designer__main">
+			<div class="win-designer__main" :style="{ gridTemplateColumns: `${leftPanel.Size}px 4px 1fr 4px ${rightPanel.Size}px` }">
 				<aside class="win-designer__side">
 					<fieldset class="win-groupbox win-designer__palette">
 						<legend class="win-groupbox__title">Palette</legend>
@@ -414,16 +453,25 @@ async function OnOpen(event: Event): Promise<void> {
 						</ul>
 					</fieldset>
 				</aside>
+				<WinSplitter :controller="leftPanel" />
 
-				<section class="win-designer__canvas" @dragover.prevent @drop.prevent="OnDrop" @pointerdown="OnCanvasPointerDown">
-					<WinLayoutView v-if="preview" :document="preview" />
-					<WinLayoutView v-else :document="designDocument" design :selected="designer.SelectedName" />
+				<section ref="canvas" class="win-designer__canvas" @dragover.prevent @drop.prevent="OnDrop" @pointerdown="OnCanvasPointerDown">
+					<label class="win-designer__screen">
+						<span class="win-designer__screen-label">Screen</span>
+						<select class="win-textbox" data-field="Screen" :value="screen" @change="screen = InputValue($event)">
+							<option value="layout">Layout size ({{ designer.Layout.Root.Width }} × {{ designer.Layout.Root.Height }})</option>
+							<option v-for="size in ScreenSizes" :key="size" :value="size">{{ size.replace("x", " × ") }}</option>
+						</select>
+					</label>
+					<WinLayoutView v-if="preview" :document="preview" :width="screenSize[0]" :height="screenSize[1]" />
+					<WinLayoutView v-else :document="designDocument" design :selected="designer.SelectedName" :width="screenSize[0]" :height="screenSize[1]" />
 					<WinDialogHost v-if="preview" :service="previewDialogs" />
 					<ul v-if="preview" class="win-designer__log">
 						<li v-for="(line, index) in log" :key="index">{{ line }}</li>
 					</ul>
 				</section>
 
+				<WinSplitter :controller="rightPanel" />
 				<aside class="win-designer__details">
 					<div class="win-designer__tabs">
 						<button type="button" class="win-tab" :class="{ 'win-tab--selected': detailsTab === 'properties' }" data-tab="properties" @click="detailsTab = 'properties'">Properties</button>
@@ -450,10 +498,23 @@ async function OnOpen(event: Event): Promise<void> {
 									<option v-for="name in containers" :key="name" :value="name">{{ name }}</option>
 								</select>
 							</label>
-							<label v-for="key in (['X', 'Y', 'Width', 'Height'] as const)" :key="key">{{ key }}
-								<input class="win-textbox" type="number" :data-field="key" :value="selected[key]" @keydown.enter="Commit" @focus="designer.BeginEdit()" @blur="designer.EndEdit()" @input="OnGeometry(key, $event)">
+							<label>Anchor X
+								<select class="win-textbox" data-field="AnchorX" :value="selected.AnchorX ?? 'start'" @change="OnAnchor('AnchorX', $event)">
+									<option value="start">Left</option><option value="end">Right</option><option value="center">Center</option><option value="stretch">Stretch</option>
+								</select>
+							</label>
+							<label>Anchor Y
+								<select class="win-textbox" data-field="AnchorY" :value="selected.AnchorY ?? 'start'" @change="OnAnchor('AnchorY', $event)">
+									<option value="start">Top</option><option value="end">Bottom</option><option value="center">Center</option><option value="stretch">Stretch</option>
+								</select>
 							</label>
 						</template>
+						<div class="win-designer__geometry">
+							<template v-for="geometry in geometryFields" :key="geometry.Field">
+								<span>{{ geometry.Label }}</span>
+								<input class="win-textbox" type="number" :data-field="geometry.Field" :value="selected[geometry.Field]" @keydown.enter="Commit" @focus="designer.BeginEdit()" @blur="designer.EndEdit()" @input="OnGeometry(geometry.Field, $event)">
+							</template>
+						</div>
 						<label v-for="prop in widgets.Get(selected.Type)!.Props" :key="prop.Key" :class="`win-designer__prop--${prop.Kind}`">{{ prop.Label }}
 							<input v-if="prop.Kind === PropKind.Boolean" type="checkbox" :data-prop="prop.Key" :checked="Boolean(selected.Props[prop.Key])" @change="OnProp(prop.Kind, prop.Key, $event)">
 							<select v-else-if="prop.Kind === PropKind.Choice" class="win-textbox" :data-prop="prop.Key" :value="selected.Props[prop.Key]" @change="OnProp(prop.Kind, prop.Key, $event)">
@@ -559,7 +620,7 @@ async function OnOpen(event: Event): Promise<void> {
 .win-designer__kit, .win-designer__theme, .win-designer__tailwind label { display: inline-flex; align-items: center; gap: 6px; }
 .win-designer__tailwind { display: flex; align-items: center; gap: 12px; }
 .win-designer__bar-label { font-size: 0.85em; color: var(--d-muted); white-space: nowrap; }
-.win-designer__main { display: grid; grid-template-columns: 180px 1fr 260px; flex: 1; min-height: 0; background: var(--d-surface); }
+.win-designer__main { display: grid; flex: 1; min-height: 0; background: var(--d-surface); }
 .win-designer__side,
 .win-designer__details { display: flex; flex-direction: column; gap: 6px; padding: 6px; overflow: auto; background: var(--d-panel); }
 .win-designer__side { border-right: 1px solid var(--d-line); }
@@ -588,6 +649,9 @@ async function OnOpen(event: Event): Promise<void> {
 .win-designer__field--invalid { outline: 2px solid #d40000 !important; outline-offset: -1px; }
 .win-designer__prop--boolean { grid-template-columns: 90px auto !important; justify-content: start; }
 .win-designer__hint { color: var(--d-muted); }
+.win-designer__geometry { display: grid; grid-template-columns: 90px 1fr; align-items: center; gap: 4px; margin: 3px 0; }
+.win-designer__screen { position: sticky; left: 0; top: 0; z-index: 3; display: inline-flex; align-items: center; gap: 6px; margin: 0 0 8px; }
+.win-designer__screen-label { font-size: 0.85em; color: var(--d-muted); }
 .win-designer__tabs { display: flex; gap: 2px; }
 .win-designer__row { display: flex; gap: 4px; align-items: center; }
 .win-designer__row .win-textbox { width: 0; flex: 1; }

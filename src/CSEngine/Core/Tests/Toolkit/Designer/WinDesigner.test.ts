@@ -119,8 +119,8 @@ describe("WinDesigner: building", () => {
 		designer.Redo();
 		await nextTick();
 
-		// 75x23 to start; the right handle ignores dy, the bottom one dx; sizes snap to the 8 px grid.
-		for (const [handle, dx, dy, size] of [["right", 24, 50, [96, 24]], ["bottom", 50, 16, [96, 40]], ["corner", 8, 8, [104, 48]]] as const) {
+		// 75x23 to start; the right handle ignores dy, the bottom one dx; a size snaps to the 8 px grid only when it changes.
+		for (const [handle, dx, dy, size] of [["right", 24, 50, [96, 23]], ["bottom", 50, 16, [96, 40]], ["corner", 8, 8, [104, 48]]] as const) {
 			await pointer(node().get(`[data-handle="${handle}"]`), "pointerdown", { button: 0, clientX: 0, clientY: 0 });
 			await pointer(window, "pointermove", { clientX: dx, clientY: dy });
 			await pointer(window, "pointerup");
@@ -569,5 +569,75 @@ describe("WinDesigner: skin panel", () => {
 		await ChooseFile(skinField(wrapper, "OpenSkin"), new File(["nope"], "bad.skin.json"));
 		expect(status(wrapper)[0]).toBe("Not a skin file: not JSON");
 		await ChooseFile(skinField(wrapper, "OpenSkin"), null);
+	});
+});
+
+describe("WinDesigner: anchors and screen sizes", () => {
+	it("anchors are chosen per axis; the geometry fields follow the mode", async () => {
+		const { wrapper, designer } = Mount();
+		designer.Add(WidgetType.Button, { X: 16, Y: 16 });
+		await nextTick();
+		// jsdom has no layout: give the canvas's root container its size (again after each edit: the canvas is rebuilt).
+		const sizeRoot = () => {
+			const container = wrapper.get('.win-designer__canvas [data-container="Root"]').element;
+			Object.defineProperty(container, "clientWidth", { configurable: true, value: 800 });
+			Object.defineProperty(container, "clientHeight", { configurable: true, value: 500 });
+		};
+		const labels = () => wrapper.findAll(".win-designer__geometry > span").map((l) => l.text());
+		expect(labels()).toEqual(["Left", "Top", "Width", "Height"]);
+		sizeRoot();
+		await field(wrapper, "AnchorX").setValue("end");
+		sizeRoot();
+		await field(wrapper, "AnchorY").setValue("stretch");
+		expect(designer.Find("Button1")).toMatchObject({ AnchorX: "end", AnchorY: "stretch", X: 709, Bottom: 461 });
+		expect(labels()).toEqual(["Right margin", "Top margin", "Width", "Bottom margin"]);
+		await field(wrapper, "Bottom").setValue("24");
+		expect(designer.Find("Button1")!.Bottom).toBe(24);
+		sizeRoot();
+		await field(wrapper, "AnchorX").setValue("stretch");
+		await field(wrapper, "Right").setValue("32");
+		expect(designer.Find("Button1")!.Right).toBe(32);
+		sizeRoot();
+		await field(wrapper, "AnchorX").setValue("center");
+		sizeRoot();
+		await field(wrapper, "AnchorY").setValue("center");
+		expect(labels()).toEqual(["Offset X", "Offset Y", "Width", "Height"]);
+	});
+
+	it("the canvas shows the layout at a chosen screen size; the root's size is the layout's own design size", async () => {
+		const { wrapper, designer } = Mount();
+		const view = () => wrapper.get(".win-designer__canvas .win-layout").element as HTMLElement;
+		expect([view().style.width, view().style.height]).toEqual(["800px", "500px"]);
+		const screen = field(wrapper, "Screen");
+		expect(screen.findAll("option").map((o) => o.text())[0]).toBe("Layout size (800 × 500)");
+		await screen.setValue("1920x1080");
+		expect([view().style.width, view().style.height]).toEqual(["1920px", "1080px"]);
+		designer.Select("Root");
+		await nextTick();
+		await field(wrapper, "Width").setValue("1024");
+		await field(wrapper, "Height").setValue("600");
+		await screen.setValue("layout");
+		expect([view().style.width, view().style.height]).toEqual(["1024px", "600px"]);
+		designer.SetMode("preview" as never);
+		await nextTick();
+		expect(view().style.width).toBe("1024px");
+	});
+});
+
+describe("WinDesigner: resizable panels", () => {
+	it("the side panels have splitters; dragging or keys resize them, within limits", async () => {
+		const { wrapper } = Mount();
+		const columns = () => (wrapper.get(".win-designer__main").element as HTMLElement).style.gridTemplateColumns;
+		expect(columns()).toBe("180px 4px 1fr 4px 260px");
+		const [left, right] = wrapper.findAll(".win-designer__main > [role=separator]");
+		left!.element.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, cancelable: true, button: 0, clientX: 180 }));
+		window.dispatchEvent(new MouseEvent("pointermove", { clientX: 240 }));
+		window.dispatchEvent(new MouseEvent("pointerup"));
+		await nextTick();
+		expect(columns()).toBe("240px 4px 1fr 4px 260px");
+		await right!.trigger("keydown", { code: "ArrowLeft" }); // the right panel grows towards the left
+		expect(columns()).toBe("240px 4px 1fr 4px 270px");
+		await right!.trigger("keydown", { code: "End" });
+		expect(columns()).toBe("240px 4px 1fr 4px 560px");
 	});
 });

@@ -32,7 +32,8 @@ describe("WinLayoutView", () => {
 		const wrapper = mount(WinLayoutView, { props: { document } });
 		const node = (name: string) => wrapper.get(`[data-name="${name}"]`);
 
-		expect((node("Root").element as HTMLElement).style.width).toBe("800px");
+		const root = node("Root").element as HTMLElement;
+		expect([root.style.left, root.style.top, root.style.right, root.style.bottom]).toEqual(["0px", "0px", "0px", "0px"]); // fills the view
 		const win = node("Win").element as HTMLElement;
 		expect([win.style.left, win.style.top, win.style.width, win.style.height]).toEqual(["10px", "20px", "320px", "240px"]);
 		expect(node("Win").find(".win-window__title").text()).toBe("Window");
@@ -92,5 +93,20 @@ describe("WinLayoutView with a new document", () => {
 		const wrapper = mount(WinLayoutView, { props: { document: a } });
 		await wrapper.setProps({ document: b } as never);
 		expect(wrapper.get('[data-name="buttonX"] button').text()).toBe("Edited");
+	});
+});
+
+describe("WinLayoutView size and anchors", () => {
+	it("takes the given size (else fills its host) and draws each widget at its anchors", async () => {
+		const { AnchorMode } = await import("../../../Source/Toolkit/Designer/Anchors");
+		const layout = NewLayout("A");
+		layout.Root.Children!.push({ ...CreateNode(WidgetType.Button, "Ok", 16, 8), AnchorX: AnchorMode.End, AnchorY: AnchorMode.End });
+		const sized = mount(WinLayoutView, { props: { document: new UiDocument(layout), width: 640, height: 480 } });
+		const view = sized.get(".win-layout").element as HTMLElement;
+		expect([view.style.width, view.style.height]).toEqual(["640px", "480px"]);
+		const ok = sized.get('[data-name="Ok"]').element as HTMLElement;
+		expect([ok.style.right, ok.style.bottom, ok.style.left]).toEqual(["16px", "8px", ""]);
+		const filling = mount(WinLayoutView, { props: { document: new UiDocument(layout) } });
+		expect((filling.get(".win-layout").element as HTMLElement).style.width).toBe("100%");
 	});
 });

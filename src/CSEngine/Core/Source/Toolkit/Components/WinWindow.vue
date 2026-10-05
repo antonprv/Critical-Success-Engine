@@ -1,6 +1,6 @@
 <!-- Created by Anton Piruev in 2026. Any direct commercial use of derivative work is strictly prohibited. -->
 <script setup lang="ts">
-import { inject } from "vue";
+import { inject, onUnmounted, ref, watch } from "vue";
 import { ResizeEdge, WindowController, WindowState } from "../Controls/WindowController";
 import type { WindowManager } from "../Controls/WindowManager";
 import type { CancelableEvent } from "../Core/EventHub";
@@ -43,16 +43,27 @@ function OnBorderPointerDown(event: PointerEvent, edge: ResizeEdge): void {
 	track((move) => c.ResizeTo(move.clientX, move.clientY), () => c.EndResize());
 }
 
+/** For a moment after maximize / restore / minimize the bounds animate (Windows 11); never during a drag. */
+const settling = ref(false);
+let settleTimer: ReturnType<typeof setTimeout> | undefined;
+watch(() => c.State, () => {
+	settling.value = true;
+	clearTimeout(settleTimer);
+	settleTimer = setTimeout(() => { settling.value = false; }, 300);
+}, { flush: "sync" }); // every change counts, even two in one tick (restore, then maximize)
+onUnmounted(() => clearTimeout(settleTimer));
+
 function OnTitleDoubleClick(): void {
 	if (c.Maximizable) c.ToggleMaximize(Area());
 }
 </script>
 
 <template>
+	<Transition name="win-window">
 	<section
 		v-if="!c.Closed && c.State !== WindowState.Minimized"
 		class="win-window"
-		:class="{ 'win-window--inactive': !c.Active, 'win-window--maximized': c.State === WindowState.Maximized }"
+		:class="{ 'win-window--inactive': !c.Active, 'win-window--maximized': c.State === WindowState.Maximized, 'win-window--settling': settling }"
 		:style="{ left: `${c.X}px`, top: `${c.Y}px`, width: `${c.Width}px`, height: `${c.Height}px`, zIndex: manager ? manager.ZIndexOf(c) : undefined }"
 		role="dialog"
 		:aria-label="c.Title"
@@ -85,4 +96,5 @@ function OnTitleDoubleClick(): void {
 			/>
 		</template>
 	</section>
+	</Transition>
 </template>

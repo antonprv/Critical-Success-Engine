@@ -55,6 +55,7 @@ onUnmounted(() => window.removeEventListener("pointerdown", OnWindowPointerDown,
 			@pointerenter="OnTopEnter(item.Id)"
 		>{{ LabelParts(item.Label).Before }}<u>{{ LabelParts(item.Label).Key }}</u>{{ LabelParts(item.Label).After }}</button>
 
+		<Transition name="win-flyout">
 		<div v-if="levels.length > 0" class="win-menu__levels" :style="{ marginLeft: `${dropOffset}px` }">
 			<ul v-for="(items, level) in levels" :key="c.OpenPath[level]" role="menu" class="win-menu">
 				<template v-for="item in items" :key="item.Id">
@@ -79,5 +80,6 @@ onUnmounted(() => window.removeEventListener("pointerdown", OnWindowPointerDown,
 				</template>
 			</ul>
 		</div>
+		</Transition>
 	</div>
 </template>
