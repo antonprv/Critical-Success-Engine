@@ -9,7 +9,7 @@ import type { StatusBarController } from "@cse/ui";
 import type { TextBoxController } from "@cse/ui";
 import type { WindowController } from "@cse/ui";
 import { DialogService } from "@cse/ui";
-import { ActionType, CheckCondition, GraphNodeKind, type UiGraph } from "@cse/ui";
+import { ActionType, CheckCondition, ChoiceCondition, GraphNodeKind, type UiGraph } from "@cse/ui";
 import { GenerateGraphScript } from "../Source/GraphCodegen";
 import { CreateNode, NewLayout, WidgetType, type UiLayout } from "@cse/ui";
 import { UiDocument } from "@cse/ui";
@@ -147,5 +147,27 @@ describe("the generated code does what the graph does", () => {
 
 		expect(State(codeDocument, byCode)).toEqual(State(graphDocument, byGraph));
 		expect(State(codeDocument, byCode)).toEqual([false, false, true, true, false, "Options", true, "Hi", "Retry"]);
+	});
+});
+
+describe("code generation of option conditions", () => {
+	it("writes a test on the index for a combo box and on the option's name for radio buttons", () => {
+		const layout = NewLayout("Choices");
+		layout.Root.Children!.push(
+			{ ...CreateNode(WidgetType.ComboBox, "Mode", 0, 0), Props: { ...CreateNode(WidgetType.ComboBox, "x", 0, 0).Props, Options: ["Easy", "Hard"] } },
+			{ ...CreateNode(WidgetType.RadioGroup, "Size", 0, 30), Props: { ...CreateNode(WidgetType.RadioGroup, "x", 0, 0).Props, Options: ["Small", "Large"], Selected: "Small" } },
+		);
+		layout.Graph = {
+			Nodes: [
+				Event("e1", "Mode", "change", { When: ChoiceCondition(1) }), Action("a1", ActionType.Show, { Widget: "A" }),
+				Event("e2", "Size", "change", { When: ChoiceCondition(0) }), Action("a2", ActionType.Hide, { Widget: "B" }),
+			],
+			Links: [{ From: "e1", To: "a1" }, { From: "e2", To: "a2" }],
+		};
+		const code = GenerateGraphScript(layout);
+		expect(code).toContain('this.On("Mode", "change", (index) => {');
+		expect(code).toContain("if (index === 1) {");
+		expect(code).toContain('this.On("Size", "change", (value) => {');
+		expect(code).toContain('if (value === "Small") {');
 	});
 });

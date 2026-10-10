@@ -49,6 +49,7 @@ export { default as WinMenuBar } from "./Components/WinMenuBar.vue";
 export { default as WinMessageBox } from "./Components/WinMessageBox.vue";
 export { default as WinProgressBar } from "./Components/WinProgressBar.vue";
 export { default as WinRadioGroup } from "./Components/WinRadioGroup.vue";
+export { default as WinSelectList, type SelectListItem } from "./Components/WinSelectList.vue";
 export { default as WinScrollBar } from "./Components/WinScrollBar.vue";
 export { default as WinSlider } from "./Components/WinSlider.vue";
 export { default as WinSpinner } from "./Components/WinSpinner.vue";

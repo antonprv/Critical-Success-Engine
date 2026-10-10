@@ -4,12 +4,14 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { ButtonController } from "../../Source/Controls/ButtonController";
+import type { ComboBoxController } from "../../Source/Controls/ComboBoxController";
+import type { RadioGroupController } from "../../Source/Controls/RadioGroupController";
 import type { CheckBoxController } from "../../Source/Controls/CheckBoxController";
 import type { StatusBarController } from "../../Source/Controls/StatusBarController";
 import type { TextBoxController } from "../../Source/Controls/TextBoxController";
 import type { WindowController } from "../../Source/Controls/WindowController";
 import { DialogService } from "../../Source/Documents/Dialogs";
-import { ActionType, CheckCondition, GraphNodeKind, ParseGraph, type UiGraph } from "../../Source/Documents/Graph";
+import { ActionType, CheckCondition, ChoiceCondition, GraphNodeKind, ParseGraph, type UiGraph } from "../../Source/Documents/Graph";
 import { CreateNode, NewLayout, ParseLayout, SerializeLayout, WidgetType, type UiLayout } from "../../Source/Documents/Layout";
 import { UiDocument } from "../../Source/Documents/UiDocument";
 
@@ -131,5 +133,57 @@ describe("graph edges", () => {
 		const document = new UiDocument(Screen(graph));
 		expect(() => document.Controller<ButtonController>("OpenSettings").PerformClick()).toThrow(/no dialog service/);
 		expect(ParseGraph({ Nodes: [{ Id: "a", Kind: "event", Type: "click", X: 0, Y: 0, Params: "x" }], Links: [] }).Nodes[0]!.Params).toEqual({});
+	});
+});
+
+describe("conditions for the chosen option of combo boxes and radio buttons", () => {
+	function Choices(graph: UiGraph): UiLayout {
+		const layout = NewLayout("Choices");
+		layout.Root.Children!.push(
+			{ ...CreateNode(WidgetType.ComboBox, "Mode", 10, 10), Props: { ...CreateNode(WidgetType.ComboBox, "x", 0, 0).Props, Options: ["Easy", "Normal", "Hard"], Selected: 0 } },
+			{ ...CreateNode(WidgetType.RadioGroup, "Size", 10, 40), Props: { ...CreateNode(WidgetType.RadioGroup, "x", 0, 0).Props, Options: ["S", "M", "L"], Selected: "S" } },
+			CreateNode(WidgetType.TextBox, "Out", 10, 100),
+		);
+		layout.Graph = graph;
+		return layout;
+	}
+	const Branches = (widget: string): UiGraph => ({
+		Nodes: [
+			Event("e0", widget, "change", { When: ChoiceCondition(0) }), Action("a0", ActionType.SetText, { Widget: "Out", Text: "first" }),
+			Event("e2", widget, "change", { When: ChoiceCondition(2) }), Action("a2", ActionType.SetText, { Widget: "Out", Text: "third" }),
+			Event("any", widget, "change"), Action("an", ActionType.Focus, { Widget: "Out" }),
+		],
+		Links: [{ From: "e0", To: "a0" }, { From: "e2", To: "a2" }, { From: "any", To: "an" }],
+	});
+
+	it("a combo box runs the branch of the option that became active", () => {
+		const document = new UiDocument(Choices(Branches("Mode")));
+		const mode = document.Controller<ComboBoxController<string>>("Mode");
+		const out = document.Controller<TextBoxController>("Out");
+		mode.Choose(2);
+		expect(out.Value).toBe("third");
+		mode.Choose(1); // no branch for it
+		expect(out.Value).toBe("third");
+		mode.Choose(0);
+		expect(out.Value).toBe("first");
+	});
+
+	it("radio buttons do the same, by the option's place in the list", () => {
+		const document = new UiDocument(Choices(Branches("Size")));
+		const size = document.Controller<RadioGroupController<string>>("Size");
+		const out = document.Controller<TextBoxController>("Out");
+		size.Select("L");
+		expect(out.Value).toBe("third");
+		size.Select("M");
+		expect(out.Value).toBe("third");
+		size.Select("S");
+		expect(out.Value).toBe("first");
+	});
+
+	it("a condition on an option the widget no longer has never runs", () => {
+		const graph: UiGraph = { Nodes: [Event("e", "Mode", "change", { When: ChoiceCondition(7) }), Action("a", ActionType.SetText, { Widget: "Out", Text: "x" })], Links: [{ From: "e", To: "a" }] };
+		const document = new UiDocument(Choices(graph));
+		document.Controller<ComboBoxController<string>>("Mode").Choose(1);
+		expect(document.Controller<TextBoxController>("Out").Value).toBe("");
 	});
 });

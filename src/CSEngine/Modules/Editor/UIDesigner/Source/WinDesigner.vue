@@ -27,7 +27,7 @@ import { AnchorMode } from "@cse/ui";
 import { DesignerController, DesignerMode, type DragHandle } from "./DesignerController";
 import type { ProjectSession } from "./Project";
 import WinProjectPanel from "./WinProjectPanel.vue";
-import { PropKind, SerializeLayout, type LayoutNode, type UiLayout } from "@cse/ui";
+import { PropKind, SerializeLayout, type LayoutNode, type PropDefinition, type UiLayout } from "@cse/ui";
 import { UiDocument } from "@cse/ui";
 import { UiScriptRegistry } from "@cse/ui";
 import { DialogService } from "@cse/ui";
@@ -337,6 +337,50 @@ function OnProp(kind: PropKind, key: string, event: Event): void {
 	else designer.SetProp(name, key, parseFloat(element.value)); // a partial number ("", "-") is not a number: ignored
 }
 
+//#region items of combo boxes and radio buttons: how many, and what each is called
+
+const MaxItems = 64;
+const ItemsOf = (key: string): string[] => selected.value!.Props[key] as string[];
+
+/** Keeps the widget's chosen option valid after its items changed (the index of a combo box, the name for radio buttons). */
+function FixSelection(items: string[]): void {
+	const node = selected.value!;
+	const chosen = widgets.Get(node.Type)!.Props.find((prop) => prop.Key === "Selected");
+	if (!chosen) return;
+	const current = node.Props["Selected"];
+	if (chosen.Kind === PropKind.Number) designer.SetProp(node.Name, "Selected", Math.min(Math.max(Number(current), 0), items.length - 1));
+	else if (!items.includes(current as string)) designer.SetProp(node.Name, "Selected", items[0]!);
+}
+
+function OnItemCount(prop: PropDefinition, event: Event): void {
+	const wanted = Math.round(parseFloat(InputValue(event)));
+	if (Number.isNaN(wanted)) return; // still typing
+	const count = Math.min(Math.max(wanted, 1), MaxItems);
+	const items = ItemsOf(prop.Key).slice(0, count);
+	// New items continue the numbering of the widget's default names ("Option 3"), skipping names already taken.
+	const prefix = String((prop.Default as string[])[0] ?? "Item 1").replace(/\d+$/, "");
+	for (let n = items.length + 1; items.length < count; n++) {
+		if (!items.includes(`${prefix}${n}`)) items.push(`${prefix}${n}`);
+	}
+	if (designer.SetProp(selected.value!.Name, prop.Key, items)) FixSelection(items);
+}
+
+/** Names are kept non-empty and unique (radio buttons are told apart by name); a bad name is not applied and the field is restored on leaving it. */
+function OnItemName(prop: PropDefinition, index: number, event: Event): void {
+	const name = InputValue(event);
+	const items = [...ItemsOf(prop.Key)];
+	const previous = items[index]!;
+	if (name === "" || items.some((item, i) => i !== index && item === name)) return;
+	items[index] = name;
+	const node = selected.value!;
+	if (designer.SetProp(node.Name, prop.Key, items) && node.Props["Selected"] === previous) designer.SetProp(node.Name, "Selected", name);
+}
+
+function OnItemBlur(prop: PropDefinition, index: number, event: Event): void {
+	designer.EndEdit();
+	(event.target as HTMLInputElement).value = ItemsOf(prop.Key)[index]!;
+}
+
 //#endregion
 
 /** Enter in a details field commits it (the field's change event), as in property inspectors. */
@@ -620,7 +664,16 @@ const Checked = (event: Event): boolean => (event.target as HTMLInputElement).ch
 								<input class="win-textbox" type="number" :data-field="geometry.Field" :value="selected[geometry.Field]" @keydown.enter="Commit" @focus="designer.BeginEdit()" @blur="designer.EndEdit()" @input="OnGeometry(geometry.Field, $event)">
 							</template>
 						</div>
-						<label v-for="prop in widgets.Get(selected.Type)!.Props" :key="prop.Key" :class="`win-designer__prop--${prop.Kind}`">{{ prop.Label }}
+						<template v-for="prop in widgets.Get(selected.Type)!.Props" :key="prop.Key">
+						<div v-if="prop.Kind === PropKind.Items" class="win-designer__items" :data-prop="prop.Key">
+							<label>{{ prop.Label }}
+								<input class="win-textbox" type="number" min="1" :max="MaxItems" :data-items-count="prop.Key" :value="ItemsOf(prop.Key).length" @keydown.enter="Commit" @focus="designer.BeginEdit()" @blur="designer.EndEdit()" @input="OnItemCount(prop, $event)">
+							</label>
+							<label v-for="(item, index) in ItemsOf(prop.Key)" :key="index" class="win-designer__item">{{ index + 1 }}.
+								<input class="win-textbox" :data-item="`${prop.Key}${index}`" :value="item" @keydown.enter="Commit" @focus="designer.BeginEdit()" @blur="OnItemBlur(prop, index, $event)" @input="OnItemName(prop, index, $event)">
+							</label>
+						</div>
+						<label v-else :class="`win-designer__prop--${prop.Kind}`">{{ prop.Label }}
 							<input v-if="prop.Kind === PropKind.Boolean" type="checkbox" :data-prop="prop.Key" :checked="Boolean(selected.Props[prop.Key])" @change="OnProp(prop.Kind, prop.Key, $event)">
 							<select v-else-if="prop.Kind === PropKind.Choice" class="win-textbox" :data-prop="prop.Key" :value="selected.Props[prop.Key]" @change="OnProp(prop.Kind, prop.Key, $event)">
 								<option v-for="choice in prop.Choices" :key="choice" :value="choice">{{ choice }}</option>
@@ -628,6 +681,7 @@ const Checked = (event: Event): boolean => (event.target as HTMLInputElement).ch
 							<textarea v-else-if="prop.Kind === PropKind.Lines" class="win-textbox" :data-prop="prop.Key" :value="(selected.Props[prop.Key] as string[]).join('\n')" @focus="designer.BeginEdit()" @blur="designer.EndEdit()" @input="OnProp(prop.Kind, prop.Key, $event)" />
 							<input v-else class="win-textbox" :type="prop.Kind === PropKind.Number ? 'number' : 'text'" :data-prop="prop.Key" :value="selected.Props[prop.Key]" @keydown.enter="Commit" @focus="designer.BeginEdit()" @blur="designer.EndEdit()" @input="OnProp(prop.Kind, prop.Key, $event)">
 						</label>
+						</template>
 					</fieldset>
 					<p v-else class="win-designer__hint">Select a widget on the canvas or in the hierarchy.</p>
 					</template>
@@ -753,6 +807,8 @@ const Checked = (event: Event): boolean => (event.target as HTMLInputElement).ch
 .win-designer__log { position: absolute; right: 8px; bottom: 8px; width: 260px; max-height: 40%; margin: 0; padding: 4px 4px 4px 18px; overflow: auto; background: var(--d-panel); color: var(--d-ink); border: 1px solid var(--d-line); border-radius: 4px; font: 11px "Lucida Console", monospace; user-select: text; }
 .win-designer__details label { display: grid; grid-template-columns: 90px 1fr; align-items: center; gap: 4px; margin: 3px 0; }
 .win-designer__details .win-textbox { min-width: 0; width: 100%; }
+.win-designer__items { margin: 3px 0; }
+.win-designer__item { grid-template-columns: 24px 1fr !important; }
 .win-designer__field--invalid { outline: 2px solid #d40000 !important; outline-offset: -1px; }
 .win-designer__prop--boolean { grid-template-columns: 90px auto !important; justify-content: start; }
 .win-designer__hint { color: var(--d-muted); }

@@ -92,14 +92,16 @@ const rows = computed(() => {
 .win-code__files { display: flex; flex-direction: column; width: 160px; min-width: 120px; flex-shrink: 0; overflow: auto; border-right: 1px solid var(--d-line, #ccc); background: var(--d-panel); }
 .win-code__folder { padding: 2px 4px; opacity: .7; white-space: nowrap; }
 .win-code__file { text-align: left; border: 0; background: transparent; color: inherit; padding: 2px 4px; font: inherit; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.win-code__file:hover { background: color-mix(in srgb, var(--select, #316ac5) 15%, transparent); }
-.win-code__file--active { background: var(--select, #316ac5); color: var(--select-text, #fff); }
+.win-code__file:hover { background: color-mix(in srgb, var(--d-selected, var(--select, #316ac5)) 20%, transparent); }
+.win-code__file--active, .win-code__file--active:hover { background: var(--d-selected, var(--select, #316ac5)); color: var(--d-selected-ink, var(--select-text, #fff)); }
 .win-code__main { display: flex; flex: 1; flex-direction: column; min-width: 0; }
-.win-code__tabs { display: flex; gap: 2px; overflow-x: auto; border-bottom: 1px solid var(--d-line, #ccc); }
+.win-code__tabs { display: flex; gap: 2px; overflow-x: auto; border-bottom: 1px solid var(--d-line, #ccc); background: var(--d-surface); }
 .win-code__tab { display: flex; align-items: center; border: 1px solid var(--d-line, #ccc); border-bottom: 0; background: var(--d-panel); }
-.win-code__tab--active { background: var(--d-canvas, #fff); font-weight: bold; }
+.win-code__tab { color: var(--d-muted); }
+.win-code__tab--active { background: var(--d-field); color: var(--d-ink); font-weight: bold; }
 .win-code__tab-name, .win-code__tab-close { border: 0; background: transparent; color: inherit; font: inherit; padding: 2px 6px; cursor: pointer; }
-.win-code__changed { color: var(--select, #316ac5); }
+.win-code__changed { color: var(--d-selected, var(--select, #316ac5)); }
 .win-code__editor { flex: 1; min-height: 0; }
 .win-code__empty { padding: 16px; opacity: .7; }
+.win-code__main { background: var(--d-field); color: var(--d-ink); }
 </style>

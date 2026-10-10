@@ -2,6 +2,8 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { CheckState, type CheckBoxController } from "../Controls/CheckBoxController";
+import { ComboBoxController } from "../Controls/ComboBoxController";
+import { RadioGroupController } from "../Controls/RadioGroupController";
 import type { ControlBase } from "../Core/ControlBase";
 import { StatusBarController } from "../Controls/StatusBarController";
 import { TextBoxController } from "../Controls/TextBoxController";
@@ -35,6 +37,18 @@ export const enum CheckCondition {
 	Always = "always",
 	Checked = "checked",
 	Unchecked = "unchecked",
+}
+
+/**
+ * For change events of combo boxes and radio buttons: run only when this option became the active one. The condition is
+ * stored as "option:<index>" (the index survives renaming the option); no condition (or "always") runs on any choice.
+ */
+export const ChoiceCondition = (index: number): string => `option:${index}`;
+
+/** The option index a "When" param names, or null when it names none. */
+export function ChoiceIndex(when: GraphParam | undefined): number | null {
+	const match = typeof when === "string" ? /^option:(\d+)$/.exec(when) : null;
+	return match ? Number(match[1]) : null;
 }
 
 export type GraphParam = string | boolean;
@@ -143,7 +157,14 @@ export function Chain(graph: UiGraph, from: string, visited = new Set<string>([f
 	return out;
 }
 
-function Passes(node: GraphNode, args: unknown[]): boolean {
+function Passes(node: GraphNode, args: unknown[], controller: unknown): boolean {
+	const option = node.Type === "change" ? ChoiceIndex(node.Params["When"]) : null;
+	if (option !== null) {
+		// A combo box reports the new index; radio buttons the new value, which is looked up among their options.
+		if (controller instanceof ComboBoxController) return args[0] === option;
+		if (controller instanceof RadioGroupController) return controller.Options.findIndex((o) => o.Value === args[0]) === option;
+		return false;
+	}
 	if (node.Params["When"] === CheckCondition.Checked) return args[0] === CheckState.Checked;
 	if (node.Params["When"] === CheckCondition.Unchecked) return args[0] === CheckState.Unchecked;
 	return true;
@@ -158,8 +179,9 @@ export class GraphRunner {
 			const widget = node.Params["Widget"] as string;
 			if (node.Kind !== GraphNodeKind.Event || !document.Find(widget)?.Controller) continue;
 			const actions = Chain(graph, node.Id);
+			const controller = document.Find(widget)?.Controller;
 			this._subscriptions.push(document.On(widget, node.Type, (...args) => {
-				if (Passes(node, args)) for (const action of actions) Execute(document, action);
+				if (Passes(node, args, controller)) for (const action of actions) Execute(document, action);
 			}));
 		}
 	}

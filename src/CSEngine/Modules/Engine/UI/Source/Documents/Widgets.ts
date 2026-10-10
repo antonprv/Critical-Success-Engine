@@ -62,6 +62,8 @@ export const enum PropKind {
 	Boolean = "boolean",
 	/** A list of strings, edited one per line. */
 	Lines = "lines",
+	/** A list of strings the designer edits as a count plus one name per item (the items of a combo box or radio buttons). */
+	Items = "items",
 	/** One of the definition's Choices. */
 	Choice = "choice",
 }
@@ -110,6 +112,7 @@ export const KindCheck: Record<PropKind, (value: unknown) => boolean> = {
 	[PropKind.Number]: (value) => typeof value === "number" && Number.isFinite(value),
 	[PropKind.Boolean]: (value) => typeof value === "boolean",
 	[PropKind.Lines]: (value) => Array.isArray(value) && value.every((line) => typeof line === "string"),
+	[PropKind.Items]: (value) => Array.isArray(value) && value.every((line) => typeof line === "string"),
 	[PropKind.Choice]: (value) => typeof value === "string",
 };
 
@@ -270,7 +273,7 @@ export const BuiltInWidgets = new WidgetRegistry()
 	})
 	.Register({
 		Type: WidgetType.RadioGroup, Label: "Radio buttons", Container: false, Size: [120, 44], Events: ["change"], Component: Control(WinRadioGroup),
-		Props: [Prop("Options", "Options", PropKind.Lines, ["Option 1", "Option 2"]), Prop("Selected", "Selected option", PropKind.Text, "Option 1"), Enabled],
+		Props: [Prop("Options", "Options", PropKind.Items, ["Option 1", "Option 2"]), Prop("Selected", "Selected option", PropKind.Text, "Option 1"), Enabled],
 		CreateController: (node) => {
 			const p = P(node);
 			const options = p.lines("Options");
@@ -298,7 +301,7 @@ export const BuiltInWidgets = new WidgetRegistry()
 	})
 	.Register({
 		Type: WidgetType.ComboBox, Label: "Combo box", Container: false, Size: [140, 21], Events: ["change"], Component: ComboBoxView,
-		Props: [Prop("Options", "Options", PropKind.Lines, ["Item 1", "Item 2"]), Prop("Selected", "Selected index", PropKind.Number, 0), Enabled],
+		Props: [Prop("Options", "Options", PropKind.Items, ["Item 1", "Item 2"]), Prop("Selected", "Selected index", PropKind.Number, 0), Enabled],
 		CreateController: (node) => {
 			const p = P(node);
 			return UseControl(new ComboBoxController({ Options: p.lines("Options").map((o) => ({ Value: o, Label: o })), SelectedIndex: p.number("Selected"), Enabled: p.flag("Enabled") }));

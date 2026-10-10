@@ -222,6 +222,9 @@
 /* ---------- list view and tree ---------- */
 
 .win-kit--classic .win-listview, .win-kit--classic .win-tree {
+	/* A pointer-driven control: dragging over rows must not select their text. */
+	cursor: default;
+	user-select: none;
 	margin: 0;
 	padding: 2px;
 	overflow: auto;
@@ -482,3 +485,12 @@
 	.win-kit--classic .win-joystick--returning .win-joystick__knob, .win-kit--classic .win-game-button { transition: none; }
 }
 .win-kit--classic .win-game-button__label { padding: 0 8px; text-align: center; line-height: 1.1; overflow-wrap: anywhere; }
+
+/* ---------- select list (one active item) ---------- */
+
+.win-kit--classic .win-selectlist { display: flex; flex-direction: column; gap: 2px; }
+.win-kit--classic .win-selectlist__item { width: 100%; padding: 2px 6px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: default; user-select: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; outline: none; }
+.win-kit--classic .win-selectlist__item:hover:not(:disabled) { background: color-mix(in srgb, var(--select) 20%, transparent); }
+.win-kit--classic .win-selectlist__item--current, .win-kit--classic .win-selectlist__item--current:hover:not(:disabled) { background: var(--select); color: var(--select-text); }
+.win-kit--classic .win-selectlist__item:focus-visible { outline: 1px dotted var(--dark); outline-offset: -1px; }
+.win-kit--classic .win-selectlist__item:disabled { color: var(--shadow); }

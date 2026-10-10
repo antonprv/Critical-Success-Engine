@@ -65,3 +65,43 @@ describe("a custom widget in the designer", () => {
 		wrapper.unmount();
 	});
 });
+
+describe("the items of combo boxes and radio buttons", () => {
+	async function Open(type: string): Promise<{ wrapper: ReturnType<typeof mount>; designer: DesignerController; name: string; }> {
+		const wrapper = mount(WinDesigner, { attachTo: document.body });
+		const designer = (wrapper.vm as unknown as { designer: DesignerController }).designer;
+		const name = designer.Add(type).Name;
+		designer.Select(name);
+		await wrapper.vm.$nextTick();
+		return { wrapper, designer, name };
+	}
+	const Options = (designer: DesignerController, name: string): string[] => designer.Find(name)!.Props["Options"] as string[];
+
+	it("a count and a name for every item; a longer list continues the numbering, a shorter one is cut", async () => {
+		const { wrapper, designer, name } = await Open("combobox");
+		await wrapper.get('[data-items-count="Options"]').setValue("4");
+		expect(Options(designer, name)).toEqual(["Item 1", "Item 2", "Item 3", "Item 4"]);
+		await wrapper.get('[data-item="Options2"]').setValue("Hard");
+		expect(Options(designer, name)).toEqual(["Item 1", "Item 2", "Hard", "Item 4"]);
+		await wrapper.get('[data-items-count="Options"]').setValue("1");
+		expect(Options(designer, name)).toEqual(["Item 1"]);
+		wrapper.unmount();
+	});
+
+	it("keeps the chosen option valid: a smaller combo box moves its index, a renamed radio option stays chosen", async () => {
+		const combo = await Open("combobox");
+		await combo.wrapper.get('[data-items-count="Options"]').setValue("5");
+		combo.designer.SetProp(combo.name, "Selected", 4);
+		await combo.wrapper.get('[data-items-count="Options"]').setValue("2");
+		expect(combo.designer.Find(combo.name)!.Props["Selected"]).toBe(1);
+		combo.wrapper.unmount();
+
+		const radio = await Open("radiogroup");
+		await radio.wrapper.get('[data-item="Options0"]').setValue("Low");
+		expect(Options(radio.designer, radio.name)).toEqual(["Low", "Option 2"]);
+		expect(radio.designer.Find(radio.name)!.Props["Selected"]).toBe("Low");
+		await radio.wrapper.get('[data-item="Options1"]').setValue("Low"); // taken: not applied
+		expect(Options(radio.designer, radio.name)).toEqual(["Low", "Option 2"]);
+		radio.wrapper.unmount();
+	});
+});

@@ -231,7 +231,7 @@
 /* ---------- list, tree ---------- */
 
 .win-kit--tailwind .win-listview,
-.win-kit--tailwind .win-tree { @apply m-0 list-none overflow-auto rounded-kit border border-line bg-field text-sm outline-none; }
+.win-kit--tailwind .win-tree { @apply m-0 cursor-default list-none overflow-auto select-none rounded-kit border border-line bg-field text-sm outline-none; }
 .win-kit--tailwind .win-listview__header,
 .win-kit--tailwind .win-listview__row { @apply grid auto-cols-[minmax(80px,1fr)] grid-flow-col; }
 .win-kit--tailwind .win-listview__header { @apply sticky top-0 border-b border-line bg-soft; }
@@ -306,3 +306,9 @@
 .win-kit--tailwind .win-game-button--pressed { @apply scale-90 bg-primary text-primary-ink shadow-sm; }
 .win-kit--tailwind .win-game-button--disabled { @apply opacity-50; }
 .win-kit--tailwind .win-game-button__label { @apply px-2 text-center leading-tight wrap-anywhere; }
+
+/* ---------- select list (one active item) ---------- */
+
+.win-kit--tailwind .win-selectlist { @apply flex flex-col gap-0.5; }
+.win-kit--tailwind .win-selectlist__item { @apply w-full cursor-default truncate rounded-kit border-0 bg-transparent px-3 py-1.5 text-left text-sm text-ink outline-none select-none hover:bg-soft focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary/50 disabled:opacity-40; }
+.win-kit--tailwind .win-selectlist__item--current { @apply bg-selected font-medium text-selected-ink hover:bg-selected; }

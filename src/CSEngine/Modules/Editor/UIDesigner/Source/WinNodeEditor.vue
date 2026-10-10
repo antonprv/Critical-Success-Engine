@@ -4,7 +4,7 @@ import { computed, ref } from "vue";
 import { UsePointerTracking } from "@cse/ui";
 import { DialogResult, DialogResults } from "@cse/ui";
 import type { DesignerController } from "./DesignerController";
-import { ActionInfos, ActionTypes, CheckCondition, GraphNodeKind, type ActionType, type GraphNode, type GraphParam } from "@cse/ui";
+import { ActionInfos, ActionTypes, CheckCondition, ChoiceCondition, ChoiceIndex, GraphNodeKind, type ActionType, type GraphNode, type GraphParam } from "@cse/ui";
 import { WidgetType, type WidgetRegistry } from "@cse/ui";
 /** The node scripting canvas: events and actions as cards, linked output to input. */
 const props = defineProps<{ designer: DesignerController; widgets: WidgetRegistry; }>();
@@ -61,10 +61,26 @@ function OnEventWidget(node: GraphNode, event: Event): void {
 	const widget = Value(event);
 	props.designer.SetGraphParam(node.Id, "Widget", widget);
 	if (!EventsOf(widget).includes(node.Type)) props.designer.SetGraphNodeType(node.Id, EventsOf(widget)[0]!);
-	if (TypeOf(widget) !== WidgetType.CheckBox) props.designer.SetGraphParam(node.Id, "When", undefined);
+	props.designer.SetGraphParam(node.Id, "When", undefined); // a condition belongs to the widget it was set for
+}
+
+/** A condition names a state of the widget, so it only makes sense for the change event. */
+function OnEventType(node: GraphNode, event: Event): void {
+	props.designer.SetGraphNodeType(node.Id, Value(event));
+	if (Value(event) !== "change") props.designer.SetGraphParam(node.Id, "When", undefined);
 }
 
 const HasCondition = (node: GraphNode): boolean => TypeOf(node.Params["Widget"]) === WidgetType.CheckBox && node.Type === "change";
+
+const IsChoice = (type: string | undefined): boolean => type === WidgetType.ComboBox || type === WidgetType.RadioGroup;
+/** Combo boxes and radio buttons: a different branch can run for each option that becomes the active one. */
+const HasChoiceCondition = (node: GraphNode): boolean => IsChoice(TypeOf(node.Params["Widget"])) && node.Type === "change";
+const OptionsOf = (name: GraphParam | undefined): string[] => (live.value.find((n) => n.Name === name)?.Props["Options"] as string[] | undefined) ?? [];
+/** The option the node's condition names, when the widget no longer has it (its items were removed). */
+const MissingOption = (node: GraphNode): number | null => {
+	const index = ChoiceIndex(node.Params["When"]);
+	return index !== null && index >= OptionsOf(node.Params["Widget"]).length ? index : null;
+};
 const Results = DialogResults.filter((r) => r !== DialogResult.None);
 
 //#endregion
@@ -158,7 +174,7 @@ function OnHeaderPointerDown(node: GraphNode, event: PointerEvent): void {
 							</select>
 						</label>
 						<label>Event
-							<select class="win-textbox" data-param="Event" :value="node.Type" @change="designer.SetGraphNodeType(node.Id, Value($event))">
+							<select class="win-textbox" data-param="Event" :value="node.Type" @change="OnEventType(node, $event)">
 								<option v-for="name in EventsOf(node.Params['Widget'])" :key="name" :value="name">{{ name }}</option>
 							</select>
 						</label>
@@ -167,6 +183,13 @@ function OnHeaderPointerDown(node: GraphNode, event: PointerEvent): void {
 								<option :value="CheckCondition.Always">always</option>
 								<option :value="CheckCondition.Checked">checked</option>
 								<option :value="CheckCondition.Unchecked">unchecked</option>
+							</select>
+						</label>
+						<label v-if="HasChoiceCondition(node)">When
+							<select class="win-textbox" data-param="When" :value="node.Params['When'] ?? CheckCondition.Always" @change="designer.SetGraphParam(node.Id, 'When', Value($event))">
+								<option :value="CheckCondition.Always">any option</option>
+								<option v-for="(option, index) in OptionsOf(node.Params['Widget'])" :key="index" :value="ChoiceCondition(index)">{{ index + 1 }}. {{ option }}</option>
+								<option v-if="MissingOption(node) !== null" :value="node.Params['When']">{{ MissingOption(node)! + 1 }}. (removed)</option>
 							</select>
 						</label>
 					</template>

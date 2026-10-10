@@ -1,12 +1,14 @@
 <!-- Created by Anton Piruev in 2026. Any direct commercial use of derivative work is strictly prohibited. -->
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
+import { WinSelectList } from "@cse/ui";
 import type { DesignerController } from "./DesignerController";
 import type { ProjectSession } from "./Project";
 
 const props = defineProps<{ session: ProjectSession; designer: DesignerController; }>();
 const emit = defineEmits<{ message: [text: string]; }>();
 
+const documents = computed(() => props.session.State.Documents.map((document) => ({ Id: document.Id, Label: document.Id })));
 const newId = ref("");
 const problem = ref("");
 
@@ -26,14 +28,7 @@ async function Add(): Promise<void> {
 <template>
 	<fieldset class="win-groupbox win-designer__project">
 		<legend class="win-groupbox__title">Project: {{ session.State.Name }}</legend>
-		<button
-			v-for="document in session.State.Documents"
-			:key="document.Id"
-			type="button"
-			class="win-button win-designer__document"
-			:class="{ 'win-designer__document--current': document.Id === session.State.Current }"
-			@click="Open(document.Id)"
-		>{{ document.Id }}</button>
+		<WinSelectList :items="documents" :current="session.State.Current" label="Documents" item-class="win-designer__document" current-class="win-designer__document--current" @select="Open" />
 		<div class="win-designer__new-document">
 			<input v-model="newId" class="win-textbox" placeholder="New document Id" aria-label="New document Id" @keydown.enter="Add">
 			<button type="button" class="win-button win-designer__add-document" @click="Add">Add</button>
@@ -44,9 +39,6 @@ async function Add(): Promise<void> {
 
 <style scoped>
 .win-designer__project { display: flex; flex-direction: column; gap: 4px; }
-.win-designer__document { width: 100%; text-align: left; }
-/* The open document: bold and pressed in, as a selected tool. */
-.win-designer__document--current { font-weight: bold; box-shadow: inset 1px 1px var(--dark, #404040), inset -1px -1px var(--hilight, #fff); }
 .win-designer__new-document { display: flex; gap: 4px; }
 .win-designer__new-document input { flex: 1; min-width: 0; }
 .win-designer__project-problem { color: #b00020; overflow-wrap: anywhere; }
