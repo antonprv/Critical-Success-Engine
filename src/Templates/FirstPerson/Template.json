@@ -1,0 +1,7 @@
+{
+  "Name": "FirstPerson",
+  "Title": "First Person",
+  "Description": "A first-person character in a test room: running, jumping, slopes, stairs, moving platforms, shooting.",
+  "Genre": "FirstPerson",
+  "Order": 1
+}

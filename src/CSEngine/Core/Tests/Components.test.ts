@@ -474,6 +474,15 @@ describe("CameraComponent", () => {
 	}
 	const look = (t: TestEngine, dx: number, dy: number): void => { t.input.Handle({ kind: InputEvtType.PointerMove, dx, dy }); t.frame(); };
 
+	it("with mouse look off (a top-down camera) the view keeps its set angle; the mouse is still consumed", () => {
+		const { t, component } = Rig({ LookEnabled: false, Yaw: 0, Pitch: -60 });
+		look(t, 200, -50);
+		expect([component.Yaw, component.Pitch]).toEqual([0, -60]);
+		component.LookEnabled = true;
+		look(t, 0, 0); // nothing saved up from before
+		expect([component.Yaw, component.Pitch]).toEqual([0, -60]);
+	});
+
 	it("registers itself as the main camera", () => {
 		const { t, component } = Rig();
 		expect(t.engine.Render.MainCamera).toBe(component);

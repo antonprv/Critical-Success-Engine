@@ -1,0 +1,25 @@
+{
+  "FileVersion": 1,
+  "Documents": [
+    {
+      "Id": "CoinHuntHud",
+      "Path": "../../../../../Templates/CoinHunt/Content/UI/CoinHuntHud.ui.json",
+      "Script": ""
+    },
+    {
+      "Id": "FirstPersonHud",
+      "Path": "../../../../../Templates/FirstPerson/Content/UI/FirstPersonHud.ui.json",
+      "Script": ""
+    },
+    {
+      "Id": "ThirdPersonHud",
+      "Path": "../../../../../Templates/ThirdPerson/Content/UI/ThirdPersonHud.ui.json",
+      "Script": ""
+    },
+    {
+      "Id": "TopDownHud",
+      "Path": "../../../../../Templates/TopDown/Content/UI/TopDownHud.ui.json",
+      "Script": ""
+    }
+  ]
+}

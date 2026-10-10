@@ -1,0 +1,18 @@
+{
+  "Format": 1,
+  "Name": "Main menu",
+  "Script": "",
+  "Root": {
+    "Name": "Root", "Type": "canvas", "X": 0, "Y": 0, "Width": 800, "Height": 500, "Props": {},
+    "Children": [
+      {
+        "Name": "MenuWindow", "Type": "window", "X": 280, "Y": 140, "Width": 240, "Height": 200, "AnchorX": "center", "AnchorY": "center",
+        "Props": { "Title": "TemplateProject", "Closable": false, "Minimizable": false, "Maximizable": false, "Resizable": false },
+        "Children": [
+          { "Name": "PlayButton", "Type": "button", "X": 72, "Y": 24, "Width": 90, "Height": 28, "Props": { "Text": "Play", "Default": true } },
+          { "Name": "QuitButton", "Type": "button", "X": 72, "Y": 64, "Width": 90, "Height": 28, "Props": { "Text": "Quit" } }
+        ]
+      }
+    ]
+  }
+}

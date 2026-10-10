@@ -1,0 +1,70 @@
+/* Structure of layouts made in the designer and of forms: shared by every kit. */
+
+/* ---------- layouts made in the designer ---------- */
+
+/* A layout is laid out by its anchors: whatever the screen size, nothing scrolls. */
+.win-layout { position: relative; overflow: hidden; }
+.win-layout__node { position: absolute; }
+/* A widget is exactly its rectangle: the kit's minimum sizes (a Tailwind button is 36 px tall) must not push it out. */
+.win-layout__node > :not(.win-layout__handle, .win-layout__error) { width: 100%; height: 100%; min-width: 0; min-height: 0; }
+.win-layout img { -webkit-user-drag: none; user-select: none; }
+/* A window in a layout is placed and sized by its anchors (its controller's own bounds would pin it). */
+.win-layout__node--window > .win-window { left: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important; }
+.win-layout__node--groupbox > .win-groupbox { margin: 0; }
+.win-layout__container { position: relative; width: 100%; height: 100%; min-height: 0; }
+.win-layout__label { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.win-layout__image { display: block; }
+.win-layout__image-placeholder { display: flex; align-items: center; justify-content: center; border: 1px dashed var(--shadow, #8a8a8a); color: var(--shadow, #8a8a8a); }
+.win-layout--design .win-layout__node > :not(.win-layout__handle, .win-layout__error) { pointer-events: none; }
+.win-layout--design .win-layout__node { pointer-events: auto; cursor: move; }
+.win-layout--design .win-layout__node--canvas { cursor: default; outline: 1px dashed rgba(0, 0, 0, 0.25); }
+.win-layout__node--selected { outline: 1px dashed #0a64ff; outline-offset: 1px; z-index: 1; }
+.win-layout__handle { position: absolute; width: 7px; height: 7px; border: 1px solid #0a64ff; background: #fff; }
+.win-layout__handle--right { right: -4px; top: calc(50% - 4px); cursor: ew-resize; }
+.win-layout__handle--bottom { bottom: -4px; left: calc(50% - 4px); cursor: ns-resize; }
+.win-layout__handle--corner { right: -4px; bottom: -4px; cursor: nwse-resize; }
+
+/* ---------- forms: errors and modal dialogs ---------- */
+
+.win-layout__node--invalid { outline: 1px solid #d40000; outline-offset: 1px; }
+.win-layout__error { position: absolute; right: 3px; top: 50%; width: 14px; height: 14px; margin-top: -7px; border-radius: 50%; background: #d40000; color: #fff; font: bold 10px/14px Tahoma, sans-serif; text-align: center; cursor: help; z-index: 2; }
+.win-dialog-host__modal { position: fixed; inset: 0; z-index: 2500; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.18); }
+.win-dialog-host__modal > .win-layout { flex: 0 0 auto; }
+
+/* ---------- splitters (any kit) ---------- */
+
+.win-splitter { position: relative; z-index: 2; background: transparent; outline: none; touch-action: none; transition: background-color 0.15s ease; }
+.win-splitter--vertical { cursor: col-resize; }
+.win-splitter--horizontal { cursor: row-resize; }
+.win-splitter::after { content: ""; position: absolute; inset: 0 -3px; }
+.win-splitter--horizontal::after { inset: -3px 0; }
+.win-splitter:hover,
+.win-splitter:focus-visible,
+.win-splitter--dragging { background: var(--kit-primary, var(--accent, #316ac5)); }
+
+/* ---------- a game's UI over the game (any kit) ---------- */
+
+/* Who takes the mouse is what the documents say (Click pass-through in the designer): a document whose empty places let
+   clicks through (a HUD) or not (a pause menu covering the game); a widget that lets them through itself (a crosshair).
+   pointer-events is inherited: the root canvas follows its document, every other widget takes clicks unless it says not. */
+.win-ui-host { position: absolute; inset: 0; pointer-events: none; }
+.win-ui-host__layer { position: absolute; inset: 0; }
+.win-ui-host__layer > .win-layout { pointer-events: auto; }
+.win-ui-host__layer > .win-layout.win-layout--click-through { pointer-events: none; }
+.win-ui-host__layer .win-layout__node:not(.win-layout__node--canvas) { pointer-events: auto; }
+.win-ui-host__layer .win-layout__node.win-layout__node--click-through { pointer-events: none; }
+
+/* The touch scheme over the game: each control at its place (its middle, as shares of the screen). */
+.cse-touch { position: absolute; inset: 0; pointer-events: none; opacity: .82; }
+.cse-touch__item { position: absolute; transform: translate(-50%, -50%); pointer-events: auto; transition: transform 120ms ease-out, filter 120ms ease-out; }
+.cse-touch__stick { width: min(34vmin, 180px); height: min(34vmin, 180px); }
+.cse-touch__button { width: min(15vmin, 76px); height: min(15vmin, 76px); }
+.cse-touch__button .win-game-button { font-size: 11px; }
+.cse-touch__pause { width: min(11vmin, 52px); height: min(11vmin, 52px); }
+/* Arranging: the screen dims, the controls are picked up and carried. */
+.cse-touch--arranging { opacity: 1; pointer-events: auto; background: rgb(0 0 0 / .45); }
+.cse-touch--arranging .cse-touch__item { cursor: grab; outline: 2px dashed rgb(255 255 255 / .7); outline-offset: 4px; border-radius: 50%; }
+.cse-touch__item--dragging { z-index: 1; cursor: grabbing; transform: translate(-50%, -50%) scale(1.08); filter: drop-shadow(0 10px 14px rgb(0 0 0 / .55)); }
+.cse-touch__toolbar { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--face, #f0f0f0); border-radius: 6px; pointer-events: auto; }
+.cse-touch__hint { white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .cse-touch__item { transition: none; } }

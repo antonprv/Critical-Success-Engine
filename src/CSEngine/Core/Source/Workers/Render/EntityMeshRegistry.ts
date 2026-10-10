@@ -13,7 +13,7 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Scene } from "@babylonjs/core/scene";
 
-import { AssetPriority, type AssetLoader } from "../../Game/AssetLoader";
+import { AssetPriority, type AssetLoader } from "../../Engine/Assets/AssetLoader";
 import { RendMesh } from "../Common/CommonEnums";
 import type { MeshDescriptor } from "../Protocol/RenderGameLogicProtocol";
 import type { FlatTransform } from "../Protocol/TransformProtocol";

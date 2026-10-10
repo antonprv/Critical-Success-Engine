@@ -1,0 +1,7 @@
+{
+  "Name": "ThirdPerson",
+  "Title": "Third Person",
+  "Description": "A character seen from behind in an arena: a camera arm that shortens against walls, and a distance HUD.",
+  "Genre": "ThirdPerson",
+  "Order": 2
+}

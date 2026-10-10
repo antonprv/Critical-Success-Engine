@@ -44,8 +44,11 @@ export class SceneManager {
 		try {
 			await this.Unload(sceneId);
 			await this.ResetSubsystems(sceneId, manifest);
+			// The project's input manifest this scene plays with (a project of several games switches here); else the default.
+			const input = manifest.input ?? this._engine.Input.System.Default;
+			if (input) this._engine.Input.System.UseManifest(input);
 			await this.SpawnEntities(sceneId, manifest);
-			await this.StartScripts(sceneId);
+			await this.StartScripts(sceneId, manifest);
 		} catch (error) {
 			Logger.LogException(error, `[SceneManager] loading "${sceneId}" failed:`);
 			this._engine.Ui.LoadFailed(sceneId, error instanceof Error ? error.message : String(error));
@@ -59,6 +62,7 @@ export class SceneManager {
 		await Yield();
 		this._engine.World.DestroyAll();
 		this._engine.Ui.ClearHud();
+		this._engine.Settings.ClearScene(); // the scene's own settings go with it (the player's values stay)
 	}
 
 	/** Physics and render wipe their worlds; their acks (FIFO ports) mean nothing from the old scene is still queued. */
@@ -89,7 +93,7 @@ export class SceneManager {
 		}
 	}
 
-	private async StartScripts(sceneId: string): Promise<void> {
+	private async StartScripts(sceneId: string, manifest: SceneManifest): Promise<void> {
 		this._engine.Ui.LoadProgress(sceneId, "Starting scripts…", 0.95);
 		await Yield();
 		this._engine.World.FlushLifecycle();
@@ -97,7 +101,7 @@ export class SceneManager {
 
 		this._currentId = sceneId;
 		this._engine.Ui.LoadProgress(sceneId, "Done", 1);
-		this._engine.Ui.LoadFinished(sceneId);
+		this._engine.Ui.LoadFinished(sceneId, manifest.cursor ?? "locked");
 	}
 }
 

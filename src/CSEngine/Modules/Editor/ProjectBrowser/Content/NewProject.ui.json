@@ -1,0 +1,212 @@
+{
+  "Format": 1,
+  "Name": "New project",
+  "Script": "",
+  "ClickThrough": false,
+  "Root": {
+    "Name": "Root",
+    "Type": "canvas",
+    "X": 0,
+    "Y": 0,
+    "Width": 800,
+    "Height": 500,
+    "Props": {},
+    "Children": [
+      {
+        "Name": "NewProjectWindow",
+        "Type": "window",
+        "X": 0,
+        "Y": 0,
+        "Width": 660,
+        "Height": 470,
+        "AnchorX": "center",
+        "AnchorY": "center",
+        "Props": {
+          "Title": "New project",
+          "Closable": false,
+          "Minimizable": false,
+          "Maximizable": false,
+          "Resizable": false
+        },
+        "Children": [
+          {
+            "Name": "GenreLabel",
+            "Type": "label",
+            "X": 12,
+            "Y": 10,
+            "Width": 90,
+            "Height": 18,
+            "Props": {
+              "Text": "Genre",
+              "FontSize": 11,
+              "Bold": false,
+              "Wrap": false
+            }
+          },
+          {
+            "Name": "Genre",
+            "Type": "combobox",
+            "X": 110,
+            "Y": 8,
+            "Width": 200,
+            "Height": 21,
+            "Props": {
+              "Options": [],
+              "Selected": 0
+            }
+          },
+          {
+            "Name": "TemplateLabel",
+            "Type": "label",
+            "X": 12,
+            "Y": 40,
+            "Width": 200,
+            "Height": 18,
+            "Props": {
+              "Text": "Template",
+              "FontSize": 11,
+              "Bold": true,
+              "Wrap": false
+            }
+          },
+          {
+            "Name": "Templates",
+            "Type": "listbox",
+            "X": 12,
+            "Y": 60,
+            "Width": 300,
+            "Height": 200,
+            "Props": {
+              "Header": "Template",
+              "Items": ""
+            }
+          },
+          {
+            "Name": "Description",
+            "Type": "label",
+            "X": 326,
+            "Y": 60,
+            "Width": 296,
+            "Height": 200,
+            "Props": {
+              "Text": "",
+              "FontSize": 11,
+              "Bold": false,
+              "Wrap": true
+            },
+            "AnchorX": "stretch",
+            "Right": 12
+          },
+          {
+            "Name": "NameLabel",
+            "Type": "label",
+            "X": 12,
+            "Y": 272,
+            "Width": 90,
+            "Height": 18,
+            "Props": {
+              "Text": "Name",
+              "FontSize": 11,
+              "Bold": false,
+              "Wrap": false
+            }
+          },
+          {
+            "Name": "Name",
+            "Type": "textbox",
+            "X": 110,
+            "Y": 270,
+            "Width": 200,
+            "Height": 21,
+            "Props": {
+              "Text": "",
+              "Placeholder": "MyGame"
+            }
+          },
+          {
+            "Name": "LocationLabel",
+            "Type": "label",
+            "X": 12,
+            "Y": 302,
+            "Width": 90,
+            "Height": 18,
+            "Props": {
+              "Text": "Location",
+              "FontSize": 11,
+              "Bold": false,
+              "Wrap": false
+            }
+          },
+          {
+            "Name": "Location",
+            "Type": "textbox",
+            "X": 110,
+            "Y": 300,
+            "Width": 390,
+            "Height": 21,
+            "Props": {
+              "Text": ""
+            },
+            "AnchorX": "stretch",
+            "Right": 130
+          },
+          {
+            "Name": "BrowseButton",
+            "Type": "button",
+            "X": 12,
+            "Y": 298,
+            "Width": 110,
+            "Height": 26,
+            "Props": {
+              "Text": "Browse..."
+            },
+            "AnchorX": "end"
+          },
+          {
+            "Name": "Problem",
+            "Type": "label",
+            "X": 12,
+            "Y": 330,
+            "Width": 606,
+            "Height": 30,
+            "Props": {
+              "Text": "",
+              "FontSize": 11,
+              "Bold": false,
+              "Wrap": true
+            },
+            "AnchorX": "stretch",
+            "Right": 12
+          },
+          {
+            "Name": "CreateButton",
+            "Type": "button",
+            "X": 112,
+            "Y": 12,
+            "Width": 100,
+            "Height": 26,
+            "Props": {
+              "Text": "Create",
+              "Default": true
+            },
+            "AnchorX": "end",
+            "AnchorY": "end"
+          },
+          {
+            "Name": "CancelButton",
+            "Type": "button",
+            "X": 12,
+            "Y": 12,
+            "Width": 92,
+            "Height": 26,
+            "Props": {
+              "Text": "Cancel"
+            },
+            "AnchorX": "end",
+            "AnchorY": "end"
+          }
+        ]
+      }
+    ]
+  }
+}

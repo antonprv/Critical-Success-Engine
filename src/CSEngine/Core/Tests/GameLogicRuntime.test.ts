@@ -7,7 +7,7 @@ import { CreateRegistry, Harness } from "./Harness";
 import { SceneRegistry } from "../Source/Engine/Scenes/SceneRegistry";
 import { Component } from "../Source/Engine/Core/Component";
 import { Comp, Ent } from "../Source/Engine/Core/EntityManifest";
-import { Coin, CoinHuntState, GameRules } from "../Source/Game/Scripts/CoinHunt";
+import { Coin, CoinHuntState, GameRules } from "../../../Templates/CoinHunt/Source/Scripts/CoinHunt";
 import { MoverComponent } from "../Source/Engine/Components/Mover/MoverComponent";
 import { PhysOpType, PhysState, RenderMsg, RendOpType, UiMsg } from "../Source/Workers/Common/CommonEnums";
 

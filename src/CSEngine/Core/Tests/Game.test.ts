@@ -12,18 +12,19 @@ import { Comp, Ent } from "../Source/Engine/Core/EntityManifest";
 import { Meshes, Shapes } from "../Source/Engine/Core/Shapes";
 import { Quat } from "../Source/Engine/Math/Quat";
 import { Vec3 } from "../Source/Engine/Math/Vec3";
-import { Coin, CoinHuntState, FallRespawn, GameRules } from "../Source/Game/Scripts/CoinHunt";
-import { CrateSpawner, Door, DoubleJumpTrait, Hazard, LaunchPad, Sprint } from "../Source/Game/Scripts/Recipes";
-import { BulletHit, HudText, JumpOnSpace, PlatformMover, Shooter, Spinner, TriggerZone } from "../Source/Game/Scripts/Scripts";
-import { DynamicBox, DynamicShape, StaticBox, WedgeTriangles } from "../Source/Game/SceneHelpers";
-import { BallGun, FpsCounter, Greeter, Hover, InitialVelocity, Lifetime } from "../Source/Game/GuideExamples/ComponentExamples";
-import { Health } from "../Source/Game/GuideExamples/HealthBar";
-import { Bumper, RangeFinder } from "../Source/Game/GuideExamples/PhysicsExamples";
-import { WindTrait } from "../Source/Game/GuideExamples/PlayerExamples";
+import { Coin, CoinHuntState, FallRespawn, GameRules } from "../../../Templates/CoinHunt/Source/Scripts/CoinHunt";
+import { CrateSpawner, Door, DoubleJumpTrait, Hazard, LaunchPad, Sprint } from "../Source/Engine/Gameplay/Recipes";
+import { BulletHit, HudText, JumpOnSpace, PlatformMover, Shooter, Spinner, TriggerZone } from "../Source/Engine/Gameplay/Scripts";
+import { DynamicBox, DynamicShape, StaticBox, WedgeTriangles } from "../Source/Engine/Scenes/SceneHelpers";
+import { BallGun, FpsCounter, Greeter, Hover, InitialVelocity, Lifetime } from "../Source/Examples/ComponentExamples";
+import { Health } from "../Source/Examples/HealthBar";
+import { Bumper, RangeFinder } from "../Source/Examples/PhysicsExamples";
+import { WindTrait } from "../Source/Examples/PlayerExamples";
 import { MProfile, type MovementContext } from "../Source/Engine/Components/Mover/MovementTypes";
 import { PhysOpType, PhysQueryType, PhysState, UiMsg } from "../Source/Workers/Common/CommonEnums";
 import type { PhysicsCommand } from "../Source/Workers/Protocol/PhysicsGameLogicProtocol";
 import { MakeEngine } from "./engine";
+import { UiCommands } from "./GameUiFixture";
 
 const find = <T extends PhysOpType>(commands: PhysicsCommand[], operation: T): Extract<PhysicsCommand, { operation: T; }>[] =>
 	commands.filter((c): c is Extract<PhysicsCommand, { operation: T; }> => c.operation === operation);
@@ -193,7 +194,7 @@ describe("Coin Hunt scripts", () => {
 		expect(rules.TimeLeft).toBe(0);
 	});
 
-	it("R restarts the scene, but only after the game is over", () => {
+	it("Restart (R) restarts the scene, but only after the game is over", () => {
 		const { t, rules } = Game();
 		t.press("KeyR");
 		t.frame();
@@ -206,7 +207,7 @@ describe("Coin Hunt scripts", () => {
 		expect(t.scenes.Load).toHaveBeenCalledWith("test");
 	});
 
-	it("R with no current scene does nothing", () => {
+	it("Restart with no current scene does nothing", () => {
 		const { t, rules } = Game();
 		t.scenes.CurrentSceneId = null;
 		rules.State = CoinHuntState.Won;
@@ -215,20 +216,27 @@ describe("Coin Hunt scripts", () => {
 		expect(t.scenes.Load).not.toHaveBeenCalled();
 	});
 
-	it("the HUD shows the score and the state", () => {
+	it("the HUD is the CoinHuntHud UI document: shown once, its labels changed only when their text changes; leaving hides it", () => {
+		UiCommands.length = 0;
 		const { t, rules } = Game();
 		t.frame();
-		t.engine.Ui.Flush(1000);
-		expect((t.uiMessages(UiMsg.Hud).at(-1) as { lines: string[]; }).lines).toEqual(["Coins: 0 / 2", "Time: 60.0"]);
+		const hud = (widget: string, text: string) => ({ op: "set-text", id: "CoinHuntHud", widget, text });
+		expect(UiCommands).toEqual([{ op: "show", id: "CoinHuntHud" }, hud("Coins", "Coins: 0 / 2"), hud("Time", "Time: 60.0")]);
+		t.frame();
+		expect(UiCommands).toHaveLength(3); // nothing changed (the clock still reads 60.0)
 
 		rules.State = CoinHuntState.Won;
 		t.frame();
-		t.engine.Ui.Flush(2000);
-		expect((t.uiMessages(UiMsg.Hud).at(-1) as { lines: string[]; }).lines).toContain("YOU WIN - R to restart");
+		expect(UiCommands.at(-1)).toEqual(hud("Time", "YOU WIN - R to restart"));
 		rules.State = CoinHuntState.Lost;
 		t.frame();
-		t.engine.Ui.Flush(3000);
-		expect((t.uiMessages(UiMsg.Hud).at(-1) as { lines: string[]; }).lines).toContain("TIME'S UP - R to restart");
+		expect(UiCommands.at(-1)).toEqual(hud("Time", "TIME'S UP - R to restart"));
+		rules.OnDestroy();
+		expect(UiCommands.at(-1)).toEqual({ op: "hide", id: "CoinHuntHud" });
+
+		UiCommands.length = 0;
+		Game().rules.OnDestroy(); // never drawn: nothing to hide
+		expect(UiCommands).toEqual([]);
 	});
 
 	it("a coin is picked up by the player only", () => {

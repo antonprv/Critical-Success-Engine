@@ -27,6 +27,9 @@ export interface EntityManifest {
 	components: ComponentManifest[];
 }
 
+/** Whether a scene takes the mouse (first or third person) or leaves the cursor free (top-down, strategy). */
+export type CursorMode = "locked" | "free";
+
 export interface SceneManifest {
 	id: string;
 	name: string;
@@ -34,6 +37,10 @@ export interface SceneManifest {
 	gravity?: Vec3Tuple;
 	/** Background colour, 0..1 rgb. */
 	clearColor?: Vec3Tuple;
+	/** "free": the cursor stays visible (Esc opens the menu); "locked" (the default): the game takes the mouse. */
+	cursor?: CursorMode;
+	/** Which of the project's input manifests this scene plays with (its Id); omitted: the project's default. */
+	input?: string;
 	entities: EntityManifest[];
 }
 

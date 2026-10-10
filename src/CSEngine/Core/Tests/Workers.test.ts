@@ -68,11 +68,11 @@ describe("UiWorker", () => {
 
 describe("GameLogicWorker", () => {
 	function MockRuntime(boot: () => Promise<void> = () => Promise.resolve()) {
-		const instances: { ports: unknown; handled: unknown[]; }[] = [];
+		const instances: { ports: unknown; channels: unknown; storage: { Backend: string; }; data: { Ids: string[]; }; handled: unknown[]; }[] = [];
 		vi.doMock("../Source/Engine/Runtime/GameLogicRuntime", () => ({
 			GameLogicRuntime: class {
 				public handled: unknown[] = [];
-				public constructor(public ports: unknown) { instances.push(this as never); }
+				public constructor(public ports: unknown, _scenes: unknown, public channels: unknown, _input: unknown, public storage: unknown, public data: unknown) { instances.push(this as never); }
 				public Boot = boot;
 				public HandleMainMessage(message: unknown): void { this.handled.push(message); }
 			},
@@ -80,18 +80,25 @@ describe("GameLogicWorker", () => {
 		return instances;
 	}
 
-	it("builds the runtime with the four ports on init, boots it, and forwards later main-thread messages", async () => {
+	it("starts the engine's modules, then builds the runtime with the four ports; messages sent meanwhile wait, earlier ones are dropped", async () => {
 		const instances = MockRuntime();
 		await import("../Source/Workers/GameLogicWorker");
 		fakeSelf.Send({ type: GameLogicMsg.Input, event: {} }); // before init: dropped
 
 		const ports = { renderPort: new FakePort(), physicsPort: new FakePort(), audioPort: new FakePort(), uiPort: new FakePort() };
 		fakeSelf.Send({ type: GameLogicMsg.Init, ...ports });
-		expect(instances).toHaveLength(1);
+		fakeSelf.Send({ type: GameLogicMsg.Input, event: { kind: 1, code: "KeyA" } }); // while the modules load: queued
+		await vi.waitFor(() => expect(instances).toHaveLength(1));
 		expect(instances[0]!.ports).toEqual({ render: ports.renderPort, physics: ports.physicsPort, audio: ports.audioPort, ui: ports.uiPort });
+		// The player's settings storage: IndexedDB in a browser; here (no IndexedDB) memory, and the log says so.
+		expect(instances[0]!.storage.Backend).toBe("Memory");
+		// The runtime carries this thread's plugin channels (the Engine module's).
+		const { ModuleManager } = await import("../Source/Engine/Modules/ModuleManager");
+		expect(instances[0]!.channels).toBe(ModuleManager.Get().GetModuleChecked<{ Channels: unknown; } & import("../Source/Engine/Modules/ModuleManager").ModuleInterface>("Engine").Channels);
+		expect(instances[0]!.handled).toEqual([{ type: GameLogicMsg.Input, event: { kind: 1, code: "KeyA" } }]);
 
 		fakeSelf.Send({ type: GameLogicMsg.Input, event: { kind: 1, code: "KeyW" } });
-		expect(instances[0]!.handled).toEqual([{ type: GameLogicMsg.Input, event: { kind: 1, code: "KeyW" } }]);
+		expect(instances[0]!.handled).toHaveLength(2);
 	});
 
 	it("logs a failed boot instead of losing it", async () => {
@@ -99,16 +106,72 @@ describe("GameLogicWorker", () => {
 		MockRuntime(() => Promise.reject(new Error("no scenes")));
 		await import("../Source/Workers/GameLogicWorker");
 		fakeSelf.Send({ type: GameLogicMsg.Init, renderPort: new FakePort(), physicsPort: new FakePort(), audioPort: new FakePort(), uiPort: new FakePort() });
-		await flush();
-		expect(String(log.error.mock.calls[0]![0])).toContain("[GameLogicWorker] boot failed:");
+		// (with no server here the data assets can't be fetched either: that is logged too, before)
+		await vi.waitFor(() => expect(log.error.mock.calls.map((c) => String(c[0]))).toEqual(expect.arrayContaining([expect.stringContaining("[GameLogicWorker] boot failed:")])));
 	});
 
-	it("registers the game's scenes", async () => {
+	it("the project's game modules (the templates' games) register their scenes with the Engine module", async () => {
 		const { SceneRegistry } = await import("../Source/Engine/Scenes/SceneRegistry");
 		const register = vi.spyOn(SceneRegistry.prototype, "Register");
 		MockRuntime();
 		await import("../Source/Workers/GameLogicWorker");
+		const { ModuleManager } = await import("../Source/Engine/Modules/ModuleManager");
+		await vi.waitFor(() => expect(ModuleManager.Get().PrimaryGameModule?.IsGameModule()).toBe(true));
+		// Games Sample is made of the templates' game modules; the first is the primary one.
+		// Games Sample is made of the templates' game modules, plus the UI plugin's game-thread half (its page half stays on the page).
+		expect(ModuleManager.Get().QueryModules().map((m) => [m.Name, m.IsLoaded])).toEqual([
+			["Engine", true], ["BlankSample", true], ["FirstPersonSample", true], ["CoinHuntSample", true], ["ThirdPersonSample", true], ["TopDownSample", true],
+			["UIHost", false], ["UIGame", true],
+		]);
 		expect(register.mock.calls.map((c) => (c[0] as { id: string; }).id)).toEqual(expect.arrayContaining(["bouncing-ball", "character-test", "coin-hunt"]));
+	});
+
+	it("with IndexedDB there, the player's settings live in it and nothing is warned about", async () => {
+		const log = SilenceConsole();
+		const { indexedDB } = await import("fake-indexeddb");
+		vi.stubGlobal("indexedDB", indexedDB);
+		const instances = MockRuntime();
+		await import("../Source/Workers/GameLogicWorker");
+		fakeSelf.Send({ type: GameLogicMsg.Init, renderPort: new FakePort(), physicsPort: new FakePort(), audioPort: new FakePort(), uiPort: new FakePort() });
+		await vi.waitFor(() => expect(instances).toHaveLength(1));
+		expect((instances[0] as unknown as { storage: { Backend: string; }; }).storage.Backend).toBe("IndexedDB");
+		expect(log.warn.mock.calls.map((c) => String(c[0])).filter((m) => m.includes("kept in memory"))).toEqual([]);
+	});
+
+	it("loads the project's data assets from the page's address before the game starts; one that fails is logged by name", async () => {
+		const log = SilenceConsole();
+		const fetched: string[] = [];
+		vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+			fetched.push(url);
+			return url.endsWith("CoinHuntRules.csedata")
+				? { ok: false, status: 404, text: async () => "" }
+				: { ok: true, status: 200, text: async () => '{ "Type": "X", "Values": {} }' };
+		}));
+		const instances = MockRuntime();
+		await import("../Source/Workers/GameLogicWorker");
+		fakeSelf.Send({ type: GameLogicMsg.Init, renderPort: new FakePort(), physicsPort: new FakePort(), audioPort: new FakePort(), uiPort: new FakePort(), baseUrl: "https://games.example/starfall/" });
+		await vi.waitFor(() => expect(instances).toHaveLength(1));
+		expect(fetched).toContain("https://games.example/starfall/data/FirstPersonView.csedata");
+		expect(instances[0]!.data.Ids).toContain("CoinHuntRules");
+		expect(log.error.mock.calls.map((c) => String(c[0]))).toEqual(expect.arrayContaining([expect.stringContaining('[GameLogicWorker] Data asset "CoinHuntRules" (https://games.example/starfall/data/CoinHuntRules.csedata): HTTP 404')]));
+	});
+
+	it("logs the modules that failed to start and the plugins that could not be enabled", async () => {
+		const log = SilenceConsole();
+		vi.doMock("../Source/Project", async (original) => {
+			const real = await original<typeof import("../Source/Project")>();
+			return {
+				...real,
+				GameProject: { ...real.GameProject, Plugins: [{ Name: "Ghost", Enabled: true }], Modules: [...real.GameProject.Modules, { Name: "Broken", Type: "Runtime", LoadingPhase: "Default", Load: () => Promise.reject(new Error("404")) }] },
+			};
+		});
+		MockRuntime();
+		await import("../Source/Workers/GameLogicWorker");
+		await vi.waitFor(() => expect(log.error.mock.calls.map((c) => String(c[0]))).toEqual(expect.arrayContaining([
+			expect.stringContaining('[GameLogicWorker] The project enables "Ghost", which is not installed'),
+			expect.stringContaining('[GameLogicWorker] Module "Broken" failed to load: Its code could not be loaded: 404'),
+		])));
+		vi.doUnmock("../Source/Project");
 	});
 });
 

@@ -1,0 +1,41 @@
+{
+  "FileVersion": 1,
+  "Name": "TemplateProject",
+  "Description": "",
+  "Modules": [
+    {
+      "Name": "TemplateProject",
+      "Type": "Runtime",
+      "LoadingPhase": "Default",
+      "Primary": true,
+      "Dependencies": [
+        "Engine"
+      ],
+      "Entry": "Source/TemplateProjectModule.ts"
+    }
+  ],
+  "Plugins": [
+    {
+      "Name": "UI",
+      "Enabled": true
+    }
+  ],
+  "Ui": {
+    "Manifest": "Content/UI/Ui.manifest.json"
+  },
+  "Input": {
+    "Manifests": [
+      {
+        "Id": "TopDown",
+        "Path": "Content/Input/TopDown.input.json"
+      }
+    ],
+    "Default": "TopDown"
+  },
+  "Data": [
+    {
+      "Id": "TopDownCamera",
+      "Path": "Content/Data/TopDownCamera.csedata"
+    }
+  ]
+}

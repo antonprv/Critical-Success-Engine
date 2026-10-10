@@ -144,3 +144,116 @@ describe("UiController (pause / loading / pointer-lock state machine)", () => {
 		expect(ui.State.menu).toMatchObject({ visible: true, mode: MenuMode.Paused });
 	});
 });
+
+describe("UiController: plugin channels", () => {
+	it("passes channel messages both ways, untouched", () => {
+		const toMain: UiToMainMessage[] = [];
+		const toGame: UiToGameLogicMessage[] = [];
+		const ui = new UiController((m) => toMain.push(m), (m) => toGame.push(m));
+		ui.OnGameLogicMessage({ type: UiMsg.Channel, channel: "ui", payload: { op: "show", id: "Hud" } });
+		ui.OnMainMessage({ type: UiMsg.Channel, channel: "ui", payload: { op: "event", id: "Hud" } });
+		expect(toMain).toContainEqual({ type: UiMsg.Channel, channel: "ui", payload: { op: "show", id: "Hud" } });
+		expect(toGame).toEqual([{ type: UiMsg.Channel, channel: "ui", payload: { op: "event", id: "Hud" } }]);
+	});
+});
+
+describe("UiController: scenes with a free cursor (a strategy or top-down view)", () => {
+	let toMain: UiToMainMessage[];
+	let toGame: UiToGameLogicMessage[];
+	let ui: UiController;
+	const of = <T extends { type: UiMsg; }>(list: T[], type: UiMsg): T[] => list.filter((m) => m.type === type);
+	const capture = () => of(toGame, UiMsg.SetCapture).at(-1);
+
+	beforeEach(() => {
+		toMain = [];
+		toGame = [];
+		ui = new UiController((m) => toMain.push(m), (m) => toGame.push(m));
+		ui.OnGameLogicMessage({ type: UiMsg.Scenes, scenes: [{ id: "a", name: "A", description: "" }, { id: "b", name: "B", description: "" }] });
+	});
+
+	it("at boot the start menu shows (no mouse to take); Play starts the game without taking the mouse", () => {
+		ui.OnGameLogicMessage({ type: UiMsg.LoadFinished, sceneId: "a", cursor: "free" });
+		expect(of(toMain, UiMsg.RequestPointerLock)).toEqual([]);
+		expect(ui.State.cursor).toBe("free");
+		expect([ui.State.menu.visible, ui.State.menu.mode]).toEqual([true, MenuMode.Start]);
+		ui.OnMainMessage({ type: UiMsg.Resume });
+		expect([ui.Phase, ui.State.menu.visible]).toEqual([UiPhase.Playing, false]);
+		expect(capture()).toEqual({ type: UiMsg.SetCapture, enabled: true });
+	});
+
+	it("Esc on the page pauses into the menu; Resume goes back; Pause outside play does nothing", () => {
+		ui.OnMainMessage({ type: UiMsg.Pause }); // still booting
+		expect(ui.State.menu.visible).toBe(false);
+		ui.OnGameLogicMessage({ type: UiMsg.LoadFinished, sceneId: "a", cursor: "free" });
+		ui.OnMainMessage({ type: UiMsg.Resume });
+		ui.OnMainMessage({ type: UiMsg.Pause });
+		expect([ui.State.menu.visible, ui.State.menu.mode]).toEqual([true, MenuMode.Paused]);
+		expect(capture()).toEqual({ type: UiMsg.SetCapture, enabled: false });
+		ui.OnMainMessage({ type: UiMsg.Resume });
+		expect(ui.Phase).toBe(UiPhase.Playing);
+	});
+
+	it("after a game has started, a free-cursor scene picked from the menu plays straight away", () => {
+		ui.OnGameLogicMessage({ type: UiMsg.LoadFinished, sceneId: "a", cursor: "free" });
+		ui.OnMainMessage({ type: UiMsg.Resume });
+		ui.OnMainMessage({ type: UiMsg.Pause });
+		ui.OnMainMessage({ type: UiMsg.SelectScene, sceneId: "b" });
+		ui.OnGameLogicMessage({ type: UiMsg.LoadFinished, sceneId: "b", cursor: "free" });
+		expect([ui.Phase, ui.State.menu.visible]).toEqual([UiPhase.Playing, false]);
+		expect(capture()).toEqual({ type: UiMsg.SetCapture, enabled: true });
+	});
+
+	it("coming from a scene that held the mouse, a free-cursor scene lets it go - and that is not a pause", () => {
+		ui.OnGameLogicMessage({ type: UiMsg.LoadFinished, sceneId: "a" });
+		ui.OnMainMessage({ type: UiMsg.PointerLock, locked: true }); // playing scene a, mouse held
+		ui.OnGameLogicMessage({ type: UiMsg.LoadFinished, sceneId: "b", cursor: "free" }); // a script loaded b (mouse still held)
+		expect(of(toMain, UiMsg.ExitPointerLock)).toHaveLength(1);
+		ui.OnMainMessage({ type: UiMsg.PointerLock, locked: false });
+		expect([ui.Phase, ui.State.menu.visible]).toEqual([UiPhase.Playing, false]);
+		expect(capture()).toEqual({ type: UiMsg.SetCapture, enabled: true });
+		expect(ui.State.cursor).toBe("free");
+		ui.OnGameLogicMessage({ type: UiMsg.LoadFinished, sceneId: "a" }); // back to a held-mouse scene: it asks for the mouse again
+		expect(ui.State.cursor).toBe("locked");
+		expect(of(toMain, UiMsg.RequestPointerLock).length).toBeGreaterThan(0);
+	});
+});
+
+describe("UiController: the touch scheme plays every scene without taking the mouse", () => {
+	let toMain: UiToMainMessage[];
+	let toGame: UiToGameLogicMessage[];
+	let ui: UiController;
+	const of = <T extends { type: UiMsg; }>(list: T[], type: UiMsg): T[] => list.filter((m) => m.type === type);
+
+	beforeEach(() => {
+		toMain = [];
+		toGame = [];
+		ui = new UiController((m) => toMain.push(m), (m) => toGame.push(m));
+		ui.OnGameLogicMessage({ type: UiMsg.Scenes, scenes: [{ id: "a", name: "A", description: "" }] });
+	});
+
+	it("with touch on, a scene that would take the mouse starts on Play without it; the page's pause pauses", () => {
+		ui.OnMainMessage({ type: UiMsg.SetTouch, enabled: true });
+		ui.OnGameLogicMessage({ type: UiMsg.LoadFinished, sceneId: "a" }); // a "locked" scene
+		expect(of(toMain, UiMsg.RequestPointerLock)).toEqual([]);
+		expect([ui.State.menu.visible, ui.State.menu.mode]).toEqual([true, MenuMode.Start]);
+		ui.OnMainMessage({ type: UiMsg.Resume });
+		expect(ui.Phase).toBe(UiPhase.Playing);
+		ui.OnMainMessage({ type: UiMsg.Pause });
+		expect([ui.State.menu.visible, ui.State.menu.mode]).toEqual([true, MenuMode.Paused]);
+		ui.OnMainMessage({ type: UiMsg.PointerLock, locked: false }); // not a pause of its own
+		expect(ui.State.menu.mode).toBe(MenuMode.Paused);
+	});
+
+	it("turning touch on while the mouse is held lets it go, without pausing; turning it off brings the old rules back", () => {
+		ui.OnGameLogicMessage({ type: UiMsg.LoadFinished, sceneId: "a" });
+		ui.OnMainMessage({ type: UiMsg.PointerLock, locked: true });
+		expect(ui.Phase).toBe(UiPhase.Playing);
+		ui.OnMainMessage({ type: UiMsg.SetTouch, enabled: true });
+		expect(of(toMain, UiMsg.ExitPointerLock)).toHaveLength(1);
+		ui.OnMainMessage({ type: UiMsg.PointerLock, locked: false });
+		expect([ui.Phase, ui.State.menu.visible]).toEqual([UiPhase.Playing, false]);
+		ui.OnMainMessage({ type: UiMsg.SetTouch, enabled: false });
+		ui.OnMainMessage({ type: UiMsg.Pause }); // a locked scene without touch: the page's pause means nothing
+		expect(ui.State.menu.visible).toBe(false);
+	});
+});

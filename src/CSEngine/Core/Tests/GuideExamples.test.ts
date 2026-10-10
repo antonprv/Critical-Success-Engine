@@ -1,7 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-// The code printed in docs/guides is real code under Source/Game/GuideExamples - these tests make sure it also runs.
+// The code printed in docs/guides is real code under Source/Examples - these tests make sure it also runs.
 
 import { describe, expect, it } from "vitest";
 
@@ -13,10 +13,10 @@ import { MovementPreset } from "../Source/Engine/Components/Mover/MovementTypes"
 import { MoverComponent } from "../Source/Engine/Components/Mover/MoverComponent";
 import { RigidBody, StaticBody } from "../Source/Engine/Components/Physics/PhysicsBodies";
 import { SceneRegistry } from "../Source/Engine/Scenes/SceneRegistry";
-import { BallPitScene } from "../Source/Game/GuideExamples/BallPitScene";
-import { BallGun, InitialVelocity } from "../Source/Game/GuideExamples/ComponentExamples";
-import { Bumper, RangeFinder } from "../Source/Game/GuideExamples/PhysicsExamples";
-import { TunedCamera, TunedPlayer, WindyMover } from "../Source/Game/GuideExamples/PlayerExamples";
+import { BallPitScene } from "../Source/Examples/BallPitScene";
+import { BallGun, InitialVelocity } from "../Source/Examples/ComponentExamples";
+import { Bumper, RangeFinder } from "../Source/Examples/PhysicsExamples";
+import { TunedCamera, TunedPlayer, WindyMover } from "../Source/Examples/PlayerExamples";
 import { PhysOpType, PhysState, RenderMsg, UiMsg } from "../Source/Workers/Common/CommonEnums";
 import { Harness } from "./Harness";
 

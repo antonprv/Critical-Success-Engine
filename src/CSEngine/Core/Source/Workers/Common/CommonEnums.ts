@@ -86,7 +86,13 @@ export const enum InputEvtType {
     PointerDown,
     PointerUp,
     /** Window/document lost focus or pointer lock changed: release everything so no key stays "stuck". */
-    ReleaseAll
+    ReleaseAll,
+    /** The mouse wheel turned (a free-cursor scene). */
+    Wheel,
+    /** The cursor left the game view (a free-cursor scene). */
+    PointerLeave,
+    /** A gamepad's state: its buttons (0..1) and axes (-1..1), standard mapping. */
+    Gamepad,
 }
 
 export const enum SoundType {
@@ -121,6 +127,12 @@ export const enum UiMsg {
     // UiWorker -> GameLogic
     LoadScene,
     SetCapture,
+    // Every direction: a plugin's named channel (see Engine/Core/Channels.ts)
+    Channel,
+    // Main -> UiWorker: Esc in a free-cursor scene (no pointer lock for the browser to release)
+    Pause,
+    // Main -> UiWorker: the touch scheme is on or off (on: every scene plays without taking the mouse)
+    SetTouch,
 }
 
 /** Message types of the render worker: from the main thread and to GameLogic (RenderProtocol.ts, RenderGameLogicProtocol.ts). */

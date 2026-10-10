@@ -43,14 +43,15 @@ export class Game {
 	//#region page structure
 
 	public get playButton(): Locator { return this.page.getByRole("button", { name: /^(Play|Resume)$/ }); }
-	public get loadingOverlay(): Locator { return this.page.locator(".loading-overlay"); }
-	public get menu(): Locator { return this.page.locator(".menu-card"); }
+	/** The engine's screens are UI documents (the UI plugin's EngineLoading and EnginePauseMenu). */
+	public get loadingOverlay(): Locator { return this.page.locator('.cse-ui-host [data-ui="EngineLoading"]'); }
+	public get menu(): Locator { return this.page.locator('.cse-ui-host [data-ui="EnginePauseMenu"]'); }
 	public get hud(): Locator { return this.page.locator(".hud-line"); }
 	/** The menu or the game HUD - whichever shows up first (they can overlap for a moment while the menu fades out). */
 	public get menuOrHud(): Locator { return this.menu.or(this.hud.first()).first(); }
 	public get toasts(): Locator { return this.page.locator(".q-notification"); }
 	public get canvas(): Locator { return this.page.locator("#gameCanvas"); }
-	public sceneItem(name: string | RegExp): Locator { return this.page.locator(".q-item", { hasText: name }); }
+	public sceneItem(name: string | RegExp): Locator { return this.menu.locator(".win-listview__row", { hasText: name }); }
 
 	//#endregion
 
@@ -62,7 +63,7 @@ export class Game {
 		if ((options.lock ?? "simulated") === "simulated") await this.page.addInitScript(SimulatePointerLock);
 
 		await this.page.goto("/");
-		await expect(this.page.locator("#boot-splash, .loading-overlay, .menu-card, .hud-line").first()).toBeVisible();
+		await expect(this.page.locator(`#boot-splash, .cse-ui-host [data-ui="EngineLoading"], .cse-ui-host [data-ui="EnginePauseMenu"], .hud-line`).first()).toBeVisible();
 		await expect(this.menuOrHud).toBeVisible({ timeout: 45_000 });
 	}
 
@@ -86,6 +87,20 @@ export class Game {
 	/** Waits until some HUD line matches (HUD text arrives a few times per second). */
 	public async expectHud(pattern: RegExp, timeout = 20_000): Promise<void> {
 		await expect.poll(async () => (await this.hudLines()).find((line) => pattern.test(line)) ?? null, { timeout, message: `HUD line ${pattern}` }).not.toBeNull();
+	}
+
+	/** A widget of a UI document on screen (the UI plugin's layer over the game). */
+	public uiWidget(document: string, widget: string) {
+		return this.page.locator(`.cse-ui-host [data-ui="${document}"] [data-name="${widget}"]`);
+	}
+
+	public async uiText(document: string, widget: string): Promise<string> {
+		return ((await this.uiWidget(document, widget).textContent()) ?? "").trim();
+	}
+
+	/** Waits until a UI document's widget reads what the pattern says. */
+	public async expectUi(document: string, widget: string, pattern: RegExp, timeout = 20_000): Promise<void> {
+		await expect(this.uiWidget(document, widget)).toHaveText(pattern, { timeout });
 	}
 
 	public async hudLine(pattern: RegExp): Promise<string> {

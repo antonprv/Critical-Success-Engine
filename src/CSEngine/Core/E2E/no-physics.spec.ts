@@ -19,7 +19,7 @@ test.describe("site without a physics build", () => {
 		await game.expectHud(/^Mode: /);
 		await game.expectHud(/^Floor: air$/); // nothing simulates, so the player never lands
 		await game.switchScene(/Coin Hunt/);
-		await game.expectHud(/^Coins: 0 \/ 9$/);
+		await game.expectUi("CoinHuntHud", "Coins", /^Coins: 0 \/ 9$/);
 
 		expect(await page.evaluate(() => document.pointerLockElement?.id)).toBe("gameCanvas");
 	});

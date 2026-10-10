@@ -1,6 +1,12 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { InputBindings } from "../Input/InputBindings";
+import { DataAssets } from "../Data/DataAsset";
+import { MemoryBackend, SettingsStorage } from "../Storage/SettingsStorage";
+import { SettingsService } from "../Services/SettingsService";
+import type { ProjectInput } from "../Input/InputActions";
+import { ChannelHub } from "../Core/Channels";
 import { Logger } from "../../Logging/Logger";
 import { GameLogicMsg, PhysObjectKind, RenderMsg, UiMsg } from "../../Workers/Common/CommonEnums";
 import { PhysicsFixedTimestepMs } from "../../Workers/Common/EngineConstants";
@@ -41,9 +47,13 @@ export class GameLogicRuntime {
 	private readonly _physics: PhysicsService;
 	private readonly _render: RenderService;
 	private readonly _input: InputService;
+
+	/** The player's input: the project's input manifests, the one in use and its action map (level 1 and 2). */
+	public get Input(): InputService { return this._input; }
 	private readonly _ui: UiService;
 	private readonly _scenes: SceneManager;
 	private readonly _registry: SceneRegistry;
+	private readonly _channels: ChannelHub;
 
 	private _renderReady = false;
 	private _renderReadyResolve: (() => void) | null = null;
@@ -51,14 +61,25 @@ export class GameLogicRuntime {
 	private _lastFrameMs: number | null = null;
 	private _bootStarted = false;
 
-	public constructor(ports: GameLogicPorts, registry: SceneRegistry) {
+	public constructor(
+		ports: GameLogicPorts,
+		registry: SceneRegistry,
+		channels: ChannelHub = new ChannelHub(),
+		input: ProjectInput = { Manifests: {}, Default: "" },
+		storage: SettingsStorage = new SettingsStorage(new MemoryBackend()),
+		data: DataAssets = DataAssets.Loaded({}),
+	) {
 		this._ports = ports;
 		this._registry = registry;
+		this._channels = channels;
 
 		this._time = { Delta: 0, FixedDelta: PhysicsFixedTimestepMs / 1000, Elapsed: 0, FrameCount: 0, PhysicsStepCount: 0, RenderAlpha: 0 };
 		this._physics = new PhysicsService(ports.physics);
 		this._render = new RenderService(ports.render);
 		this._input = new InputService();
+		this._input.System.Install(input); // the project's actions and bindings (the engine has none of its own)
+		this._input.System.Load(storage.Get("Input", {}) as never); // and the player's rebinding, kept between sessions
+		new InputBindings(this._input, storage, this._channels); // the controls screen rebinds them over the "input" channel
 		this._ui = new UiService(ports.ui);
 		this._scenes = new SceneManager(registry);
 
@@ -68,6 +89,9 @@ export class GameLogicRuntime {
 			Render: this._render,
 			Input: this._input,
 			Ui: this._ui,
+			Settings: new SettingsService(this._channels, storage),
+			Storage: storage,
+			Data: data,
 			Audio: new AudioService(ports.audio),
 			Scenes: this._scenes,
 			Time: this._time,
@@ -97,6 +121,7 @@ export class GameLogicRuntime {
 		this._ports.render.onmessage = (e: MessageEvent<RenderToGameLogicMessage>) => this.OnRenderMessage(e.data);
 		this._ports.physics.onmessage = (e: MessageEvent<PhysicsToGameLogicMessage>) => this._physics.HandleMessage(e.data);
 		this._ports.ui.onmessage = (e: MessageEvent<UiToGameLogicMessage>) => this.OnUiMessage(e.data);
+		this._channels.Connect((channel, payload) => this._ports.ui.postMessage({ type: UiMsg.Channel, channel, payload }));
 	}
 
 	/** Entry for messages from the main thread (input events). */
@@ -127,6 +152,9 @@ export class GameLogicRuntime {
 
 	private OnUiMessage(message: UiToGameLogicMessage): void {
 		switch (message.type) {
+			case UiMsg.Channel:
+				this._channels.Deliver(message.channel, message.payload);
+				break;
 			case UiMsg.LoadScene:
 				void this._scenes.Load(message.sceneId);
 				break;

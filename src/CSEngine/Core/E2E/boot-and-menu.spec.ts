@@ -13,7 +13,7 @@ test.describe("a visitor opens the site", () => {
 		await expect(game.menu).toContainText("Click Play to take control of the mouse");
 		await expect(game.playButton).toHaveText("Play");
 
-		await expect(game.menu.locator(".q-item")).toHaveCount(3);
+		await expect(game.menu.locator(".win-listview__row")).toHaveCount(5); // the five templates' games
 		await expect(game.sceneItem("Bouncing ball")).toContainText("current");
 		await expect(game.sceneItem("Character test room")).not.toContainText("current");
 		await expect(game.sceneItem(/Coin Hunt/)).toContainText("Collect all 9 coins");
@@ -50,7 +50,7 @@ test.describe("a visitor opens the site", () => {
 		await game.play();
 		await game.pressEscape();
 
-		await page.getByRole("button", { name: "Close menu" }).click();
+		await game.menu.getByRole("button", { name: "Close" }).click(); // the menu window's close box
 		await expect(game.menu).toBeHidden();
 		await expect(game.hud.first()).toBeVisible();
 		expect(await page.evaluate(() => document.pointerLockElement?.id)).toBe("gameCanvas");
@@ -64,7 +64,7 @@ test.describe("a visitor opens the site", () => {
 		await page.evaluate(() => {
 			(window as unknown as { __sawLoading: boolean; }).__sawLoading = false;
 			new MutationObserver(() => {
-				if (document.querySelector(".loading-overlay")) (window as unknown as { __sawLoading: boolean; }).__sawLoading = true;
+				if (document.querySelector('.cse-ui-host [data-ui="EngineLoading"]')) (window as unknown as { __sawLoading: boolean; }).__sawLoading = true;
 			}).observe(document.body, { childList: true, subtree: true });
 		});
 
@@ -84,14 +84,16 @@ test.describe("a visitor opens the site", () => {
 		await game.open();
 		await game.play();
 
-		for (const [scene, hud] of [
-			["Character test room", /^Mode: /],
-			[/Coin Hunt/, /^Coins: 0 \/ 9$/],
-			["Bouncing ball", /kick the ball/],
-			["Character test room", /^Mode: /],
+		// Each scene shows what it shows: the engine's HUD lines, or (Coin Hunt) its HUD document.
+		const engineHud = (pattern: RegExp) => () => game.expectHud(pattern);
+		for (const [scene, shown] of [
+			["Character test room", engineHud(/^Mode: /)],
+			[/Coin Hunt/, () => game.expectUi("CoinHuntHud", "Coins", /^Coins: 0 \/ 9$/)],
+			["Bouncing ball", engineHud(/kick the ball/)],
+			["Character test room", engineHud(/^Mode: /)],
 		] as const) {
 			await game.switchScene(scene);
-			await game.expectHud(hud);
+			await shown();
 		}
 	});
 
@@ -99,9 +101,9 @@ test.describe("a visitor opens the site", () => {
 		await game.open();
 		await game.play();
 		await game.switchScene(/Coin Hunt/);
-		await game.expectHud(/^Coins: 0 \/ 9$/);
+		await game.expectUi("CoinHuntHud", "Coins", /^Coins: 0 \/ 9$/);
 		await game.switchScene(/Coin Hunt/);
-		await game.expectHud(/^Coins: 0 \/ 9$/);
+		await game.expectUi("CoinHuntHud", "Coins", /^Coins: 0 \/ 9$/);
 	});
 
 	test("when the browser refuses the mouse after a scene change, one click on Resume gives control back", async ({ game, page }) => {

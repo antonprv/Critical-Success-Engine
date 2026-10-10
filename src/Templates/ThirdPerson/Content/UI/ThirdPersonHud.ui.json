@@ -1,0 +1,48 @@
+{
+  "Format": 1,
+  "Name": "Third Person HUD",
+  "Script": "",
+  "Root": {
+    "Name": "Root",
+    "Type": "canvas",
+    "X": 0,
+    "Y": 0,
+    "Width": 800,
+    "Height": 500,
+    "Props": {},
+    "Children": [
+      {
+        "Name": "HudWindow",
+        "Type": "window",
+        "X": 12,
+        "Y": 12,
+        "Width": 200,
+        "Height": 64,
+        "AnchorX": "end",
+        "AnchorY": "end",
+        "Props": {
+          "Title": "Third Person",
+          "Closable": false,
+          "Minimizable": false,
+          "Maximizable": false,
+          "Resizable": false
+        },
+        "Children": [
+          {
+            "Name": "Distance",
+            "Type": "label",
+            "X": 10,
+            "Y": 8,
+            "Width": 170,
+            "Height": 18,
+            "Props": {
+              "Text": "Distance: 0 m",
+              "FontSize": 13,
+              "Bold": true
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

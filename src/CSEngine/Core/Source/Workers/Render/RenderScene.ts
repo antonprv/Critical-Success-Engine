@@ -13,7 +13,7 @@ import { Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Scene } from "@babylonjs/core/scene";
 import "@babylonjs/loaders/glTF/2.0";
 
-import { AssetLoader } from "../../Game/AssetLoader";
+import { AssetLoader } from "../../Engine/Assets/AssetLoader";
 import type { CameraPose } from "../Protocol/RenderGameLogicProtocol";
 
 /**

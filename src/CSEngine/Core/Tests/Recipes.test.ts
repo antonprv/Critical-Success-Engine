@@ -11,7 +11,7 @@ import { MeshRenderer } from "../Source/Engine/Components/MeshRenderer";
 import { MovementPreset, MProfile, type MovementContext } from "../Source/Engine/Components/Mover/MovementTypes";
 import { KinematicBody } from "../Source/Engine/Components/Physics/PhysicsBodies";
 import { Vec3 } from "../Source/Engine/Math/Vec3";
-import { CrateSpawner, Door, DoubleJumpMover, DoubleJumpTrait, LaunchPad, Sprint } from "../Source/Game/Scripts/Recipes";
+import { CrateSpawner, Door, DoubleJumpMover, DoubleJumpTrait, LaunchPad, Sprint } from "../Source/Engine/Gameplay/Recipes";
 import { MoverComponent } from "../Source/Engine/Components/Mover/MoverComponent";
 import { CharacterBody } from "../Source/Engine/Components/Physics/CharacterBody";
 import { Harness, tick } from "./Harness";

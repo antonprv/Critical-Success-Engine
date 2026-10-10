@@ -9,6 +9,10 @@ export interface UiActions {
 	/** Must be called from a click handler: pointer lock needs a user gesture. */
 	Resume(): void;
 	SelectScene(sceneId: string): void;
+	/** The touch scheme's pause button (no Esc on a phone). */
+	Pause(): void;
+	/** The touch scheme on or off: on, every scene plays without taking the mouse. */
+	SetTouchMode(enabled: boolean): void;
 }
 
 /**
@@ -21,11 +25,14 @@ export class UiStore {
 	public Actions: UiActions = {
 		Resume: () => undefined,
 		SelectScene: () => undefined,
+		Pause: () => undefined,
+		SetTouchMode: () => undefined,
 	};
 
 	public ApplyPatch(patch: Partial<UiState>): void {
 		if (patch.loading) Object.assign(this.State.loading, patch.loading);
 		if (patch.menu) Object.assign(this.State.menu, patch.menu);
 		if (patch.hud) Object.assign(this.State.hud, patch.hud);
+		if (patch.cursor) this.State.cursor = patch.cursor;
 	}
 }

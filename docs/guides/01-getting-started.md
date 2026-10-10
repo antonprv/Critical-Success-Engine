@@ -9,8 +9,9 @@
 ## Запуск
 
 ```bash
-cd src/CSEngine/Core
+cd src/CSEngine          # рабочее пространство pnpm: движок и его модули
 pnpm install
+cd Core
 pnpm dev            # http://127.0.0.1:5173
 ```
 

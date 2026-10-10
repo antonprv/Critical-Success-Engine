@@ -78,7 +78,7 @@ export class MoverComponent extends CharacterBody {
 	//#region Hooks
 
 	public override OnInputUpdate(input: InputService, _dt: number): void {
-		if (input.JustPressed("KeyN")) this.SetNoclip(!this._noclip);
+		if (input.ActionJustPressed("Noclip")) this.SetNoclip(!this._noclip);
 
 		const presets: [string, MovementPreset][] = [
 			["Digit1", MovementPreset.Quake],
@@ -154,7 +154,7 @@ export class MoverComponent extends CharacterBody {
 	private HandleInput(): void {
 		const input = this.Engine.Input;
 		const [ix, iy] = input.GetInputVector();
-		this._jumpInput = input.JustPressedPhysics("Space");
+		this._jumpInput = input.ActionJustPressedPhysics("Jump");
 
 		const camera = this._camera;
 

@@ -1,6 +1,10 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { DataAssets } from "../Source/Engine/Data/DataAsset";
+import { MemoryBackend, SettingsStorage } from "../Source/Engine/Storage/SettingsStorage";
+import { SettingsService } from "../Source/Engine/Services/SettingsService";
+import { TestProjectInput } from "./InputFixture";
 import { vi } from "vitest";
 import type { EngineContext, TimeInfo } from "../Source/Engine/Core/EngineContext";
 import type { EntityWorld } from "../Source/Engine/Core/EntityWorld";
@@ -43,12 +47,16 @@ export function MakeEngine() {
 	const scenes = { CurrentSceneId: "test" as string | null, IsLoading: false, Load: vi.fn(() => Promise.resolve()) };
 	const physics = new PhysicsService(ports.physics as never);
 	const input = new InputService();
+	input.System.Install(TestProjectInput); // the usual controls (a test fixture: the engine has no actions of its own)
 
 	const { engine, world } = MakeWorld({
 		Physics: physics,
 		Render: new RenderService(ports.render as never),
 		Input: input,
 		Ui: new UiService(ports.ui as never),
+		Settings: new SettingsService(),
+		Storage: new SettingsStorage(new MemoryBackend()),
+		Data: DataAssets.Loaded({}), // no project data: components use their classes' defaults (a test gives its own)
 		Audio: new AudioService(ports.audio as never),
 		Scenes: scenes as never,
 		Time: time,

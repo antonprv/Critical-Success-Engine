@@ -1,0 +1,150 @@
+{
+  "Format": 1,
+  "Name": "Project Browser",
+  "Script": "",
+  "ClickThrough": false,
+  "Root": {
+    "Name": "Root",
+    "Type": "canvas",
+    "X": 0,
+    "Y": 0,
+    "Width": 800,
+    "Height": 500,
+    "Props": {},
+    "Children": [
+      {
+        "Name": "BrowserWindow",
+        "Type": "window",
+        "X": 0,
+        "Y": 0,
+        "Width": 780,
+        "Height": 470,
+        "AnchorX": "center",
+        "AnchorY": "center",
+        "Props": {
+          "Title": "Critical Success Engine - Projects",
+          "Closable": false,
+          "Minimizable": false,
+          "Maximizable": false,
+          "Resizable": false
+        },
+        "Children": [
+          {
+            "Name": "ProjectsLabel",
+            "Type": "label",
+            "X": 12,
+            "Y": 10,
+            "Width": 300,
+            "Height": 18,
+            "Props": {
+              "Text": "Projects the engine and the tools know:",
+              "FontSize": 11,
+              "Bold": true,
+              "Wrap": false
+            }
+          },
+          {
+            "Name": "Projects",
+            "Type": "listbox",
+            "X": 12,
+            "Y": 32,
+            "Width": 574,
+            "Height": 316,
+            "Props": {
+              "Header": "Project",
+              "Items": ""
+            },
+            "AnchorX": "stretch",
+            "Right": 200,
+            "AnchorY": "stretch",
+            "Bottom": 60
+          },
+          {
+            "Name": "NewButton",
+            "Type": "button",
+            "X": 12,
+            "Y": 32,
+            "Width": 176,
+            "Height": 26,
+            "Props": {
+              "Text": "New project...",
+              "Default": true
+            },
+            "AnchorX": "end"
+          },
+          {
+            "Name": "OpenButton",
+            "Type": "button",
+            "X": 12,
+            "Y": 64,
+            "Width": 176,
+            "Height": 26,
+            "Props": {
+              "Text": "Open in UI Designer"
+            },
+            "AnchorX": "end"
+          },
+          {
+            "Name": "RemoveButton",
+            "Type": "button",
+            "X": 12,
+            "Y": 96,
+            "Width": 176,
+            "Height": 26,
+            "Props": {
+              "Text": "Remove from list"
+            },
+            "AnchorX": "end"
+          },
+          {
+            "Name": "ThemeLabel",
+            "Type": "label",
+            "X": 12,
+            "Y": 90,
+            "Width": 176,
+            "Height": 18,
+            "Props": {
+              "Text": "Theme",
+              "FontSize": 11,
+              "Bold": false,
+              "Wrap": false
+            },
+            "AnchorX": "end",
+            "AnchorY": "end"
+          },
+          {
+            "Name": "Theme",
+            "Type": "combobox",
+            "X": 12,
+            "Y": 66,
+            "Width": 176,
+            "Height": 21,
+            "Props": {
+              "Options": [],
+              "Selected": 0
+            },
+            "AnchorX": "end",
+            "AnchorY": "end"
+          },
+          {
+            "Name": "Status",
+            "Type": "label",
+            "X": 12,
+            "Y": 10,
+            "Width": 736,
+            "Height": 36,
+            "Props": {
+              "Text": "",
+              "FontSize": 11,
+              "Bold": false,
+              "Wrap": true
+            },
+            "AnchorX": "stretch",
+            "Right": 12,
+            "AnchorY": "end"
+          }
+        ]
+      }
+    ]
+  }
+}

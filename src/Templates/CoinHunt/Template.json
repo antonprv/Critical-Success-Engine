@@ -1,0 +1,7 @@
+{
+  "Name": "CoinHunt",
+  "Title": "Coin Hunt",
+  "Description": "A small collect-them-all game: coins to grab before the clock runs out, spinning hazards, a restart.",
+  "Genre": "Collectathon",
+  "Order": 4
+}

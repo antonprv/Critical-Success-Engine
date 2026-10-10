@@ -1,0 +1,10 @@
+{
+  "FileVersion": 1,
+  "Documents": [
+    {
+      "Id": "FirstPersonHud",
+      "Path": "FirstPersonHud.ui.json",
+      "Script": ""
+    }
+  ]
+}

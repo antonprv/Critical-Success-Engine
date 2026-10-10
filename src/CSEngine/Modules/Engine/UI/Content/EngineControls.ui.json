@@ -1,0 +1,128 @@
+{
+  "Format": 1,
+  "Name": "Engine controls",
+  "Script": "",
+  "ClickThrough": false,
+  "Root": {
+    "Name": "Root",
+    "Type": "canvas",
+    "X": 0,
+    "Y": 0,
+    "Width": 800,
+    "Height": 500,
+    "Props": {},
+    "Children": [
+      {
+        "Name": "ControlsWindow",
+        "Type": "window",
+        "X": 0,
+        "Y": 0,
+        "Width": 660,
+        "Height": 380,
+        "AnchorX": "center",
+        "AnchorY": "center",
+        "Props": {
+          "Title": "Controls",
+          "Closable": false,
+          "Minimizable": false,
+          "Maximizable": false,
+          "Resizable": false
+        },
+        "Children": [
+          {
+            "Name": "Bindings",
+            "Type": "listbox",
+            "X": 12,
+            "Y": 12,
+            "Width": 630,
+            "Height": 260,
+            "Props": {
+              "Items": ""
+            }
+          },
+          {
+            "Name": "Hint",
+            "Type": "label",
+            "X": 12,
+            "Y": 280,
+            "Width": 630,
+            "Height": 36,
+            "Props": {
+              "Text": "Pick an action, then the binding to change.",
+              "FontSize": 11,
+              "Bold": false,
+              "Wrap": true
+            }
+          },
+          {
+            "Name": "MainButton",
+            "Type": "button",
+            "X": 12,
+            "Y": 318,
+            "Width": 100,
+            "Height": 26,
+            "Props": {
+              "Text": "Main key"
+            }
+          },
+          {
+            "Name": "SpareButton",
+            "Type": "button",
+            "X": 118,
+            "Y": 318,
+            "Width": 100,
+            "Height": 26,
+            "Props": {
+              "Text": "Spare key"
+            }
+          },
+          {
+            "Name": "PadButton",
+            "Type": "button",
+            "X": 224,
+            "Y": 318,
+            "Width": 100,
+            "Height": 26,
+            "Props": {
+              "Text": "Gamepad"
+            }
+          },
+          {
+            "Name": "ResetButton",
+            "Type": "button",
+            "X": 330,
+            "Y": 318,
+            "Width": 100,
+            "Height": 26,
+            "Props": {
+              "Text": "Reset all"
+            }
+          },
+          {
+            "Name": "ArrangeButton",
+            "Type": "button",
+            "X": 436,
+            "Y": 318,
+            "Width": 100,
+            "Height": 26,
+            "Props": {
+              "Text": "Arrange touch"
+            }
+          },
+          {
+            "Name": "BackButton",
+            "Type": "button",
+            "X": 542,
+            "Y": 318,
+            "Width": 100,
+            "Height": 26,
+            "Props": {
+              "Text": "Back",
+              "Default": true
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

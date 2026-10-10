@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import type { CursorMode } from "../Core/EntityManifest";
 import type { GameLogicToUiMessage, SceneInfo, UiBar } from "../../Workers/Protocol/UiProtocol";
 import { UiMsg } from "../../Workers/Common/CommonEnums";
 
@@ -27,7 +28,8 @@ export class UiService {
 	public LoadProgress(sceneId: string, label: string, fraction: number): void {
 		this.Post({ type: UiMsg.LoadProgress, sceneId, label, fraction });
 	}
-	public LoadFinished(sceneId: string): void { this.Post({ type: UiMsg.LoadFinished, sceneId }); }
+	/** The scene is ready; its cursor mode says whether the game takes the mouse. */
+	public LoadFinished(sceneId: string, cursor: CursorMode = "locked"): void { this.Post({ type: UiMsg.LoadFinished, sceneId, cursor }); }
 	public LoadFailed(sceneId: string, message: string): void { this.Post({ type: UiMsg.LoadFailed, sceneId, message }); }
 	public Toast(message: string): void { this.Post({ type: UiMsg.Toast, message }); }
 

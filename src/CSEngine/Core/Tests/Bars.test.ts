@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import { Comp, Ent } from "../Source/Engine/Core/EntityManifest";
 import { SceneRegistry } from "../Source/Engine/Scenes/SceneRegistry";
-import { Health } from "../Source/Game/GuideExamples/HealthBar";
+import { Health } from "../Source/Examples/HealthBar";
 import { UiController } from "../Source/Workers/Ui/UiController";
 import { Harness } from "./Harness";
 import { UiMsg, RenderMsg } from "../Source/Workers/Common/CommonEnums";

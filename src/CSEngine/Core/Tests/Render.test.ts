@@ -8,7 +8,7 @@ import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { Scene } from "@babylonjs/core/scene";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AssetLoader, AssetPriority } from "../Source/Game/AssetLoader";
+import { AssetLoader, AssetPriority } from "../Source/Engine/Assets/AssetLoader";
 import { RendMesh } from "../Source/Workers/Common/CommonEnums";
 import { EntityMeshRegistry } from "../Source/Workers/Render/EntityMeshRegistry";
 import { RenderScene } from "../Source/Workers/Render/RenderScene";

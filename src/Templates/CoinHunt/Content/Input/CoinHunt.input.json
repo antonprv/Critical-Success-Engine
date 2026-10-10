@@ -1,0 +1,144 @@
+{
+  "FileVersion": 1,
+  "Name": "Coin Hunt",
+  "DefaultMap": "OnFoot",
+  "ActionMaps": [
+    {
+      "Name": "OnFoot",
+      "Actions": [
+        {
+          "Name": "MoveForward",
+          "Label": "Move forward",
+          "Category": "Movement",
+          "Default": {
+            "Keyboard": [
+              "KeyW",
+              "ArrowUp"
+            ],
+            "Gamepad": "Pad:LeftStickUp"
+          }
+        },
+        {
+          "Name": "MoveBack",
+          "Label": "Move back",
+          "Category": "Movement",
+          "Default": {
+            "Keyboard": [
+              "KeyS",
+              "ArrowDown"
+            ],
+            "Gamepad": "Pad:LeftStickDown"
+          }
+        },
+        {
+          "Name": "MoveLeft",
+          "Label": "Move left",
+          "Category": "Movement",
+          "Default": {
+            "Keyboard": [
+              "KeyA",
+              "ArrowLeft"
+            ],
+            "Gamepad": "Pad:LeftStickLeft"
+          }
+        },
+        {
+          "Name": "MoveRight",
+          "Label": "Move right",
+          "Category": "Movement",
+          "Default": {
+            "Keyboard": [
+              "KeyD",
+              "ArrowRight"
+            ],
+            "Gamepad": "Pad:LeftStickRight"
+          }
+        },
+        {
+          "Name": "Jump",
+          "Label": "Jump",
+          "Category": "Movement",
+          "Default": {
+            "Keyboard": [
+              "Space",
+              ""
+            ],
+            "Gamepad": "Pad:A"
+          }
+        },
+        {
+          "Name": "LookLeft",
+          "Label": "Look left",
+          "Category": "Camera",
+          "Default": {
+            "Keyboard": [
+              "",
+              ""
+            ],
+            "Gamepad": "Pad:RightStickLeft"
+          }
+        },
+        {
+          "Name": "LookRight",
+          "Label": "Look right",
+          "Category": "Camera",
+          "Default": {
+            "Keyboard": [
+              "",
+              ""
+            ],
+            "Gamepad": "Pad:RightStickRight"
+          }
+        },
+        {
+          "Name": "LookUp",
+          "Label": "Look up",
+          "Category": "Camera",
+          "Default": {
+            "Keyboard": [
+              "",
+              ""
+            ],
+            "Gamepad": "Pad:RightStickUp"
+          }
+        },
+        {
+          "Name": "LookDown",
+          "Label": "Look down",
+          "Category": "Camera",
+          "Default": {
+            "Keyboard": [
+              "",
+              ""
+            ],
+            "Gamepad": "Pad:RightStickDown"
+          }
+        },
+        {
+          "Name": "ToggleView",
+          "Label": "First / third person",
+          "Category": "Camera",
+          "Default": {
+            "Keyboard": [
+              "KeyV",
+              ""
+            ],
+            "Gamepad": "Pad:RS"
+          }
+        },
+        {
+          "Name": "Restart",
+          "Label": "Restart",
+          "Category": "Coin Hunt",
+          "Default": {
+            "Keyboard": [
+              "KeyR",
+              ""
+            ],
+            "Gamepad": "Pad:Start"
+          }
+        }
+      ]
+    }
+  ]
+}

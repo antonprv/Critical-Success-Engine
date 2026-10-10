@@ -1,6 +1,16 @@
 {
   // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
+    // Projects (and the templates) import the engine by its package name; here that is these sources.
+    "paths": {
+      "@cse/core/events": ["./Source/Engine/Core/EventHub.ts"],
+      "@cse/core/modules": ["./Source/Engine/Modules/ModuleManager.ts"],
+      "@cse/core/projects": ["./Source/Engine/Projects/ProjectDescriptor.ts"],
+      "@cse/core/Engine/*": ["./Source/Engine/*"],
+      "@cse/ui/game": ["../Modules/Engine/UI/Source/Runtime/GameUiModule.ts"]
+    },
+    // Files the Vite config loads (BuildTools -> Source) import with explicit .ts extensions, as Vite's config loader needs.
+    "allowImportingTsExtensions": true,
     // File Layout
 
     "target": "ES2022",
@@ -55,7 +65,8 @@
     "./Source/**/*.ts",
     "./Source/**/*.tsx",
     "./Source/**/*.vue",
-    "./Source/**/*.js"
+    "./Source/**/*.js",
+    "../../Templates/*/Source/**/*.ts"
   ],
 
   "exclude": [

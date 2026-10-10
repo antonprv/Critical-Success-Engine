@@ -1,0 +1,12 @@
+{
+  "FileVersion": 1,
+  "Type": "TopDownCamera",
+  "Values": {
+    "Zoom": 18,
+    "ZoomMin": 6,
+    "ZoomMax": 30,
+    "PitchNear": -35,
+    "PitchFar": -68,
+    "EdgeScroll": false
+  }
+}

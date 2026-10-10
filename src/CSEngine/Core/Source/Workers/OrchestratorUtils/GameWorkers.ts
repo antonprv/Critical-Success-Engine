@@ -77,7 +77,8 @@ export class GameWorkers {
 	}
 
 	private InitGameLogic(renderPort: MessagePort, physicsPort: MessagePort, audioPort: MessagePort, uiPort: MessagePort): void {
-		const message: MainToGameLogicMessage = { type: GameLogicMsg.Init, renderPort, physicsPort, audioPort, uiPort };
+		const baseUrl = new URL(".", document.baseURI).href; // the game's files (data assets) sit next to the page
+		const message: MainToGameLogicMessage = { type: GameLogicMsg.Init, renderPort, physicsPort, audioPort, uiPort, baseUrl };
 		this.GameLogicWorker.postMessage(message, [renderPort, physicsPort, audioPort, uiPort]);
 	}
 

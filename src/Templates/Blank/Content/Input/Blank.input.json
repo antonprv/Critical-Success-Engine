@@ -1,0 +1,24 @@
+{
+  "FileVersion": 1,
+  "Name": "Blank",
+  "DefaultMap": "OnFoot",
+  "ActionMaps": [
+    {
+      "Name": "OnFoot",
+      "Actions": [
+        {
+          "Name": "Jump",
+          "Label": "Kick the ball up",
+          "Category": "Actions",
+          "Default": {
+            "Keyboard": [
+              "Space",
+              ""
+            ],
+            "Gamepad": "Pad:A"
+          }
+        }
+      ]
+    }
+  ]
+}

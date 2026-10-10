@@ -1,3 +1,6 @@
+import { resolve } from "node:path";
+import { ProjectPlugin } from "./BuildTools/ProjectPlugin.ts";
+import { ProjectOptions } from "./vite.config.ts";
 import { quasar, transformAssetUrls } from "@quasar/vite-plugin";
 import vue from "@vitejs/plugin-vue";
 import { defineConfig } from "vitest/config";
@@ -6,7 +9,7 @@ import { defineConfig } from "vitest/config";
 // coverage, and fails if any file drops below 100% on any metric. The browser-only behaviour (WebGL rendering, real
 // pointer lock, the built and served site) is covered on top of this by the Playwright suite in E2E/ (`pnpm test:e2e`).
 export default defineConfig({
-    plugins: [vue({ template: { transformAssetUrls } }), quasar()],
+    plugins: [vue({ template: { transformAssetUrls } }), quasar(), ProjectPlugin(ProjectOptions)],
 
     test: {
         include: ["Tests/**/*.test.ts"],
@@ -20,7 +23,9 @@ export default defineConfig({
 
         coverage: {
             provider: "v8",
-            include: ["Source/**/*.{ts,vue}", "BuildTools/**/*.{ts,mjs}", "vite.config.ts"],
+            // The templates' games are the engine's sample content: their code is covered by these tests too.
+            include: ["Source/**/*.{ts,vue}", "BuildTools/**/*.{ts,mjs}", "vite.config.ts", `${resolve(process.cwd(), "../../Templates")}/*/Source/**/*.ts`],
+            allowExternal: true,
             exclude: ["**/*.d.ts"],
             reporter: ["text-summary", "html", "lcov", "json-summary"],
             reportsDirectory: "coverage",

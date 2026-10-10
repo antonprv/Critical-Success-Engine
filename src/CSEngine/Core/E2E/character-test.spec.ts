@@ -75,6 +75,14 @@ test.describe("Character test room", () => {
 	test("clicking shoots projectiles without breaking the game", async ({ game, page }) => {
 		await game.expectHud(/^Floor: Floor$/);
 
+		// The crosshair sits in the middle of the screen, over where the clicks land: it must let them through.
+		await expect(game.uiWidget("FirstPersonHud", "Crosshair")).toBeVisible();
+		// Who takes the mouse is what the document says: the crosshair is marked Click pass-through, the ammo panel isn't.
+		const box = (await game.uiWidget("FirstPersonHud", "Crosshair").boundingBox())!;
+		expect(await page.evaluate(([x, y]) => document.elementFromPoint(x!, y!)?.id, [box.x + box.width / 2, box.y + box.height / 2])).toBe("gameCanvas");
+		const panel = (await game.page.locator('.cse-ui-host [data-name="AmmoWindow"]').boundingBox())!;
+		expect(await page.evaluate(([x, y]) => Boolean(document.elementFromPoint(x!, y!)?.closest('[data-name="AmmoWindow"]')), [panel.x + panel.width / 2, panel.y + panel.height / 2])).toBe(true);
+		await game.expectUi("FirstPersonHud", "Shots", /^Shots: 0$/);
 		for (let i = 0; i < 4; i++) {
 			await page.mouse.click(400, 250);
 			await page.waitForTimeout(250);
@@ -82,6 +90,7 @@ test.describe("Character test room", () => {
 		await page.waitForTimeout(1500);
 
 		await game.expectHud(/^Floor: Floor$/); // GameLogic is still alive and simulating
+		await game.expectUi("FirstPersonHud", "Shots", /^Shots: [1-4]$/); // the HUD document counts them
 	});
 
 	test("V switches to the third-person camera: the white player capsule comes into view", async ({ game, page }) => {
@@ -89,6 +98,8 @@ test.describe("Character test room", () => {
 		// The capsule is lit white (0.9, 0.9, 0.95); nothing else in the room is that bright. The HUD text and toasts are white
 		// too, but they live in the top 130 px of the page, which is skipped.
 		const HudBottom = 130;
+		// What is measured is the 3D scene: the UI documents drawn over it (the HUD panel is light too) are hidden meanwhile.
+		await page.addStyleTag({ content: ".cse-ui-host { visibility: hidden; }" });
 		const isWhite = (r: number, g: number, b: number): boolean => r > 215 && g > 215 && b > 215;
 
 		// First person: the camera sits inside the capsule, you cannot see yourself.

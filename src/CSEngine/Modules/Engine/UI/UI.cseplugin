@@ -1,0 +1,13 @@
+{
+  "FileVersion": 1,
+  "Name": "UI",
+  "FriendlyName": "UI documents",
+  "Version": "1.0",
+  "Description": "Shows the project's UI documents over the game; game scripts drive them through GetGameUi() (@cse/ui/game).",
+  "Category": "UI",
+  "EnabledByDefault": false,
+  "Modules": [
+    { "Name": "UIHost", "Type": "Runtime", "LoadingPhase": "Default", "Thread": "Main", "Dependencies": ["Engine"], "Entry": "Source/Runtime/UiHostModule.ts" },
+    { "Name": "UIGame", "Type": "Runtime", "LoadingPhase": "PreDefault", "Thread": "GameLogic", "Dependencies": ["Engine"], "Entry": "Source/Runtime/GameUiModule.ts" }
+  ]
+}

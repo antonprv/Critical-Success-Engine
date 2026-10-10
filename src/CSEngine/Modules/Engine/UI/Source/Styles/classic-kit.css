@@ -1,0 +1,484 @@
+/*
+ * The Classic kit: Windows 98 to 7. Every theme sets the same variables; three families (classic, luna, aero) differ
+ * in shape. All rules are scoped to .win-kit--classic, so they never reach the Tailwind kit.
+ */
+
+/* ---------- themes ---------- */
+
+.win-kit--classic.win-root {
+	--font: Tahoma, "MS Sans Serif", Verdana, "DejaVu Sans", sans-serif;
+	--title-font: var(--font);
+	--text: #000;
+	--face: #d4d0c8;
+	--window: #fff;
+	--hilight: #fff;
+	--light: #dfdfdf;
+	--shadow: #808080;
+	--dark: #000;
+	--select: #0a246a;
+	--select-text: #fff;
+	--title-1: #0a246a;
+	--title-2: #a6caf0;
+	--title-text: #fff;
+	--title-off-1: #808080;
+	--title-off-2: #c0c0c0;
+	--title-off-text: #d4d0c8;
+	--frame: var(--face);
+	--desktop: #3a6ea5;
+	--accent: #316ac5;
+	--progress: #0a246a;
+
+	font: 11px/1.35 var(--font);
+	color: var(--text);
+	box-sizing: border-box;
+}
+
+.win-kit--classic.win-root *, .win-kit--classic.win-root *::before, .win-kit--classic.win-root *::after {
+	box-sizing: inherit;
+}
+
+.win-kit--classic.win-theme--win98 { --face: #c0c0c0; --light: #dfdfdf; --select: #000080; --title-1: #000080; --title-2: #1084d0; --title-off-1: #808080; --title-off-2: #b5b5b5; --title-off-text: #c0c0c0; --desktop: #008080; --progress: #000080; }
+.win-kit--classic.win-theme--winme { --face: #c0c0c0; --select: #000080; --title-1: #000080; --title-2: #1084d0; --desktop: #3a6ea5; --progress: #000080; }
+.win-kit--classic.win-theme--win2000 { --desktop: #3a6ea5; }
+.win-kit--classic.win-theme--classic { --font: Tahoma, "Segoe UI", Verdana, "DejaVu Sans", sans-serif; --desktop: #3a6ea5; }
+
+.win-kit--classic.win-family--luna {
+	--font: Tahoma, Verdana, "DejaVu Sans", sans-serif;
+	--title-font: "Trebuchet MS", Tahoma, "DejaVu Sans", sans-serif;
+	--face: #ece9d8;
+	--shadow: #aca899;
+	--light: #f1efe2;
+	--hover: #f8b33f;
+	--focus: #7da2ce;
+	--button-border: #003c74;
+	--progress: #2cd033;
+	/* spinner, scroll bar and combo box arrows */
+	--control-1: #cfdcfd;
+	--control-2: #b9c9f3;
+	--control-border: #b4c8f6;
+	--glyph: #4d6185;
+}
+.win-kit--classic.win-theme--xp-blue { --frame: #0831d9; --title-1: #0058ee; --title-2: #3d95ff; --title-3: #0042d4; --title-off-1: #7a96df; --title-off-2: #a6b8f0; --title-off-text: #d8e4f8; --select: #316ac5; --accent: #316ac5; --desktop: #004e98; }
+.win-kit--classic.win-theme--xp-olive { --control-1: #e4ebcc; --control-2: #c6d3a2; --control-border: #b2c38c; --glyph: #5e6f3c; --frame: #8ba169; --title-1: #8fa86c; --title-2: #b6c991; --title-3: #6c844b; --title-off-1: #c2cba6; --title-off-2: #d8dfc4; --title-off-text: #f0f2e6; --select: #93a070; --accent: #6f8442; --desktop: #5a7a3f; }
+.win-kit--classic.win-theme--xp-silver { --control-1: #f3f3f7; --control-2: #d4d4de; --control-border: #b7b7c6; --glyph: #4a4a5a; --frame: #a5a5b8; --title-1: #c8c8d8; --title-2: #ffffff; --title-3: #a6a6ba; --title-text: #0e1010; --title-off-1: #e2e2ea; --title-off-2: #f6f6f8; --title-off-text: #a0a0aa; --face: #e0dfe3; --select: #b2b4bf; --select-text: #000; --accent: #7a7b8a; --desktop: #8a8ea8; }
+.win-kit--classic.win-theme--xp-royale { --frame: #2e4b9e; --title-1: #2b4daa; --title-2: #5c7fd8; --title-3: #1c3283; --title-off-1: #8b9bc8; --title-off-2: #aab8de; --title-off-text: #e1e7f6; --face: #ebe9ed; --select: #3d5fc4; --accent: #3d5fc4; --desktop: #18233f; }
+
+.win-kit--classic.win-family--aero {
+	--font: "Segoe UI", Tahoma, "DejaVu Sans", sans-serif;
+	--title-font: var(--font);
+	--face: #f0f0f0;
+	--shadow: #a0a0a0;
+	--title-text: #000;
+	--title-off-text: #6d6d6d;
+	--select: #cce8ff;
+	--select-text: #000;
+	--accent: #3399ff;
+	--progress: #06b025;
+	--glass: rgba(170, 200, 240, 0.55);
+	--glass-off: rgba(210, 225, 245, 0.45);
+}
+.win-kit--classic.win-theme--vista-aero { --desktop: #1d4f69; --glass: rgba(130, 175, 220, 0.55); }
+.win-kit--classic.win-theme--vista-basic { --desktop: #1d4f69; --glass: #b5c9e2; --glass-off: #d1dcea; }
+.win-kit--classic.win-theme--win7-aero { --desktop: #1e5799; --glass: rgba(150, 190, 230, 0.5); }
+.win-kit--classic.win-theme--win7-basic { --desktop: #1e5799; --glass: #bfcddb; --glass-off: #dbe4ee; }
+
+/* ---------- shared 3D edges (classic) ---------- */
+
+.win-kit--classic.win-family--classic .win-button, .win-kit--classic.win-family--classic .win-window, .win-kit--classic.win-family--classic .win-taskbar__button {
+	box-shadow: inset -1px -1px var(--dark), inset 1px 1px var(--hilight), inset -2px -2px var(--shadow), inset 2px 2px var(--light);
+}
+
+.win-kit--classic.win-family--classic .win-listview, .win-kit--classic.win-family--classic .win-tree, .win-kit--classic.win-family--classic .win-progress, .win-kit--classic.win-family--classic .win-checkbox__box, .win-kit--classic.win-family--classic .win-tabs__page {
+	box-shadow: inset 1px 1px var(--shadow), inset -1px -1px var(--hilight), inset 2px 2px var(--dark), inset -2px -2px var(--light);
+}
+
+/* ---------- button ---------- */
+
+.win-kit--classic .win-button {
+	min-width: 75px;
+	min-height: 23px;
+	padding: 0 12px;
+	border: none;
+	background: var(--face);
+	font: inherit;
+	color: inherit;
+	cursor: default;
+}
+.win-kit--classic.win-family--classic .win-button--pressed { box-shadow: inset 1px 1px var(--dark), inset -1px -1px var(--hilight), inset 2px 2px var(--shadow), inset -2px -2px var(--light); padding: 1px 11px 0 13px; }
+.win-kit--classic.win-family--classic .win-button--default { outline: 1px solid var(--dark); }
+.win-kit--classic.win-family--classic .win-button--focused { outline: 1px dotted var(--dark); outline-offset: -4px; }
+
+.win-kit--classic.win-family--luna .win-button {
+	border: 1px solid var(--button-border);
+	border-radius: 3px;
+	background: linear-gradient(180deg, #fff 0%, #ecebe6 86%, #d6d0c5 100%);
+}
+.win-kit--classic.win-family--luna .win-button--hovered { box-shadow: inset 0 0 0 2px var(--hover); }
+.win-kit--classic.win-family--luna .win-button--focused, .win-kit--classic.win-family--luna .win-button--default { box-shadow: inset 0 0 0 2px var(--focus); }
+.win-kit--classic.win-family--luna .win-button--pressed { background: linear-gradient(180deg, #e3e2da 0%, #f2f1eb 100%); }
+
+.win-kit--classic.win-family--aero .win-button {
+	border: 1px solid #707070;
+	border-radius: 3px;
+	background: linear-gradient(180deg, #f2f2f2 0%, #ebebeb 50%, #dddddd 51%, #cfcfcf 100%);
+}
+.win-kit--classic.win-family--aero .win-button--hovered { border-color: #3c7fb1; background: linear-gradient(180deg, #eaf6fd 0%, #d9f0fc 50%, #bee6fd 51%, #a7d9f5 100%); }
+.win-kit--classic.win-family--aero .win-button--pressed { border-color: #2c628b; background: linear-gradient(180deg, #e5f4fc 0%, #c4e5f6 50%, #98d1ef 51%, #68b3db 100%); }
+.win-kit--classic.win-family--aero .win-button--default, .win-kit--classic.win-family--aero .win-button--focused { border-color: #3399ff; }
+
+.win-kit--classic .win-button:disabled { color: var(--shadow); text-shadow: 1px 1px var(--hilight); }
+
+/* ---------- check box and radio ---------- */
+
+.win-kit--classic .win-checkbox, .win-kit--classic .win-radio {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	cursor: default;
+	user-select: none;
+}
+.win-kit--classic .win-radiogroup { display: flex; flex-direction: column; gap: 4px; }
+.win-kit--classic .win-checkbox__box, .win-kit--classic .win-radio__dot {
+	position: relative;
+	width: 13px;
+	height: 13px;
+	background: var(--window);
+}
+.win-kit--classic.win-family--luna .win-checkbox__box { border: 1px solid #1c5180; background: linear-gradient(135deg, #dcdcd7, #fff); }
+.win-kit--classic.win-family--aero .win-checkbox__box { border: 1px solid #8f8f8f; background: linear-gradient(135deg, #e4e4e4, #fff); }
+/* The check mark: a centred glyph over the whole box. */
+.win-kit--classic .win-checkbox__box[aria-checked="true"]::after { content: ""; position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M1 4.5l2.3 2.3L8 2' fill='none' stroke='%23000' stroke-width='1.8'/%3E%3C/svg%3E") center / 9px 9px no-repeat; }
+.win-kit--classic.win-family--luna .win-checkbox__box[aria-checked="true"]::after { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M1 4.5l2.3 2.3L8 2' fill='none' stroke='%2321a121' stroke-width='1.8'/%3E%3C/svg%3E"); }
+.win-kit--classic.win-family--aero .win-checkbox__box[aria-checked="true"]::after { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 9'%3E%3Cpath d='M1 4.5l2.3 2.3L8 2' fill='none' stroke='%231a3a6e' stroke-width='1.8'/%3E%3C/svg%3E"); }
+.win-kit--classic .win-checkbox__box[aria-checked="mixed"]::after { content: ""; position: absolute; inset: 3px; background: var(--shadow); }
+.win-kit--classic.win-family--luna .win-checkbox__box[aria-checked="mixed"]::after { background: #21a121; }
+.win-kit--classic .win-radio__dot { border-radius: 50%; box-shadow: inset 1px 1px var(--shadow), inset -1px -1px var(--hilight); }
+.win-kit--classic.win-family--luna .win-radio__dot { border: 1px solid #1c5180; box-shadow: none; }
+.win-kit--classic.win-family--aero .win-radio__dot { border: 1px solid #8f8f8f; box-shadow: none; }
+.win-kit--classic .win-radio__dot[aria-checked="true"]::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--dark); }
+.win-kit--classic.win-family--luna .win-radio__dot[aria-checked="true"]::after { background: radial-gradient(circle at 35% 35%, #55d751, #21a121); }
+.win-kit--classic.win-family--aero .win-radio__dot[aria-checked="true"]::after { background: radial-gradient(circle at 35% 35%, #7ec4f6, #1a5f9d); }
+.win-kit--classic .win-checkbox--disabled, .win-kit--classic .win-radio--disabled { color: var(--shadow); }
+.win-kit--classic .win-checkbox__box:focus-visible + .win-checkbox__label, .win-kit--classic .win-radio__dot:focus-visible + .win-radio__label { outline: 1px dotted var(--dark); }
+
+/* ---------- progress bar ---------- */
+
+.win-kit--classic .win-progress {
+	position: relative;
+	height: 17px;
+	padding: 2px;
+	overflow: hidden;
+	background: var(--window);
+}
+.win-kit--classic .win-progress__fill {
+	height: 100%;
+	background: repeating-linear-gradient(90deg, var(--progress) 0 8px, transparent 8px 10px);
+	transition: width 0.15s linear;
+}
+.win-kit--classic.win-family--luna .win-progress { border: 1px solid #686868; border-radius: 3px; }
+.win-kit--classic.win-family--luna .win-progress__fill { background: repeating-linear-gradient(90deg, transparent 0 7px, #fff 7px 9px), linear-gradient(180deg, #acedad 0%, #2cd033 45%, #22b726 70%, #8be08d 100%); }
+.win-kit--classic.win-family--aero .win-progress { border: 1px solid #bcbcbc; border-radius: 2px; background: linear-gradient(180deg, #f3f3f3, #e2e2e2); }
+.win-kit--classic.win-family--aero .win-progress__fill { background: linear-gradient(180deg, #a7f5a8 0%, #3ec641 50%, #06b025 51%, #0bd02f 100%); }
+.win-kit--classic.win-family--aero .win-progress--paused .win-progress__fill { background: linear-gradient(180deg, #fff3a6 0%, #e6cc3a 50%, #d8b100 51%, #f0cc2b 100%); }
+.win-kit--classic.win-family--aero .win-progress--error .win-progress__fill { background: linear-gradient(180deg, #f9a7a7 0%, #d93d3d 50%, #c80000 51%, #e62b2b 100%); }
+.win-kit--classic .win-progress--marquee .win-progress__fill { width: 30% !important; animation: win-marquee 1.6s linear infinite; }
+@keyframes win-marquee { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+
+/* ---------- tabs ---------- */
+
+.win-kit--classic .win-tabs__strip { display: flex; padding-left: 2px; }
+.win-kit--classic .win-tab {
+	position: relative;
+	top: 2px;
+	padding: 3px 10px;
+	border: 1px solid var(--shadow);
+	border-bottom: none;
+	background: var(--face);
+	font: inherit;
+	color: inherit;
+}
+.win-kit--classic .win-tab--selected { top: 0; padding-bottom: 6px; z-index: 1; }
+.win-kit--classic.win-family--luna .win-tab { border-color: #919b9c; border-radius: 3px 3px 0 0; background: linear-gradient(180deg, #fff, #ecebe6); }
+.win-kit--classic.win-family--luna .win-tab--selected { border-top: 2px solid #ffc83c; background: #fcfcfe; }
+.win-kit--classic.win-family--aero .win-tab { border-color: #898c95; border-radius: 2px 2px 0 0; background: linear-gradient(180deg, #f2f2f2, #dadada); }
+.win-kit--classic.win-family--aero .win-tab--selected { background: #fff; }
+.win-kit--classic .win-tab[aria-disabled="true"] { color: var(--shadow); }
+.win-kit--classic .win-tabs__page { padding: 10px; background: var(--face); border: 1px solid var(--shadow); }
+.win-kit--classic.win-family--luna .win-tabs__page { background: #fcfcfe; border-color: #919b9c; }
+.win-kit--classic.win-family--aero .win-tabs__page { background: #fff; border-color: #898c95; }
+
+/* ---------- slider ---------- */
+
+.win-kit--classic .win-slider { position: relative; height: 30px; padding: 0 6px; outline: none; }
+.win-kit--classic .win-slider__track { position: relative; top: 8px; height: 4px; box-shadow: inset 1px 1px var(--shadow), inset -1px -1px var(--hilight); background: var(--face); }
+.win-kit--classic .win-slider__track::before { content: ""; position: absolute; inset: -8px 0; }
+.win-kit--classic .win-slider__thumb { position: absolute; top: -8px; width: 11px; height: 21px; margin-left: -5px; background: var(--face); box-shadow: inset -1px -1px var(--dark), inset 1px 1px var(--hilight), inset -2px -2px var(--shadow); clip-path: polygon(0 0, 100% 0, 100% 70%, 50% 100%, 0 70%); }
+.win-kit--classic.win-family--luna .win-slider__thumb { background: linear-gradient(180deg, #fff, #d3d2cb); box-shadow: inset 0 0 0 1px #1c5180; }
+.win-kit--classic.win-family--aero .win-slider__thumb { background: linear-gradient(180deg, #f3f3f3, #cfcfcf); box-shadow: inset 0 0 0 1px #707070; }
+.win-kit--classic .win-slider__ticks { position: relative; top: 16px; height: 4px; }
+.win-kit--classic .win-slider__tick { position: absolute; width: 1px; height: 4px; background: var(--dark); }
+.win-kit--classic .win-slider:focus-visible { outline: 1px dotted var(--dark); }
+
+/* ---------- list view and tree ---------- */
+
+.win-kit--classic .win-listview, .win-kit--classic .win-tree {
+	margin: 0;
+	padding: 2px;
+	overflow: auto;
+	background: var(--window);
+	list-style: none;
+	outline: none;
+}
+.win-kit--classic.win-family--luna .win-listview, .win-kit--classic.win-family--luna .win-tree { border: 1px solid #7f9db9; }
+.win-kit--classic.win-family--aero .win-listview, .win-kit--classic.win-family--aero .win-tree { border: 1px solid #828790; }
+.win-kit--classic .win-listview__header, .win-kit--classic .win-listview__row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(80px, 1fr); }
+.win-kit--classic .win-listview__column { padding: 2px 6px; border: none; background: var(--face); font: inherit; color: inherit; text-align: left; box-shadow: inset -1px -1px var(--shadow), inset 1px 1px var(--hilight); }
+.win-kit--classic.win-family--luna .win-listview__column { background: linear-gradient(180deg, #fff, #ebeadb); box-shadow: inset -1px 0 #c7c5b2, inset 0 -3px #e2e0d1; }
+.win-kit--classic.win-family--aero .win-listview__column { background: #fff; box-shadow: inset -1px 0 #e5e5e5; }
+.win-kit--classic .win-listview__column[aria-sort="ascending"]::after { content: " ▲"; font-size: 8px; }
+.win-kit--classic .win-listview__column[aria-sort="descending"]::after { content: " ▼"; font-size: 8px; }
+.win-kit--classic .win-listview__cell { padding: 1px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.win-kit--classic .win-listview__row--selected, .win-kit--classic .win-tree__item--selected .win-tree__label { background: var(--select); color: var(--select-text); }
+.win-kit--classic.win-family--aero .win-listview__row--selected, .win-kit--classic.win-family--aero .win-tree__item--selected .win-tree__label { box-shadow: inset 0 0 0 1px #84acdd; border-radius: 2px; }
+.win-kit--classic .win-listview:focus .win-listview__row--focused { outline: 1px dotted var(--dark); outline-offset: -1px; }
+.win-kit--classic .win-tree__item { display: flex; align-items: center; gap: 3px; min-height: 18px; white-space: nowrap; }
+.win-kit--classic .win-tree__label { padding: 0 2px; }
+.win-kit--classic .win-tree__expander { position: relative; width: 9px; height: 9px; padding: 0; border: 1px solid #919b9c; background: var(--window); }
+.win-kit--classic .win-tree__expander::before { content: ""; position: absolute; left: 1px; right: 1px; top: 3px; height: 1px; background: var(--dark); }
+.win-kit--classic .win-tree__expander[aria-label="Expand"]::after { content: ""; position: absolute; top: 1px; bottom: 1px; left: 3px; width: 1px; background: var(--dark); }
+.win-kit--classic .win-tree__item:not(:has(.win-tree__expander)) .win-tree__label { margin-left: 12px; }
+
+/* ---------- menus ---------- */
+
+.win-kit--classic .win-menubar { position: relative; display: flex; flex-wrap: wrap; background: var(--face); outline: none; user-select: none; }
+.win-kit--classic .win-menubar__item { padding: 2px 7px; border: 1px solid transparent; background: none; font: inherit; color: inherit; }
+.win-kit--classic .win-menubar__item--open { background: var(--select); color: var(--select-text); }
+.win-kit--classic.win-family--classic .win-menubar__item--open { background: none; color: inherit; border-color: var(--shadow) var(--hilight) var(--hilight) var(--shadow); }
+.win-kit--classic .win-menubar__item u { text-decoration: underline; }
+.win-kit--classic .win-menu__levels { position: absolute; top: 100%; left: 0; display: flex; align-items: flex-start; z-index: 1000; }
+.win-kit--classic .win-menu { min-width: 150px; margin: 0; padding: 2px; list-style: none; background: var(--face); box-shadow: inset -1px -1px var(--dark), inset 1px 1px var(--hilight), inset -2px -2px var(--shadow), inset 2px 2px var(--light), 2px 2px 4px rgba(0, 0, 0, 0.3); }
+.win-kit--classic.win-family--luna .win-menu { background: #fff; box-shadow: inset 0 0 0 1px #aca899, 2px 2px 4px rgba(0, 0, 0, 0.3); }
+.win-kit--classic.win-family--aero .win-menu { background: #f0f0f0; box-shadow: inset 0 0 0 1px #979797, 2px 2px 4px rgba(0, 0, 0, 0.25); }
+.win-kit--classic .win-menu__item { display: grid; grid-template-columns: 16px 1fr auto; gap: 6px; padding: 2px 6px 2px 2px; white-space: nowrap; }
+.win-kit--classic .win-menu__item--highlighted, .win-kit--classic .win-menu__item:hover:not(.win-menu__item--disabled) { background: var(--select); color: var(--select-text); }
+.win-kit--classic .win-menu__item--submenu .win-menu__shortcut::after { content: "▸"; }
+.win-kit--classic .win-menu__item--disabled { color: var(--shadow); }
+.win-kit--classic .win-menu__separator { height: 2px; margin: 3px 1px; border-top: 1px solid var(--shadow); border-bottom: 1px solid var(--hilight); }
+.win-kit--classic .win-menu__check { text-align: center; }
+
+/* ---------- windows ---------- */
+
+.win-kit--classic .win-desktop { position: relative; display: flex; flex-direction: column; height: 100%; background: var(--desktop); }
+.win-kit--classic .win-desktop__area { position: relative; flex: 1; overflow: hidden; }
+.win-kit--classic .win-window { position: absolute; display: flex; flex-direction: column; min-width: 0; padding: 3px; background: var(--face); }
+.win-kit--classic .win-window--maximized { padding: 0; border-radius: 0 !important; }
+.win-kit--classic .win-window__titlebar {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	height: 18px;
+	padding: 0 2px 0 4px;
+	background: linear-gradient(90deg, var(--title-1), var(--title-2));
+	color: var(--title-text);
+	font: bold 11px var(--title-font);
+	user-select: none;
+}
+.win-kit--classic .win-window--inactive .win-window__titlebar { background: linear-gradient(90deg, var(--title-off-1), var(--title-off-2)); color: var(--title-off-text); }
+.win-kit--classic .win-window__title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.win-kit--classic .win-window__button { position: relative; width: 16px; height: 14px; padding: 0; border: none; background: var(--face); box-shadow: inset -1px -1px var(--dark), inset 1px 1px var(--hilight), inset -2px -2px var(--shadow); }
+.win-kit--classic .win-window__button--close { margin-left: 2px; }
+.win-kit--classic .win-window__button::before { content: ""; position: absolute; }
+.win-kit--classic .win-window__button--minimize::before { left: 4px; right: 6px; bottom: 3px; height: 2px; background: var(--dark); }
+.win-kit--classic .win-window__button--maximize::before { inset: 2px 3px 3px 3px; border: 1px solid var(--dark); border-top-width: 2px; }
+.win-kit--classic .win-window__button--restore::before { inset: 4px 6px 2px 2px; border: 1px solid var(--dark); border-top-width: 2px; }
+.win-kit--classic .win-window__button--close::before, .win-kit--classic .win-window__button--close::after { content: ""; position: absolute; left: calc(50% - 1px); top: calc(50% - 4.5px); width: 2px; height: 9px; background: var(--dark); transform: rotate(45deg); }
+.win-kit--classic .win-window__button--close::after { transform: rotate(-45deg); }
+.win-kit--classic .win-window__body { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: auto; padding: 6px; }
+.win-kit--classic .win-window__body > .win-statusbar { margin: auto -6px -6px; }
+.win-kit--classic .win-window__resize { position: absolute; z-index: 2; }
+.win-kit--classic .win-window__resize--top { top: -3px; left: 6px; right: 6px; height: 6px; cursor: ns-resize; }
+.win-kit--classic .win-window__resize--bottom { bottom: -3px; left: 6px; right: 6px; height: 6px; cursor: ns-resize; }
+.win-kit--classic .win-window__resize--left { left: -3px; top: 6px; bottom: 6px; width: 6px; cursor: ew-resize; }
+.win-kit--classic .win-window__resize--right { right: -3px; top: 6px; bottom: 6px; width: 6px; cursor: ew-resize; }
+.win-kit--classic .win-window__resize--top-left { left: -3px; top: -3px; width: 10px; height: 10px; cursor: nwse-resize; }
+.win-kit--classic .win-window__resize--bottom-right { right: -3px; bottom: -3px; width: 10px; height: 10px; cursor: nwse-resize; }
+.win-kit--classic .win-window__resize--top-right { right: -3px; top: -3px; width: 10px; height: 10px; cursor: nesw-resize; }
+.win-kit--classic .win-window__resize--bottom-left { left: -3px; bottom: -3px; width: 10px; height: 10px; cursor: nesw-resize; }
+
+.win-kit--classic.win-family--luna .win-window { padding: 0 3px 3px; border-radius: 8px 8px 0 0; background: var(--frame); box-shadow: 2px 3px 8px rgba(0, 0, 0, 0.4); }
+.win-kit--classic.win-family--luna .win-window__titlebar { height: 29px; margin: 0 -3px; padding: 0 5px 0 8px; border-radius: 7px 7px 0 0; background: linear-gradient(180deg, var(--title-2) 0%, var(--title-1) 10%, var(--title-1) 85%, var(--title-3) 100%); font-size: 13px; text-shadow: 1px 1px rgba(0, 0, 0, 0.35); }
+.win-kit--classic.win-family--luna .win-window__body { background: var(--face); }
+.win-kit--classic.win-family--luna .win-window__button { width: 21px; height: 21px; border: 1px solid #fff; border-radius: 3px; background: linear-gradient(135deg, #5a8df5, var(--title-1)); box-shadow: none; }
+.win-kit--classic.win-family--luna .win-window__button--minimize::before { left: 5px; right: auto; bottom: 5px; width: 6px; height: 3px; background: #fff; }
+.win-kit--classic.win-family--luna .win-window__button--maximize::before { inset: auto; left: 4px; top: 4px; width: 11px; height: 11px; border: 1px solid #fff; border-top-width: 3px; background: transparent; }
+.win-kit--classic.win-family--luna .win-window__button--restore::before, .win-kit--classic.win-family--luna .win-window__button--restore::after { content: ""; position: absolute; inset: auto; width: 8px; height: 7px; border: 1px solid #fff; border-top-width: 2px; background: transparent; }
+.win-kit--classic.win-family--luna .win-window__button--restore::before { left: 4px; top: 8px; }
+.win-kit--classic.win-family--luna .win-window__button--restore::after { left: 7px; top: 4px; }
+.win-kit--classic.win-family--luna .win-window__button--close::before, .win-kit--classic.win-family--luna .win-window__button--close::after { background: #fff; }
+.win-kit--classic.win-family--luna .win-window__button--close { background: radial-gradient(circle at 90% 90%, #cc4600 0%, #dc6527 55%, #cd7546 70%, #ffccb2 92%, #fff 100%); }
+
+.win-kit--classic.win-family--aero .win-window { padding: 0 7px 7px; border: 1px solid rgba(0, 0, 0, 0.55); border-radius: 7px 7px 4px 4px; background: var(--glass); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5) inset, 0 6px 20px rgba(0, 0, 0, 0.45); backdrop-filter: blur(8px); }
+.win-kit--classic.win-family--aero .win-window--inactive { background: var(--glass-off); }
+.win-kit--classic.win-family--aero .win-window__titlebar { height: 28px; padding: 0 0 0 4px; background: none; font: 12px var(--title-font); text-shadow: 0 0 8px #fff; }
+.win-kit--classic.win-family--aero .win-window__body { border: 1px solid rgba(0, 0, 0, 0.35); background: var(--face); }
+.win-kit--classic.win-family--aero .win-window__button { align-self: flex-start; width: 26px; height: 18px; margin-top: 0; border: 1px solid rgba(0, 0, 0, 0.5); border-top: none; border-radius: 0 0 3px 3px; background: linear-gradient(180deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.25)); box-shadow: none; }
+.win-kit--classic.win-family--aero .win-window__button--close { width: 42px; margin-left: 0; background: linear-gradient(180deg, #e8a493 0%, #d45133 50%, #c43418 51%, #d9715a 100%); }
+.win-kit--classic.win-family--aero .win-window__button--close::before, .win-kit--classic.win-family--aero .win-window__button--close::after { background: #fff; }
+
+/* ---------- taskbar ---------- */
+
+.win-kit--classic .win-taskbar { display: flex; gap: 3px; height: 28px; padding: 2px 4px; background: var(--face); box-shadow: inset 0 1px var(--light), inset 0 2px var(--hilight); }
+.win-kit--classic .win-taskbar__button { min-width: 0; max-width: 160px; flex: 0 1 160px; padding: 0 8px; border: none; background: var(--face); font: inherit; color: inherit; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.win-kit--classic.win-family--classic .win-taskbar__button--active { box-shadow: inset 1px 1px var(--dark), inset -1px -1px var(--hilight), inset 2px 2px var(--shadow); font-weight: bold; background: repeating-conic-gradient(var(--face) 0 25%, var(--hilight) 0 50%) 0 0 / 2px 2px; }
+.win-kit--classic.win-family--luna .win-taskbar { height: 30px; background: linear-gradient(180deg, var(--title-2) 0%, var(--title-1) 12%, var(--title-1) 85%, var(--title-3) 100%); box-shadow: none; }
+.win-kit--classic.win-family--luna .win-taskbar__button { border-radius: 3px; background: linear-gradient(180deg, var(--title-2), var(--title-1)); color: var(--title-text); }
+.win-kit--classic.win-family--luna .win-taskbar__button--active { background: var(--title-3); box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.55); }
+.win-kit--classic.win-family--aero .win-taskbar { height: 32px; background: rgba(20, 40, 70, 0.75); box-shadow: inset 0 1px rgba(255, 255, 255, 0.35); backdrop-filter: blur(8px); }
+.win-kit--classic.win-family--aero .win-taskbar__button { border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 3px; background: rgba(255, 255, 255, 0.08); color: #fff; }
+.win-kit--classic.win-family--aero .win-taskbar__button--active { background: rgba(255, 255, 255, 0.3); }
+
+/* ---------- text box and spinner ---------- */
+
+.win-kit--classic .win-textbox, .win-kit--classic .win-spinner__edit {
+	min-height: 21px;
+	padding: 2px 3px;
+	border: none;
+	background: var(--window);
+	font: inherit;
+	color: inherit;
+	box-shadow: inset 1px 1px var(--shadow), inset -1px -1px var(--hilight), inset 2px 2px var(--dark), inset -2px -2px var(--light);
+}
+.win-kit--classic textarea.win-textbox { min-height: 60px; resize: none; }
+.win-kit--classic.win-family--luna .win-textbox, .win-kit--classic.win-family--luna .win-spinner__edit { border: 1px solid #7f9db9; box-shadow: none; }
+.win-kit--classic.win-family--aero .win-textbox, .win-kit--classic.win-family--aero .win-spinner__edit { border: 1px solid #abadb3; box-shadow: none; }
+.win-kit--classic .win-textbox:disabled, .win-kit--classic .win-textbox[readonly] { background: var(--face); }
+.win-kit--classic .win-textbox::placeholder { color: var(--shadow); }
+.win-kit--classic .win-spinner { display: inline-flex; }
+.win-kit--classic .win-spinner__edit { width: 48px; }
+.win-kit--classic .win-spinner__buttons { display: flex; flex-direction: column; }
+.win-kit--classic .win-spinner__button { position: relative; width: 16px; height: 50%; min-height: 10px; padding: 0; border: none; background: var(--face); box-shadow: inset -1px -1px var(--dark), inset 1px 1px var(--hilight), inset -2px -2px var(--shadow); }
+.win-kit--classic .win-spinner__button::after { content: ""; position: absolute; left: 4px; border: 4px solid transparent; }
+.win-kit--classic .win-spinner__button--up::after { top: 0; border-bottom-color: var(--dark); }
+.win-kit--classic .win-spinner__button--down::after { bottom: 0; border-top-color: var(--dark); }
+.win-kit--classic.win-family--luna .win-spinner__button { border: 1px solid var(--control-border); border-radius: 2px; background: linear-gradient(180deg, #fff, var(--control-2)); box-shadow: none; }
+.win-kit--classic.win-family--luna .win-spinner__button--up::after { border-bottom-color: var(--glyph); }
+.win-kit--classic.win-family--luna .win-spinner__button--down::after { border-top-color: var(--glyph); }
+.win-kit--classic.win-family--aero .win-spinner__button { border: 1px solid #9a9a9a; border-radius: 2px; background: linear-gradient(180deg, #f2f2f2, #d5d5d5); box-shadow: none; }
+
+/* ---------- combo box ---------- */
+
+.win-kit--classic .win-combobox { position: relative; display: inline-flex; align-items: center; min-width: 140px; height: 21px; background: var(--window); box-shadow: inset 1px 1px var(--shadow), inset -1px -1px var(--hilight), inset 2px 2px var(--dark), inset -2px -2px var(--light); outline: none; user-select: none; }
+.win-kit--classic .win-combobox__text { flex: 1; padding: 0 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.win-kit--classic .win-combobox:focus .win-combobox__text { background: var(--select); color: var(--select-text); }
+.win-kit--classic .win-combobox__arrow { position: relative; align-self: stretch; width: 16px; margin: 2px; background: var(--face); box-shadow: inset -1px -1px var(--dark), inset 1px 1px var(--hilight), inset -2px -2px var(--shadow); }
+.win-kit--classic .win-combobox__arrow::after { content: ""; position: absolute; left: 4px; top: 7px; border: 4px solid transparent; border-top-color: var(--dark); }
+.win-kit--classic .win-combobox[aria-disabled="true"] { color: var(--shadow); background: var(--face); }
+.win-kit--classic .win-combobox__list { position: absolute; left: 0; right: 0; top: 100%; z-index: 1000; margin: 0; padding: 0; list-style: none; background: var(--window); border: 1px solid var(--dark); }
+.win-kit--classic .win-combobox__option { padding: 1px 4px; }
+.win-kit--classic .win-combobox__option[aria-selected="true"] { background: var(--select); color: var(--select-text); }
+.win-kit--classic.win-family--luna .win-combobox, .win-kit--classic.win-family--aero .win-combobox { border: 1px solid #7f9db9; box-shadow: none; }
+.win-kit--classic.win-family--luna .win-combobox__arrow { margin: 1px; border-radius: 2px; background: linear-gradient(180deg, var(--control-1), var(--control-2)); box-shadow: inset 0 0 0 1px var(--control-border); }
+.win-kit--classic.win-family--luna .win-combobox__arrow::after { border-top-color: var(--glyph); }
+.win-kit--classic.win-family--aero .win-combobox__arrow { margin: 0; background: linear-gradient(180deg, #f2f2f2, #cfcfcf); box-shadow: inset 1px 0 #a5a5a5; }
+
+/* ---------- scroll bar ---------- */
+
+.win-kit--classic .win-scrollbar { position: relative; display: flex; background: repeating-conic-gradient(var(--face) 0 25%, var(--hilight) 0 50%) 0 0 / 2px 2px; outline: none; }
+.win-kit--classic .win-scrollbar--horizontal { height: 16px; }
+.win-kit--classic .win-scrollbar--vertical { flex-direction: column; width: 16px; height: 100%; }
+.win-kit--classic .win-scrollbar__button { position: relative; flex: 0 0 16px; padding: 0; border: none; background: var(--face); box-shadow: inset -1px -1px var(--dark), inset 1px 1px var(--hilight), inset -2px -2px var(--shadow); }
+.win-kit--classic .win-scrollbar__button::after { content: ""; position: absolute; left: 50%; top: 50%; border: 4px solid transparent; }
+.win-kit--classic .win-scrollbar--vertical .win-scrollbar__button--back::after { margin: -6px 0 0 -4px; border-bottom-color: var(--dark); }
+.win-kit--classic .win-scrollbar--vertical .win-scrollbar__button--forward::after { margin: -2px 0 0 -4px; border-top-color: var(--dark); }
+.win-kit--classic .win-scrollbar--horizontal .win-scrollbar__button--back::after { margin: -4px 0 0 -6px; border-right-color: var(--dark); }
+.win-kit--classic .win-scrollbar--horizontal .win-scrollbar__button--forward::after { margin: -4px 0 0 -2px; border-left-color: var(--dark); }
+.win-kit--classic .win-scrollbar__track { position: relative; flex: 1; }
+.win-kit--classic .win-scrollbar__thumb { position: absolute; background: var(--face); box-shadow: inset -1px -1px var(--dark), inset 1px 1px var(--hilight), inset -2px -2px var(--shadow); }
+.win-kit--classic .win-scrollbar--horizontal .win-scrollbar__thumb { top: 0; bottom: 0; }
+.win-kit--classic .win-scrollbar--vertical .win-scrollbar__thumb { left: 0; right: 0; }
+.win-kit--classic.win-family--luna .win-scrollbar, .win-kit--classic.win-family--aero .win-scrollbar { background: #f3f2ea; }
+.win-kit--classic.win-family--luna .win-scrollbar__button, .win-kit--classic.win-family--luna .win-scrollbar__thumb { border: 1px solid var(--control-border); border-radius: 3px; background: linear-gradient(90deg, var(--control-1), var(--control-2)); box-shadow: inset 0 0 0 1px #fff; }
+.win-kit--classic.win-family--aero .win-scrollbar__button, .win-kit--classic.win-family--aero .win-scrollbar__thumb { border: 1px solid #9a9a9a; border-radius: 2px; background: linear-gradient(90deg, #f2f2f2, #dadada); box-shadow: none; }
+
+/* ---------- message box ---------- */
+
+.win-kit--classic .win-messagebox { position: fixed; inset: 0; z-index: 3000; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.12); }
+.win-kit--classic .win-messagebox__dialog { position: relative; min-width: 260px; max-width: 420px; outline: none; }
+.win-kit--classic .win-messagebox__body { display: flex; align-items: flex-start; gap: 14px; padding: 14px 14px 4px; background: var(--face); }
+.win-kit--classic.win-family--aero .win-messagebox__body { background: #fff; }
+.win-kit--classic .win-messagebox__text { margin: 6px 0 0; }
+.win-kit--classic .win-messagebox__buttons { display: flex; justify-content: center; gap: 6px; padding: 10px 12px 12px; background: var(--face); }
+.win-kit--classic.win-family--aero .win-messagebox__buttons { justify-content: flex-end; border-top: 1px solid #dfdfdf; background: #f0f0f0; }
+.win-kit--classic .win-messagebox__icon { position: relative; flex: 0 0 32px; height: 32px; border-radius: 50%; color: #fff; font: bold 22px/32px "Times New Roman", serif; text-align: center; }
+.win-kit--classic .win-messagebox__icon::after { position: absolute; inset: 0; }
+.win-kit--classic .win-messagebox__icon--information { background: radial-gradient(circle at 35% 30%, #8ab4ff, #1e4fd8); }
+.win-kit--classic .win-messagebox__icon--information::after { content: "i"; }
+.win-kit--classic .win-messagebox__icon--question { background: radial-gradient(circle at 35% 30%, #8ab4ff, #1e4fd8); }
+.win-kit--classic .win-messagebox__icon--question::after { content: "?"; }
+.win-kit--classic .win-messagebox__icon--error { background: radial-gradient(circle at 35% 30%, #ff8a7a, #c80f0f); }
+.win-kit--classic .win-messagebox__icon--error::after { content: "\00d7"; font-family: Tahoma, sans-serif; }
+.win-kit--classic .win-messagebox__icon--warning { border-radius: 0; background: linear-gradient(180deg, #ffe680, #f0b400); clip-path: polygon(50% 2%, 100% 98%, 0 98%); color: #000; }
+.win-kit--classic .win-messagebox__icon--warning::after { content: "!"; padding-top: 5px; }
+
+/* ---------- tooltip ---------- */
+
+.win-kit--classic .win-tooltip-host { position: relative; display: inline-block; }
+.win-kit--classic .win-tooltip { position: absolute; left: 8px; top: calc(100% + 4px); z-index: 2000; padding: 2px 5px; border: 1px solid #000; background: #ffffe1; color: #000; white-space: nowrap; box-shadow: 2px 2px 3px rgba(0, 0, 0, 0.3); pointer-events: none; }
+.win-kit--classic.win-family--aero .win-tooltip { border-color: #767676; border-radius: 3px; background: linear-gradient(180deg, #fff, #e4e5f0); }
+
+/* ---------- status bar, toolbar, group box ---------- */
+
+.win-kit--classic .win-statusbar { display: flex; gap: 2px; padding: 2px; background: var(--face); }
+.win-kit--classic .win-statusbar__panel { flex: 1; min-width: 0; padding: 1px 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; box-shadow: inset 1px 1px var(--shadow), inset -1px -1px var(--hilight); }
+.win-kit--classic .win-statusbar__panel[style*="width"] { flex: 0 0 auto; }
+.win-kit--classic.win-family--luna .win-statusbar__panel, .win-kit--classic.win-family--aero .win-statusbar__panel { box-shadow: inset 1px 0 #d0cfbf; }
+.win-kit--classic .win-toolbar { display: flex; flex-wrap: wrap; gap: 1px; padding: 2px; background: var(--face); }
+.win-kit--classic .win-toolbar__button { min-width: 23px; height: 22px; padding: 0 6px; border: 1px solid transparent; background: none; font: inherit; color: inherit; }
+.win-kit--classic .win-toolbar__button:hover:not(:disabled) { border-color: var(--hilight) var(--shadow) var(--shadow) var(--hilight); }
+.win-kit--classic .win-toolbar__button--pressed { border-color: var(--shadow) var(--hilight) var(--hilight) var(--shadow) !important; background: repeating-conic-gradient(var(--face) 0 25%, var(--hilight) 0 50%) 0 0 / 2px 2px; }
+.win-kit--classic .win-toolbar__button:disabled { color: var(--shadow); }
+.win-kit--classic.win-family--luna .win-toolbar__button:hover:not(:disabled) { border-color: #cecece; border-radius: 3px; background: linear-gradient(180deg, #fff, #ecebe6); }
+.win-kit--classic.win-family--luna .win-toolbar__button--pressed { border-color: #c2bfaf !important; border-radius: 3px; background: #e3e2da; }
+.win-kit--classic.win-family--aero .win-toolbar__button:hover:not(:disabled) { border-color: #a8d8eb; border-radius: 2px; background: linear-gradient(180deg, #f7fcfe, #d9f0fa); }
+.win-kit--classic.win-family--aero .win-toolbar__button--pressed { border-color: #6dbde8 !important; border-radius: 2px; background: #c3e5f6; }
+.win-kit--classic .win-groupbox { margin: 6px 0; padding: 6px 8px 8px; border: none; box-shadow: inset 1px 1px var(--shadow), inset -1px -1px var(--hilight), inset 2px 2px var(--hilight), inset -2px -2px var(--shadow); }
+.win-kit--classic .win-groupbox__title { padding: 0 3px; }
+.win-kit--classic.win-family--luna .win-groupbox { border: 1px solid #d0d0bf; border-radius: 4px; box-shadow: none; }
+.win-kit--classic.win-family--luna .win-groupbox__title { color: #0046d5; }
+.win-kit--classic.win-family--aero .win-groupbox { border: 1px solid #d5dfe5; border-radius: 3px; box-shadow: none; }
+
+@media (prefers-reduced-motion: reduce) {
+	.win-kit--classic .win-progress__fill { transition: none; }
+	.win-kit--classic .win-progress--marquee .win-progress__fill { animation: none; }
+}
+
+
+/* ---------- toggle switch ---------- */
+
+.win-kit--classic .win-switch { display: inline-flex; align-items: center; gap: 6px; cursor: default; user-select: none; }
+.win-kit--classic .win-switch__track { position: relative; width: 36px; height: 18px; border: 2px solid var(--text); border-radius: 9px; background: var(--window); outline: none; transition: background 0.15s; }
+.win-kit--classic .win-switch__thumb { position: absolute; left: 2px; top: 2px; width: 10px; height: 10px; border-radius: 50%; background: var(--text); transition: left 0.15s; }
+.win-kit--classic .win-switch--on .win-switch__track { border-color: var(--accent); background: var(--accent); }
+.win-kit--classic .win-switch--on .win-switch__thumb { left: 20px; background: #fff; }
+.win-kit--classic .win-switch__track:focus-visible { outline: 1px dotted var(--text); outline-offset: 2px; }
+.win-kit--classic .win-switch--disabled { color: var(--shadow); }
+
+/* Touch controls: a virtual stick and game buttons, raised and sunken in the theme's own bevel colours. */
+.win-kit--classic .win-joystick { position: relative; width: 100%; height: 100%; touch-action: none; user-select: none; }
+.win-kit--classic .win-joystick__base { position: absolute; inset: 8%; border-radius: 50%; background: color-mix(in srgb, var(--face) 70%, transparent); box-shadow: inset 2px 2px var(--shadow), inset -2px -2px var(--hilight), 0 0 0 1px var(--dark); }
+.win-kit--classic .win-joystick__knob { position: absolute; left: 50%; top: 50%; width: 40%; height: 40%; border-radius: 50%; background: var(--face); box-shadow: inset -2px -2px var(--shadow), inset 2px 2px var(--hilight), 0 0 0 1px var(--dark); }
+.win-kit--classic .win-joystick--active .win-joystick__knob { background: var(--select); box-shadow: inset -2px -2px var(--dark), inset 2px 2px var(--hilight), 0 0 0 2px var(--select); }
+.win-kit--classic .win-joystick--returning .win-joystick__knob { transition: transform 160ms cubic-bezier(.2, .8, .3, 1.2); }
+.win-kit--classic .win-joystick--disabled { opacity: .5; }
+.win-kit--classic .win-game-button { display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; border-radius: 50%; background: var(--face); color: var(--text); font: bold 14px var(--font); touch-action: none; user-select: none; box-shadow: inset -2px -2px var(--shadow), inset 2px 2px var(--hilight), 0 0 0 1px var(--dark); transition: transform 90ms ease-out, box-shadow 90ms ease-out; }
+.win-kit--classic .win-game-button--pressed { transform: scale(.92); box-shadow: inset 2px 2px var(--shadow), inset -2px -2px var(--hilight), 0 0 0 2px var(--select), 0 0 10px var(--select); }
+.win-kit--classic .win-game-button--disabled { opacity: .5; }
+.win-kit--classic.win-family--luna .win-joystick__knob, .win-kit--classic.win-family--luna .win-game-button { background: radial-gradient(circle at 35% 30%, #fff, var(--face) 70%); }
+.win-kit--classic.win-family--aero .win-joystick__knob, .win-kit--classic.win-family--aero .win-game-button { background: radial-gradient(circle at 35% 30%, #fff, color-mix(in srgb, var(--face) 85%, #9cc7ef)); }
+/* Held: the selection colour, also over the Luna and Aero gradients. */
+.win-kit--classic.win-family--luna .win-joystick--active .win-joystick__knob, .win-kit--classic.win-family--aero .win-joystick--active .win-joystick__knob { background: radial-gradient(circle at 35% 30%, #fff, var(--select) 80%); }
+.win-kit--classic.win-family--luna .win-game-button--pressed, .win-kit--classic.win-family--aero .win-game-button--pressed { background: radial-gradient(circle at 50% 60%, var(--face), color-mix(in srgb, var(--select) 40%, var(--face))); }
+@media (prefers-reduced-motion: reduce) {
+	.win-kit--classic .win-joystick--returning .win-joystick__knob, .win-kit--classic .win-game-button { transition: none; }
+}
+.win-kit--classic .win-game-button__label { padding: 0 8px; text-align: center; line-height: 1.1; overflow-wrap: anywhere; }

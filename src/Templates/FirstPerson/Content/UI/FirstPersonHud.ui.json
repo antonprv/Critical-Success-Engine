@@ -1,0 +1,64 @@
+{
+  "Format": 1,
+  "Name": "First person HUD",
+  "Script": "",
+  "Root": {
+    "Name": "Root",
+    "Type": "canvas",
+    "X": 0,
+    "Y": 0,
+    "Width": 800,
+    "Height": 500,
+    "Props": {},
+    "Children": [
+      {
+        "Name": "Crosshair",
+        "Type": "label",
+        "X": 0,
+        "Y": 0,
+        "Width": 24,
+        "Height": 24,
+        "AnchorX": "center",
+        "AnchorY": "center",
+        "Props": {
+          "Text": "+",
+          "FontSize": 22,
+          "Bold": true
+        },
+        "ClickThrough": true
+      },
+      {
+        "Name": "AmmoWindow",
+        "Type": "window",
+        "X": 12,
+        "Y": 12,
+        "Width": 150,
+        "Height": 64,
+        "AnchorX": "end",
+        "AnchorY": "end",
+        "Props": {
+          "Title": "First Person",
+          "Closable": false,
+          "Minimizable": false,
+          "Maximizable": false,
+          "Resizable": false
+        },
+        "Children": [
+          {
+            "Name": "Shots",
+            "Type": "label",
+            "X": 10,
+            "Y": 8,
+            "Width": 120,
+            "Height": 18,
+            "Props": {
+              "Text": "Shots: 0",
+              "FontSize": 13,
+              "Bold": true
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

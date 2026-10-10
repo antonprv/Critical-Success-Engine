@@ -1,0 +1,169 @@
+{
+  "FileVersion": 1,
+  "Name": "Top-Down",
+  "DefaultMap": "OnFoot",
+  "ActionMaps": [
+    {
+      "Name": "OnFoot",
+      "Actions": [
+        {
+          "Name": "MoveForward",
+          "Label": "Move forward",
+          "Category": "Movement",
+          "Default": {
+            "Keyboard": [
+              "KeyW",
+              "ArrowUp"
+            ],
+            "Gamepad": "Pad:LeftStickUp"
+          }
+        },
+        {
+          "Name": "MoveBack",
+          "Label": "Move back",
+          "Category": "Movement",
+          "Default": {
+            "Keyboard": [
+              "KeyS",
+              "ArrowDown"
+            ],
+            "Gamepad": "Pad:LeftStickDown"
+          }
+        },
+        {
+          "Name": "MoveLeft",
+          "Label": "Move left",
+          "Category": "Movement",
+          "Default": {
+            "Keyboard": [
+              "KeyA",
+              "ArrowLeft"
+            ],
+            "Gamepad": "Pad:LeftStickLeft"
+          }
+        },
+        {
+          "Name": "MoveRight",
+          "Label": "Move right",
+          "Category": "Movement",
+          "Default": {
+            "Keyboard": [
+              "KeyD",
+              "ArrowRight"
+            ],
+            "Gamepad": "Pad:LeftStickRight"
+          }
+        },
+        {
+          "Name": "Jump",
+          "Label": "Jump",
+          "Category": "Movement",
+          "Default": {
+            "Keyboard": [
+              "Space",
+              ""
+            ],
+            "Gamepad": "Pad:A"
+          }
+        },
+        {
+          "Name": "PanView",
+          "Label": "Drag the view",
+          "Category": "Camera",
+          "Default": {
+            "Keyboard": [
+              "Mouse1",
+              ""
+            ],
+            "Gamepad": ""
+          },
+          "Touch": "None"
+        },
+        {
+          "Name": "ZoomIn",
+          "Label": "Zoom in",
+          "Category": "Camera",
+          "Default": {
+            "Keyboard": [
+              "",
+              ""
+            ],
+            "Gamepad": "Pad:DUp"
+          }
+        },
+        {
+          "Name": "ZoomOut",
+          "Label": "Zoom out",
+          "Category": "Camera",
+          "Default": {
+            "Keyboard": [
+              "",
+              ""
+            ],
+            "Gamepad": "Pad:DDown"
+          }
+        },
+        {
+          "Name": "Recenter",
+          "Label": "Back to the player",
+          "Category": "Camera",
+          "Default": {
+            "Keyboard": [
+              "Home",
+              ""
+            ],
+            "Gamepad": "Pad:Back"
+          }
+        },
+        {
+          "Name": "LookLeft",
+          "Label": "Move the view left",
+          "Category": "Camera",
+          "Default": {
+            "Keyboard": [
+              "",
+              ""
+            ],
+            "Gamepad": "Pad:RightStickLeft"
+          }
+        },
+        {
+          "Name": "LookRight",
+          "Label": "Move the view right",
+          "Category": "Camera",
+          "Default": {
+            "Keyboard": [
+              "",
+              ""
+            ],
+            "Gamepad": "Pad:RightStickRight"
+          }
+        },
+        {
+          "Name": "LookUp",
+          "Label": "Move the view forward",
+          "Category": "Camera",
+          "Default": {
+            "Keyboard": [
+              "",
+              ""
+            ],
+            "Gamepad": "Pad:RightStickUp"
+          }
+        },
+        {
+          "Name": "LookDown",
+          "Label": "Move the view back",
+          "Category": "Camera",
+          "Default": {
+            "Keyboard": [
+              "",
+              ""
+            ],
+            "Gamepad": "Pad:RightStickDown"
+          }
+        }
+      ]
+    }
+  ]
+}

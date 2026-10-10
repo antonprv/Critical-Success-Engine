@@ -1,0 +1,308 @@
+/*
+ * The Tailwind kit: every toolkit component drawn with Tailwind CSS utilities on Tailwind's design tokens. The theme is
+ * a set of classes on the root (see Core/Kits.ts): an accent palette, a neutral palette, light or dark, a radius.
+ * Components use semantic colours (panel, ink, line, primary...) that each theme maps onto its palettes.
+ */
+@import "tailwindcss/theme" theme(static);
+@import "./tailwind-palettes.css";
+
+/*
+ * "inline": utilities get var(--kit-...) itself, resolved on each element. A plain @theme would declare these on :root,
+ * where the theme classes (on the kit's root, further down) haven't set --kit-* and --accent-* yet.
+ */
+@theme inline {
+	--color-accent-50: var(--accent-50);
+	--color-accent-100: var(--accent-100);
+	--color-accent-200: var(--accent-200);
+	--color-accent-300: var(--accent-300);
+	--color-accent-400: var(--accent-400);
+	--color-accent-500: var(--accent-500);
+	--color-accent-600: var(--accent-600);
+	--color-accent-700: var(--accent-700);
+	--color-accent-800: var(--accent-800);
+	--color-accent-900: var(--accent-900);
+	--color-accent-950: var(--accent-950);
+
+	--color-surface: var(--kit-surface);
+	--color-panel: var(--kit-panel);
+	--color-field: var(--kit-field);
+	--color-soft: var(--kit-soft);
+	--color-pressed: var(--kit-pressed);
+	--color-ink: var(--kit-ink);
+	--color-muted: var(--kit-muted);
+	--color-line: var(--kit-line);
+	--color-primary: var(--kit-primary);
+	--color-primary-hover: var(--kit-primary-hover);
+	--color-primary-ink: var(--kit-primary-ink);
+	--color-selected: var(--kit-selected);
+	--color-selected-ink: var(--kit-selected-ink);
+	--color-tip: var(--kit-tip);
+	--color-tip-ink: var(--kit-tip-ink);
+	--radius-kit: var(--kit-radius);
+}
+
+/* ---------- light and dark ---------- */
+
+.win-kit--tailwind {
+	--kit-surface: var(--neutral-100);
+	--kit-panel: #fff;
+	--kit-field: #fff;
+	--kit-soft: var(--neutral-100);
+	--kit-pressed: var(--neutral-200);
+	--kit-ink: var(--neutral-900);
+	--kit-muted: var(--neutral-500);
+	--kit-line: var(--neutral-200);
+	--kit-primary: var(--accent-600);
+	--kit-primary-hover: var(--accent-700);
+	--kit-primary-ink: #fff;
+	--kit-selected: var(--accent-100);
+	--kit-selected-ink: var(--accent-900);
+	--kit-tip: var(--neutral-900);
+	--kit-tip-ink: var(--neutral-50);
+	color-scheme: light;
+	@apply font-sans text-sm text-ink antialiased;
+}
+
+.win-kit--tailwind.tw-dark {
+	--kit-surface: var(--neutral-950);
+	--kit-panel: var(--neutral-900);
+	--kit-field: var(--neutral-950);
+	--kit-soft: var(--neutral-800);
+	--kit-pressed: var(--neutral-700);
+	--kit-ink: var(--neutral-100);
+	--kit-muted: var(--neutral-400);
+	--kit-line: var(--neutral-700);
+	--kit-primary: var(--accent-500);
+	--kit-primary-hover: var(--accent-400);
+	--kit-primary-ink: var(--neutral-950);
+	--kit-selected: color-mix(in oklab, var(--accent-500) 25%, transparent);
+	--kit-selected-ink: var(--accent-100);
+	--kit-tip: var(--neutral-100);
+	--kit-tip-ink: var(--neutral-900);
+	color-scheme: dark;
+}
+
+.win-kit--tailwind,
+.win-kit--tailwind *,
+.win-kit--tailwind *::before,
+.win-kit--tailwind *::after {
+	box-sizing: border-box;
+}
+
+/* ---------- desktop, windows, taskbar ---------- */
+
+.win-kit--tailwind .win-desktop { @apply relative flex h-full flex-col bg-surface; }
+.win-kit--tailwind .win-desktop__area { @apply relative flex-1 overflow-hidden; }
+
+.win-kit--tailwind .win-window { @apply absolute flex min-w-0 flex-col overflow-hidden rounded-kit border border-line bg-panel shadow-xl; }
+.win-kit--tailwind .win-window--inactive { @apply shadow-md; }
+.win-kit--tailwind .win-window--maximized { @apply rounded-none; }
+.win-kit--tailwind .win-window__titlebar { @apply flex h-10 shrink-0 items-center gap-1 border-b border-line px-3 font-semibold text-ink select-none; }
+.win-kit--tailwind .win-window--inactive .win-window__titlebar { @apply text-muted; }
+.win-kit--tailwind .win-window__title { @apply flex-1 truncate; }
+.win-kit--tailwind .win-window__button { @apply relative size-7 shrink-0 cursor-default rounded-kit border-0 bg-transparent p-0 text-muted transition-colors hover:bg-soft hover:text-ink disabled:opacity-40; }
+.win-kit--tailwind .win-window__button::before,
+.win-kit--tailwind .win-window__button::after { content: ""; @apply absolute; }
+.win-kit--tailwind .win-window__button--minimize::before { @apply top-[60%] left-1/2 h-px w-2.5 -translate-x-1/2 bg-current; }
+.win-kit--tailwind .win-window__button--maximize::before { @apply top-1/2 left-1/2 size-2.5 -translate-1/2 rounded-[2px] border border-current; }
+.win-kit--tailwind .win-window__button--restore::before { @apply top-[55%] left-[45%] size-2 -translate-1/2 rounded-[2px] border border-current; }
+.win-kit--tailwind .win-window__button--restore::after { @apply top-[40%] left-[58%] size-2 -translate-1/2 rounded-[2px] border-t border-r border-current; }
+.win-kit--tailwind .win-window__button--close::before,
+.win-kit--tailwind .win-window__button--close::after { @apply top-1/2 left-1/2 h-px w-3 -translate-1/2 bg-current; }
+.win-kit--tailwind .win-window__button--close::before { @apply rotate-45; }
+.win-kit--tailwind .win-window__button--close::after { @apply -rotate-45; }
+.win-kit--tailwind .win-window__button--close:hover { @apply bg-red-500 text-white; }
+.win-kit--tailwind .win-window__body { @apply flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-4; }
+.win-kit--tailwind .win-window__body > .win-statusbar { @apply -mx-4 -mb-4 mt-auto; }
+.win-kit--tailwind .win-window__resize { @apply absolute z-[2]; }
+.win-kit--tailwind .win-window__resize--top { @apply -top-1 right-2 left-2 h-2 cursor-ns-resize; }
+.win-kit--tailwind .win-window__resize--bottom { @apply right-2 -bottom-1 left-2 h-2 cursor-ns-resize; }
+.win-kit--tailwind .win-window__resize--left { @apply top-2 bottom-2 -left-1 w-2 cursor-ew-resize; }
+.win-kit--tailwind .win-window__resize--right { @apply top-2 -right-1 bottom-2 w-2 cursor-ew-resize; }
+.win-kit--tailwind .win-window__resize--top-left { @apply -top-1 -left-1 size-3 cursor-nwse-resize; }
+.win-kit--tailwind .win-window__resize--bottom-right { @apply -right-1 -bottom-1 size-3 cursor-nwse-resize; }
+.win-kit--tailwind .win-window__resize--top-right { @apply -top-1 -right-1 size-3 cursor-nesw-resize; }
+.win-kit--tailwind .win-window__resize--bottom-left { @apply -bottom-1 -left-1 size-3 cursor-nesw-resize; }
+
+.win-kit--tailwind .win-taskbar { @apply flex h-12 shrink-0 gap-1 border-t border-line bg-panel/80 px-2 py-1.5 backdrop-blur; }
+.win-kit--tailwind .win-taskbar__button { @apply max-w-40 min-w-0 flex-[0_1_10rem] truncate rounded-kit border-0 bg-transparent px-3 text-left text-sm text-ink transition-colors hover:bg-soft; }
+.win-kit--tailwind .win-taskbar__button--active { @apply bg-selected font-medium text-selected-ink; }
+
+/* ---------- buttons and choices ---------- */
+
+.win-kit--tailwind .win-button { @apply inline-flex min-h-9 min-w-20 cursor-default items-center justify-center gap-2 rounded-kit border border-line bg-panel px-4 text-sm font-medium text-ink shadow-xs transition-colors select-none; }
+.win-kit--tailwind .win-button--hovered { @apply bg-soft; }
+.win-kit--tailwind .win-button--pressed { @apply translate-y-px bg-pressed shadow-none; }
+.win-kit--tailwind .win-button--focused { @apply outline-2 outline-offset-2 outline-primary; }
+.win-kit--tailwind .win-button--default { @apply border-transparent bg-primary text-primary-ink; }
+.win-kit--tailwind .win-button--default.win-button--hovered { @apply bg-primary-hover; }
+.win-kit--tailwind .win-button:disabled { @apply cursor-not-allowed opacity-50 shadow-none; }
+
+.win-kit--tailwind .win-checkbox,
+.win-kit--tailwind .win-radio { @apply inline-flex cursor-default items-center gap-2 select-none; }
+.win-kit--tailwind .win-radiogroup { @apply flex flex-col gap-2; }
+.win-kit--tailwind .win-checkbox__box { @apply relative size-4 shrink-0 rounded-[min(var(--kit-radius),0.25rem)] border border-line bg-field shadow-xs transition-colors; }
+.win-kit--tailwind .win-checkbox__box[aria-checked="true"],
+.win-kit--tailwind .win-checkbox__box[aria-checked="mixed"] { @apply border-primary bg-primary; }
+.win-kit--tailwind .win-checkbox__box[aria-checked="true"]::after { content: ""; @apply absolute top-[2px] left-[5px] h-2 w-1 rotate-45 border-r-2 border-b-2 border-primary-ink; }
+.win-kit--tailwind .win-checkbox__box[aria-checked="mixed"]::after { content: ""; @apply absolute top-1/2 left-1/2 h-0.5 w-2 -translate-1/2 bg-primary-ink; }
+.win-kit--tailwind .win-radio__dot { @apply relative size-4 shrink-0 rounded-full border border-line bg-field shadow-xs; }
+.win-kit--tailwind .win-radio__dot[aria-checked="true"] { @apply border-primary; }
+.win-kit--tailwind .win-radio__dot[aria-checked="true"]::after { content: ""; @apply absolute inset-[3px] rounded-full bg-primary; }
+.win-kit--tailwind .win-checkbox--disabled,
+.win-kit--tailwind .win-radio--disabled { @apply opacity-50; }
+.win-kit--tailwind .win-checkbox__box:focus-visible,
+.win-kit--tailwind .win-radio__dot:focus-visible { @apply outline-2 outline-offset-2 outline-primary; }
+
+/* ---------- text, numbers, lists to pick from ---------- */
+
+.win-kit--tailwind .win-textbox,
+.win-kit--tailwind .win-spinner__edit { @apply h-9 w-full min-w-0 rounded-kit border border-line bg-field px-3 text-sm text-ink shadow-xs outline-none placeholder:text-muted focus:border-primary focus:ring-2 focus:ring-primary/30; }
+.win-kit--tailwind textarea.win-textbox { @apply h-auto min-h-20 py-2; }
+.win-kit--tailwind .win-textbox:disabled,
+.win-kit--tailwind .win-textbox[readonly] { @apply bg-soft text-muted; }
+.win-kit--tailwind .win-spinner { @apply inline-flex; }
+.win-kit--tailwind .win-spinner__edit { @apply w-16 rounded-r-none; }
+.win-kit--tailwind .win-spinner__buttons { @apply flex flex-col; }
+.win-kit--tailwind .win-spinner__button { @apply relative w-6 flex-1 border border-l-0 border-line bg-panel p-0 text-muted hover:bg-soft hover:text-ink active:bg-pressed; }
+.win-kit--tailwind .win-spinner__button--up { @apply rounded-tr-kit border-b-0; }
+.win-kit--tailwind .win-spinner__button--down { @apply rounded-br-kit; }
+.win-kit--tailwind .win-spinner__button::after { content: ""; @apply absolute top-1/2 left-1/2 size-1.5 border-t border-l border-current; }
+.win-kit--tailwind .win-spinner__button--up::after { @apply -translate-x-1/2 -translate-y-1/4 rotate-45; }
+.win-kit--tailwind .win-spinner__button--down::after { @apply -translate-x-1/2 -translate-y-3/4 -rotate-135; }
+
+.win-kit--tailwind .win-combobox { @apply relative inline-flex h-9 min-w-40 cursor-default items-center rounded-kit border border-line bg-field pr-8 pl-3 text-sm text-ink shadow-xs outline-none select-none focus:border-primary focus:ring-2 focus:ring-primary/30; }
+.win-kit--tailwind .win-combobox__text { @apply flex-1 truncate; }
+.win-kit--tailwind .win-combobox__arrow { @apply absolute top-1/2 right-3 size-2 -translate-y-3/4 rotate-45 border-r border-b border-muted; }
+.win-kit--tailwind .win-combobox[aria-disabled="true"] { @apply bg-soft text-muted; }
+.win-kit--tailwind .win-combobox__list { @apply absolute top-full right-0 left-0 z-50 m-0 mt-1 list-none rounded-kit border border-line bg-panel p-1 shadow-lg; }
+.win-kit--tailwind .win-combobox__option { @apply rounded-[min(var(--kit-radius),0.375rem)] px-2 py-1.5; }
+.win-kit--tailwind .win-combobox__option[aria-selected="true"] { @apply bg-selected text-selected-ink; }
+
+/* ---------- progress, slider, scroll bar ---------- */
+
+.win-kit--tailwind .win-progress { @apply relative h-2 overflow-hidden rounded-full bg-soft; }
+.win-kit--tailwind .win-progress__fill { @apply h-full rounded-full bg-primary transition-[width] duration-150; }
+.win-kit--tailwind .win-progress--paused .win-progress__fill { @apply bg-amber-500; }
+.win-kit--tailwind .win-progress--error .win-progress__fill { @apply bg-red-500; }
+.win-kit--tailwind .win-progress--marquee .win-progress__fill { width: 30% !important; animation: tw-marquee 1.4s ease-in-out infinite; }
+@keyframes tw-marquee { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+
+.win-kit--tailwind .win-slider { @apply relative h-8 px-2 outline-none; }
+.win-kit--tailwind .win-slider__track { @apply relative top-3 h-1.5 rounded-full bg-soft; }
+.win-kit--tailwind .win-slider__track::before { content: ""; @apply absolute inset-x-0 -inset-y-3; }
+.win-kit--tailwind .win-slider__thumb { @apply absolute -top-[5px] -ml-2 size-4 rounded-full border-2 border-primary bg-panel shadow-sm; }
+.win-kit--tailwind .win-slider:focus-visible .win-slider__thumb { @apply ring-4 ring-primary/30; }
+.win-kit--tailwind .win-slider__ticks { @apply relative top-5 h-1; }
+.win-kit--tailwind .win-slider__tick { @apply absolute h-1 w-px bg-line; }
+
+.win-kit--tailwind .win-scrollbar { @apply relative flex rounded-full bg-soft outline-none; }
+.win-kit--tailwind .win-scrollbar--horizontal { @apply h-3; }
+.win-kit--tailwind .win-scrollbar--vertical { @apply h-full w-3 flex-col; }
+.win-kit--tailwind .win-scrollbar__button { @apply w-3 shrink-0 border-0 bg-transparent p-0; }
+.win-kit--tailwind .win-scrollbar--vertical .win-scrollbar__button { @apply h-3 w-auto; }
+.win-kit--tailwind .win-scrollbar__track { @apply relative flex-1; }
+.win-kit--tailwind .win-scrollbar__thumb { @apply absolute rounded-full bg-neutral-400/60 hover:bg-neutral-500/70; }
+.win-kit--tailwind .win-scrollbar--horizontal .win-scrollbar__thumb { @apply inset-y-0.5; }
+.win-kit--tailwind .win-scrollbar--vertical .win-scrollbar__thumb { @apply inset-x-0.5; }
+
+/* ---------- tabs, menus ---------- */
+
+.win-kit--tailwind .win-tabs__strip { @apply flex gap-1 border-b border-line; }
+.win-kit--tailwind .win-tab { @apply -mb-px cursor-default border-0 border-b-2 border-transparent bg-transparent px-3 py-2 text-sm text-muted transition-colors hover:text-ink; }
+.win-kit--tailwind .win-tab--selected { @apply border-primary font-medium text-ink; }
+.win-kit--tailwind .win-tab[aria-disabled="true"] { @apply opacity-40 hover:text-muted; }
+.win-kit--tailwind .win-tabs__page { @apply py-3; }
+
+.win-kit--tailwind .win-menubar { @apply relative flex flex-wrap gap-0.5 border-b border-line bg-panel px-1 py-0.5 outline-none select-none; }
+.win-kit--tailwind .win-menubar__item { @apply cursor-default rounded-kit border-0 bg-transparent px-2.5 py-1 text-sm text-ink hover:bg-soft; }
+.win-kit--tailwind .win-menubar__item--open { @apply bg-soft; }
+.win-kit--tailwind .win-menu__levels { @apply absolute top-full left-0 z-[1000] mt-1 flex items-start gap-1; }
+.win-kit--tailwind .win-menu { @apply m-0 min-w-48 list-none rounded-kit border border-line bg-panel p-1 shadow-lg; }
+.win-kit--tailwind .win-menu__item { @apply grid cursor-default grid-cols-[1rem_1fr_auto] items-center gap-2 rounded-[min(var(--kit-radius),0.375rem)] px-2 py-1.5 text-sm whitespace-nowrap text-ink; }
+.win-kit--tailwind .win-menu__item--highlighted,
+.win-kit--tailwind .win-menu__item:hover:not(.win-menu__item--disabled) { @apply bg-selected text-selected-ink; }
+.win-kit--tailwind .win-menu__item--disabled { @apply opacity-40; }
+.win-kit--tailwind .win-menu__item--submenu .win-menu__shortcut::after { content: "›"; @apply ml-2; }
+.win-kit--tailwind .win-menu__shortcut { @apply text-xs text-muted; }
+.win-kit--tailwind .win-menu__separator { @apply mx-1 my-1 h-px bg-line; }
+.win-kit--tailwind .win-menu__check { @apply text-center text-primary; }
+
+/* ---------- list, tree ---------- */
+
+.win-kit--tailwind .win-listview,
+.win-kit--tailwind .win-tree { @apply m-0 list-none overflow-auto rounded-kit border border-line bg-field text-sm outline-none; }
+.win-kit--tailwind .win-listview__header,
+.win-kit--tailwind .win-listview__row { @apply grid auto-cols-[minmax(80px,1fr)] grid-flow-col; }
+.win-kit--tailwind .win-listview__header { @apply sticky top-0 border-b border-line bg-soft; }
+.win-kit--tailwind .win-listview__column { @apply cursor-default border-0 bg-transparent px-3 py-2 text-left text-xs font-semibold tracking-wide text-muted uppercase hover:text-ink; }
+.win-kit--tailwind .win-listview__column[aria-sort="ascending"]::after { content: " ↑"; }
+.win-kit--tailwind .win-listview__column[aria-sort="descending"]::after { content: " ↓"; }
+.win-kit--tailwind .win-listview__row { @apply border-b border-line/60 last:border-b-0 hover:bg-soft; }
+.win-kit--tailwind .win-listview__cell { @apply truncate px-3 py-1.5; }
+.win-kit--tailwind .win-listview__row--selected { @apply bg-selected text-selected-ink hover:bg-selected; }
+.win-kit--tailwind .win-listview:focus .win-listview__row--focused { @apply outline-2 -outline-offset-2 outline-primary/50; }
+.win-kit--tailwind .win-tree { @apply p-1; }
+.win-kit--tailwind .win-tree__item { @apply flex min-h-7 items-center gap-1 whitespace-nowrap; }
+.win-kit--tailwind .win-tree__label { @apply rounded-[min(var(--kit-radius),0.375rem)] px-1.5 py-0.5; }
+.win-kit--tailwind .win-tree__item:not(:has(.win-tree__expander)) .win-tree__label { @apply ml-5; }
+.win-kit--tailwind .win-tree__item--selected .win-tree__label { @apply bg-selected text-selected-ink; }
+.win-kit--tailwind .win-tree__expander { @apply relative size-5 shrink-0 cursor-default rounded border-0 bg-transparent p-0 text-muted hover:bg-soft; }
+.win-kit--tailwind .win-tree__expander::before { content: ""; @apply absolute top-1/2 left-1/2 size-1.5 -translate-1/2 -rotate-45 border-r border-b border-current transition-transform; }
+.win-kit--tailwind .win-tree__expander[aria-label="Collapse"]::before { @apply rotate-45; }
+
+/* ---------- toolbar, status bar, group box, tooltip ---------- */
+
+.win-kit--tailwind .win-toolbar { @apply flex flex-wrap gap-1 rounded-kit border border-line bg-panel p-1; }
+.win-kit--tailwind .win-toolbar__button { @apply h-8 min-w-8 cursor-default rounded-[min(var(--kit-radius),0.375rem)] border-0 bg-transparent px-2.5 text-sm text-ink transition-colors hover:bg-soft disabled:opacity-40 disabled:hover:bg-transparent; }
+.win-kit--tailwind .win-toolbar__button--pressed { @apply bg-selected text-selected-ink hover:bg-selected; }
+.win-kit--tailwind .win-statusbar { @apply flex gap-px border-t border-line bg-soft text-xs text-muted; }
+.win-kit--tailwind .win-statusbar__panel { @apply min-w-0 flex-1 truncate px-3 py-1; }
+.win-kit--tailwind .win-statusbar__panel[style*="width"] { @apply flex-none border-l border-line; }
+.win-kit--tailwind .win-groupbox { @apply m-0 rounded-kit border border-line px-3 pt-1 pb-3; }
+.win-kit--tailwind .win-groupbox__title { @apply px-1 text-xs font-semibold tracking-wide text-muted uppercase; }
+.win-kit--tailwind .win-tooltip-host { @apply relative inline-block; }
+.win-kit--tailwind .win-tooltip { @apply pointer-events-none absolute top-full left-2 z-[2000] mt-1.5 rounded-md bg-tip px-2 py-1 text-xs whitespace-nowrap text-tip-ink shadow-lg; }
+
+/* ---------- message box ---------- */
+
+.win-kit--tailwind .win-messagebox { @apply fixed inset-0 z-[3000] flex items-center justify-center bg-black/40 backdrop-blur-sm; }
+.win-kit--tailwind .win-messagebox__dialog { @apply relative max-w-md min-w-72 outline-none; }
+.win-kit--tailwind .win-messagebox__body { @apply flex items-start gap-4 p-5; }
+.win-kit--tailwind .win-messagebox__text { @apply m-0 pt-1.5 text-sm leading-6 text-ink; }
+.win-kit--tailwind .win-messagebox__buttons { @apply flex justify-end gap-2 border-t border-line bg-soft px-5 py-3; }
+.win-kit--tailwind .win-messagebox__icon { @apply relative flex size-9 shrink-0 items-center justify-center rounded-full text-lg font-bold; }
+.win-kit--tailwind .win-messagebox__icon--information { @apply bg-sky-100 text-sky-700; }
+.win-kit--tailwind .win-messagebox__icon--information::after { content: "i"; }
+.win-kit--tailwind .win-messagebox__icon--question { @apply bg-accent-100 text-accent-700; }
+.win-kit--tailwind .win-messagebox__icon--question::after { content: "?"; }
+.win-kit--tailwind .win-messagebox__icon--warning { @apply bg-amber-100 text-amber-700; }
+.win-kit--tailwind .win-messagebox__icon--warning::after { content: "!"; }
+.win-kit--tailwind .win-messagebox__icon--error { @apply bg-red-100 text-red-700; }
+.win-kit--tailwind .win-messagebox__icon--error::after { content: "\00d7"; }
+
+@media (prefers-reduced-motion: reduce) {
+	.win-kit--tailwind .win-progress--marquee .win-progress__fill { animation: none; }
+	.win-kit--tailwind .win-progress__fill { transition: none; }
+}
+
+/* ---------- toggle switch ---------- */
+
+.win-kit--tailwind .win-switch { @apply inline-flex cursor-default items-center gap-2.5 text-sm select-none; }
+.win-kit--tailwind .win-switch__track { @apply relative inline-flex h-5 w-9 shrink-0 rounded-full bg-pressed transition-colors duration-200 ease-out outline-none focus-visible:ring-2 focus-visible:ring-primary/40; }
+.win-kit--tailwind .win-switch__thumb { @apply absolute top-0.5 left-0.5 size-4 rounded-full bg-white shadow-sm transition-transform duration-200 ease-out; }
+.win-kit--tailwind .win-switch--on .win-switch__track { @apply bg-primary; }
+.win-kit--tailwind .win-switch--on .win-switch__thumb { @apply translate-x-4; }
+.win-kit--tailwind .win-switch--disabled { @apply opacity-50; }
+
+/* Touch controls: a virtual stick and game buttons, in the palette's tokens. */
+.win-kit--tailwind .win-joystick { @apply relative h-full w-full select-none; touch-action: none; }
+.win-kit--tailwind .win-joystick__base { @apply absolute inset-[8%] rounded-full border-2 border-line bg-soft shadow-inner; }
+.win-kit--tailwind .win-joystick__knob { @apply absolute top-1/2 left-1/2 h-2/5 w-2/5 rounded-full border-2 border-line bg-panel shadow-lg; }
+.win-kit--tailwind .win-joystick--active .win-joystick__knob { @apply bg-primary shadow-lg; }
+.win-kit--tailwind .win-joystick--returning .win-joystick__knob { @apply transition-transform duration-150 ease-out motion-reduce:transition-none; }
+.win-kit--tailwind .win-joystick--disabled { @apply opacity-50; }
+.win-kit--tailwind .win-game-button { @apply flex h-full w-full items-center justify-center rounded-full border-2 border-line bg-panel text-base font-semibold text-ink shadow-md transition-transform duration-100 select-none motion-reduce:transition-none; touch-action: none; }
+.win-kit--tailwind .win-game-button--pressed { @apply scale-90 bg-primary text-primary-ink shadow-sm; }
+.win-kit--tailwind .win-game-button--disabled { @apply opacity-50; }
+.win-kit--tailwind .win-game-button__label { @apply px-2 text-center leading-tight wrap-anywhere; }

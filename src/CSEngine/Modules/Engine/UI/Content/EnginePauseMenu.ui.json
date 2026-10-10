@@ -1,0 +1,115 @@
+{
+  "Format": 1,
+  "Name": "Engine pause menu",
+  "Script": "",
+  "ClickThrough": false,
+  "Root": {
+    "Name": "Root",
+    "Type": "canvas",
+    "X": 0,
+    "Y": 0,
+    "Width": 800,
+    "Height": 500,
+    "Props": {},
+    "Children": [
+      {
+        "Name": "MenuWindow",
+        "Type": "window",
+        "X": 0,
+        "Y": 0,
+        "Width": 660,
+        "Height": 320,
+        "AnchorX": "center",
+        "AnchorY": "center",
+        "Props": {
+          "Title": "Games",
+          "Closable": true,
+          "Minimizable": false,
+          "Maximizable": false,
+          "Resizable": false
+        },
+        "Children": [
+          {
+            "Name": "Heading",
+            "Type": "label",
+            "X": 12,
+            "Y": 12,
+            "Width": 150,
+            "Height": 18,
+            "Props": {
+              "Text": "Ready",
+              "FontSize": 13,
+              "Bold": true
+            }
+          },
+          {
+            "Name": "PlayButton",
+            "Type": "button",
+            "X": 12,
+            "Y": 40,
+            "Width": 120,
+            "Height": 28,
+            "Props": {
+              "Text": "Play",
+              "Default": true
+            }
+          },
+          {
+            "Name": "SettingsButton",
+            "Type": "button",
+            "X": 12,
+            "Y": 78,
+            "Width": 120,
+            "Height": 28,
+            "Props": {
+              "Text": "Settings"
+            }
+          },
+          {
+            "Name": "Hint",
+            "Type": "label",
+            "X": 12,
+            "Y": 118,
+            "Width": 150,
+            "Height": 120,
+            "Props": {
+              "Text": "Click Play to take control of the mouse.",
+              "FontSize": 11,
+              "Bold": false,
+              "Wrap": true
+            }
+          },
+          {
+            "Name": "Scenes",
+            "Type": "listbox",
+            "X": 176,
+            "Y": 12,
+            "Width": 460,
+            "Height": 262,
+            "Props": {
+              "Items": ""
+            }
+          }
+        ]
+      },
+      {
+        "Name": "Watermark",
+        "Type": "label",
+        "X": 0,
+        "Y": 20,
+        "Width": 320,
+        "Height": 20,
+        "AnchorX": "center",
+        "AnchorY": "end",
+        "ClickThrough": true,
+        "Props": {
+          "Text": "Critical Success Engine",
+          "FontSize": 12,
+          "Bold": true,
+          "Color": "#d8dde8",
+          "Align": "center"
+        }
+      }
+    ]
+  }
+}

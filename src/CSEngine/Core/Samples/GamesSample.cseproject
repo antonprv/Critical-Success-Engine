@@ -1,0 +1,107 @@
+{
+  "FileVersion": 1,
+  "Name": "GamesSample",
+  "Description": "The engine's own project for development and tests: the templates' games (Blank, First Person, Coin Hunt, Third Person, Top-Down) in one build.",
+  "Genre": "Blank",
+  "Modules": [
+    {
+      "Name": "BlankSample",
+      "Type": "Runtime",
+      "LoadingPhase": "Default",
+      "Primary": true,
+      "Dependencies": [
+        "Engine"
+      ],
+      "Entry": "../../../Templates/Blank/Source/TemplateProjectModule.ts"
+    },
+    {
+      "Name": "FirstPersonSample",
+      "Type": "Runtime",
+      "LoadingPhase": "Default",
+      "Primary": false,
+      "Dependencies": [
+        "Engine"
+      ],
+      "Entry": "../../../Templates/FirstPerson/Source/TemplateProjectModule.ts"
+    },
+    {
+      "Name": "CoinHuntSample",
+      "Type": "Runtime",
+      "LoadingPhase": "Default",
+      "Primary": false,
+      "Dependencies": [
+        "Engine"
+      ],
+      "Entry": "../../../Templates/CoinHunt/Source/TemplateProjectModule.ts"
+    },
+    {
+      "Name": "ThirdPersonSample",
+      "Type": "Runtime",
+      "LoadingPhase": "Default",
+      "Primary": false,
+      "Dependencies": [
+        "Engine"
+      ],
+      "Entry": "../../../Templates/ThirdPerson/Source/TemplateProjectModule.ts"
+    },
+    {
+      "Name": "TopDownSample",
+      "Type": "Runtime",
+      "LoadingPhase": "Default",
+      "Primary": false,
+      "Dependencies": [
+        "Engine"
+      ],
+      "Entry": "../../../Templates/TopDown/Source/TemplateProjectModule.ts"
+    }
+  ],
+  "Plugins": [
+    {
+      "Name": "UI",
+      "Enabled": true
+    }
+  ],
+  "Input": {
+    "Manifests": [
+      {
+        "Id": "Blank",
+        "Path": "../../../Templates/Blank/Content/Input/Blank.input.json"
+      },
+      {
+        "Id": "FirstPerson",
+        "Path": "../../../Templates/FirstPerson/Content/Input/FirstPerson.input.json"
+      },
+      {
+        "Id": "CoinHunt",
+        "Path": "../../../Templates/CoinHunt/Content/Input/CoinHunt.input.json"
+      },
+      {
+        "Id": "ThirdPerson",
+        "Path": "../../../Templates/ThirdPerson/Content/Input/ThirdPerson.input.json"
+      },
+      {
+        "Id": "TopDown",
+        "Path": "../../../Templates/TopDown/Content/Input/TopDown.input.json"
+      }
+    ],
+    "Default": "Blank"
+  },
+  "Data": [
+    {
+      "Id": "CoinHuntRules",
+      "Path": "../../../Templates/CoinHunt/Content/Data/CoinHuntRules.csedata"
+    },
+    {
+      "Id": "FirstPersonView",
+      "Path": "../../../Templates/FirstPerson/Content/Data/FirstPersonView.csedata"
+    },
+    {
+      "Id": "ThirdPersonCamera",
+      "Path": "../../../Templates/ThirdPerson/Content/Data/ThirdPersonCamera.csedata"
+    },
+    {
+      "Id": "TopDownCamera",
+      "Path": "../../../Templates/TopDown/Content/Data/TopDownCamera.csedata"
+    }
+  ]
+}

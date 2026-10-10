@@ -1,0 +1,30 @@
+{
+  "name": "@cse/desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The desktop app (Electron): the editor's programs - the project browser, the UI designer - in windows of the operating system.",
+  "type": "module",
+  "main": "../../Binaries/Programs/Desktop/main.cjs",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "build": "vite build && vite build --mode preload",
+    "start": "electron .",
+    "typecheck": "tsc --noEmit && tsc --project tsconfig.node.json",
+    "lint": "eslint .",
+    "test": "vitest run --coverage",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.2.0",
+    "@vitest/coverage-v8": "^5.0.3",
+    "electron": "44.4.5",
+    "eslint": "^10.11.0",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.71.0",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3"
+  }
+}

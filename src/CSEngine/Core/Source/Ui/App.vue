@@ -18,12 +18,13 @@ const state = store.State;
 			:bars="state.hud.bars"
 		/>
 		<PauseMenu
+			v-if="!state.documentScreens"
 			:menu="state.menu"
 			:disabled="state.loading.visible"
 			@resume="store.Actions.Resume()"
 			@select="(id: string) => store.Actions.SelectScene(id)"
 		/>
-		<LoadingOverlay :loading="state.loading" />
+		<LoadingOverlay v-if="!state.documentScreens" :loading="state.loading" />
 	</div>
 </template>
 

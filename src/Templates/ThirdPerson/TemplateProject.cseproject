@@ -1,0 +1,41 @@
+{
+  "FileVersion": 1,
+  "Name": "TemplateProject",
+  "Description": "",
+  "Modules": [
+    {
+      "Name": "TemplateProject",
+      "Type": "Runtime",
+      "LoadingPhase": "Default",
+      "Primary": true,
+      "Dependencies": [
+        "Engine"
+      ],
+      "Entry": "Source/TemplateProjectModule.ts"
+    }
+  ],
+  "Plugins": [
+    {
+      "Name": "UI",
+      "Enabled": true
+    }
+  ],
+  "Ui": {
+    "Manifest": "Content/UI/Ui.manifest.json"
+  },
+  "Input": {
+    "Manifests": [
+      {
+        "Id": "ThirdPerson",
+        "Path": "Content/Input/ThirdPerson.input.json"
+      }
+    ],
+    "Default": "ThirdPerson"
+  },
+  "Data": [
+    {
+      "Id": "ThirdPersonCamera",
+      "Path": "Content/Data/ThirdPersonCamera.csedata"
+    }
+  ]
+}

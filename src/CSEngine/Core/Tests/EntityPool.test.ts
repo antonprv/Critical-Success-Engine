@@ -10,8 +10,8 @@ import { Comp, Ent } from "../Source/Engine/Core/EntityManifest";
 import { Despawn, EntityPool, PooledEntity } from "../Source/Engine/Core/EntityPool";
 import { Meshes, Shapes } from "../Source/Engine/Core/Shapes";
 import { Vec3 } from "../Source/Engine/Math/Vec3";
-import { BallGun, Lifetime } from "../Source/Game/GuideExamples/ComponentExamples";
-import { Shooter } from "../Source/Game/Scripts/Scripts";
+import { BallGun, Lifetime } from "../Source/Examples/ComponentExamples";
+import { Shooter } from "../Source/Engine/Gameplay/Scripts";
 import { CameraComponent } from "../Source/Engine/Components/Camera/CameraComponent";
 import { InputEvtType, PhysOpType, PhysState, RendOpType } from "../Source/Workers/Common/CommonEnums";
 import { MakeEngine, type TestEngine } from "./engine";
@@ -295,6 +295,12 @@ describe("sample shooters use pools", () => {
 		for (let i = 0; i < 5; i++) click();
 		expect(named("Bullet")).toHaveLength(3);
 		expect(named("Bullet").every((b) => b.Active)).toBe(true);
+	});
+
+	it("Shooter counts its shots (recycled bullets too): a HUD's ammo counter reads ShotsFired", () => {
+		const { t, click } = Player(Shooter, { MaxBullets: 3 });
+		for (let i = 0; i < 5; i++) click();
+		expect(t.world.FindByName("Player")!.GetComponent(Shooter)!.ShotsFired).toBe(5);
 	});
 
 	it("BallGun reuses a ball whose lifetime ran out, and throws it again from the camera", () => {

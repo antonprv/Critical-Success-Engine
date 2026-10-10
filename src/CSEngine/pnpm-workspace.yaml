@@ -1,0 +1,13 @@
+# The engine and its modules: one install, shared dependencies.
+packages:
+  - Core
+  - Modules/Engine/*
+  - Modules/Editor/*
+  - Programs/*
+allowBuilds:
+  '@parcel/watcher': true
+  unrs-resolver: true
+minimumReleaseAgeExclude:
+  - vite@8.3.2
+nodeLinker: hoisted
+packageImportMethod: copy

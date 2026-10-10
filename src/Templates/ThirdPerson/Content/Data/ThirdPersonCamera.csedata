@@ -1,0 +1,10 @@
+{
+  "FileVersion": 1,
+  "Type": "ThirdPersonCamera",
+  "Values": {
+    "Distance": 5,
+    "Min": 3,
+    "Max": 8,
+    "Step": 0.5
+  }
+}

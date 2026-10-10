@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import type { CursorMode } from "../../Engine/Core/EntityManifest";
 import {
 	CreateInitialUiState,
 	type GameLogicToUiMessage,
@@ -37,6 +38,7 @@ export class UiController {
 
 	private readonly _state: UiState = CreateInitialUiState();
 	private _phase: UiPhase = UiPhase.Booting;
+	private _touch = false;
 	private _hasPlayed = false;
 	/** Whether the browser currently holds the pointer lock for us (as last reported by the main thread). */
 	private _locked = false;
@@ -54,6 +56,10 @@ export class UiController {
 
 	public OnGameLogicMessage(message: GameLogicToUiMessage): void {
 		switch (message.type) {
+			case UiMsg.Channel:
+				this._toMain(message); // a plugin's message: passed on as it is
+				break;
+
 			case UiMsg.Scenes:
 				this._state.menu = { ...this._state.menu, scenes: message.scenes };
 				this.PushState({ menu: this._state.menu });
@@ -66,7 +72,7 @@ export class UiController {
 				break;
 
 			case UiMsg.LoadFinished:
-				this.OnLoadFinished(message.sceneId);
+				this.OnLoadFinished(message.sceneId, message.cursor ?? "locked");
 				break;
 
 			case UiMsg.LoadFailed:
@@ -89,10 +95,18 @@ export class UiController {
 		}
 	}
 
-	private OnLoadFinished(sceneId: string): void {
+	private OnLoadFinished(sceneId: string, cursor: CursorMode): void {
 		this._state.loading = { visible: false, label: "", fraction: 1 };
 		this._state.menu = { ...this._state.menu, currentSceneId: sceneId, visible: false };
-		this.PushState({ loading: this._state.loading, menu: this._state.menu });
+		this._state.cursor = cursor;
+		this.PushState({ loading: this._state.loading, menu: this._state.menu, cursor });
+		if (cursor === "free" || this._touch) {
+			// The cursor stays visible: nothing to ask the browser for. A mouse still held from the last scene goes.
+			if (this._locked) this._toMain({ type: UiMsg.ExitPointerLock });
+			if (this._hasPlayed) this.PlayWithFreeCursor();
+			else this.ShowMenu(MenuMode.Start);
+			return;
+		}
 		if (this._locked) {
 			// A script reloaded the scene (e.g. "press R to restart") and the pointer never left the game:
 			// there is nothing to request, and no lock-change event will come - go straight back to playing.
@@ -116,6 +130,10 @@ export class UiController {
 
 	public OnMainMessage(message: MainToUiMessage): void {
 		switch (message.type) {
+			case UiMsg.Channel:
+				this._toGameLogic(message);
+				break;
+
 			case UiMsg.Init:
 				break; // handled by the worker shell
 
@@ -142,8 +160,23 @@ export class UiController {
 				break;
 
 			case UiMsg.Resume:
-				// The main thread already asked the browser for the lock inside the click handler (that is the user
-				// gesture the browser demands); if it is refused we get "pointer-lock-failed" and the menu stays.
+				// A free-cursor scene just goes on. Otherwise the main thread already asked the browser for the lock inside
+				// the click handler (that is the user gesture the browser demands); if refused, "pointer-lock-failed" comes.
+				if (this.Free && this._phase === UiPhase.Menu) this.PlayWithFreeCursor();
+				break;
+
+			case UiMsg.SetTouch:
+				// The touch scheme plays every scene without taking the mouse (a phone has no pointer lock).
+				this._touch = message.enabled;
+				if (message.enabled && this._locked) this._toMain({ type: UiMsg.ExitPointerLock });
+				break;
+
+			case UiMsg.Pause:
+				// Esc in a free-cursor scene: there is no pointer lock for the browser to release, so the page says so.
+				if (this.Free && this._phase === UiPhase.Playing) {
+					this._toGameLogic({ type: UiMsg.SetCapture, enabled: false });
+					this.ShowMenu(MenuMode.Paused);
+				}
 				break;
 		}
 	}
@@ -159,11 +192,23 @@ export class UiController {
 
 	private OnLockLost(): void {
 		this._locked = false;
+		if (this.Free) return; // let go on purpose (a free-cursor scene, the touch scheme): not a pause
 		this._toGameLogic({ type: UiMsg.SetCapture, enabled: false });
 		if (this._phase === UiPhase.Playing) this.ShowMenu(MenuMode.Paused);
 	}
 
 	//#endregion
+
+	/** The game plays without taking the mouse: a free-cursor scene, or the touch scheme. */
+	private get Free(): boolean { return this._state.cursor === "free" || this._touch; }
+
+	private PlayWithFreeCursor(): void {
+		this._phase = UiPhase.Playing;
+		this._hasPlayed = true;
+		this._state.menu = { ...this._state.menu, visible: false };
+		this.PushState({ menu: this._state.menu });
+		this._toGameLogic({ type: UiMsg.SetCapture, enabled: true });
+	}
 
 	private ShowMenu(mode: MenuMode): void {
 		this._phase = UiPhase.Menu;

@@ -10,7 +10,7 @@ import { CameraComponent } from "../Source/Engine/Components/Camera/CameraCompon
 import { MoverComponent } from "../Source/Engine/Components/Mover/MoverComponent";
 import { Comp, Ent } from "../Source/Engine/Core/EntityManifest";
 import { SceneRegistry } from "../Source/Engine/Scenes/SceneRegistry";
-import { AssetLoader, AssetPriority } from "../Source/Game/AssetLoader";
+import { AssetLoader, AssetPriority } from "../Source/Engine/Assets/AssetLoader";
 import { Logger } from "../Source/Logging/Logger";
 import { MenuMode, PhysBodyType, PhysObjectKind, PhysOpType, PhysOpType as Op, PhysShape, PhysState, RenderMsg, UiMsg } from "../Source/Workers/Common/CommonEnums";
 import type { PhysicsBridgeExports } from "../Source/Workers/Physics/PhysicsBridgeContract";

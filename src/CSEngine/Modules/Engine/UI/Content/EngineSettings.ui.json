@@ -1,0 +1,105 @@
+{
+  "Format": 1,
+  "Name": "Engine settings",
+  "Script": "",
+  "ClickThrough": false,
+  "Root": {
+    "Name": "Root",
+    "Type": "canvas",
+    "X": 0,
+    "Y": 0,
+    "Width": 800,
+    "Height": 500,
+    "Props": {},
+    "Children": [
+      {
+        "Name": "SettingsWindow",
+        "Type": "window",
+        "X": 0,
+        "Y": 0,
+        "Width": 560,
+        "Height": 360,
+        "AnchorX": "center",
+        "AnchorY": "center",
+        "Props": {
+          "Title": "Settings",
+          "Closable": false,
+          "Minimizable": false,
+          "Maximizable": false,
+          "Resizable": false
+        },
+        "Children": [
+          {
+            "Name": "Settings",
+            "Type": "listbox",
+            "X": 12,
+            "Y": 12,
+            "Width": 530,
+            "Height": 250,
+            "Props": {
+              "Items": ""
+            }
+          },
+          {
+            "Name": "Hint",
+            "Type": "label",
+            "X": 12,
+            "Y": 270,
+            "Width": 300,
+            "Height": 18,
+            "Props": {
+              "Text": "Pick a setting, then change it with Less or More.",
+              "FontSize": 11,
+              "Bold": false
+            }
+          },
+          {
+            "Name": "LessButton",
+            "Type": "button",
+            "X": 12,
+            "Y": 294,
+            "Width": 90,
+            "Height": 26,
+            "Props": {
+              "Text": "Less"
+            }
+          },
+          {
+            "Name": "MoreButton",
+            "Type": "button",
+            "X": 110,
+            "Y": 294,
+            "Width": 90,
+            "Height": 26,
+            "Props": {
+              "Text": "More"
+            }
+          },
+          {
+            "Name": "ControlsButton",
+            "Type": "button",
+            "X": 250,
+            "Y": 294,
+            "Width": 100,
+            "Height": 26,
+            "Props": {
+              "Text": "Controls"
+            }
+          },
+          {
+            "Name": "BackButton",
+            "Type": "button",
+            "X": 452,
+            "Y": 294,
+            "Width": 90,
+            "Height": 26,
+            "Props": {
+              "Text": "Back",
+              "Default": true
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

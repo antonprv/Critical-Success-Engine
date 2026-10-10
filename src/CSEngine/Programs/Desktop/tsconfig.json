@@ -1,0 +1,63 @@
+{
+  // Visit https://aka.ms/tsconfig to read more about this file
+  "compilerOptions": {
+    // The engine's sources (reached through @cse/core) import with explicit .ts extensions.
+    "allowImportingTsExtensions": true,
+    // File Layout
+
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "noResolve": false,
+    "noEmit": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": false,
+    "noEmitOnError": true,
+    "allowUnreachableCode": false,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noImplicitOverride": true,
+    "preserveConstEnums": true,
+
+    "useUnknownInCatchVariables": true,
+    "noFallthroughCasesInSwitch": false,
+    "forceConsistentCasingInFileNames": true,
+
+    "lib": ["ES2022", "dom"],
+
+    // JS/TS interop
+    "allowJs": true,
+    "checkJs": false,
+
+    // Environment Settings
+    // See also https://aka.ms/tsconfig/module
+    "types": ["node"],
+
+    // Other Outputs
+
+    // Stricter Typechecking Options
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+
+    // Recommended Options
+    "strict": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "noUncheckedSideEffectImports": true,
+    "moduleDetection": "force",
+    "skipLibCheck": true
+  },
+
+  "include": [
+    "./Source/**/*.ts",
+            "./Source/**/*.js",
+    "./Tests/**/*.ts",
+    "./E2E/**/*.ts"
+  ],
+
+  "exclude": [
+    "node_modules"
+  ]
+
+}

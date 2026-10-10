@@ -4,9 +4,19 @@
 // Shared test harness: runs the real GameLogicRuntime against fake ports, playing the part of the render, physics, audio
 // and UI workers (answering their sync markers, posting physics snapshots).
 
+import type { DataAssets } from "../Source/Engine/Data/DataAsset";
+import type { SettingsStorage } from "../Source/Engine/Storage/SettingsStorage";
+import type { ProjectInput } from "../Source/Engine/Input/InputActions";
+import { GamesSampleData, HarnessInput } from "./InputFixture";
+import "./GameUiFixture"; // the scenes' games use the UI plugin (Coin Hunt's HUD)
+import type { ChannelHub } from "../Source/Engine/Core/Channels";
 import { GameLogicRuntime } from "../Source/Engine/Runtime/GameLogicRuntime";
 import { SceneRegistry } from "../Source/Engine/Scenes/SceneRegistry";
-import { RegisterGameScenes } from "../Source/Game/GameScenes";
+import { BouncingBallScene } from "../../../Templates/Blank/Source/Scenes/BouncingBallScene";
+import { CoinHuntScene } from "../../../Templates/CoinHunt/Source/Scenes/CoinHuntScene";
+import { CharacterTestScene } from "../../../Templates/FirstPerson/Source/Scenes/CharacterTestScene";
+import { ThirdPersonScene } from "../../../Templates/ThirdPerson/Source/Scenes/ThirdPersonScene";
+import { TopDownScene } from "../../../Templates/TopDown/Source/Scenes/TopDownScene";
 import { PhysOpType, PhysState, RenderMsg, RendOpType, UiMsg } from "../Source/Workers/Common/CommonEnums";
 import type { PhysicsCommand } from "../Source/Workers/Protocol/PhysicsGameLogicProtocol";
 import { BODY_STRIDE, CHARACTER_STRIDE } from "../Source/Workers/Protocol/TransformProtocol";
@@ -31,10 +41,14 @@ export class Harness {
 	private _physicsSeen = 0;
 	private _renderSeen = 0;
 
-	public constructor(registry: SceneRegistry) {
+	public constructor(registry: SceneRegistry, channels?: ChannelHub, input: ProjectInput = HarnessInput(), storage?: SettingsStorage, data: DataAssets = GamesSampleData()) {
 		this.runtime = new GameLogicRuntime(
 			{ render: this.render as never, physics: this.physics as never, audio: this.audio as never, ui: this.ui as never },
-			registry
+			registry,
+			channels,
+			input,
+			storage,
+			data,
 		);
 	}
 
@@ -110,7 +124,8 @@ export class Harness {
 
 export function CreateRegistry(): SceneRegistry {
 	const registry = new SceneRegistry();
-	RegisterGameScenes(registry);
+	// The Games Sample project's scenes, in its order (see Samples/GamesSample.cseproject).
+	registry.Register(BouncingBallScene).Register(CharacterTestScene).Register(CoinHuntScene).Register(ThirdPersonScene).Register(TopDownScene);
 	return registry;
 }
 

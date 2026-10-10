@@ -299,12 +299,10 @@ describe("vite.config.ts", () => {
 		expect(config.build.sourcemap).toBe(true);
 		expect(config.build.outDir).toBe(resolve(process.cwd(), "../Binaries/Core"));
 		expect(config.build.emptyOutDir).toBe(true);
-		expect(config.worker).toEqual({ format: "es" });
-		// Three pages: the game, the UI toolkit gallery and the UI designer.
+		expect(config.worker).toMatchObject({ format: "es" });
+		// The game's page.
 		expect((config.build as { rolldownOptions?: { input?: unknown; }; }).rolldownOptions?.input).toEqual({
 			index: resolve(process.cwd(), "index.html"),
-			toolkit: resolve(process.cwd(), "toolkit.html"),
-			designer: resolve(process.cwd(), "designer.html"),
 		});
 	});
 
@@ -319,7 +317,12 @@ describe("vite.config.ts", () => {
 		const names = ((config.plugins ?? []) as PluginOption[]).flat(3).map((p) => (p as { name?: string; } | null)?.name).filter(Boolean);
 		expect(names).toEqual(expect.arrayContaining(["vite:vue", "physics-wasm", "log-server-sidecar"]));
 		expect(names.some((n) => String(n).includes("quasar"))).toBe(true);
+		// The project being built (virtual:cse/project) is read by the game logic worker: workers get the plugin too.
+		expect(names).toContain("cse-project");
+		// The UI plugin's page module brings the toolkit's styles, Tailwind kit included.
 		expect(names.some((n) => String(n).includes("tailwindcss"))).toBe(true);
+		const workerPlugins = await (config.worker!.plugins as () => PluginOption[])();
+		expect(workerPlugins.flat(3).map((p) => (p as { name?: string; } | null)?.name)).toContain("cse-project");
 		expect(config.server).toMatchObject({ host: "127.0.0.1", port: 5173, strictPort: true });
 		expect(config.preview).toMatchObject({ host: "127.0.0.1", port: 4173, strictPort: true });
 		expect(config.assetsInclude).toContain("**/*.glb");

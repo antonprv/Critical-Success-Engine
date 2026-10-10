@@ -15,6 +15,13 @@
     <Project Path="Physics/Vendor/BepuUtilities/BepuUtilities.csproj" />
     <Project Path="Physics/Vendor/Integration/Integration.csproj" />
   </Folder>
+  <Folder Name="/Modules/" />
+  <Folder Name="/Modules/Engine/">
+    <Project Path="Modules/Engine/UI/UI.esproj" />
+  </Folder>
+  <Folder Name="/Modules/Editor/">
+    <Project Path="Modules/Editor/UIDesigner/UIDesigner.esproj" />
+  </Folder>
   <Folder Name="/Engine/Common/" />
   <Folder Name="/Engine/Common/Math/">
     <Project Path="Common/Math/FastMath.csproj" />

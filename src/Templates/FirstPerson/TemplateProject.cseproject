@@ -1,0 +1,41 @@
+{
+  "FileVersion": 1,
+  "Name": "TemplateProject",
+  "Description": "",
+  "Modules": [
+    {
+      "Name": "TemplateProject",
+      "Type": "Runtime",
+      "LoadingPhase": "Default",
+      "Primary": true,
+      "Dependencies": [
+        "Engine"
+      ],
+      "Entry": "Source/TemplateProjectModule.ts"
+    }
+  ],
+  "Plugins": [
+    {
+      "Name": "UI",
+      "Enabled": true
+    }
+  ],
+  "Ui": {
+    "Manifest": "Content/UI/Ui.manifest.json"
+  },
+  "Input": {
+    "Manifests": [
+      {
+        "Id": "FirstPerson",
+        "Path": "Content/Input/FirstPerson.input.json"
+      }
+    ],
+    "Default": "FirstPerson"
+  },
+  "Data": [
+    {
+      "Id": "FirstPersonView",
+      "Path": "Content/Data/FirstPersonView.csedata"
+    }
+  ]
+}

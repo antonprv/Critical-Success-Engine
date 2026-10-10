@@ -72,8 +72,10 @@ describe("InputService", () => {
 		expect(input.ConsumeLookDelta()).toEqual([0, 0]);
 	});
 
-	it("builds the WASD / arrows vector (forward is negative y) and clamps diagonals", () => {
+	it("builds the WASD / arrows vector (forward is negative y) and clamps diagonals", async () => {
+		const { TestProjectInput } = await import("./InputFixture");
 		const input = new InputService();
+		input.System.Install(TestProjectInput);
 		expect(input.GetInputVector()).toEqual([0, 0]); // not captured
 		input.CapturePlayerInput = true;
 		expect(input.GetInputVector()).toEqual([0, 0]);
@@ -135,7 +137,7 @@ describe("UiService", () => {
 		expect(port.sent).toEqual([
 			{ type: UiMsg.Scenes, scenes: [{ id: "a", name: "A", description: "d" }] },
 			{ type: UiMsg.LoadProgress, sceneId: "a", label: "working", fraction: 0.5 },
-			{ type: UiMsg.LoadFinished, sceneId: "a" },
+			{ type: UiMsg.LoadFinished, sceneId: "a", cursor: "locked" },
 			{ type: UiMsg.LoadFailed, sceneId: "a", message: "boom" },
 			{ type: UiMsg.Toast, message: "hello" },
 		]);
@@ -487,5 +489,44 @@ describe("PhysicsService", () => {
 		const { service } = create();
 		service.SpawnBody({ entityId: 1, bodyType: PhysBodyType.Dynamic, shape: box, transform: [0, 0, 0, 0, 1, 0, 0], layer: 1, mask: -1 });
 		expect(service.GetBodyState(1)!.Rotation).toEqual(new Quat(0, 1, 0, 0));
+	});
+});
+
+describe("InputService: the cursor and the wheel (free-cursor scenes)", () => {
+	it("knows where the cursor is on the game view and when it left; wheel steps add up until read, only while playing", async () => {
+		const { InputService } = await import("../Source/Engine/Services/InputService");
+		const { InputEvtType } = await import("../Source/Workers/Common/CommonEnums");
+		const input = new InputService();
+		expect(input.Cursor).toBeNull();
+		input.Handle({ kind: InputEvtType.PointerMove, dx: 1, dy: 1, x: 0.25, y: 0.75 });
+		expect(input.Cursor).toBeNull(); // not playing: nothing to report
+		input.CapturePlayerInput = true;
+		input.Handle({ kind: InputEvtType.PointerMove, dx: 1, dy: 1, x: 0.25, y: 0.75 });
+		expect(input.Cursor).toEqual([0.25, 0.75]);
+		input.Handle({ kind: InputEvtType.PointerMove, dx: 3, dy: 0 }); // a locked pointer has no position: the last one stays
+		expect(input.Cursor).toEqual([0.25, 0.75]);
+		input.Handle({ kind: InputEvtType.PointerLeave });
+		expect(input.Cursor).toBeNull();
+		input.Handle({ kind: InputEvtType.Wheel, dy: 100 });
+		input.Handle({ kind: InputEvtType.Wheel, dy: 100 });
+		expect(input.ConsumeWheel()).toBe(200);
+		expect(input.ConsumeWheel()).toBe(0);
+		input.CapturePlayerInput = false;
+		input.Handle({ kind: InputEvtType.Wheel, dy: 100 });
+		input.CapturePlayerInput = true;
+		expect(input.ConsumeWheel()).toBe(0); // what turned while not playing doesn't count
+		input.Handle({ kind: InputEvtType.Wheel, dy: -50 });
+		input.Handle({ kind: InputEvtType.ReleaseAll });
+		expect(input.ConsumeWheel()).toBe(0);
+	});
+
+	it("UiService reports a finished scene with its cursor mode", async () => {
+		const { UiService } = await import("../Source/Engine/Services/UiService");
+		const { UiMsg } = await import("../Source/Workers/Common/CommonEnums");
+		const sent: unknown[] = [];
+		const ui = new UiService({ postMessage: (m: unknown) => sent.push(m) } as never);
+		ui.LoadFinished("top-down", "free");
+		ui.LoadFinished("room");
+		expect(sent).toEqual([{ type: UiMsg.LoadFinished, sceneId: "top-down", cursor: "free" }, { type: UiMsg.LoadFinished, sceneId: "room", cursor: "locked" }]);
 	});
 });

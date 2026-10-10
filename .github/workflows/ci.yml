@@ -72,10 +72,11 @@ jobs:
         with:
           node-version: 22
           cache: "pnpm"
-          cache-dependency-path: src/CSEngine/Core/pnpm-lock.yaml
+          cache-dependency-path: src/CSEngine/pnpm-lock.yaml
 
+      # One pnpm workspace for the engine (Core) and its modules (Modules/*).
       - name: Install dependencies
-        working-directory: src/CSEngine/Core
+        working-directory: src/CSEngine
         run: pnpm install --frozen-lockfile
 
       - name: Type check
@@ -120,6 +121,55 @@ jobs:
         env:
           E2E_REAL_PHYSICS: "1"
         run: pnpm test:e2e
+
+      # Every template is a project of its own: the engine must build each one (Games Sample above builds them together).
+      - name: Build every template as a standalone project
+        working-directory: src/CSEngine/Core
+        run: |
+          for template in ../../Templates/*/; do
+            if [ -f "$template/Template.json" ]; then CSE_PROJECT="$template" pnpm build; fi
+          done
+          pnpm build
+
+      # The engine's UI module (toolkit, UI document runtime, gallery).
+      - name: "UI module: type check, lint, unit tests (100% coverage), build, end-to-end"
+        working-directory: src/CSEngine/Modules/Engine/UI
+        run: |
+          pnpm typecheck
+          pnpm lint
+          pnpm test
+          pnpm build
+          pnpm test:e2e
+
+      # The UI Designer editor module: its own checks, on top of the UI module it builds on.
+      - name: "UI Designer: type check, lint, unit tests (100% coverage), build, end-to-end"
+        working-directory: src/CSEngine/Modules/Editor/UIDesigner
+        run: |
+          pnpm typecheck
+          pnpm lint
+          pnpm test
+          pnpm build
+          pnpm test:e2e
+
+      # The Project Browser editor module (creates and opens projects; its pages are UI documents).
+      - name: "Project Browser: type check, lint, unit tests (100% coverage), build"
+        working-directory: src/CSEngine/Modules/Editor/ProjectBrowser
+        run: |
+          pnpm typecheck
+          pnpm lint
+          pnpm test
+          pnpm build
+
+      # The desktop app (Electron): the editor's programs in windows of the operating system. Its end-to-end tests drive
+      # the real app; on the runner's screenless Linux, under a virtual screen.
+      - name: "Desktop app: type check, lint, unit tests (100% coverage), build, end-to-end"
+        working-directory: src/CSEngine/Programs/Desktop
+        run: |
+          pnpm typecheck
+          pnpm lint
+          pnpm test
+          pnpm build
+          xvfb-run -a pnpm test:e2e
 
       - name: Upload Playwright report
         if: failure()

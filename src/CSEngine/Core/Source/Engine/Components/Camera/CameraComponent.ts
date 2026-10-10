@@ -24,7 +24,12 @@ export class CameraComponent extends Component implements ICameraSource {
 	public MaxPitch = 85;
 
 	public ThirdPerson = false;
-	public ToggleKey = "KeyV";
+	/** Off: the mouse doesn't turn the view (a top-down or fixed camera keeps its Yaw and Pitch). */
+	public LookEnabled = true;
+	/** The input action that switches first / third person. */
+	public ToggleAction = "ToggleView";
+	/** How fast a gamepad's right stick turns the view, degrees per second at full tilt. */
+	public PadLookSpeed = 150;
 	public ArmLength = 4;
 	public ArmRadius = 0.2;
 	public ArmMargin = 0.05;
@@ -50,12 +55,22 @@ export class CameraComponent extends Component implements ICameraSource {
 		this._target = this.Engine.World.FindByName(this.TargetName);
 	}
 
-	public override OnInputUpdate(input: InputService, _dt: number): void {
-		const [dx, dy] = input.ConsumeLookDelta();
-		this.Yaw += -dx * this.MouseSensitivity;
-		this.Pitch = Clamp(this.Pitch - dy * this.MouseSensitivity, this.MinPitch, this.MaxPitch);
+	public override OnInputUpdate(input: InputService, dt: number): void {
+		const [dx, dy] = input.ConsumeLookDelta(); // consumed either way: nothing saved up for when look comes back
+		if (this.LookEnabled) {
+			// The mouse in pixels, a gamepad stick (the Look actions) in degrees per second.
+			// The player's settings: sensitivity multipliers and inverted up/down.
+			const settings = this.Engine.Settings;
+			const mouse = this.MouseSensitivity * settings.Number("MouseSensitivity");
+			const pad = this.PadLookSpeed * settings.Number("PadLookSpeed") * dt;
+			const vertical = settings.Toggle("InvertLook") ? -1 : 1;
+			const stickX = (input.ActionValue("LookLeft") - input.ActionValue("LookRight")) * pad;
+			const stickY = (input.ActionValue("LookUp") - input.ActionValue("LookDown")) * pad;
+			this.Yaw += -dx * mouse + stickX;
+			this.Pitch = Clamp(this.Pitch + vertical * (-dy * mouse + stickY), this.MinPitch, this.MaxPitch);
+		}
 
-		if (input.JustPressed(this.ToggleKey)) this.ThirdPerson = !this.ThirdPerson;
+		if (input.ActionJustPressed(this.ToggleAction)) this.ThirdPerson = !this.ThirdPerson;
 	}
 
 	public override Update(_dt: number): void {

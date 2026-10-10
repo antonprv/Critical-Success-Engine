@@ -1,0 +1,10 @@
+{
+  "FileVersion": 1,
+  "Type": "FirstPersonView",
+  "Values": {
+    "FieldOfView": 70,
+    "Min": 60,
+    "Max": 100,
+    "Step": 5
+  }
+}

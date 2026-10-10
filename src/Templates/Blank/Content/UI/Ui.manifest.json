@@ -1,0 +1,6 @@
+{
+  "FileVersion": 1,
+  "Documents": [
+    { "Id": "MainMenu", "Path": "MainMenu.ui.json", "Script": "" }
+  ]
+}

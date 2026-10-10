@@ -15,8 +15,9 @@
 Веб-проект живёт в `src/CSEngine/Core`, все команды ниже - оттуда:
 
 ```bash
-cd src/CSEngine/Core
+cd src/CSEngine          # the pnpm workspace: the engine and its modules
 pnpm install
+cd Core
 ```
 
 ## Разработка
@@ -62,11 +63,24 @@ pnpm verify       # всё вышеперечисленное + сборка
 поля ввода, комбобоксы, полосы прокрутки, окна сообщений, подсказки...) в двух наборах оформления: Classic (12 тем Windows)
 и Tailwind (26 акцентных и 9 нейтральных палитр Tailwind, светлый и тёмный режим, шкала радиусов).
 У каждого элемента есть контроллер на чистом TypeScript: всё состояние в открытых полях, события с подпиской.
-Демонстрация - `toolkit.html` (`http://127.0.0.1:5173/toolkit.html` при `pnpm dev`), описание - [`docs/guides/10-ui-toolkit.md`](docs/guides/10-ui-toolkit.md).
+Демонстрация - `Modules/Engine/UI (pnpm dev в папке модуля)` (`http://127.0.0.1:5173/Modules/Engine/UI (pnpm dev в папке модуля)` при `pnpm dev`), описание - [`docs/guides/10-ui-toolkit.md`](docs/guides/10-ui-toolkit.md).
+
+## Структура
+
+```
+src/
+  CSEngine/
+    Core/                  @cse/core - движок: игра, физика, рендер, модули
+    Modules/
+      Engine/UI/           @cse/ui - UI-модуль движка: тулкит, рантайм UI-документов, галерея
+      Editor/UIDesigner/   @cse/ui-designer - редактор интерфейсов (тулинг, не часть игры)
+    pnpm-workspace.yaml    одно рабочее пространство: движок и модули
+  Templates/               шаблоны проектов (наполняются на этапе проектов)
+```
 
 ## Редактор интерфейсов
 
-`designer.html` (`http://127.0.0.1:5173/designer.html` при `pnpm dev`): интерфейс собирается мышью из палитры, сохраняется
+Редакторный модуль `Modules/Editor/UIDesigner` (`pnpm dev` в его папке, затем `http://127.0.0.1:5175/`): интерфейс собирается мышью из палитры, сохраняется
 ассетом `.ui.json` и оживает скриптом-классом (`UiScript`), который находит виджеты по именам из редактора - как
 Widget Blueprint в Unreal. Модель форм как в Windows Forms (фокус, жизненный цикл, валидация по кнопке с контекстом,
 `DialogResult`, `ShowDialog`), скины со спрайтами на 9 частей для каждого состояния и подключение своих Vue-виджетов.
@@ -94,8 +108,7 @@ Widget Blueprint в Unreal. Модель форм как в Windows Forms (фо�
 ```
 src/CSEngine/Core/            - веб-проект (Vite)
   index.html                  - HTML-точка входа игры
-  toolkit.html                - страница UI Toolkit
-  designer.html               - редактор интерфейсов
+  Modules/Engine/UI (pnpm dev в папке модуля)                - страница UI Toolkit
   Source/                     - исходный код (игра: Source/App.ts, UI Toolkit: Source/Toolkit)
   public/                     - статические файлы, копируются в сборку как есть
   Assets/index.css            - стили экрана первой загрузки

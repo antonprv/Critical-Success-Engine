@@ -102,7 +102,7 @@ describe("UiStore", () => {
 
 	it("its default actions do nothing until a bridge takes over", () => {
 		const store = new UiStore();
-		expect(() => { store.Actions.Resume(); store.Actions.SelectScene("a"); }).not.toThrow();
+		expect(() => { store.Actions.Resume(); store.Actions.SelectScene("a"); store.Actions.Pause(); store.Actions.SetTouchMode(true); }).not.toThrow();
 	});
 });
 
@@ -145,7 +145,7 @@ describe("the Vue/Quasar UI (Windows XP look)", () => {
 	it("the start menu is an XP window: title bar, Play, the scene list with the current one marked, and a status bar", async () => {
 		const { store, root, app } = Mount();
 		const resume = vi.fn(), select = vi.fn();
-		store.Actions = { Resume: resume, SelectScene: select };
+		store.Actions = { Resume: resume, SelectScene: select, Pause: vi.fn(), SetTouchMode: vi.fn() };
 		store.ApplyPatch({ loading: { visible: false, label: "", fraction: 1 }, menu: { visible: true, mode: MenuMode.Start, currentSceneId: "b", scenes } });
 		await settle();
 
@@ -171,7 +171,7 @@ describe("the Vue/Quasar UI (Windows XP look)", () => {
 	it("closing the menu window goes back to the game", async () => {
 		const { store, root, app } = Mount();
 		const resume = vi.fn();
-		store.Actions = { Resume: resume, SelectScene: vi.fn() };
+		store.Actions = { Resume: resume, SelectScene: vi.fn(), Pause: vi.fn(), SetTouchMode: vi.fn() };
 		store.ApplyPatch({ loading: { visible: false, label: "", fraction: 1 }, menu: { visible: true, mode: MenuMode.Paused, currentSceneId: "a", scenes } });
 		await settle();
 
@@ -266,6 +266,67 @@ describe("UiBridge", () => {
 		return { canvas, ui, store, bridge, fromUi, sent };
 	}
 
+	it("the touch scheme: the UI worker is told; Resume doesn't ask for the mouse; Pause and Esc pause", () => {
+		const { canvas, store, bridge, sent } = Make();
+		const lock = vi.fn();
+		canvas.requestPointerLock = lock as never;
+		store.State.loading.visible = false;
+		bridge.SetTouchMode(true);
+		expect(sent()).toContainEqual({ type: UiMsg.SetTouch, enabled: true });
+		bridge.Resume();
+		expect(lock).not.toHaveBeenCalled();
+		bridge.Pause();
+		window.dispatchEvent(new KeyboardEvent("keydown", { code: "Escape" })); // a tablet with a keyboard
+		expect(sent().filter((m) => (m as { type: UiMsg; }).type === UiMsg.Pause)).toHaveLength(2);
+		bridge.SetTouchMode(false);
+		bridge.Resume();
+		expect(lock).toHaveBeenCalledTimes(1);
+	});
+
+	it("the scene's cursor mode reaches the page's store (it decides what Resume and Esc do there)", () => {
+		const { store, fromUi } = Make();
+		expect(store.State.cursor).toBe("locked");
+		fromUi({ type: UiMsg.State, patch: { cursor: "free" } });
+		expect(store.State.cursor).toBe("free");
+		fromUi({ type: UiMsg.State, patch: { menu: { visible: true } } });
+		expect(store.State.cursor).toBe("free"); // other sections leave it alone
+	});
+
+	it("in a free-cursor scene Resume doesn't ask for the mouse, and Esc while playing tells the UI worker to pause", () => {
+		const { canvas, store, bridge, sent } = Make();
+		const lock = vi.fn();
+		canvas.requestPointerLock = lock as never;
+		store.State.cursor = "free";
+		store.State.loading.visible = false; // booted: playing
+		bridge.Resume();
+		expect(lock).not.toHaveBeenCalled();
+		expect(sent()).toContainEqual({ type: UiMsg.Resume });
+		window.dispatchEvent(new KeyboardEvent("keydown", { code: "Escape" }));
+		expect(sent()).toContainEqual({ type: UiMsg.Pause });
+		const count = sent().length;
+		store.State.menu.visible = true; // the menu is up: Esc there is the menu's business
+		window.dispatchEvent(new KeyboardEvent("keydown", { code: "Escape" }));
+		store.State.menu.visible = false;
+		store.State.cursor = "locked"; // a held mouse: the browser handles Esc itself
+		window.dispatchEvent(new KeyboardEvent("keydown", { code: "Escape" }));
+		window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyW" }));
+		expect(sent()).toHaveLength(count);
+	});
+
+	it("connects the main thread's plugin channels to the UI worker, both ways", async () => {
+		const { ChannelHub } = await import("../Source/Engine/Core/Channels");
+		const canvas = document.createElement("canvas");
+		const ui = new FakeWorker(new URL("http://x/ui.js"), {});
+		const channels = new ChannelHub();
+		new UiBridge({ UiWorker: ui } as unknown as GameWorkers, canvas, new UiStore(), channels);
+		channels.Post("ui", { op: "event" });
+		expect(ui.sent.map((s) => s.message)).toContainEqual({ type: UiMsg.Channel, channel: "ui", payload: { op: "event" } });
+		const handler = vi.fn();
+		channels.On("ui", handler);
+		ui.onmessage!({ data: { type: UiMsg.Channel, channel: "ui", payload: { op: "show" } } });
+		expect(handler).toHaveBeenCalledWith({ op: "show" });
+	});
+
 	it("becomes the store's actions: Resume asks for the mouse and tells the UI worker; picking a scene is forwarded", () => {
 		const { canvas, store, sent } = Make();
 		canvas.requestPointerLock = vi.fn(() => Promise.resolve()) as never;
@@ -343,6 +404,48 @@ describe("DomInputBridge", () => {
 		const inputs = () => workers.GameLogicWorker.sent.map((s) => (s.message as { event: unknown; }).event);
 		return { canvas, workers, inputs };
 	}
+
+	it("with a free cursor: where it is on the game view, the wheel, leaving the view; wheel and middle button don't scroll the page", () => {
+		const { canvas, inputs } = Make();
+		canvas.getBoundingClientRect = () => ({ left: 100, top: 50, width: 800, height: 400, right: 900, bottom: 450, x: 100, y: 50, toJSON: () => ({}) });
+		const move = new MouseEvent("pointermove", { clientX: 300, clientY: 150 });
+		Object.defineProperties(move, { movementX: { value: 2 }, movementY: { value: 1 } });
+		canvas.dispatchEvent(move);
+		const wheel = new WheelEvent("wheel", { deltaY: 120, cancelable: true });
+		canvas.dispatchEvent(wheel);
+		const middle = new MouseEvent("pointerdown", { button: 1, cancelable: true });
+		canvas.dispatchEvent(middle);
+		canvas.dispatchEvent(new MouseEvent("pointerleave"));
+		expect(inputs()).toEqual([
+			{ kind: InputEvtType.PointerMove, dx: 2, dy: 1, x: 0.25, y: 0.25 },
+			{ kind: InputEvtType.Wheel, dy: 120 },
+			{ kind: InputEvtType.PointerDown, button: 1 },
+			{ kind: InputEvtType.PointerLeave },
+		]);
+		expect([wheel.defaultPrevented, middle.defaultPrevented]).toEqual([true, true]);
+	});
+
+	it("reads the first connected gamepad every frame and sends its state when it changes (an unplugged pad releases everything)", () => {
+		const frames: FrameRequestCallback[] = [];
+		vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => { frames.push(callback); return frames.length; });
+		let pads: unknown[] = [null, { connected: true, buttons: [{ value: 1 }, { value: 0.333 }], axes: [0.123, -1] }];
+		Object.defineProperty(navigator, "getGamepads", { configurable: true, value: () => pads });
+		const { inputs } = Make();
+		const tick = () => frames.shift()!(0);
+		tick();
+		tick(); // the same state: nothing new
+		pads = [{ connected: false, buttons: [], axes: [] }];
+		tick();
+		tick();
+		expect(inputs()).toEqual([
+			{ kind: InputEvtType.Gamepad, buttons: [1, 0.33], axes: [0.12, -1] },
+			{ kind: InputEvtType.Gamepad, buttons: [], axes: [] },
+		]);
+		expect(frames).toHaveLength(1); // still polling
+		Object.defineProperty(navigator, "getGamepads", { configurable: true, value: undefined });
+		tick(); // a browser without the Gamepad API: nothing, and no error
+		expect(inputs()).toHaveLength(2);
+	});
 
 	it("forwards key presses (not auto-repeats) and releases", () => {
 		const { inputs } = Make();
@@ -487,6 +590,7 @@ describe("GameWorkers and Orchestrator", () => {
 		expect(audio.transfer).toEqual([(audio.message as { gameLogicPort: unknown; }).gameLogicPort]);
 		expect(ui.transfer).toEqual([(ui.message as { gameLogicPort: unknown; }).gameLogicPort]);
 		expect(new Set([logicInit["renderPort"], logicInit["physicsPort"], logicInit["audioPort"], logicInit["uiPort"]]).size).toBe(4);
+		expect(logicInit["baseUrl"]).toBe(new URL(".", document.baseURI).href); // where the game's files (data/*.csedata) are
 
 		expect(workers.AudioPlayer.constructor.name).toBe("AudioPlayer"); // (a fresh module instance: compare by name)
 		workers.Dispose();
@@ -512,7 +616,8 @@ describe("App.ts (page bootstrap)", () => {
 		vi.doMock("../Source/Workers/Orchestrator", () => ({ Orchestrator: vi.fn(function (...args: unknown[]) { created.push(args); }) }));
 
 		await import("../Source/App");
-		await settle();
+		// After the page's own modules started (the UI host brings the toolkit's Vue components: slow on a busy machine).
+		await vi.waitFor(() => expect(created).toHaveLength(1), { timeout: 10_000 });
 
 		const canvas = document.getElementById("gameCanvas") as HTMLCanvasElement;
 		expect(canvas.style.width).toBe("100%");
@@ -520,7 +625,54 @@ describe("App.ts (page bootstrap)", () => {
 		expect(document.getElementById("boot-splash")).toBeNull();
 		expect(created[0]![0]).toBe(canvas);
 		expect(created[0]![1]).toBe(true); // __DEV__ in tests
-		expect(document.querySelector(".loading-overlay")?.textContent).toContain("Starting workers…");
+		// The UI plugin draws the loading screen (the engine's EngineLoading document), not the page's own overlay.
+		await vi.waitFor(() => expect(document.querySelector('[data-ui="EngineLoading"] [data-name="Status"]')?.textContent).toBe("Starting workers…"), { timeout: 10_000 });
+		expect(document.querySelector(".loading-overlay")).toBeNull();
+		// The page is a thread of its own: its ModuleManager runs the engine (and the page's plugin modules).
+		const { ModuleManager, ModuleThread } = await import("../Source/Engine/Modules/ModuleManager");
+		const modules = ModuleManager.Get();
+		expect(modules.Thread).toBe(ModuleThread.Main);
+		expect(modules.IsModuleLoaded("Engine")).toBe(true);
+		expect(created[0]![3]).toBe(modules.GetModuleChecked<{ Channels: unknown; } & InstanceType<typeof import("../Source/Engine/Modules/ModuleManager").ModuleInterface>>("Engine").Channels);
+	}, 20_000); // the page starts its own modules first (the UI host brings the toolkit's Vue components): slow on a busy machine
+
+	it("asks the browser to keep the storage persistent, and logs the answer (a browser without the API: nothing)", async () => {
+		const log = SilenceConsole();
+		const orchestrator = vi.fn();
+		vi.doMock("../Source/Workers/Orchestrator", () => ({ Orchestrator: orchestrator }));
+		/** Starts the page and waits until its bootstrap is done (nothing of it may run into the next test). */
+		const boot = async (storage: unknown, runs: number) => {
+			Object.defineProperty(navigator, "storage", { configurable: true, value: storage });
+			vi.resetModules();
+			await import("../Source/App");
+			await vi.waitFor(() => expect(orchestrator).toHaveBeenCalledTimes(runs), { timeout: 10_000 });
+		};
+		const persist = vi.fn(async () => true);
+		await boot({ persist }, 1);
+		await vi.waitFor(() => expect(log.log.mock.calls.map((c) => String(c[0]))).toEqual(expect.arrayContaining([expect.stringContaining("[App] Persistent storage granted")])));
+		expect(persist).toHaveBeenCalledTimes(1);
+		await boot({ persist: async () => false }, 2);
+		await vi.waitFor(() => expect(log.log.mock.calls.map((c) => String(c[0]))).toEqual(expect.arrayContaining([expect.stringContaining("[App] Persistent storage not granted")])));
+		await boot({ persist: () => Promise.reject(new Error("no")) }, 3);
+		await boot(undefined, 4); // a browser without the Storage API
+	}, 30_000);
+
+	it("logs the page's modules that failed to start and the plugins it could not enable", async () => {
+		const log = SilenceConsole();
+		vi.doMock("../Source/Workers/Orchestrator", () => ({ Orchestrator: vi.fn() }));
+		vi.doMock("../Source/Project", async (original) => {
+			const real = await original<typeof import("../Source/Project")>();
+			return {
+				...real,
+				GameProject: { ...real.GameProject, Plugins: [{ Name: "Ghost", Enabled: true }], Modules: [{ Name: "PageBroken", Type: "Runtime", LoadingPhase: "Default", Thread: "Main", Load: () => Promise.reject(new Error("404")) }] },
+			};
+		});
+		await import("../Source/App");
+		await vi.waitFor(() => expect(log.error.mock.calls.map((c) => String(c[0]))).toEqual(expect.arrayContaining([
+			expect.stringContaining('[App] The project enables "Ghost", which is not installed'),
+			expect.stringContaining('[App] Module "PageBroken" failed to load: Its code could not be loaded: 404'),
+		])));
+		vi.doUnmock("../Source/Project");
 	});
 
 	it("when the workers cannot start, the loading screen says so", async () => {
@@ -528,9 +680,7 @@ describe("App.ts (page bootstrap)", () => {
 		vi.doMock("../Source/Workers/Orchestrator", () => ({ Orchestrator: vi.fn(function () { throw new Error("no Worker support"); }) }));
 
 		await import("../Source/App");
-		await settle();
-
-		expect(document.querySelector(".loading-overlay")?.textContent).toContain("Failed to start. Please refresh.");
+		await vi.waitFor(() => expect(document.querySelector('[data-ui="EngineLoading"] [data-name="Status"]')?.textContent).toBe("Failed to start. Please refresh."), { timeout: 10_000 });
 		expect(String(log.error.mock.calls[0]![0])).toContain("no Worker support");
 	});
 });

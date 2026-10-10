@@ -1,0 +1,60 @@
+{
+  "Format": 1,
+  "Name": "Coin Hunt HUD",
+  "Script": "",
+  "Root": {
+    "Name": "Root",
+    "Type": "canvas",
+    "X": 0,
+    "Y": 0,
+    "Width": 800,
+    "Height": 500,
+    "Props": {},
+    "Children": [
+      {
+        "Name": "HudWindow",
+        "Type": "window",
+        "X": 12,
+        "Y": 12,
+        "Width": 220,
+        "Height": 94,
+        "Props": {
+          "Title": "Coin Hunt",
+          "Closable": false,
+          "Minimizable": false,
+          "Maximizable": false,
+          "Resizable": false
+        },
+        "Children": [
+          {
+            "Name": "Coins",
+            "Type": "label",
+            "X": 10,
+            "Y": 8,
+            "Width": 190,
+            "Height": 18,
+            "Props": {
+              "Text": "Coins: 0 / 0",
+              "FontSize": 13,
+              "Bold": true
+            }
+          },
+          {
+            "Name": "Time",
+            "Type": "label",
+            "X": 10,
+            "Y": 30,
+            "Width": 190,
+            "Height": 18,
+            "Props": {
+              "Text": "Time: 60.0",
+              "FontSize": 13,
+              "Bold": false
+            }
+          }
+        ],
+        "AnchorX": "end"
+      }
+    ]
+  }
+}
