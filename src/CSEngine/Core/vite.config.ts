@@ -47,6 +47,15 @@ export default defineConfig(({ mode }) => {
             tailwindcss(),
         ],
 
+        resolve: {
+            alias: {
+                // Game scripts (the templates) import the UI module's runtime by its package name. ProjectPlugin resolves
+                // their imports from this project, where @cse/ui is not a dependency, so point it at the sources (as tsconfig "paths" does).
+                // Applies to the worker bundles too (GameLogic loads the project's modules).
+                "@cse/ui/game": resolve(RootDirectory, "../Modules/Engine/UI/Source/Runtime/GameUiModule.ts"),
+            },
+        },
+
         // Models/textures/environments imported from TS get hashed into the output, like any other asset.
         assetsInclude: ["**/*.glb", "**/*.gltf", "**/*.babylon", "**/*.env", "**/*.dds"],
 
