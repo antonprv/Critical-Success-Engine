@@ -213,6 +213,19 @@ describe("WinWindow", () => {
 		wrapper.unmount();
 	});
 
+	it("a frameless window has no title bar, buttons or resize edges: only its body", () => {
+		const wrapper = mount(WinWindow, { props: { controller: Window({ Frameless: true }) }, slots: { default: "<p>Hello</p>" } });
+		expect(wrapper.get(".win-window").classes()).toContain("win-window--frameless");
+		expect(wrapper.find(".win-window__titlebar").exists()).toBe(false);
+		expect(wrapper.find(".win-window__button").exists()).toBe(false);
+		expect(wrapper.findAll(".win-window__resize")).toHaveLength(0);
+		expect(wrapper.get(".win-window__body").text()).toBe("Hello");
+		// A framed window (the default) has none of that gone.
+		const framed = mount(WinWindow, { props: { controller: Window() } });
+		expect(framed.get(".win-window").classes()).not.toContain("win-window--frameless");
+		expect(framed.find(".win-window__titlebar").exists()).toBe(true);
+	});
+
 	it("pressing a title bar button doesn't start dragging the window", async () => {
 		const controller = Window();
 		const wrapper = mount(WinWindow, { props: { controller }, attachTo: document.body });

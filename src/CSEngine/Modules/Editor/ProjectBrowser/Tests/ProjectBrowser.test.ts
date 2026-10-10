@@ -204,3 +204,12 @@ describe("the page", () => {
 		expect(document.querySelector('[data-ui="ProjectBrowser"]')).toBeNull();
 	});
 });
+
+describe("the project browser's pages", () => {
+	// The app's own window is the frame: a page is a frameless window that fills it (not a window inside a window).
+	it.each([["Project browser", BrowserText], ["New project", NewProjectText]])("%s is one frameless window that fills the app's window", (_name, text) => {
+		const [page, ...others] = (JSON.parse(text) as { Root: { Children: { Type: string; AnchorX: string; AnchorY: string; Right: number; Bottom: number; Props: Record<string, unknown>; }[]; }; }).Root.Children;
+		expect(others).toEqual([]);
+		expect(page).toMatchObject({ Type: "window", AnchorX: "stretch", AnchorY: "stretch", Right: 0, Bottom: 0, Props: { Frameless: true } });
+	});
+});

@@ -12,7 +12,8 @@ describe("WindowController", () => {
 	it("starts normal at its bounds, with sensible defaults", () => {
 		const window = Win();
 		expect(window).toMatchObject({ Title: "Notepad", X: 100, Y: 50, Width: 300, Height: 200, State: WindowState.Normal, Active: false });
-		expect(window).toMatchObject({ Resizable: true, Minimizable: true, Maximizable: true, Closable: true, MinWidth: 120, MinHeight: 60 });
+		expect(window).toMatchObject({ Resizable: true, Minimizable: true, Maximizable: true, Closable: true, Frameless: false, MinWidth: 120, MinHeight: 60 });
+		expect(Win({ Frameless: true }).Frameless).toBe(true);
 		expect(new WindowController()).toMatchObject({ Title: "", X: 0, Y: 0, Width: 320, Height: 240 });
 	});
 

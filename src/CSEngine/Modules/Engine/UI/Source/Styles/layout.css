@@ -10,6 +10,10 @@
 .win-layout img { -webkit-user-drag: none; user-select: none; }
 /* A window in a layout is placed and sized by its anchors (its controller's own bounds would pin it). */
 .win-layout__node--window > .win-window { left: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important; }
+/* A frameless window is only a surface: no title bar (the markup leaves it out), border, sprite frame, rounding or shadow in any kit or skin,
+   so a page that sits in a window of the operating system (the editor's tools) isn't framed twice. */
+.win-window.win-window--frameless { padding: 0 !important; border: 0 !important; border-image: none !important; border-radius: 0 !important; box-shadow: none !important; backdrop-filter: none !important; }
+.win-window--frameless > .win-window__body { border: 0 !important; border-radius: 0 !important; }
 .win-layout__node--groupbox > .win-groupbox { margin: 0; }
 .win-layout__container { position: relative; width: 100%; height: 100%; min-height: 0; }
 .win-layout__label { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

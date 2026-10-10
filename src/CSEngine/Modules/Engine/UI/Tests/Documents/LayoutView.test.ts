@@ -27,6 +27,19 @@ function EveryWidget(): UiLayout {
 }
 
 describe("WinLayoutView", () => {
+	it("a window with Frameless set draws no title bar and fills the space its anchors give it", () => {
+		const layout = NewLayout("Page");
+		const window = { ...CreateNode(WidgetType.Window, "Page", 0, 0), AnchorX: "stretch", AnchorY: "stretch", Right: 0, Bottom: 0 } as ReturnType<typeof CreateNode>;
+		window.Props["Frameless"] = true;
+		layout.Root.Children!.push(window);
+		const wrapper = mount(WinLayoutView, { props: { document: new UiDocument(layout) } });
+		const page = wrapper.get('[data-name="Page"]');
+		expect(page.find(".win-window").classes()).toContain("win-window--frameless");
+		expect(page.find(".win-window__titlebar").exists()).toBe(false);
+		const style = (page.element as HTMLElement).style;
+		expect([style.left, style.top, style.right, style.bottom]).toEqual(["0px", "0px", "0px", "0px"]);
+	});
+
 	it("draws every widget type at its rectangle, with containers holding their children", () => {
 		const document = new UiDocument(EveryWidget());
 		const wrapper = mount(WinLayoutView, { props: { document } });

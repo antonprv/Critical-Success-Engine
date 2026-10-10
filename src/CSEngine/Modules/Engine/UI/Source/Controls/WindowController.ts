@@ -34,6 +34,8 @@ export interface WindowOptions extends ControlOptions {
 	Minimizable?: boolean;
 	Maximizable?: boolean;
 	Closable?: boolean;
+	/** No title bar, border, shadow or resize edges: the window is just a surface (the host's own window is the frame). */
+	Frameless?: boolean;
 }
 
 export interface Area { Width: number; Height: number; }
@@ -63,6 +65,7 @@ export class WindowController extends ControlBase<WindowEvents> {
 	public Minimizable: boolean;
 	public Maximizable: boolean;
 	public Closable: boolean;
+	public Frameless: boolean;
 
 	private _x: number;
 	private _y: number;
@@ -89,6 +92,7 @@ export class WindowController extends ControlBase<WindowEvents> {
 		this.Minimizable = options.Minimizable ?? true;
 		this.Maximizable = options.Maximizable ?? true;
 		this.Closable = options.Closable ?? true;
+		this.Frameless = options.Frameless ?? false;
 	}
 
 	public get X(): number { return this._x; }

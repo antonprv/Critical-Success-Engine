@@ -63,13 +63,13 @@ function OnTitleDoubleClick(): void {
 	<section
 		v-if="!c.Closed && c.Visible && c.State !== WindowState.Minimized"
 		class="win-window"
-		:class="{ 'win-window--inactive': !c.Active, 'win-window--maximized': c.State === WindowState.Maximized, 'win-window--settling': settling }"
+		:class="{ 'win-window--inactive': !c.Active, 'win-window--maximized': c.State === WindowState.Maximized, 'win-window--frameless': c.Frameless, 'win-window--settling': settling }"
 		:style="{ left: `${c.X}px`, top: `${c.Y}px`, width: `${c.Width}px`, height: `${c.Height}px`, zIndex: manager ? manager.ZIndexOf(c) : undefined }"
 		role="dialog"
 		:aria-label="c.Title"
 		@pointerdown="manager?.Activate(c)"
 	>
-		<header class="win-window__titlebar" @pointerdown="OnTitlePointerDown" @dblclick="OnTitleDoubleClick">
+		<header v-if="!c.Frameless" class="win-window__titlebar" @pointerdown="OnTitlePointerDown" @dblclick="OnTitleDoubleClick">
 			<span class="win-window__title">{{ c.Title }}</span>
 			<button v-if="c.Minimizable" type="button" class="win-window__button win-window__button--minimize" aria-label="Minimize" @pointerdown.stop @click="c.Minimize()" />
 			<button
@@ -86,7 +86,7 @@ function OnTitleDoubleClick(): void {
 		<div class="win-window__body">
 			<slot />
 		</div>
-		<template v-if="c.Resizable && c.State === WindowState.Normal">
+		<template v-if="c.Resizable && !c.Frameless && c.State === WindowState.Normal">
 			<div
 				v-for="edge in Edges"
 				:key="edge.Name"

@@ -19,14 +19,15 @@
         "Y": 0,
         "Width": 780,
         "Height": 470,
-        "AnchorX": "center",
-        "AnchorY": "center",
+        "AnchorX": "stretch",
+        "AnchorY": "stretch",
         "Props": {
           "Title": "Critical Success Engine - Projects",
           "Closable": false,
           "Minimizable": false,
           "Maximizable": false,
-          "Resizable": false
+          "Resizable": false,
+          "Frameless": true
         },
         "Children": [
           {
@@ -143,7 +144,9 @@
             "Right": 12,
             "AnchorY": "end"
           }
-        ]
+        ],
+        "Right": 0,
+        "Bottom": 0
       }
     ]
   }

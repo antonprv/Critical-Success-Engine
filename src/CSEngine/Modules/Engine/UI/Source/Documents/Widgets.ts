@@ -222,13 +222,14 @@ export const BuiltInWidgets = new WidgetRegistry()
 		Props: [
 			Prop("Title", "Title", PropKind.Text, "Window"), Prop("Closable", "Close box", PropKind.Boolean, true), Prop("Minimizable", "Minimize box", PropKind.Boolean, true),
 			Prop("Maximizable", "Maximize box", PropKind.Boolean, true), Prop("Resizable", "Resizable", PropKind.Boolean, true),
+			Prop("Frameless", "Frameless (no title bar or border)", PropKind.Boolean, false),
 			Prop("AcceptButton", "Accept button (Enter)", PropKind.Text, ""), Prop("CancelButton", "Cancel button (Escape)", PropKind.Text, ""),
 			Prop("Visible", "Shown at start", PropKind.Boolean, true),
 		],
 		CreateController: (node) => {
 			const p = P(node);
 			// Placed by its layout wrapper, so at 0, 0 inside it.
-			return UseControl(new WindowController({ Title: p.text("Title"), X: 0, Y: 0, Width: node.Width, Height: node.Height, Closable: p.flag("Closable"), Minimizable: p.flag("Minimizable"), Maximizable: p.flag("Maximizable"), Resizable: p.flag("Resizable"), Visible: p.flag("Visible") }));
+			return UseControl(new WindowController({ Title: p.text("Title"), X: 0, Y: 0, Width: node.Width, Height: node.Height, Closable: p.flag("Closable"), Minimizable: p.flag("Minimizable"), Maximizable: p.flag("Maximizable"), Resizable: p.flag("Resizable"), Frameless: p.flag("Frameless"), Visible: p.flag("Visible") }));
 		},
 	})
 	.Register({ Type: WidgetType.GroupBox, Label: "Group box", Container: true, Size: [200, 120], Events: [], Props: [Prop("Title", "Title", PropKind.Text, "Group")], Component: GroupBoxView })
