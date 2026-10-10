@@ -1,7 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-import { UiManager, type ButtonController, type ComboBoxController, type LabelController, type ListViewController, type TextBoxController } from "@cse/ui";
+import { IsEmbeddedInWindow, ParseLayout, UiManager, WidgetType, type ButtonController, type ComboBoxController, type LabelController, type ListViewController, type TextBoxController } from "@cse/ui";
 import { nextTick } from "vue";
 import { describe, expect, it, vi } from "vitest";
 import BrowserText from "../Content/ProjectBrowser.ui.json?raw";
@@ -211,5 +211,12 @@ describe("the project browser's pages", () => {
 		const [page, ...others] = (JSON.parse(text) as { Root: { Children: { Type: string; AnchorX: string; AnchorY: string; Right: number; Bottom: number; Props: Record<string, unknown>; }[]; }; }).Root.Children;
 		expect(others).toEqual([]);
 		expect(page).toMatchObject({ Type: "window", AnchorX: "stretch", AnchorY: "stretch", Right: 0, Bottom: 0, Props: { Frameless: true } });
+	});
+
+	// The theme list sits at the bottom edge of the page: its list must not be clipped by the window body.
+	it("the theme list may leave the window; the genre list keeps the default", () => {
+		const combos = (text: string) => Object.fromEntries((ParseLayout(text).Root.Children![0]!.Children ?? []).filter((node) => node.Type === WidgetType.ComboBox).map((node) => [node.Name, IsEmbeddedInWindow(node)]));
+		expect(combos(BrowserText)).toEqual({ Theme: false });
+		expect(combos(NewProjectText)).toEqual({ Genre: true });
 	});
 });

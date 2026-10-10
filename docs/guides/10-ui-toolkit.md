@@ -123,6 +123,10 @@ dialog.Events.On("closing", (event) => { if (!save.Enabled) event.Cancel(); });
 | `WinToolbar` / `ToolbarController` | `Buttons` (`Toggle`, `Group`, `Pressed`, `Disabled`), `IsPressed(id)` | `click`, `toggle` | залипающие кнопки, группы как у переключателей, `SetDisabled(id)` |
 | `WinGroupBox` | - (только `title`) | - | рамка с подписью вокруг группы элементов |
 
+`WinComboBox` принимает свойство `embedded` (по умолчанию `true`): список лежит внутри окна и обрезается им. С
+`embedded: false` список выносится в корень темы (`.win-root`), позиционируется по экрану (`position: fixed`) и может
+выйти за окно; в дизайнере это флажок Embed in window bounds (гайд 11).
+
 ## Тесты
 
 Контроллеры и компоненты написаны по TDD и покрыты на 100% (`Tests/Toolkit/`); страницу `Modules/Engine/UI (pnpm dev в папке модуля)` в настоящем

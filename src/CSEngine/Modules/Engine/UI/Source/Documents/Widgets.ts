@@ -100,6 +100,11 @@ export interface WidgetDefinition {
 	Component: Component;
 }
 
+/** Whether a widget's pop-ups stay inside its window (the default) or may float above everything (see LayoutNode.EmbedInWindow). */
+export function IsEmbeddedInWindow(node: LayoutNode): boolean {
+	return node.EmbedInWindow !== false;
+}
+
 export const KindCheck: Record<PropKind, (value: unknown) => boolean> = {
 	[PropKind.Text]: (value) => typeof value === "string",
 	[PropKind.Number]: (value) => typeof value === "number" && Number.isFinite(value),
@@ -203,6 +208,11 @@ const ListBoxView = defineComponent({
 	setup: (props) => () => h(WinListView, { controller: props.controller as ListViewController<unknown>, columns: [{ Key: "text", Label: props.node.Props["Header"] as string }] }),
 });
 
+const ComboBoxView = defineComponent({
+	props: ViewProps,
+	setup: (props) => () => h(WinComboBox, { controller: props.controller as ComboBoxController<string>, embedded: IsEmbeddedInWindow(props.node) }),
+});
+
 const Prop = (Key: string, Label: string, Kind: PropKind, Default: PropValue): PropDefinition => ({ Key, Label, Kind, Default });
 const Enabled = Prop("Enabled", "Enabled", PropKind.Boolean, true);
 const Text = (value: string): PropDefinition => Prop("Text", "Text", PropKind.Text, value);
@@ -287,7 +297,7 @@ export const BuiltInWidgets = new WidgetRegistry()
 		},
 	})
 	.Register({
-		Type: WidgetType.ComboBox, Label: "Combo box", Container: false, Size: [140, 21], Events: ["change"], Component: Control(WinComboBox),
+		Type: WidgetType.ComboBox, Label: "Combo box", Container: false, Size: [140, 21], Events: ["change"], Component: ComboBoxView,
 		Props: [Prop("Options", "Options", PropKind.Lines, ["Item 1", "Item 2"]), Prop("Selected", "Selected index", PropKind.Number, 0), Enabled],
 		CreateController: (node) => {
 			const p = P(node);

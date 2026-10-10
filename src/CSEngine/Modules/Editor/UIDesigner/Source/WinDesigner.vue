@@ -611,6 +611,9 @@ const Checked = (event: Event): boolean => (event.target as HTMLInputElement).ch
 						<label title="On: clicks go through this widget to what is under it (a crosshair over the game).">Click pass-through
 							<input type="checkbox" data-field="ClickThrough" :checked="selected.ClickThrough === true" @change="designer.SetClickThrough(selected.Name, Checked($event))">
 						</label>
+						<label title="On: pop-ups of this widget (a combo box list) stay inside the window and are clipped by it. Off: they float above everything and can leave the window, as in Windows Forms.">Embed in window bounds
+							<input type="checkbox" data-field="EmbedInWindow" :checked="selected.EmbedInWindow !== false" @change="designer.SetEmbedInWindow(selected.Name, Checked($event))">
+						</label>
 						<div class="win-designer__geometry">
 							<template v-for="geometry in geometryFields" :key="geometry.Field">
 								<span>{{ geometry.Label }}</span>

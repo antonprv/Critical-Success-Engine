@@ -6,7 +6,7 @@ import { AnchorModes, type AnchorMode } from "./Anchors";
 import { ParseGraph, type UiGraph } from "./Graph";
 import { BuiltInWidgets, IsValidProp, WidgetType, type PropValue, type WidgetRegistry } from "./Widgets";
 
-export { PropKind, WidgetType } from "./Widgets";
+export { IsEmbeddedInWindow, PropKind, WidgetType } from "./Widgets";
 export type { PropDefinition, PropValue, WidgetDefinition } from "./Widgets";
 
 /** One widget in a layout: its name (what scripts use), type, rectangle relative to its parent, and properties. */
@@ -30,6 +30,8 @@ export interface LayoutNode {
 	Bottom?: number;
 	/** Clicks go through the widget itself to what is under it (a crosshair over the game); absent: it takes them. */
 	ClickThrough?: boolean;
+	/** false: the widget's pop-up (a combo box list) floats above everything and may leave its window, as in WinForms; absent: it stays inside the window bounds. */
+	EmbedInWindow?: false;
 }
 
 /** A UI asset: what the designer saves and the runtime loads (UMG's Widget Blueprint). */
@@ -108,6 +110,7 @@ function ParseNode(raw: unknown, names: Set<string>, widgets: WidgetRegistry): L
 		if (typeof raw[key] === "number" && Number.isFinite(raw[key])) node[key] = raw[key] as number;
 	}
 	if (typeof raw["ClickThrough"] === "boolean") node.ClickThrough = raw["ClickThrough"];
+	if (raw["EmbedInWindow"] === false) node.EmbedInWindow = false;
 
 	if (raw["Children"] !== undefined && !definition.Container) throw new LayoutError(`"${name}" can't hold widgets`);
 	if (definition.Container) node.Children = (Array.isArray(raw["Children"]) ? raw["Children"] : []).map((child) => ParseNode(child, names, widgets));

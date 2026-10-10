@@ -394,6 +394,16 @@ export class DesignerController {
 		});
 	}
 
+	/** On (the default): the widget's pop-ups stay inside its window. Off: they float above everything (a combo box list); the file keeps the flag only when it is off. */
+	public SetEmbedInWindow(name: string, on: boolean): void {
+		const node = this.Find(name);
+		if (!node) return;
+		this.Mutate(() => {
+			if (on) delete node.EmbedInWindow;
+			else node.EmbedInWindow = false;
+		});
+	}
+
 	/** Whether the document's empty places let clicks through (a HUD) or it covers what is under it (a pause menu). */
 	public SetDocumentClickThrough(on: boolean): void {
 		this.Mutate(() => {

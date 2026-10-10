@@ -125,7 +125,8 @@
               "Selected": 0
             },
             "AnchorX": "end",
-            "AnchorY": "end"
+            "AnchorY": "end",
+            "EmbedInWindow": false
           },
           {
             "Name": "Status",
