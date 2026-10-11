@@ -84,12 +84,21 @@ export class StrategyCamera extends CameraComponent {
 	}
 
 	public override Update(_dt: number): void {
-		if (!this.Following) return;
-		const target = this.Engine.World.FindByName(this.TargetName);
-		if (target) this.Focus.CopyFrom(target.Transform.Position);
+		if (this.Following) this.FollowTarget(1);
 	}
 
-	public override GetPose(_alpha: number): CameraPose {
+	/** Puts the focus on the player as drawn at `alpha` between two physics ticks (the raw position lags the interpolated mesh and makes it jitter). */
+	private FollowTarget(alpha: number): void {
+		const target = this.Engine.World.FindByName(this.TargetName);
+		if (!target) return;
+		target.Transform.WriteInterpolated(alpha, this._followScratch, 0);
+		this.Focus.Set(this._followScratch[0]!, this._followScratch[1]!, this._followScratch[2]!);
+	}
+
+	private readonly _followScratch = new Float64Array(7);
+
+	public override GetPose(alpha: number): CameraPose {
+		if (this.Following) this.FollowTarget(alpha);
 		const rotation = Quat.FromYawPitch(this.Yaw * DegToRad, this.Pitch * DegToRad);
 		const pivot = this.Focus.Add(new Vec3(0, this.EyeHeight, 0));
 		const position = pivot.Add(rotation.Rotate(new Vec3(0, 0, this.Zoom)));
