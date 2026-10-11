@@ -55,6 +55,11 @@ export default defineConfig(({ mode }) => {
 
         resolve: {
             alias: {
+                // The engine imports itself by package name (exports map); Vite does not self-resolve it, so mirror tsconfig "paths" (as for @cse/ui/game).
+                "@cse/core/events": resolve(RootDirectory, "Source/Engine/Core/EventHub.ts"),
+                "@cse/core/modules": resolve(RootDirectory, "Source/Engine/Modules/ModuleManager.ts"),
+                "@cse/core/projects": resolve(RootDirectory, "Source/Engine/Projects/ProjectDescriptor.ts"),
+                "@cse/core/Engine": resolve(RootDirectory, "Source/Engine"),
                 // Game scripts (the templates) import the UI module's runtime by its package name. ProjectPlugin resolves
                 // their imports from this project, where @cse/ui is not a dependency, so point it at the sources (as tsconfig "paths" does).
                 // Applies to the worker bundles too (GameLogic loads the project's modules).

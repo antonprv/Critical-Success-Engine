@@ -136,8 +136,14 @@ export function ProjectPlugin(options: ProjectPluginOptions): Plugin {
 	const anchor = join(options.EngineRoot ?? process.cwd(), "index.html");
 	const roots = [project.Directory, ...(options.ImportRoots ?? []), ...(options.PluginsDirectories ?? [])];
 	const inProject = (file: string | undefined): boolean => file !== undefined && roots.some((root) => file.startsWith(root));
+	// In `vite dev` worker.plugins is not used: workers go through the main pipeline, so a Thread-filtered source would also reach the
+	// GameLogic worker (and reject its modules). Dev serves modules lazily, and ModuleManager checks the thread before Load: no filtering needed.
+	let serving = false;
 	return {
 		name: "cse-project",
+		configResolved: (config) => {
+			serving = config.command === "serve";
+		},
 		// The project may live anywhere on disk: the dev server may read it (and the workspace, which listing turns off).
 		config: () => ({ server: { fs: { allow: [...roots, searchForWorkspaceRoot(process.cwd())] } } }),
 		resolveId(id, importer) {
@@ -146,7 +152,7 @@ export function ProjectPlugin(options: ProjectPluginOptions): Plugin {
 			if (inProject(importer) && !id.startsWith(".") && !id.startsWith("/")) return this.resolve(id, anchor, { skipSelf: true });
 			return undefined;
 		},
-		load: (id) => (id === `\0${ProjectVirtualId}` ? ProjectModuleSource(project, options.PluginsDirectories, options.Thread) : undefined),
+		load: (id) => (id === `\0${ProjectVirtualId}` ? ProjectModuleSource(project, options.PluginsDirectories, serving ? undefined : options.Thread) : undefined),
 		// Data assets are copied next to the game as they are (not into the code): editable without a rebuild.
 		generateBundle() {
 			for (const { Id, Path } of project.Project.Data) {
