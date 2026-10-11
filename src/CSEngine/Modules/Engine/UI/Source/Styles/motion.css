@@ -17,6 +17,12 @@
 @keyframes win-window-in { from { opacity: 0; transform: scale(0.94); } }
 @keyframes win-window-out { to { opacity: 0; transform: scale(0.94) translateY(16px); } }
 
+/* A game's UI documents (menus, settings, HUD): a layer fades in while its windows grow into place; hiding it shrinks them away. */
+.win-ui-layer-enter-active { animation: win-fade-in var(--win-normal) linear; }
+.win-ui-layer-enter-active .win-window { animation: win-window-in var(--win-slow) var(--win-ease-out); }
+.win-ui-layer-leave-active { animation: win-fade-out var(--win-normal) var(--win-ease-in) forwards; pointer-events: none; }
+.win-ui-layer-leave-active .win-window { animation: win-window-out var(--win-normal) var(--win-ease-in) forwards; }
+
 /* Flyouts (menus, combo box lists): slide a few pixels from where they open, and fade. */
 .win-flyout-enter-active { animation: win-flyout-in var(--win-normal) var(--win-ease-out); }
 .win-flyout-leave-active { animation: win-fade-out var(--win-fast) linear forwards; }

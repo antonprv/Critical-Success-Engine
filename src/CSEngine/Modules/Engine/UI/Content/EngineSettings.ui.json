@@ -32,71 +32,78 @@
           {
             "Name": "Settings",
             "Type": "listbox",
-            "X": 12,
+            "X": 0,
             "Y": 12,
             "Width": 530,
             "Height": 250,
             "Props": {
               "Items": ""
-            }
+            },
+            "AnchorX": "center"
           },
           {
             "Name": "Hint",
             "Type": "label",
-            "X": 12,
+            "X": 0,
             "Y": 270,
-            "Width": 300,
+            "Width": 530,
             "Height": 18,
             "Props": {
               "Text": "Pick a setting, then change it with Less or More.",
               "FontSize": 11,
-              "Bold": false
-            }
+              "Bold": false,
+              "Align": "center"
+            },
+            "AnchorX": "center"
           },
           {
             "Name": "LessButton",
             "Type": "button",
-            "X": 12,
+            "X": -157.0,
             "Y": 294,
             "Width": 90,
             "Height": 26,
             "Props": {
               "Text": "Less"
-            }
+            },
+            "AnchorX": "center"
           },
           {
             "Name": "MoreButton",
             "Type": "button",
-            "X": 110,
+            "X": -59.0,
             "Y": 294,
             "Width": 90,
             "Height": 26,
             "Props": {
               "Text": "More"
-            }
+            },
+            "AnchorX": "center"
           },
           {
             "Name": "ControlsButton",
             "Type": "button",
-            "X": 250,
+            "X": 49.0,
             "Y": 294,
-            "Width": 100,
+            "Width": 110,
             "Height": 26,
             "Props": {
               "Text": "Controls"
-            }
+            },
+            "AnchorX": "center"
           },
           {
             "Name": "BackButton",
             "Type": "button",
-            "X": 452,
+            "X": 157.0,
             "Y": 294,
             "Width": 90,
             "Height": 26,
             "Props": {
               "Text": "Back",
               "Default": true
-            }
+            },
+            "AnchorX": "center"
           }
         ]
       }

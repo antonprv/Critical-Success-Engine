@@ -39,13 +39,14 @@
             "Props": {
               "Text": "Ready",
               "FontSize": 13,
-              "Bold": true
+              "Bold": true,
+              "Align": "center"
             }
           },
           {
             "Name": "PlayButton",
             "Type": "button",
-            "X": 12,
+            "X": 27,
             "Y": 40,
             "Width": 120,
             "Height": 28,
@@ -57,7 +58,7 @@
           {
             "Name": "SettingsButton",
             "Type": "button",
-            "X": 12,
+            "X": 27,
             "Y": 78,
             "Width": 120,
             "Height": 28,
@@ -76,7 +77,8 @@
               "Text": "Click Play to take control of the mouse.",
               "FontSize": 11,
               "Bold": false,
-              "Wrap": true
+              "Wrap": true,
+              "Align": "center"
             }
           },
           {

@@ -29,28 +29,32 @@
           {
             "Name": "Coins",
             "Type": "label",
-            "X": 10,
-            "Y": 8,
+            "X": 0,
+            "Y": 10,
             "Width": 190,
             "Height": 18,
             "Props": {
               "Text": "Coins: 0 / 0",
               "FontSize": 13,
-              "Bold": true
-            }
+              "Bold": true,
+              "Align": "center"
+            },
+            "AnchorX": "center"
           },
           {
             "Name": "Time",
             "Type": "label",
-            "X": 10,
-            "Y": 30,
+            "X": 0,
+            "Y": 32,
             "Width": 190,
             "Height": 18,
             "Props": {
               "Text": "Time: 60.0",
               "FontSize": 13,
-              "Bold": false
-            }
+              "Bold": false,
+              "Align": "center"
+            },
+            "AnchorX": "center"
           }
         ],
         "AnchorX": "end"

@@ -47,15 +47,18 @@
           {
             "Name": "Shots",
             "Type": "label",
-            "X": 10,
-            "Y": 8,
+            "X": 0,
+            "Y": 0,
             "Width": 120,
             "Height": 18,
             "Props": {
               "Text": "Shots: 0",
               "FontSize": 13,
-              "Bold": true
-            }
+              "Bold": true,
+              "Align": "center"
+            },
+            "AnchorX": "center",
+            "AnchorY": "center"
           }
         ]
       }

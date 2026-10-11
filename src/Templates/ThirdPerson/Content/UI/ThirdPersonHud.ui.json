@@ -31,15 +31,18 @@
           {
             "Name": "Distance",
             "Type": "label",
-            "X": 10,
-            "Y": 8,
+            "X": 0,
+            "Y": 0,
             "Width": 170,
             "Height": 18,
             "Props": {
               "Text": "Distance: 0 m",
               "FontSize": 13,
-              "Bold": true
-            }
+              "Bold": true,
+              "Align": "center"
+            },
+            "AnchorX": "center",
+            "AnchorY": "center"
           }
         ]
       }

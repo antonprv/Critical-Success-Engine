@@ -17,8 +17,8 @@
         "Type": "window",
         "X": 0,
         "Y": 0,
-        "Width": 660,
-        "Height": 380,
+        "Width": 700,
+        "Height": 440,
         "AnchorX": "center",
         "AnchorY": "center",
         "Props": {
@@ -32,94 +32,103 @@
           {
             "Name": "Bindings",
             "Type": "listbox",
-            "X": 12,
+            "X": 0,
             "Y": 12,
-            "Width": 630,
-            "Height": 260,
+            "Width": 668,
+            "Height": 300,
             "Props": {
               "Items": ""
-            }
+            },
+            "AnchorX": "center"
           },
           {
             "Name": "Hint",
             "Type": "label",
-            "X": 12,
-            "Y": 280,
-            "Width": 630,
-            "Height": 36,
+            "X": 0,
+            "Y": 318,
+            "Width": 668,
+            "Height": 34,
             "Props": {
               "Text": "Pick an action, then the binding to change.",
               "FontSize": 11,
               "Bold": false,
-              "Wrap": true
-            }
+              "Wrap": true,
+              "Align": "center"
+            },
+            "AnchorX": "center"
           },
           {
             "Name": "MainButton",
             "Type": "button",
-            "X": 12,
-            "Y": 318,
+            "X": -280.0,
+            "Y": 358,
             "Width": 100,
             "Height": 26,
             "Props": {
               "Text": "Main key"
-            }
+            },
+            "AnchorX": "center"
           },
           {
             "Name": "SpareButton",
             "Type": "button",
-            "X": 118,
-            "Y": 318,
+            "X": -172.0,
+            "Y": 358,
             "Width": 100,
             "Height": 26,
             "Props": {
               "Text": "Spare key"
-            }
+            },
+            "AnchorX": "center"
           },
           {
             "Name": "PadButton",
             "Type": "button",
-            "X": 224,
-            "Y": 318,
+            "X": -64.0,
+            "Y": 358,
             "Width": 100,
             "Height": 26,
             "Props": {
               "Text": "Gamepad"
-            }
+            },
+            "AnchorX": "center"
           },
           {
             "Name": "ResetButton",
             "Type": "button",
-            "X": 330,
-            "Y": 318,
+            "X": 44.0,
+            "Y": 358,
             "Width": 100,
             "Height": 26,
             "Props": {
               "Text": "Reset all"
-            }
+            },
+            "AnchorX": "center"
           },
           {
             "Name": "ArrangeButton",
             "Type": "button",
-            "X": 436,
-            "Y": 318,
-            "Width": 100,
+            "X": 162.0,
+            "Y": 358,
+            "Width": 120,
             "Height": 26,
             "Props": {
               "Text": "Arrange touch"
-            }
+            },
+            "AnchorX": "center"
           },
           {
             "Name": "BackButton",
             "Type": "button",
-            "X": 542,
-            "Y": 318,
+            "X": 280.0,
+            "Y": 358,
             "Width": 100,
             "Height": 26,
             "Props": {
               "Text": "Back",
               "Default": true
-            }
+            },
+            "AnchorX": "center"
           }
         ]
       }

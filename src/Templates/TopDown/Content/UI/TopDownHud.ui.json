@@ -31,15 +31,18 @@
           {
             "Name": "Visited",
             "Type": "label",
-            "X": 10,
-            "Y": 8,
+            "X": 0,
+            "Y": 0,
             "Width": 170,
             "Height": 18,
             "Props": {
               "Text": "Visited: 0 / 4",
               "FontSize": 13,
-              "Bold": true
-            }
+              "Bold": true,
+              "Align": "center"
+            },
+            "AnchorX": "center",
+            "AnchorY": "center"
           }
         ]
       }
