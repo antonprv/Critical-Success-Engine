@@ -70,6 +70,23 @@ describe("StrategyCamera (a top-down view as in Baldur's Gate 3 and Divinity: Or
 		expect(view.Focus.X).toBe(moved.X); // it stays where the player put it
 	});
 
+	it("Q and E turn the view around the focus (and it keeps following the player)", () => {
+		const { t, view, send } = Rig({ RotateSpeed: 90 });
+		t.frame();
+		const yaw = view.Yaw;
+		send({ kind: InputEvtType.KeyDown, code: "KeyQ" });
+		for (let i = 0; i < 10; i++) t.frame();
+		send({ kind: InputEvtType.KeyUp, code: "KeyQ" });
+		expect(view.Yaw).toBeGreaterThan(yaw);
+		const turned = view.Yaw;
+		send({ kind: InputEvtType.KeyDown, code: "KeyE" });
+		for (let i = 0; i < 10; i++) t.frame();
+		send({ kind: InputEvtType.KeyUp, code: "KeyE" });
+		expect(view.Yaw).toBeLessThan(turned);
+		expect(view.Following).toBe(true);
+		expect(xyz(view.Focus)).toEqual([4, 1, 2]);
+	});
+
 	it("Home or walking brings it back to the player", () => {
 		const { t, view, send } = Rig({ PanPerPixel: 0.01 });
 		send({ kind: InputEvtType.PointerDown, button: 1 });

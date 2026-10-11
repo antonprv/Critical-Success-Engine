@@ -25,7 +25,7 @@ function Pads(): EntityManifest[] {
 export const TopDownScene: SceneManifest = {
 	id: "top-down",
 	name: "Top-down arena",
-	description: "Seen from above, as in Baldur's Gate 3: walk onto the pad in every corner. Middle-drag moves the view, the wheel zooms.",
+	description: "Seen from above, as in Baldur's Gate 3: walk onto the pad in every corner. Middle-drag moves the view, Q/E turn it, the wheel zooms.",
 	// The cursor stays visible: the view is moved with the mouse, not turned by it. Esc opens the menu.
 	cursor: "free",
 	gravity: [0, -20, 0],
@@ -45,10 +45,10 @@ export const TopDownScene: SceneManifest = {
 			Comp(MeshRenderer, { Mesh: MeshForShape(PlayerShape), Color: [0.95, 0.85, 0.3] }),
 			Comp(MoverComponent, { CameraName: "Camera" }),
 		], { position: [0, 1.2, 0], tags: ["player"] }),
-		// Looks down at the player; middle-drag moves the view, the wheel zooms, Home (or walking) brings it back.
+		// Looks down at the player; middle-drag moves the view, Q/E turn it, the wheel zooms, Home (or walking) brings it back.
 		// Its zoom, pitch and edge scrolling come from the TopDownCamera data asset (Content/Data/TopDownCamera.csedata).
 		Ent("Camera", [Comp(TopDownCameraSetup), Comp(StrategyCamera, { TargetName: "Player", EyeHeight: 0.6 })]),
 		Ent("Rules", [Comp(PadCounter)]),
-		Ent("Hints", [Comp(HudText, { Lines: ["WASD move   Space jump   Middle-drag move the view   Wheel zoom", "Home back to the player   Esc - menu / scene select"] })]),
+		Ent("Hints", [Comp(HudText, { Lines: ["WASD move   Space jump   Middle-drag move the view   Q/E rotate the view   Wheel zoom", "Home back to the player   Esc - menu / scene select"] })]),
 	],
 };

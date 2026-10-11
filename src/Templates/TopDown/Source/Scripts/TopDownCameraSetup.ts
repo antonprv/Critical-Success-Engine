@@ -13,6 +13,6 @@ export class TopDownCameraSetup extends Component {
 		const camera = this.Entity.GetComponent(StrategyCamera);
 		if (!camera) return;
 		const data = this.Engine.Data.GetOrDefault(TopDownCamera, this.DataId);
-		Object.assign(camera, { Zoom: data.Zoom, ZoomMin: data.ZoomMin, ZoomMax: data.ZoomMax, PitchNear: data.PitchNear, PitchFar: data.PitchFar, EdgeScroll: data.EdgeScroll });
+		Object.assign(camera, { Zoom: data.Zoom, ZoomMin: data.ZoomMin, ZoomMax: data.ZoomMax, PitchNear: data.PitchNear, PitchFar: data.PitchFar, RotateSpeed: data.RotateSpeed, EdgeScroll: data.EdgeScroll });
 	}
 }

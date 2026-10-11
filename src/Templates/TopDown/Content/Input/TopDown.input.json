@@ -104,6 +104,30 @@
           }
         },
         {
+          "Name": "RotateLeft",
+          "Label": "Rotate the view left",
+          "Category": "Camera",
+          "Default": {
+            "Keyboard": [
+              "KeyQ",
+              ""
+            ],
+            "Gamepad": "Pad:LB"
+          }
+        },
+        {
+          "Name": "RotateRight",
+          "Label": "Rotate the view right",
+          "Category": "Camera",
+          "Default": {
+            "Keyboard": [
+              "KeyE",
+              ""
+            ],
+            "Gamepad": "Pad:RB"
+          }
+        },
+        {
           "Name": "Recenter",
           "Label": "Back to the player",
           "Category": "Camera",

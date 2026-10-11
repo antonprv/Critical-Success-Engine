@@ -12,7 +12,7 @@ import { CameraComponent } from "./CameraComponent";
  * A top-down view as in Baldur's Gate 3, Divinity: Original Sin 2 or Solasta (use it in a scene with cursor: "free"):
  * it looks down at a point on the ground (Focus) that follows the player; dragging with the middle button moves that
  * point, the wheel zooms (nearer looks flatter, farther steeper), and with EdgeScroll on, the cursor at the edge of the
- * view scrolls it. Recenter (Home) - or walking - brings it back to the player. A gamepad's right stick moves the view,
+ * view scrolls it. Q/E (RotateLeft/RotateRight, the shoulder buttons) turn the view around the focus. Recenter (Home) - or walking - brings it back to the player. A gamepad's right stick moves the view,
  * its d-pad zooms. The mover walks relative to it, like any camera.
  */
 export class StrategyCamera extends CameraComponent {
@@ -37,6 +37,8 @@ export class StrategyCamera extends CameraComponent {
 	/** How near the edge counts (a share of the view), and how fast it scrolls (per second, per unit of zoom). */
 	public EdgeSize = 0.02;
 	public EdgeSpeed = 1.2;
+	/** How fast RotateLeft/RotateRight turn the view (degrees per second). */
+	public RotateSpeed = 90;
 
 	/** The point on the ground the camera looks at. */
 	public readonly Focus = new Vec3();
@@ -59,6 +61,10 @@ export class StrategyCamera extends CameraComponent {
 			this.Zoom = Clamp(this.Zoom * (1 + this.ZoomStep * wheel / 100) * (1 + padZoom * this.PadZoomSpeed * dt), this.ZoomMin, this.ZoomMax);
 			this.UpdatePitch();
 		}
+
+		// Yaw grows counter-clockwise (as when the mouse turns a first-person view to the left): "right" lowers it. Turning keeps following the player.
+		const turn = input.ActionValue("RotateLeft") - input.ActionValue("RotateRight");
+		if (turn !== 0) this.Yaw += turn * this.RotateSpeed * dt;
 
 		const [right, forward] = this.GroundAxes();
 		const stickX = input.ActionValue("LookRight") - input.ActionValue("LookLeft");

@@ -15,6 +15,8 @@ export class TopDownCamera extends DataAsset {
 	public PitchNear = -35;
 	/** Degrees at the farthest zoom. */
 	public PitchFar = -68;
+	/** How fast Q/E turn the view, in degrees per second. */
+	public RotateSpeed = 90;
 	/** Edge scrolling, until the player chooses. */
 	public EdgeScroll = false;
 }

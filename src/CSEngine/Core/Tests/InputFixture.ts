@@ -24,7 +24,7 @@ export const TestInput: InputManifest = {
 			A("LookLeft", ["", ""], "Pad:RightStickLeft"), A("LookRight", ["", ""], "Pad:RightStickRight"),
 			A("LookUp", ["", ""], "Pad:RightStickUp"), A("LookDown", ["", ""], "Pad:RightStickDown"),
 			A("ToggleView", ["KeyV", ""], "Pad:RS"), A("PanView", ["Mouse1", ""], ""), A("ZoomIn", ["", ""], "Pad:DUp"),
-			A("ZoomOut", ["", ""], "Pad:DDown"), A("Recenter", ["Home", ""], "Pad:Back"), A("Fire", ["Mouse0", ""], "Pad:RT"),
+			A("ZoomOut", ["", ""], "Pad:DDown"), A("Recenter", ["Home", ""], "Pad:Back"), A("RotateLeft", ["KeyQ", ""], "Pad:LB"), A("RotateRight", ["KeyE", ""], "Pad:RB"), A("Fire", ["Mouse0", ""], "Pad:RT"),
 			A("Restart", ["KeyR", ""], "Pad:Start"),
 		],
 	}],
