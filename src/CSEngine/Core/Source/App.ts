@@ -35,6 +35,7 @@ document.body.appendChild(uiMount);
 const store = new UiStore();
 // The page's menu and loading screen, for the plugin that draws them (the UI plugin, as UI documents).
 LinkPageUi(store, GameTitle);
+document.title = GameTitle;
 // Keep the player's settings as long as the browser allows: ask for persistent storage (best effort, no headers needed;
 // only the page may ask). Safari still clears a site's storage after 7 days of use without visiting it.
 void navigator.storage?.persist?.().then((granted) => Logger.LogInfo(`[App] Persistent storage ${granted ? "granted" : "not granted"}`), () => undefined);

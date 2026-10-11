@@ -98,6 +98,58 @@
             "AnchorX": "end"
           },
           {
+            "Name": "RunButton",
+            "Type": "button",
+            "X": 12,
+            "Y": 136,
+            "Width": 176,
+            "Height": 26,
+            "Props": {
+              "Text": "Run"
+            },
+            "AnchorX": "end"
+          },
+          {
+            "Name": "RunMode",
+            "Type": "combobox",
+            "X": 12,
+            "Y": 166,
+            "Width": 176,
+            "Height": 21,
+            "Props": {
+              "Options": [],
+              "Selected": -1
+            },
+            "AnchorX": "end",
+            "EmbedInWindow": false
+          },
+          {
+            "Name": "BuildButton",
+            "Type": "button",
+            "X": 12,
+            "Y": 204,
+            "Width": 176,
+            "Height": 26,
+            "Props": {
+              "Text": "Build"
+            },
+            "AnchorX": "end"
+          },
+          {
+            "Name": "BuildMode",
+            "Type": "combobox",
+            "X": 12,
+            "Y": 234,
+            "Width": 176,
+            "Height": 21,
+            "Props": {
+              "Options": [],
+              "Selected": -1
+            },
+            "AnchorX": "end",
+            "EmbedInWindow": false
+          },
+          {
             "Name": "ThemeLabel",
             "Type": "label",
             "X": 12,

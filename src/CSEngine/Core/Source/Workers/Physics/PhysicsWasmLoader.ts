@@ -8,8 +8,17 @@ import type { DotnetRuntimeApi, PhysicsBridgeExports } from "./PhysicsBridgeCont
 export class PhysicsWasmLoader {
 	private readonly _dotnetJsUrl: string;
 
-	public constructor(dotnetJsUrl: string = "/physics-wasm/_framework/dotnet.js") {
+	public constructor(dotnetJsUrl: string = PhysicsWasmLoader.DefaultUrl()) {
 		this._dotnetJsUrl = dotnetJsUrl;
+	}
+
+	/**
+	 * Where the runtime is: the dev server serves it at the root; in a built site the worker is <site>/assets/<name>.js and the
+	 * runtime <site>/physics-wasm, so the site can sit under any path (a relative base).
+	 */
+	private static DefaultUrl(): string {
+		const dev = typeof __DEV__ !== "undefined" && __DEV__;
+		return dev || typeof self === "undefined" || !self.location?.href.includes("/assets/") ? "/physics-wasm/_framework/dotnet.js" : new URL("../physics-wasm/_framework/dotnet.js", self.location.href).href;
 	}
 
 	/** Boots dotnet.js and resolves the PhysicsBridge's [JSExport] surface. */

@@ -4,6 +4,7 @@
 import type { IpcMain } from "electron";
 import type { DesignerService, DocumentToSave } from "./DesignerService";
 import type { ProjectsService } from "./ProjectsService";
+import type { BuildConfiguration, BuildPlatform, ProjectRunner, RunMode } from "./ProjectRunner";
 
 /** A call's answer over IPC: the value, or the error's message (so the page reads the message, not Electron's wrapping). */
 export type IpcResult<T> = { ok: true; value: T; } | { ok: false; error: string; };
@@ -23,6 +24,9 @@ export const ProjectChannels = {
 	Create: "projects:create",
 	Remove: "projects:remove",
 	OpenInDesigner: "projects:open-in-designer",
+	RunModes: "projects:run-modes",
+	Run: "projects:run",
+	Build: "projects:build",
 } as const;
 
 async function Answer<T>(work: () => T | Promise<T>): Promise<IpcResult<T>> {
@@ -55,7 +59,7 @@ export function RegisterDesignerIpc(ipc: Pick<IpcMain, "handle">, service: Desig
 }
 
 /** The project browser's calls, answered by the main process. */
-export function RegisterProjectIpc(ipc: Pick<IpcMain, "handle">, service: ProjectsService, shell: DesktopShell): void {
+export function RegisterProjectIpc(ipc: Pick<IpcMain, "handle">, service: ProjectsService, shell: DesktopShell, runner?: ProjectRunner): void {
 	ipc.handle(ProjectChannels.List, () => Answer(() => service.List()));
 	ipc.handle(ProjectChannels.Templates, () => Answer(() => service.Templates()));
 	ipc.handle(ProjectChannels.NameProblem, (_event, name: string) => Answer(() => service.NameProblem(name)));
@@ -64,4 +68,8 @@ export function RegisterProjectIpc(ipc: Pick<IpcMain, "handle">, service: Projec
 	ipc.handle(ProjectChannels.Create, (_event, options: { Template: string; Name: string; Location: string; }) => Answer(() => service.Create(options)));
 	ipc.handle(ProjectChannels.Remove, (_event, file: string) => Answer(() => service.Remove(file)));
 	ipc.handle(ProjectChannels.OpenInDesigner, (_event, file: string) => Answer(() => shell.OpenInDesigner(file)));
+	const Runner = (): ProjectRunner => { if (!runner) throw new Error("Running and building projects is not available here"); return runner; };
+	ipc.handle(ProjectChannels.RunModes, (_event, file: string) => Answer(() => Runner().Availability(file)));
+	ipc.handle(ProjectChannels.Run, (_event, file: string, mode: RunMode) => Answer(() => Runner().Run(file, mode)));
+	ipc.handle(ProjectChannels.Build, (_event, file: string, platform: BuildPlatform, configuration: BuildConfiguration) => Answer(() => Runner().Build(file, platform, configuration)));
 }

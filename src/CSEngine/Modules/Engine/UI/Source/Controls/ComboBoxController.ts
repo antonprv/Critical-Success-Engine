@@ -6,6 +6,8 @@ import { ControlBase, type ControlOptions } from "../Core/ControlBase";
 export interface ComboOption<T> {
 	Value: T;
 	Label: string;
+	/** Listed but not pickable (greyed out): a mouse or keyboard choice of it is ignored. */
+	Disabled?: boolean;
 }
 
 export interface ComboBoxOptions<T> extends ControlOptions {
@@ -48,14 +50,14 @@ export class ComboBoxController<T> extends ControlBase<ComboBoxEvents<T>> {
 
 	/** Picks an item of the open list: selects it and closes the list. */
 	public Choose(index: number): void {
-		if (!this.Enabled || !this.Options[index]) return;
+		if (!this.Enabled || !this.Options[index] || this.Options[index]!.Disabled) return;
 		this.SelectIndex(index);
 		this.Close();
 	}
 
 	/** The item under the pointer in the open list. */
 	public Highlight(index: number): void {
-		if (this.Options[index]) this._highlightedIndex = index;
+		if (this.Options[index] && !this.Options[index]!.Disabled) this._highlightedIndex = index;
 	}
 
 	public KeyDown(code: string, modifiers: { Alt?: boolean; } = {}): void {
@@ -105,7 +107,7 @@ export class ComboBoxController<T> extends ControlBase<ComboBoxEvents<T>> {
 	}
 
 	private SelectIndex(index: number): void {
-		if (index === this._selectedIndex) return;
+		if (index === this._selectedIndex || this.Options[index]?.Disabled) return;
 		this._selectedIndex = index;
 		this.Emit("change", index, this.Options[index]!.Value);
 	}

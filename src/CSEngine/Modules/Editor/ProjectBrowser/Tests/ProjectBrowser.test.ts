@@ -220,3 +220,48 @@ describe("the project browser's pages", () => {
 		expect(combos(NewProjectText)).toEqual({ Genre: true });
 	});
 });
+
+describe("the project browser: run and build", () => {
+	const modes = (made: Awaited<ReturnType<typeof Make>>) => made.doc(BrowserId).Controller<ComboBoxController<number>>("RunMode");
+	const builds = (made: Awaited<ReturnType<typeof Make>>) => made.doc(BrowserId).Controller<ComboBoxController<number>>("BuildMode");
+
+	it("Run is grey until a project and a mode are chosen; build modes without files are unavailable", async () => {
+		const made = await Make();
+		expect(made.enabled(BrowserId, "RunButton")).toBe(false);
+		made.pick(BrowserId, "Projects", 0);
+		await settle();
+		expect(made.enabled(BrowserId, "RunButton")).toBe(false);
+		expect(modes(made).Options.map((o) => [o.Label, o.Disabled])).toEqual([["dev", false], ["Web - Dev", true], ["Web - Prod", true], ["Desktop - Dev", true], ["Desktop - Prod", true]]);
+		modes(made).Choose(1);
+		expect(modes(made).SelectedIndex).toBe(-1);
+		modes(made).Choose(0);
+		expect(made.enabled(BrowserId, "RunButton")).toBe(true);
+		await made.press(BrowserId, "RunButton");
+		expect(made.api.Ran).toEqual([{ File: "/games/Starfall/Starfall.cseproject", Mode: "dev" }]);
+	});
+
+	it("Build waits for a target; a build makes its run mode available", async () => {
+		const made = await Make();
+		made.pick(BrowserId, "Projects", 0);
+		await settle();
+		expect(made.enabled(BrowserId, "BuildButton")).toBe(false);
+		builds(made).Choose(2);
+		await made.press(BrowserId, "BuildButton");
+		expect(made.api.Built).toEqual([{ File: "/games/Starfall/Starfall.cseproject", Platform: "Desktop", Configuration: "Dev" }]);
+		expect(made.label(BrowserId, "Status")).toBe("Built Starfall (Desktop - Dev): /games/Starfall/Binaries/Desktop/Dev");
+		// Each platform's build enables only its own run mode.
+		expect(modes(made).Options.map((o) => o.Disabled)).toEqual([false, true, true, false, true]);
+		builds(made).Choose(0);
+		await made.press(BrowserId, "BuildButton");
+		expect(modes(made).Options.map((o) => o.Disabled)).toEqual([false, false, true, false, true]);
+	});
+
+	it("a missing project can be neither run nor built", async () => {
+		const made = await Make();
+		made.pick(BrowserId, "Projects", 1);
+		await settle();
+		modes(made).Choose(0);
+		builds(made).Choose(0);
+		expect([made.enabled(BrowserId, "RunButton"), made.enabled(BrowserId, "BuildButton")]).toEqual([false, false]);
+	});
+});

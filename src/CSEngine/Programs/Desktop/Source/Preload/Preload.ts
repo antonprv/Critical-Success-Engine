@@ -22,6 +22,9 @@ contextBridge.exposeInMainWorld("cse", {
 		Create: (options: { Template: string; Name: string; Location: string; }) => Call(ProjectChannels.Create, options),
 		Remove: (file: string) => Call(ProjectChannels.Remove, file),
 		OpenInDesigner: (file: string) => Call(ProjectChannels.OpenInDesigner, file),
+		RunModes: (file: string) => Call(ProjectChannels.RunModes, file),
+		Run: (file: string, mode: string) => Call(ProjectChannels.Run, file, mode),
+		Build: (file: string, platform: string, configuration: string) => Call(ProjectChannels.Build, file, platform, configuration),
 	},
 	designer: {
 		Open: (file: string) => Call(DesignerChannels.Open, file),

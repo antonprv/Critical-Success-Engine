@@ -19,6 +19,12 @@ export interface TemplateRow {
 	Genre: string;
 }
 
+/** How a project runs: the dev server in a browser, or a finished build of a platform and configuration (Binaries/<Web|Desktop>/<Dev|Prod>). */
+export type RunMode = "dev" | "web:dev" | "web:prod" | "desktop:dev" | "desktop:prod";
+export type BuildConfiguration = "Dev" | "Prod";
+/** Web: the static site. Desktop: the same site and an Electron shell. Each goes to Binaries/<platform>/<configuration>. */
+export type BuildPlatform = "Web" | "Desktop";
+
 /** What the project browser asks of its host: the desktop app (over IPC), or the memory (a browser, tests). */
 export interface ProjectsApi {
 	List(): Promise<ProjectRow[]>;
@@ -33,6 +39,12 @@ export interface ProjectsApi {
 	/** Forgets a project (its files stay). */
 	Remove(file: string): Promise<void>;
 	OpenInDesigner(file: string): Promise<void>;
+	/** Which run modes a project can use now (a build mode needs that build in Binaries/<platform>/<configuration>). */
+	RunModes(file: string): Promise<Record<RunMode, boolean>>;
+	/** dev starts the dev server and opens the browser; web:* opens the finished build in the browser, desktop:* in its Electron window. */
+	Run(file: string, mode: RunMode): Promise<void>;
+	/** Builds into the project's Binaries/<platform>/<configuration>; resolves with that folder. */
+	Build(file: string, platform: BuildPlatform, configuration: BuildConfiguration): Promise<{ Directory: string; }>;
 }
 
 /** The desktop app's preload puts its API here. */
@@ -45,6 +57,9 @@ const Identifier = /^[A-Za-z_][A-Za-z0-9_]*$/;
 /** Projects in memory: the project browser in a plain browser (a preview), and its tests. Same naming rules as the engine's. */
 export class MemoryProjectsApi implements ProjectsApi {
 	public readonly Opened: string[] = [];
+	public readonly Ran: { File: string; Mode: RunMode; }[] = [];
+	public readonly Built: { File: string; Platform: BuildPlatform; Configuration: BuildConfiguration; }[] = [];
+	private readonly _builds = new Set<string>();
 	/** What the "system dialog" answers next. */
 	public NextFolder: string | null = null;
 
@@ -77,4 +92,20 @@ export class MemoryProjectsApi implements ProjectsApi {
 	}
 
 	public async OpenInDesigner(file: string): Promise<void> { this.Opened.push(file); }
+
+	public async RunModes(file: string): Promise<Record<RunMode, boolean>> {
+		const has = (platform: BuildPlatform, configuration: BuildConfiguration): boolean => this._builds.has(`${file}|${platform}|${configuration}`);
+		return { "dev": true, "web:dev": has("Web", "Dev"), "web:prod": has("Web", "Prod"), "desktop:dev": has("Desktop", "Dev"), "desktop:prod": has("Desktop", "Prod") };
+	}
+
+	public async Run(file: string, mode: RunMode): Promise<void> {
+		if (!(await this.RunModes(file))[mode]) throw new Error(`There is no build for ${mode}`);
+		this.Ran.push({ File: file, Mode: mode });
+	}
+
+	public async Build(file: string, platform: BuildPlatform, configuration: BuildConfiguration): Promise<{ Directory: string; }> {
+		this._builds.add(`${file}|${platform}|${configuration}`);
+		this.Built.push({ File: file, Platform: platform, Configuration: configuration });
+		return { Directory: `${file.slice(0, file.lastIndexOf("/"))}/Binaries/${platform}/${configuration}` };
+	}
 }

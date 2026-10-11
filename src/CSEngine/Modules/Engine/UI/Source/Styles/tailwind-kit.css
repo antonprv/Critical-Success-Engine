@@ -178,6 +178,7 @@
 .win-kit--tailwind .win-combobox__list { @apply absolute top-full right-0 left-0 z-50 m-0 mt-1 list-none rounded-kit border border-line bg-panel p-1 shadow-lg; }
 .win-kit--tailwind .win-combobox__option { @apply rounded-[min(var(--kit-radius),0.375rem)] px-2 py-1.5; }
 .win-kit--tailwind .win-combobox__option[aria-selected="true"] { @apply bg-selected text-selected-ink; }
+.win-kit--tailwind .win-combobox__option[aria-disabled="true"] { @apply opacity-50; }
 
 /* ---------- progress, slider, scroll bar ---------- */
 

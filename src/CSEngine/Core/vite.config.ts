@@ -29,7 +29,13 @@ export const ProjectOptions = {
 export default defineConfig(({ mode }) => {
     const isProduction = mode === "production";
 
+    // Set by the desktop app's Build (a project's own Binaries/Dev or Binaries/Prod): the output goes there, and with relative
+    // URLs, so the folder can be hosted anywhere (a sub-path, a static host, an Electron shell).
+    const OutputDirectory = process.env["CSE_OUT_DIR"];
+
     return {
+        base: OutputDirectory ? "./" : "/",
+
         // `if (__DEV__) { ... }` blocks (and what they import) are removed from production bundles.
         define: {
             __DEV__: JSON.stringify(!isProduction),
@@ -69,7 +75,7 @@ export default defineConfig(({ mode }) => {
 
         build: {
             // Matches Core.esproj's <BuildOutputFolder> and what CI uploads.
-            outDir: resolve(RootDirectory, "../Binaries/Core"),
+            outDir: OutputDirectory ? resolve(OutputDirectory) : resolve(RootDirectory, "../Binaries/Core"),
             emptyOutDir: true,
             target: "es2022",
             sourcemap: isProduction,

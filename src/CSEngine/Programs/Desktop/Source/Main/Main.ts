@@ -1,12 +1,13 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-import { app, BrowserWindow, dialog, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { RegistryPath } from "../../../../Core/BuildTools/Projects.ts";
 import { DesignerService } from "./DesignerService";
 import { RegisterDesignerIpc, RegisterProjectIpc } from "./Ipc";
+import { ProjectRunner } from "./ProjectRunner";
 import { ProjectsService } from "./ProjectsService";
 
 /**
@@ -42,6 +43,12 @@ export function StartDesktop(): void {
 		TemplatesDirectory: process.env["CSE_TEMPLATES_DIR"] ?? join(Binaries, "../../Templates"),
 	});
 	let browser: BrowserWindow | null = null;
+	// Running and building projects: the Core (the engine's Vite project) builds whichever .cseproject it is told to.
+	const runner = new ProjectRunner({
+		CoreDirectory: process.env["CSE_CORE_DIR"] ?? join(Binaries, "../Core"),
+		Open: (url) => shell.openExternal(url),
+	});
+	app.on("before-quit", () => runner.Dispose());
 	RegisterProjectIpc(ipcMain, service, {
 		PickFolder: async () => {
 			const result = await dialog.showOpenDialog(browser!, { properties: ["openDirectory", "createDirectory"] });
@@ -50,7 +57,7 @@ export function StartDesktop(): void {
 		OpenInDesigner: async (file) => {
 			OpenDesigner(file);
 		},
-	});
+	}, runner);
 	RegisterDesignerIpc(ipcMain, new DesignerService());
 	app.on("window-all-closed", () => app.quit());
 	void app.whenReady().then(() => {

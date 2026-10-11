@@ -126,6 +126,7 @@ const floatingStyle = computed<CSSProperties | undefined>(() => {
 				role="option"
 				class="win-combobox__option"
 				:aria-selected="index === c.HighlightedIndex ? 'true' : 'false'"
+				:aria-disabled="option.Disabled ? 'true' : undefined"
 				@pointerenter="c.Highlight(index)"
 				@click.stop="c.Choose(index)"
 			>
