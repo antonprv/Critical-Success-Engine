@@ -62,6 +62,8 @@ stats.json
 # === Caches ===
 *.dtbcache.v2
 *.futdache.v2
+**/*.dtbcache.v2
+**/*.futdache.v2
 
 # === File tree checks ===
 file-tree.txt
