@@ -1,7 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-// Code of guide 06 (docs/guides/06-ui.md).
+// Code of guide 06 (docs/en/guides/06-ui.md).
 
 // <<health
 import { Component } from "../Engine/Core/Component";

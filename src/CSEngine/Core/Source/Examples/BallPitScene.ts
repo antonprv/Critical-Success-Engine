@@ -1,7 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-// Code of guide 02 (docs/guides/02-first-scene.md). Not registered by default - the guide shows how.
+// Code of guide 02 (docs/en/guides/02-first-scene.md). Not registered by default - the guide shows how.
 
 // <<imports
 import { CollisionLayer } from "../Engine/Core/CollisionLayer";

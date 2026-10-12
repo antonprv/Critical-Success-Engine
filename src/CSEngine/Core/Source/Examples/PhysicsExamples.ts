@@ -1,7 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-// Code of guide 04 (docs/guides/04-physics.md).
+// Code of guide 04 (docs/en/guides/04-physics.md).
 
 // <<imports
 import { CollisionLayer } from "../Engine/Core/CollisionLayer";

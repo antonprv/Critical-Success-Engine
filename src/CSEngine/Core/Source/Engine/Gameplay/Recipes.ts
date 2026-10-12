@@ -1,7 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-// Small, self-contained examples from guide 08 (docs/guides/08-recipes.md). Each one is a normal component - copy the
+// Small, self-contained examples from guide 08 (docs/en/guides/08-recipes.md). Each one is a normal component - copy the
 // ones you need into your own scripts.
 
 import { CollisionLayer } from "../Core/CollisionLayer";

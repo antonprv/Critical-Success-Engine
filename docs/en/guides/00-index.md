@@ -1,0 +1,49 @@
+**English** | [Русский](../../ru/guides/00-index.md)
+
+# How to make a game on Critical Success Engine - guide series
+
+These are step-by-step guides to what the engine already has. Read them in order: each one builds on the previous.
+All the code in the guides is real: it lives in `Source/Game/**`, is compiled by `pnpm typecheck` and exercised by the
+tests (`pnpm test`), so when the engine API changes the guides don't silently go stale.
+
+| # | Guide | What's in it |
+|---|-------|--------------|
+| 01 | [Getting started](01-getting-started.md) | Running, controls, project map, building the physics (wasm), the development loop |
+| 02 | [First scene](02-first-scene.md) | A scene as data: entities, components, the manifest. We build "Ball pit" |
+| 03 | [Custom components](03-components.md) | Scripts: lifecycle hooks, fields, finding entities, spawning and destroying |
+| 04 | [Physics](04-physics.md) | Bodies, layers and masks, triggers, collisions, impulses, platforms, queries, projectiles |
+| 05 | [Player and camera](05-player-and-camera.md) | Character controller, profiles, movement modes, custom traits, the camera |
+| 06 | [UI](06-ui.md) | HUD, toasts, menus, how it all works and how to add your own widget |
+| 07 | [Coin Hunt: a whole game](07-coin-hunt.md) | Building a real mini-game: coins, timer, win/lose, restart |
+| 08 | [Recipes](08-recipes.md) | Door, spawner, trap, trampoline, sprint, double jump |
+| 09 | [When something doesn't work](09-troubleshooting.md) | Symptom → cause → what to do |
+| 10 | [UI Toolkit](10-ui-toolkit.md) | Windows 98 - 7 style components: windows, menus, lists, trees, 12 themes, events and state |
+| 11 | [UI Designer](11-ui-designer.md) | Build a UI with the mouse, bring it to life with a script; WinForms-style forms; skins; custom widgets |
+| 12 | [Modules](12-modules.md) | Modules and plugins as in Unreal: on-demand loading, phases, dependencies, the game as the main module |
+| 13 | [Projects](13-projects.md) | A project and its descriptor, the project registry, templates, the game's UI documents and UiManager |
+| 14 | [Input](14-input.md) | A project's input files, action maps (on foot, vehicle...), primary and fallback key, gamepad |
+| 15 | [Data files](15-data-assets.md) | `.csedata`: typed project parameters in JSON, editable without a rebuild |
+| 16 | [Desktop app](16-desktop.md) | Electron, the Project Manager (templates by genre, themes), the designer on a project: documents, Save into the project |
+
+## The model in one paragraph
+
+A game is **scenes**. A scene is **data**: a list of entities, each entity with a list of components
+(`Ent("Name", [Comp(Component, { field: value }), …])`). Behaviour is written in **components** - ordinary TypeScript classes
+with hooks (`Awake`, `Start`, `Update`, `OnPhysicsUpdate`, `OnCollisionEnter`, …). Everything else (rendering, physics, menus)
+is services that a component reaches through `this.Engine`.
+
+## Where to look if you want to…
+
+- …create a level → 02
+- …bring an object to life with a script → 03
+- …make something fall, bounce, or trigger on touch → 04
+- …change how the player runs and jumps → 05
+- …show a score, a health bar, a message → 06
+- …see how it all fits together in a finished game → 07
+- …build an interface from Windows-style windows, menus and lists → 10
+- …draw an interface with the mouse, bring it to life with a script, make a skin or a custom widget → 11
+- …split the game and tools into modules and load them on demand → 12
+- …create a project from a template, show a UI document from a script → 13
+- …make action-based controls, connect a gamepad → 14
+- …move the game's parameters into files that can be edited without a rebuild → 15
+- …create a project in the Project Manager, run the tools as a desktop app → 16

@@ -46,7 +46,7 @@ const CoinPositions: Vec3Tuple[] = [
 /**
  * A small complete game on top of the engine: collect every coin before the clock runs out. Uses the character mover,
  * triggers, kinematic platforms, script-to-script messaging by entity name, HUD lines, toasts and a scene reload.
- * Guide: docs/guides/07-coin-hunt.md
+ * Guide: docs/en/guides/07-coin-hunt.md
  */
 export const CoinHuntScene: SceneManifest = {
 	id: "coin-hunt",

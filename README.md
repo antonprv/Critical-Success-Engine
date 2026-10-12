@@ -1,129 +1,111 @@
+**English** | [Русский](README.ru.md)
+
 # Critical Success Engine
 
-Браузерный игровой движок: TypeScript + [Babylon.js](https://www.babylonjs.com/) для рендера, BEPU Physics (C#, собранный в WebAssembly) для физики, Vue 3 + Quasar для интерфейса. Каждая подсистема работает в своём воркере. Сборка - [Vite](https://vite.dev/), тесты - Vitest (юнит/интеграционные) и Playwright (в настоящем браузере).
+A browser game engine: TypeScript + [Babylon.js](https://www.babylonjs.com/) for rendering, BEPU Physics (C#, compiled to WebAssembly) for physics, Vue 3 + Quasar for the interface. Every subsystem runs in its own worker. The build is [Vite](https://vite.dev/), the tests are Vitest (unit/integration) and Playwright (in a real browser).
 
-Подробные руководства: [`docs/guides/00-index.md`](docs/guides/00-index.md).
+Detailed guides: [`docs/en/guides/00-index.md`](docs/en/guides/00-index.md).
 
-## Требования
+## Requirements
 
 - [Node.js](https://nodejs.org/) 22.12+
-- [pnpm](https://pnpm.io/) 10+ - единственный поддерживаемый пакетный менеджер
-- для физики: .NET 10 SDK и workload `wasm-tools` (без неё игра запускается, но без физики)
+- [pnpm](https://pnpm.io/) 10+ - the only supported package manager
+- for physics (optional): the .NET 10 SDK and the `wasm-tools` workload (without it the game runs, but without physics; the Project Manager doesn't need it)
 
-## Установка
+## Quick start: the Project Manager (Electron)
 
-Веб-проект живёт в `src/CSEngine/Core`, все команды ниже - оттуда:
+The editor's tools - the Project Manager and the UI Designer - run as a desktop program. The scripts in [`devops/`](devops) check the Node and pnpm versions, install the dependencies, build everything needed and launch the program.
 
-```bash
-cd src/CSEngine          # the pnpm workspace: the engine and its modules
-pnpm install
-cd Core
-```
-
-## Разработка
+Bash:
 
 ```bash
-pnpm dev
+bash devops/build-all.sh --skip-physics   # install dependencies and build
+bash devops/start-desktop.sh              # launch the Project Manager
 ```
 
-Dev-сервер Vite с hot reload на `http://127.0.0.1:5173`. Физику он берёт прямо из папки публикации .NET (см. ниже), так что после пересборки физики достаточно обновить страницу.
+PowerShell:
 
-## Сборка
+```powershell
+pwsh devops/build-all.ps1 -SkipPhysics
+pwsh devops/start-desktop.ps1
+```
+
+After the first build it's enough to run `start-desktop`; `--build` (`-Build`) rebuilds before launching, `--designer` (`-Designer`) opens the UI Designer on its own. The Electron binary is downloaded on first launch.
+
+- [`docs/en/devops-commands.md`](docs/en/devops-commands.md) - all the scripts and their options (including `--web` to build the web game and the physics build).
+- [`docs/en/manual-build.md`](docs/en/manual-build.md) - building by hand, step by step: dependencies, the dev server, the web game, physics (wasm), the desktop app, checks.
+- [`docs/en/guides/16-desktop.md`](docs/en/guides/16-desktop.md) - how the desktop app and the Project Manager work.
+
+## Building and running the web game
+
+The web game (`src/CSEngine/Core`) and the physics are built by hand, or with `bash devops/build-all.sh --web`. See [`docs/en/manual-build.md`](docs/en/manual-build.md): installing dependencies, `pnpm dev` (a dev server with hot reload at `http://127.0.0.1:5173`), `pnpm build`, and building the physics runtime in wasm.
+
+## Checks and tests
+
+Run in `src/CSEngine/Core`:
 
 ```bash
-pnpm build        # продакшен-сборка в src/CSEngine/Binaries/Core (минификация, хэши, source maps)
-pnpm build:dev    # с включёнными __DEV__-ветками (отладочные логи), без source maps
-pnpm preview      # раздать готовую сборку на http://127.0.0.1:4173
-pnpm rebuild      # очистка + продакшен-сборка
+pnpm verify       # typecheck + lint + tests (100% coverage) + build + E2E
 ```
 
-### Физика (WebAssembly)
-
-```bash
-cd devops && bash build-physics.sh      # Windows: build-physics.bat
-```
-
-Публикация кладёт рантайм в `src/CSEngine/Binaries/Physics/Release/net10.0/browser-wasm/AppBundle/_framework`. Оттуда его раздаёт `pnpm dev`, а `pnpm build` копирует в `Binaries/Core/physics-wasm/_framework`. Другую папку можно указать через переменную окружения `PHYSICS_WASM_DIR`. Подробности - в [`src/CSEngine/Physics/Bridge/BUILD.md`](src/CSEngine/Physics/Bridge/BUILD.md).
-
-## Проверки и тесты
-
-```bash
-pnpm typecheck    # vue-tsc (исходники + .vue) и tsc для конфигов, сборочных скриптов и тестов
-pnpm lint         # ESLint (typescript-eslint); pnpm lint:fix - с автоисправлением
-pnpm test         # Vitest с покрытием; падает, если любой файл ниже 100% по любой метрике
-pnpm test:e2e     # Playwright: собирает сайт и играет в него в Chromium, как пользователь
-pnpm verify       # всё вышеперечисленное + сборка
-```
-
-Для `pnpm test:e2e` нужен браузер: один раз выполни `pnpm exec playwright install chromium`. Подробности о тестах - в [`docs/guides/01-getting-started.md`](docs/guides/01-getting-started.md).
+The individual commands (`pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm test:e2e`) and the one-time browser install for E2E are in [`docs/en/manual-build.md`](docs/en/manual-build.md). Details about the tests are in [`docs/en/guides/01-getting-started.md`](docs/en/guides/01-getting-started.md).
 
 ## UI Toolkit
 
-Отдельно от игры: 21 Vue-компонент в стиле Windows 98 - 7 (окна с рабочим столом и панелью задач, меню, списки, деревья, вкладки,
-поля ввода, комбобоксы, полосы прокрутки, окна сообщений, подсказки...) в двух наборах оформления: Classic (12 тем Windows)
-и Tailwind (26 акцентных и 9 нейтральных палитр Tailwind, светлый и тёмный режим, шкала радиусов).
-У каждого элемента есть контроллер на чистом TypeScript: всё состояние в открытых полях, события с подпиской.
-Демонстрация - `Modules/Engine/UI (pnpm dev в папке модуля)` (`http://127.0.0.1:5173/Modules/Engine/UI (pnpm dev в папке модуля)` при `pnpm dev`), описание - [`docs/guides/10-ui-toolkit.md`](docs/guides/10-ui-toolkit.md).
+Separate from the game: a set of Vue components in the Windows 98 - 7 style (windows with a desktop and a taskbar, menus, lists, trees, tabs, text boxes, combo boxes, scroll bars, message boxes, tooltips...) in two style kits: Classic (12 Windows themes) and Tailwind (26 accent and 9 neutral Tailwind palettes, light and dark mode, a radius scale). Every element has a controller in pure TypeScript: all the state in public fields, events with subscription. The demo gallery is the `Modules/Engine/UI` module (`pnpm dev` in the module folder, then `http://127.0.0.1:5176/`); the description is in [`docs/en/guides/10-ui-toolkit.md`](docs/en/guides/10-ui-toolkit.md).
 
-## Структура
+## UI Designer
 
-```
-src/
-  CSEngine/
-    Core/                  @cse/core - движок: игра, физика, рендер, модули
-    Modules/
-      Engine/UI/           @cse/ui - UI-модуль движка: тулкит, рантайм UI-документов, галерея
-      Editor/UIDesigner/   @cse/ui-designer - редактор интерфейсов (тулинг, не часть игры)
-    pnpm-workspace.yaml    одно рабочее пространство: движок и модули
-  Templates/               шаблоны проектов (наполняются на этапе проектов)
-```
+The editor module `Modules/Editor/UIDesigner` (it's easiest to open from the Project Manager; on its own - `pnpm dev` in its folder, then `http://127.0.0.1:5175/`): an interface is assembled with the mouse from a palette, saved as a `.ui.json` asset and brought to life by a script class (`UiScript`) that finds widgets by the names from the editor - like a Widget Blueprint in Unreal. A Windows Forms model (focus, lifecycle, validation by a button with context, `DialogResult`, `ShowDialog`), skins with 9-slice sprites for every state, and connecting your own Vue widgets. Description - [`docs/en/guides/11-ui-designer.md`](docs/en/guides/11-ui-designer.md).
 
-## Редактор интерфейсов
+## Assets
 
-Редакторный модуль `Modules/Editor/UIDesigner` (`pnpm dev` в его папке, затем `http://127.0.0.1:5175/`): интерфейс собирается мышью из палитры, сохраняется
-ассетом `.ui.json` и оживает скриптом-классом (`UiScript`), который находит виджеты по именам из редактора - как
-Widget Blueprint в Unreal. Модель форм как в Windows Forms (фокус, жизненный цикл, валидация по кнопке с контекстом,
-`DialogResult`, `ShowDialog`), скины со спрайтами на 9 частей для каждого состояния и подключение своих Vue-виджетов.
-Описание - [`docs/guides/11-ui-designer.md`](docs/guides/11-ui-designer.md).
-
-## Ассеты
-
-- Файлы, импортируемые из кода (`import url from "./rock.png"`, а также `.glb`, `.gltf`, `.babylon`, `.env`, `.dds`), Vite хэширует и кладёт в `assets/`.
-- `src/CSEngine/Core/public/` копируется в сборку как есть: `public/assets/level.bin` будет доступен по адресу `/assets/level.bin`.
+- Files imported from code (`import url from "./rock.png"`, as well as `.glb`, `.gltf`, `.babylon`, `.env`, `.dds`) are hashed by Vite and put in `assets/`.
+- `src/CSEngine/Core/public/` is copied into the build as is: `public/assets/level.bin` will be available at `/assets/level.bin`.
 
 ## CI
 
-`.github/workflows/ci.yml` на каждый push/PR в `main`:
+`.github/workflows/ci.yml` on every push/PR to `main`:
 
-1. публикует физику в wasm;
-2. ставит зависимости (`pnpm install --frozen-lockfile`);
-3. прогоняет `typecheck`, `lint` и `test` с порогом покрытия;
-4. собирает сайт;
-5. запускает E2E, в том числе на настоящей wasm-физике.
+1. publishes the physics to wasm;
+2. installs the dependencies (`pnpm install --frozen-lockfile`);
+3. runs `typecheck`, `lint` and `test` with the coverage threshold;
+4. builds the site;
+5. runs the E2E tests, including on the real wasm physics;
+6. builds every template, and checks the UI module, the UI Designer, the Project Browser and the desktop app.
 
-Артефакты: сборка, отчёт о покрытии, а при падении - отчёт Playwright.
+Artifacts: the build, the coverage report, and on failure the Playwright report.
 
-## Структура
+## Structure
 
 ```
-src/CSEngine/Core/            - веб-проект (Vite)
-  index.html                  - HTML-точка входа игры
-  Modules/Engine/UI (pnpm dev в папке модуля)                - страница UI Toolkit
-  Source/                     - исходный код (игра: Source/App.ts, UI Toolkit: Source/Toolkit)
-  public/                     - статические файлы, копируются в сборку как есть
-  Assets/index.css            - стили экрана первой загрузки
-  BuildTools/                 - Vite-плагины: раздача/копирование физики, sidecar логов
-  Tests/                      - Vitest
-  E2E/                        - Playwright (спеки, сервер, подменный рантайм физики)
-  vite.config.ts, vitest.config.ts, playwright.config.ts, tsconfig*.json, eslint.config.js
-  Core.esproj                 - проект для Visual Studio
-src/CSEngine/Physics/         - C#: BEPU Physics, интеграция и мост в JS (Bridge)
-src/CSEngine/Binaries/        - результаты сборок (не хранится в git)
-devops/                       - скрипты сборки физики
-docs/                         - архитектура и руководства
-.github/workflows/            - CI
+src/
+  CSEngine/                   the pnpm workspace (pnpm-workspace.yaml): the engine and its modules
+    Core/                     @cse/core - the engine: game, physics, rendering, modules (web project, Vite)
+      index.html              the game's HTML entry point
+      Source/                 source code (the game: Source/App.ts)
+      public/                 static files, copied into the build as is
+      Assets/index.css        styles of the first-load screen
+      BuildTools/             Vite plugins: serving/copying the physics, projects, the log sidecar
+      Tests/                  Vitest
+      E2E/                    Playwright (specs, server, a stand-in physics runtime)
+      vite.config.ts, vitest.config.ts, playwright.config.ts, tsconfig*.json, eslint.config.js
+      Core.esproj             a project for Visual Studio
+    Modules/
+      Engine/UI/              @cse/ui - the engine's UI module: toolkit, UI document runtime, gallery
+      Editor/ProjectBrowser/  @cse/project-browser - the Project Manager (an editor module)
+      Editor/UIDesigner/      @cse/ui-designer - the UI designer (tooling, not a part of the game)
+    Programs/Desktop/         @cse/desktop - the desktop app (Electron) for the editor's tools
+    Physics/                  C#: BEPU Physics, the integration and the bridge to JS (Bridge)
+    Common/Math/              C#: FastMath
+    Tools/                    auxiliary tools (RetroTexturizer)
+    Binaries/                 build results (not kept in git)
+  Templates/                  project templates (Blank, FirstPerson, ThirdPerson, TopDown, CoinHunt)
+devops/                       build and launch scripts (see docs/en/devops-commands.md)
+docs/                         architecture, guides, manual build (docs/en - English, docs/ru - Russian)
+.github/workflows/            CI
 ```
 
-## Открытие в IDE
+## Opening in an IDE
 
-`src/CSEngine/CSEngine.slnx` - в Visual Studio или JetBrains Rider; репозиторий также можно открыть папкой в VS Code (есть задачи запуска Vite и отладки в браузере).
+`src/CSEngine/CSEngine.slnx` - in Visual Studio or JetBrains Rider; the repository can also be opened as a folder in VS Code (there are tasks for launching Vite and for debugging in the browser).

@@ -1,7 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-// Code of guide 03 (docs/guides/03-components.md).
+// Code of guide 03 (docs/en/guides/03-components.md).
 
 // <<imports
 import { Component } from "../Engine/Core/Component";

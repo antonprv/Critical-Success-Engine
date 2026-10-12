@@ -1,7 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-// The scripts of the "Coin Hunt" sample game - the finished result of guide 07 (docs/guides/07-coin-hunt.md).
+// The scripts of the "Coin Hunt" sample game - the finished result of guide 07 (docs/en/guides/07-coin-hunt.md).
 
 import { CoinHuntRules } from "../Data/CoinHuntRules";
 import { Component } from "@cse/core/Engine/Core/Component";

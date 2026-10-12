@@ -1,7 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-// Code of guide 05 (docs/guides/05-player-and-camera.md).
+// Code of guide 05 (docs/en/guides/05-player-and-camera.md).
 
 // <<imports
 import { Comp, Ent, type EntityManifest } from "../Engine/Core/EntityManifest";

@@ -1,7 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-// The code printed in docs/guides is real code under Source/Examples - these tests make sure it also runs.
+// The code printed in docs/en/guides is real code under Source/Examples - these tests make sure it also runs.
 
 import { describe, expect, it } from "vitest";
 
