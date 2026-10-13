@@ -1,76 +1,76 @@
 {
-  // Visit https://aka.ms/tsconfig to read more about this file
-  "compilerOptions": {
-    // Projects (and the templates) import the engine by its package name; here that is these sources.
-    "paths": {
-      "@cse/core/events": ["./Source/Engine/Core/EventHub.ts"],
-      "@cse/core/modules": ["./Source/Engine/Modules/ModuleManager.ts"],
-      "@cse/core/projects": ["./Source/Engine/Projects/ProjectDescriptor.ts"],
-      "@cse/core/Engine/*": ["./Source/Engine/*"],
-      "@cse/ui/game": ["../Modules/Engine/UI/Source/Runtime/GameUiModule.ts"]
-    },
-    // Files the Vite config loads (BuildTools -> Source) import with explicit .ts extensions, as Vite's config loader needs.
-    "allowImportingTsExtensions": true,
-    // File Layout
+	// Visit https://aka.ms/tsconfig to read more about this file
+	"compilerOptions": {
+		// Projects (and the templates) import the engine by its package name; here that is these sources.
+		"paths": {
+			"@cse/core/events": ["./Source/Engine/Core/EventHub.ts"],
+			"@cse/core/modules": ["./Source/Engine/Modules/ModuleManager.ts"],
+			"@cse/core/projects": ["./Source/Engine/Projects/ProjectDescriptor.ts"],
+			"@cse/core/Engine/*": ["./Source/Engine/*"],
+			"@cse/ui/game": ["../Modules/Engine/UI/Source/Runtime/GameUiModule.ts"]
+		},
+		// Files the Vite config loads (BuildTools -> Source) import with explicit .ts extensions, as Vite's config loader needs.
+		"allowImportingTsExtensions": true,
+		// File Layout
 
-    "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "noResolve": false,
-    "noEmit": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "noUnusedLocals": false,
-    "noEmitOnError": true,
-    "allowUnreachableCode": false,
-    "noImplicitReturns": true,
-    "noImplicitThis": true,
-    "noImplicitOverride": true,
-    "preserveConstEnums": true,
+		"target": "ES2022",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"noResolve": false,
+		"noEmit": true,
+		"noImplicitAny": true,
+		"strictNullChecks": true,
+		"noUnusedLocals": false,
+		"noEmitOnError": true,
+		"allowUnreachableCode": false,
+		"noImplicitReturns": true,
+		"noImplicitThis": true,
+		"noImplicitOverride": true,
+		"preserveConstEnums": true,
 
-    "useUnknownInCatchVariables": true,
-    "noFallthroughCasesInSwitch": false,
-    "forceConsistentCasingInFileNames": true,
+		"useUnknownInCatchVariables": true,
+		"noFallthroughCasesInSwitch": false,
+		"forceConsistentCasingInFileNames": true,
 
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "ES2022"
-    ],
+		"lib": [
+			"dom",
+			"dom.iterable",
+			"ES2022"
+		],
 
-    // JS/TS interop
-    "allowJs": true,
-    "checkJs": false,
+		// JS/TS interop
+		"allowJs": true,
+		"checkJs": false,
 
-    // Environment Settings
-    // See also https://aka.ms/tsconfig/module
-    "types": ["vite/client"],
+		// Environment Settings
+		// See also https://aka.ms/tsconfig/module
+		"types": ["vite/client"],
 
-    // Other Outputs
+		// Other Outputs
 
-    // Stricter Typechecking Options
-    "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true,
+		// Stricter Typechecking Options
+		"noUncheckedIndexedAccess": true,
+		"exactOptionalPropertyTypes": true,
 
-    // Recommended Options
-    "strict": true,
-    "verbatimModuleSyntax": true,
-    "isolatedModules": true,
-    "noUncheckedSideEffectImports": true,
-    "moduleDetection": "force",
-    "skipLibCheck": true
-  },
+		// Recommended Options
+		"strict": true,
+		"verbatimModuleSyntax": true,
+		"isolatedModules": true,
+		"noUncheckedSideEffectImports": true,
+		"moduleDetection": "force",
+		"skipLibCheck": true
+	},
 
-  "include": [
-    "./Source/**/*.ts",
-    "./Source/**/*.tsx",
-    "./Source/**/*.vue",
-    "./Source/**/*.js",
-    "../../Templates/*/Source/**/*.ts"
-  ],
+	"include": [
+		"./Source/**/*.ts",
+		"./Source/**/*.tsx",
+		"./Source/**/*.vue",
+		"./Source/**/*.js",
+		"../../Templates/*/Source/**/*.ts"
+	],
 
-  "exclude": [
-    "node_modules"
-  ]
+	"exclude": [
+		"node_modules"
+	]
 
 }

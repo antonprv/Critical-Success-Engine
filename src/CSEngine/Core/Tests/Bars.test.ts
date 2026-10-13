@@ -9,19 +9,25 @@ import { UiController } from "../Source/Workers/Ui/UiController";
 import { Harness } from "./Harness";
 import { UiMsg, RenderMsg } from "../Source/Workers/Common/CommonEnums";
 
-describe("HUD bars (guide 06)", () => {
-	it("script -> UiService -> message -> UiController state", async () => {
-		const harness = new Harness(new SceneRegistry().Register({
-			id: "t", name: "T", description: "", entities: [Ent("Hero", [Comp(Health, { Current: 40 })])],
-		}));
+describe( "HUD bars (guide 06)", () => {
+	it( "script -> UiService -> message -> UiController state", async () => {
+		const harness = new Harness( new SceneRegistry().Register( {
+			id: "t", name: "T", description: "",
+			entities: [Ent( "Hero", [Comp( Health, { Current: 40 } )] )],
+		} ) );
 		await harness.BootToScene();
-		harness.render.Receive({ type: RenderMsg.FrameRequest, frameId: 1 });
+		harness.render.Receive( { type: RenderMsg.FrameRequest, frameId: 1 } );
 
-		const bars = harness.UiMessages(UiMsg.Bars) as unknown as { bars: { id: string; label: string; value: number; }[]; }[];
-		expect(bars.at(-1)?.bars).toEqual([{ id: "hp", label: "HP 40/100", value: 0.4 }]);
+		const bars = harness.UiMessages( UiMsg.Bars ) as unknown as {
+			bars: { id: string; label: string; value: number; }[];
+		}[];
+		expect( bars.at( -1 )?.bars )
+			.toEqual( [{ id: "hp", label: "HP 40/100", value: 0.4 }] );
 
-		const ui = new UiController(() => undefined, () => undefined);
-		ui.OnGameLogicMessage({ type: UiMsg.Bars, bars: bars.at(-1)!.bars });
-		expect(ui.State.hud.bars).toHaveLength(1);
-	});
-});
+		const ui = new UiController( () => undefined, () => undefined );
+		ui.OnGameLogicMessage(
+			{ type: UiMsg.Bars, bars: bars.at( -1 )!.bars },
+		);
+		expect( ui.State.hud.bars ).toHaveLength( 1 );
+	} );
+} );

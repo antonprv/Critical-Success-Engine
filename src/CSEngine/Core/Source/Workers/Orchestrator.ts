@@ -7,16 +7,31 @@ import { DomInputBridge } from "./OrchestratorUtils/DomInputBridge";
 import { GameWorkers } from "./OrchestratorUtils/GameWorkers";
 import { UiBridge } from "./OrchestratorUtils/UiBridge";
 
-/** Composition root of the five workers. Holds no game state: gameplay belongs in GameLogicWorker. */
+/**
+ * Composition root of the five workers. Holds no game state: gameplay belongs
+ * in GameLogicWorker.
+ */
 export class Orchestrator {
 	private readonly _workers: GameWorkers;
+
 	private readonly _inputBridge: DomInputBridge;
+
 	private readonly _uiBridge: UiBridge;
 
-	public constructor(canvas: HTMLCanvasElement, devMode: boolean, uiStore: UiStore, channels?: ChannelHub) {
-		this._workers = new GameWorkers(canvas, devMode);
-		this._inputBridge = new DomInputBridge(this._workers, canvas);
-		this._uiBridge = new UiBridge(this._workers, canvas, uiStore, channels);
+	public constructor(
+		canvas: HTMLCanvasElement,
+		devMode: boolean,
+		uiStore: UiStore,
+		channels?: ChannelHub,
+	) {
+		this._workers = new GameWorkers( canvas, devMode );
+		this._inputBridge = new DomInputBridge( this._workers, canvas );
+		this._uiBridge = new UiBridge(
+			this._workers,
+			canvas,
+			uiStore,
+			channels,
+		);
 	}
 
 	/** Call once on page teardown (SPA navigation away, hot-reload, etc). */

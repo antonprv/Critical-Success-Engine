@@ -1,7 +1,9 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-import type { PhysicsWorldSettingsDescriptor } from "./PhysicsGameLogicProtocol";
+import type {
+	PhysicsWorldSettingsDescriptor,
+} from "./PhysicsGameLogicProtocol";
 import type { PhysicsMsg } from "../Common/CommonEnums";
 
 export type MainToPhysicsMessage =

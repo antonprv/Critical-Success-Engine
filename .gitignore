@@ -52,6 +52,8 @@ desktop.ini
 .vscode/*
 !.vscode/launch.json
 !.vscode/tasks.json
+!.vscode/settings.json
+!.vscode/extensions.json
 
 # === Logs / configuration ===
 *.log

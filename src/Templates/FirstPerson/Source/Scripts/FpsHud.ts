@@ -9,28 +9,34 @@ import { GetGameUi, type GameUi } from "@cse/ui/game";
 const HudId = "FirstPersonHud";
 
 /**
- * The first-person HUD: a UI document (Content/UI/FirstPersonHud.ui.json) with the crosshair and the shot counter. It
- * shows with the scene, updates the counter when the player's Shooter fires, and goes when the scene does.
+ * The first-person HUD: a UI document (Content/UI/FirstPersonHud.ui.json) with
+ * the crosshair and the shot counter. It shows with the scene, updates the
+ * counter when the player's Shooter fires, and goes when the scene does.
  */
 export class FpsHud extends Component {
 	/** The entity whose Shooter is counted. */
 	public ShooterName = "Player";
 
 	private _ui: GameUi | null = null;
+
 	private _shots = -1;
 
 	public override OnUIUpdate(): void {
-		if (!this._ui) {
+		if ( !this._ui ) {
 			this._ui = GetGameUi();
-			this._ui.Show(HudId);
+			this._ui.Show( HudId );
 		}
-		const shots = this.Engine.World.FindByName(this.ShooterName)?.GetComponent(Shooter)?.ShotsFired ?? 0;
-		if (shots === this._shots) return;
+		const shots = this.Engine.World.FindByName( this.ShooterName )
+			?.GetComponent( Shooter )?.ShotsFired ?? 0;
+
+		if ( shots === this._shots ) {
+			return;
+		}
 		this._shots = shots;
-		this._ui.SetText(HudId, "Shots", `Shots: ${shots}`);
+		this._ui.SetText( HudId, "Shots", `Shots: ${ shots }` );
 	}
 
 	public override OnDestroy(): void {
-		this._ui?.Hide(HudId);
+		this._ui?.Hide( HudId );
 	}
 }

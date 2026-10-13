@@ -1,12 +1,16 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-/** Flat number array as the .NET JS marshaller hands it back (a plain `number[]`; typed arrays are accepted too). */
+/**
+ * Flat number array as the .NET JS marshaller hands it back (a plain
+ * `number[]`; typed arrays are accepted too).
+ */
 export type FlatNumbers = ArrayLike<number>;
 
 /**
- * The JS surface of PhysicsBridge.cs's [JSExport] methods, written by hand because the wasm build is not part of the
- * TypeScript build. Ids are minted by the bridge; `ownerId` is echoed back in events and sweeps (the entity id).
+ * The JS surface of PhysicsBridge.cs's [JSExport] methods, written by hand
+ * because the wasm build is not part of the TypeScript build. Ids are minted by
+ * the bridge; `ownerId` is echoed back in events and sweeps (the entity id).
  */
 export interface PhysicsBridgeExports {
 	//#region World
@@ -25,21 +29,35 @@ export interface PhysicsBridgeExports {
 
 	//#region Shapes
 
-	AddBoxShape(sizeX: number, sizeY: number, sizeZ: number): number;
-	AddSphereShape(radius: number): number;
-	/** `cylinderLength` is the straight segment only, not the total capped length. */
-	AddCapsuleShape(radius: number, cylinderLength: number): number;
-	AddCylinderShape(radius: number, height: number): number;
+	AddBoxShape( sizeX: number, sizeY: number, sizeZ: number ): number;
+	AddSphereShape( radius: number ): number;
+	/**
+	 * `cylinderLength` is the straight segment only, not the total capped
+	 * length.
+	 */
+	AddCapsuleShape( radius: number, cylinderLength: number ): number;
+	AddCylinderShape( radius: number, height: number ): number;
 	/** Returns [shapeId, centroidOffsetX, centroidOffsetY, centroidOffsetZ]. */
-	AddConvexHullShape(points: number[], mass: number): FlatNumbers;
-	/** Static-only. `triangleVertices` is a flat triangle soup (length % 9 == 0). */
-	AddTriangleMeshShape(triangleVertices: number[], scaleX: number, scaleY: number, scaleZ: number): number;
+	AddConvexHullShape( points: number[], mass: number ): FlatNumbers;
+	/**
+	 * Static-only. `triangleVertices` is a flat triangle soup (length % 9 ==
+	 * 0).
+	 */
+	AddTriangleMeshShape(
+		triangleVertices: number[],
+		scaleX: number,
+		scaleY: number,
+		scaleZ: number
+	): number;
 
 	//#endregion
 
 	//#region Bodies
 
-	/** `kind` is PhysicsObjectKind: 0 Solid, 1 Character, 2 Trigger, 3 Projectile. */
+	/**
+	 * `kind` is PhysicsObjectKind: 0 Solid, 1 Character, 2 Trigger, 3
+	 * Projectile.
+	 */
 	AddDynamicBody(
 		shapeId: number,
 		posX: number, posY: number, posZ: number,
@@ -64,25 +82,25 @@ export interface PhysicsBridgeExports {
 		kind: number
 	): number;
 
-	RemoveBody(bodyId: number): void;
-	RemoveStatic(staticId: number): void;
-	BodyExists(bodyId: number): boolean;
+	RemoveBody( bodyId: number ): void;
+	RemoveStatic( staticId: number ): void;
+	BodyExists( bodyId: number ): boolean;
 
 	/** Returns [posX, posY, posZ, quatX, quatY, quatZ, quatW]. */
-	GetBodyPose(bodyId: number): FlatNumbers;
+	GetBodyPose( bodyId: number ): FlatNumbers;
 	SetBodyPose(
 		bodyId: number,
 		posX: number, posY: number, posZ: number,
 		quatX: number, quatY: number, quatZ: number, quatW: number
 	): void;
 
-	SetAwakeState(bodyId: number, awake: boolean): void;
-	GetAwakeState(bodyId: number): boolean;
+	SetAwakeState( bodyId: number, awake: boolean ): void;
+	GetAwakeState( bodyId: number ): boolean;
 
-	GetLinearVelocity(bodyId: number): FlatNumbers;
-	SetLinearVelocity(bodyId: number, x: number, y: number, z: number): void;
-	GetAngularVelocity(bodyId: number): FlatNumbers;
-	SetAngularVelocity(bodyId: number, x: number, y: number, z: number): void;
+	GetLinearVelocity( bodyId: number ): FlatNumbers;
+	SetLinearVelocity( bodyId: number, x: number, y: number, z: number ): void;
+	GetAngularVelocity( bodyId: number ): FlatNumbers;
+	SetAngularVelocity( bodyId: number, x: number, y: number, z: number ): void;
 
 	ApplyImpulse(
 		bodyId: number,
@@ -95,8 +113,8 @@ export interface PhysicsBridgeExports {
 	//#region Character movement & sweeps
 
 	/**
-	 * Returns [posX, posY, posZ, isOnFloor(0/1), floorNormalX, floorNormalY, floorNormalZ, groundOwnerId,
-	 * velX, velY, velZ].
+	 * Returns [posX, posY, posZ, isOnFloor(0/1), floorNormalX, floorNormalY,
+	 * floorNormalZ, groundOwnerId, velX, velY, velZ].
 	 */
 	MoveCharacter(
 		selfBodyId: number,
@@ -111,7 +129,10 @@ export interface PhysicsBridgeExports {
 		floorProbeDistance: number
 	): FlatNumbers;
 
-	/** Returns [hit(0/1), posX, posY, posZ, pointX, pointY, pointZ, normalX, normalY, normalZ, hitOwnerId]. */
+	/**
+	 * Returns [hit(0/1), posX, posY, posZ, pointX, pointY, pointZ, normalX,
+	 * normalY, normalZ, hitOwnerId].
+	 */
 	SweepProjectile(
 		selfBodyId: number,
 		posX: number, posY: number, posZ: number,
@@ -122,8 +143,8 @@ export interface PhysicsBridgeExports {
 	): FlatNumbers;
 
 	/**
-	 * `excludeBodyId` 0 = exclude nothing. Returns [hit(0/1), posX, posY, posZ, pointX, pointY, pointZ,
-	 * normalX, normalY, normalZ, distance, hitOwnerId].
+	 * `excludeBodyId` 0 = exclude nothing. Returns [hit(0/1), posX, posY, posZ,
+	 * pointX, pointY, pointZ, normalX, normalY, normalZ, distance, hitOwnerId].
 	 */
 	SweepSphereCast(
 		originX: number, originY: number, originZ: number,
@@ -138,19 +159,27 @@ export interface PhysicsBridgeExports {
 
 	//#region Stepping
 
-	/** Flat, BODY_STRIDE (14) doubles per body: [bodyId, pos(3), quat(4), linearVelocity(3), angularVelocity(3)]. */
-	Step(dt: number): FlatNumbers;
+	/**
+	 * Flat, BODY_STRIDE (14) doubles per body: [bodyId, pos(3), quat(4),
+	 * linearVelocity(3), angularVelocity(3)].
+	 */
+	Step( dt: number ): FlatNumbers;
 
-	/** Flat [ownerA, ownerB, entered(0/1)] triples from the most recent Step. */
+	/**
+	 * Flat [ownerA, ownerB, entered(0/1)] triples from the most recent Step.
+	 */
 	GetLastOverlapEvents(): FlatNumbers;
 
 	//#endregion
 }
 
-/** Minimal slice of the generated `dotnet.js` boot API (net10.0 wasm-tools) that we actually use. */
+/**
+ * Minimal slice of the generated `dotnet.js` boot API (net10.0 wasm-tools) that
+ * we actually use.
+ */
 export interface DotnetRuntimeApi {
 	getConfig(): { mainAssemblyName: string; };
-	getAssemblyExports(assemblyName: string): Promise<{
+	getAssemblyExports( assemblyName: string ): Promise<{
 		Physics: { Wasm: { PhysicsBridge: PhysicsBridgeExports; }; };
 	}>;
 }

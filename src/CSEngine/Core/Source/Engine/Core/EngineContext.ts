@@ -21,13 +21,17 @@ export interface TimeInfo {
 	Elapsed: number;
 	FrameCount: number;
 	PhysicsStepCount: number;
-	/** Fraction (0..1) of the current physics step that has elapsed - how far render poses are interpolated. */
+	/**
+	 * Fraction (0..1) of the current physics step that has elapsed - how far
+	 * render poses are interpolated.
+	 */
 	RenderAlpha: number;
 }
 
 /**
- * Everything a script can reach through `this.Engine`. One instance per GameLogic worker; built by GameLogicRuntime.
- * This is deliberately a flat bag of services (no globals, no singletons) so tests can assemble their own.
+ * Everything a script can reach through `this.Engine`. One instance per
+ * GameLogic worker; built by GameLogicRuntime. This is deliberately a flat bag
+ * of services (no globals, no singletons) so tests can assemble their own.
  */
 export interface EngineContext {
 	readonly World: EntityWorld;
@@ -35,11 +39,20 @@ export interface EngineContext {
 	readonly Render: RenderService;
 	readonly Input: InputService;
 	readonly Ui: UiService;
-	/** Game settings: the engine's general ones and the current game's own (the player changes them in the menu). */
+	/**
+	 * Game settings: the engine's general ones and the current game's own (the
+	 * player changes them in the menu).
+	 */
 	readonly Settings: SettingsService;
-	/** Where the project keeps what the player chose (as Unity's PlayerPrefs): JSON by key, kept between sessions. */
+	/**
+	 * Where the project keeps what the player chose (as Unity's PlayerPrefs):
+	 * JSON by key, kept between sessions.
+	 */
 	readonly Storage: SettingsStorage;
-	/** The project's data assets (.csedata), loaded at start: typed parameters editable without a rebuild. */
+	/**
+	 * The project's data assets (.csedata), loaded at start: typed parameters
+	 * editable without a rebuild.
+	 */
 	readonly Data: DataAssets;
 	readonly Audio: AudioService;
 	readonly Scenes: SceneManager;

@@ -3,13 +3,23 @@
 
 import { Logger } from "../Logging/Logger";
 import { AudioBank } from "./Audio/AudioBank";
-import { AudioMsg, SoundAction, SoundType as SoundKind } from "./Common/CommonEnums";
-import type { AudioToMainMessage, MainToAudioMessage } from "./Protocol/AudioProtocol";
-import type { GameLogicToAudioMessage } from "./Protocol/GameLogicAudioProtocol";
+import {
+	AudioMsg,
+	SoundAction,
+	SoundType as SoundKind,
+} from "./Common/CommonEnums";
+import type {
+	AudioToMainMessage,
+	MainToAudioMessage,
+} from "./Protocol/AudioProtocol";
+import type {
+	GameLogicToAudioMessage,
+} from "./Protocol/GameLogicAudioProtocol";
 import { WorkerScope } from "./Common/WorkerScope";
 
-// No lazy construction needed - unlike a real-time AudioContext, AudioBank never
-// touches audio output, so there's nothing here that depends on a user gesture.
+// No lazy construction needed - unlike a real-time AudioContext, AudioBank
+// never touches audio output, so there's nothing here that depends on a user
+// gesture.
 const bank = new AudioBank();
 
 const mainThread = WorkerScope();
@@ -17,22 +27,40 @@ const mainThread = WorkerScope();
 // Own static buffer per realm - App.ts's timer doesn't flush this one.
 Logger.SetupAutoFlush();
 
-self.onmessage = (event: MessageEvent<MainToAudioMessage>) => {
+self.onmessage = ( event: MessageEvent<MainToAudioMessage> ) => {
 	const message = event.data;
-	switch (message.type) {
+
+	switch ( message.type ) {
 		case AudioMsg.Init:
-			message.gameLogicPort.onmessage = (e: MessageEvent<GameLogicToAudioMessage>) => {
-				if (e.data.action === SoundAction.PlaySound) void PlaySound(e.data.soundId, e.data.position);
+			message.gameLogicPort.onmessage = (
+				e: MessageEvent<GameLogicToAudioMessage>,
+			) => {
+				if ( e.data.action === SoundAction.PlaySound ) {
+					void PlaySound( e.data.soundId, e.data.position );
+				}
 			};
 			break;
 	}
 };
 
-async function PlaySound(soundId: string, position?: [number, number, number]): Promise<void> {
-	const sound = await bank.Resolve(soundId);
-	if (!sound) return;
+async function PlaySound(
+	soundId: string,
+	position?: [number, number, number],
+): Promise<void> {
+	const sound = await bank.Resolve( soundId );
 
-	const message: AudioToMainMessage = { action: SoundAction.PlaySound, soundId, position, sound };
-	const transfer = sound.kind === SoundKind.Pcm ? sound.channels.map((c) => c.buffer) : [sound.data];
-	mainThread.postMessage(message, transfer);
+	if ( !sound ) {
+		return;
+	}
+
+	const message: AudioToMainMessage = {
+		action: SoundAction.PlaySound,
+		soundId,
+		position,
+		sound,
+	};
+	const transfer = sound.kind === SoundKind.Pcm
+		? sound.channels.map( ( c ) => c.buffer )
+		: [sound.data];
+	mainThread.postMessage( message, transfer );
 }

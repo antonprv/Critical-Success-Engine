@@ -27,9 +27,13 @@ leave the flag out (this needs the .NET SDK) or run `build-physics` separately. 
 
 ## build-all - the full build
 
-Builds step by step: dependencies, physics (wasm), Project Browser, UI Designer, Desktop (Electron). Before starting it checks for Node.js 22.12+ and pnpm.
+Builds step by step: dependencies, physics (wasm), Project Browser, UI Designer, Desktop (Electron), the tools. Before starting it checks for Node.js 22.12+ and pnpm.
 If `dotnet` isn't found or the physics fails to build, it prints a warning and carries on without it (the game then runs without a simulation).
 The physics publish log is `devops/publish.log`.
+
+The tools step goes through every folder of `src/CSEngine/Tools` that has a `package.json`: the VSCodium extension (`CSEngineSupport`) is built and packed
+into a `.vsix`, both in `src/CSEngine/Binaries/Tools/CSEngineSupport`. Packing fetches `@vscode/vsce`, so it needs the network; if that fails the build
+prints a warning and the unpacked extension is still there.
 
 | Bash | PowerShell | What it does |
 |---|---|---|

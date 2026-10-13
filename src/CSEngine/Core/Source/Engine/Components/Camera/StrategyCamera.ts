@@ -1,7 +1,9 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-import type { CameraPose } from "../../../Workers/Protocol/RenderGameLogicProtocol";
+import type {
+	CameraPose,
+} from "../../../Workers/Protocol/RenderGameLogicProtocol";
 import { Clamp, DegToRad } from "../../Math/MathUtils";
 import { Quat } from "../../Math/Quat";
 import { Vec3 } from "../../Math/Vec3";
@@ -9,123 +11,249 @@ import type { InputService } from "../../Services/InputService";
 import { CameraComponent } from "./CameraComponent";
 
 /**
- * A top-down view as in Baldur's Gate 3, Divinity: Original Sin 2 or Solasta (use it in a scene with cursor: "free"):
- * it looks down at a point on the ground (Focus) that follows the player; dragging with the middle button moves that
- * point, the wheel zooms (nearer looks flatter, farther steeper), and with EdgeScroll on, the cursor at the edge of the
- * view scrolls it. Q/E (RotateLeft/RotateRight, the shoulder buttons) turn the view around the focus. Recenter (Home) - or walking - brings it back to the player. A gamepad's right stick moves the view,
- * its d-pad zooms. The mover walks relative to it, like any camera.
+ * A top-down view as in Baldur's Gate 3, Divinity: Original Sin 2 or Solasta
+ * (use it in a scene with cursor: "free"): it looks down at a point on the
+ * ground (Focus) that follows the player; dragging with the middle button moves
+ * that point, the wheel zooms (nearer looks flatter, farther steeper), and with
+ * EdgeScroll on, the cursor at the edge of the view scrolls it. Q/E
+ * (RotateLeft/RotateRight, the shoulder buttons) turn the view around the
+ * focus. Recenter (Home) - or walking - brings it back to the player. A
+ * gamepad's right stick moves the view, its d-pad zooms. The mover walks
+ * relative to it, like any camera.
  */
 export class StrategyCamera extends CameraComponent {
-	/** Distance from the focus along the view; the wheel changes it between ZoomMin and ZoomMax. */
+	/**
+	 * Distance from the focus along the view; the wheel changes it between
+	 * ZoomMin and ZoomMax.
+	 */
 	public Zoom = 16;
+
 	public ZoomMin = 6;
+
 	public ZoomMax = 30;
-	/** How much one wheel notch (100 units) changes the zoom, as a share of it. */
+
+	/**
+	 * How much one wheel notch (100 units) changes the zoom, as a share of it.
+	 */
 	public ZoomStep = 0.12;
-	/** Pitch at the nearest and at the farthest zoom (degrees, negative: looking down). */
+
+	/**
+	 * Pitch at the nearest and at the farthest zoom (degrees, negative: looking
+	 * down).
+	 */
 	public PitchNear = -35;
+
 	public PitchFar = -68;
-	/** How far a pixel of drag (the PanView action: the middle button) moves the view, per unit of zoom. */
+
+	/**
+	 * How far a pixel of drag (the PanView action: the middle button) moves the
+	 * view, per unit of zoom.
+	 */
 	public PanPerPixel = 0.0025;
-	/** How fast a gamepad's right stick moves the view and the d-pad zooms (per second, per unit of zoom / share). */
+
+	/**
+	 * How fast a gamepad's right stick moves the view and the d-pad zooms (per
+	 * second, per unit of zoom / share).
+	 */
 	public PadPanSpeed = 1.2;
+
 	public PadZoomSpeed = 1.5;
-	/** Scrolling when the cursor is at the edge of the view: the player's setting (EdgeScrollSetting) decides. */
+
+	/**
+	 * Scrolling when the cursor is at the edge of the view: the player's
+	 * setting (EdgeScrollSetting) decides.
+	 */
 	public EdgeScroll = false;
+
 	/** The setting this camera declares for it. */
 	public EdgeScrollSetting = "EdgeScroll";
-	/** How near the edge counts (a share of the view), and how fast it scrolls (per second, per unit of zoom). */
+
+	/**
+	 * How near the edge counts (a share of the view), and how fast it scrolls
+	 * (per second, per unit of zoom).
+	 */
 	public EdgeSize = 0.02;
+
 	public EdgeSpeed = 1.2;
+
 	/** How fast RotateLeft/RotateRight turn the view (degrees per second). */
 	public RotateSpeed = 90;
 
 	/** The point on the ground the camera looks at. */
 	public readonly Focus = new Vec3();
-	/** Whether the focus follows the player (until the player moves the view). */
+
+	/**
+	 * Whether the focus follows the player (until the player moves the view).
+	 */
 	public Following = true;
 
 	public override Awake(): void {
 		super.Awake();
 		this.LookEnabled = false; // the mouse doesn't turn this view
-		this.Engine.Settings.Declare({ Key: this.EdgeScrollSetting, Label: "Scroll at the screen edges", Category: "Camera", Kind: "Toggle", Default: this.EdgeScroll });
-		this.Focus.CopyFrom(this.Transform.Position);
+		this.Engine.Settings.Declare(
+			{
+				Key: this.EdgeScrollSetting,
+				Label: "Scroll at the screen edges",
+				Category: "Camera",
+				Kind: "Toggle",
+				Default: this.EdgeScroll,
+			},
+		);
+		this.Focus.CopyFrom( this.Transform.Position );
 		this.UpdatePitch();
 	}
 
-	public override OnInputUpdate(input: InputService, dt: number): void {
+	public override OnInputUpdate( input: InputService, dt: number ): void {
 		const [dx, dy] = input.ConsumeLookDelta();
 		const wheel = input.ConsumeWheel();
-		const padZoom = input.ActionValue("ZoomOut") - input.ActionValue("ZoomIn");
-		if (wheel !== 0 || padZoom !== 0) {
-			this.Zoom = Clamp(this.Zoom * (1 + this.ZoomStep * wheel / 100) * (1 + padZoom * this.PadZoomSpeed * dt), this.ZoomMin, this.ZoomMax);
+		const padZoom = input.ActionValue( "ZoomOut" ) - input.ActionValue(
+			"ZoomIn",
+		);
+
+		if ( wheel !== 0 || padZoom !== 0 ) {
+			this.Zoom = Clamp(
+				this.Zoom * ( 1 + this.ZoomStep * wheel / 100 ) * ( 1 + padZoom
+					* this.PadZoomSpeed
+					* dt ),
+				this.ZoomMin,
+				this.ZoomMax,
+			);
 			this.UpdatePitch();
 		}
 
-		// Yaw grows counter-clockwise (as when the mouse turns a first-person view to the left): "right" lowers it. Turning keeps following the player.
-		const turn = input.ActionValue("RotateLeft") - input.ActionValue("RotateRight");
-		if (turn !== 0) this.Yaw += turn * this.RotateSpeed * dt;
+		// Yaw grows counter-clockwise (as when the mouse turns a first-person
+		// view to the left): "right" lowers it. Turning keeps following the
+		// player.
+		const turn = input.ActionValue( "RotateLeft" ) - input.ActionValue(
+			"RotateRight",
+		);
 
-		const [right, forward] = this.GroundAxes();
-		const stickX = input.ActionValue("LookRight") - input.ActionValue("LookLeft");
-		const stickY = input.ActionValue("LookUp") - input.ActionValue("LookDown");
-		if (stickX !== 0 || stickY !== 0) this.MoveFocus(right.Mul(stickX).Add(forward.Mul(stickY)).Mul(this.PadPanSpeed * this.Zoom * dt));
-		if (input.IsActionDown("PanView") && (dx !== 0 || dy !== 0)) {
-			// The world follows the hand: dragging right moves the view left, dragging down moves it forward.
-			const step = this.PanPerPixel * this.Zoom;
-			this.MoveFocus(right.Mul(-dx * step).Add(forward.Mul(dy * step)));
+		if ( turn !== 0 ) {
+			this.Yaw += turn * this.RotateSpeed * dt;
 		}
 
-		this.EdgeScroll = this.Engine.Settings.Toggle(this.EdgeScrollSetting);
+		const [right, forward] = this.GroundAxes();
+		const stickX = input.ActionValue( "LookRight" ) - input.ActionValue(
+			"LookLeft",
+		);
+		const stickY = input.ActionValue( "LookUp" ) - input.ActionValue(
+			"LookDown",
+		);
+
+		if ( stickX !== 0 || stickY !== 0 ) {
+			this.MoveFocus( right.Mul( stickX ).Add( forward.Mul( stickY ) )
+				.Mul( this.PadPanSpeed * this.Zoom * dt ) );
+		}
+		if ( input.IsActionDown( "PanView" ) && ( dx !== 0 || dy !== 0 ) ) {
+			// The world follows the hand: dragging right moves the view left,
+			// dragging down moves it forward.
+			const step = this.PanPerPixel * this.Zoom;
+			this.MoveFocus(
+				right.Mul( -dx * step ).Add( forward.Mul( dy * step ) ),
+			);
+		}
+
+		this.EdgeScroll = this.Engine.Settings.Toggle( this.EdgeScrollSetting );
 		const cursor = input.Cursor;
-		if (this.EdgeScroll && cursor) {
+
+		if ( this.EdgeScroll && cursor ) {
 			const [x, y] = cursor;
-			const across = x < this.EdgeSize ? -1 : x > 1 - this.EdgeSize ? 1 : 0;
-			const along = y < this.EdgeSize ? 1 : y > 1 - this.EdgeSize ? -1 : 0;
-			if (across !== 0 || along !== 0) this.MoveFocus(right.Mul(across).Add(forward.Mul(along)).Mul(this.EdgeSpeed * this.Zoom * dt));
+			const across = x < this.EdgeSize
+				? -1
+				: x > 1 - this.EdgeSize
+					? 1
+					: 0;
+			const along = y < this.EdgeSize
+				? 1
+				: y > 1 - this.EdgeSize
+					? -1
+					: 0;
+
+			if ( across !== 0 || along !== 0 ) {
+				this.MoveFocus( right.Mul( across ).Add( forward.Mul( along ) )
+					.Mul( this.EdgeSpeed * this.Zoom * dt ) );
+			}
 		}
 
 		const [ix, iy] = input.GetInputVector();
-		if (input.ActionJustPressed("Recenter") || ix !== 0 || iy !== 0) this.Following = true;
+
+		if ( input.ActionJustPressed( "Recenter" ) || ix !== 0 || iy !== 0 ) {
+			this.Following = true;
+		}
 	}
 
-	public override Update(_dt: number): void {
-		if (this.Following) this.FollowTarget(1);
+	public override Update( _dt: number ): void {
+		if ( this.Following ) {
+			this.FollowTarget( 1 );
+		}
 	}
 
-	/** Puts the focus on the player as drawn at `alpha` between two physics ticks (the raw position lags the interpolated mesh and makes it jitter). */
-	private FollowTarget(alpha: number): void {
-		const target = this.Engine.World.FindByName(this.TargetName);
-		if (!target) return;
-		target.Transform.WriteInterpolated(alpha, this._followScratch, 0);
-		this.Focus.Set(this._followScratch[0]!, this._followScratch[1]!, this._followScratch[2]!);
+	/**
+	 * Puts the focus on the player as drawn at `alpha` between two physics
+	 * ticks (the raw position lags the interpolated mesh and makes it jitter).
+	 */
+	private FollowTarget( alpha: number ): void {
+		const target = this.Engine.World.FindByName( this.TargetName );
+
+		if ( !target ) {
+			return;
+		}
+		target.Transform.WriteInterpolated( alpha, this._followScratch, 0 );
+		this.Focus.Set(
+			this._followScratch[0]!,
+			this._followScratch[1]!,
+			this._followScratch[2]!,
+		);
 	}
 
-	private readonly _followScratch = new Float64Array(7);
+	private readonly _followScratch = new Float64Array( 7 );
 
-	public override GetPose(alpha: number): CameraPose {
-		if (this.Following) this.FollowTarget(alpha);
-		const rotation = Quat.FromYawPitch(this.Yaw * DegToRad, this.Pitch * DegToRad);
-		const pivot = this.Focus.Add(new Vec3(0, this.EyeHeight, 0));
-		const position = pivot.Add(rotation.Rotate(new Vec3(0, 0, this.Zoom)));
-		this.Transform.Position.CopyFrom(position);
-		this.Transform.Rotation.CopyFrom(rotation);
-		return { transform: [position.X, position.Y, position.Z, rotation.X, rotation.Y, rotation.Z, rotation.W], fov: this.FovDegrees * DegToRad };
+	public override GetPose( alpha: number ): CameraPose {
+		if ( this.Following ) {
+			this.FollowTarget( alpha );
+		}
+		const rotation = Quat.FromYawPitch(
+			this.Yaw * DegToRad,
+			this.Pitch * DegToRad,
+		);
+		const pivot = this.Focus.Add( new Vec3( 0, this.EyeHeight, 0 ) );
+		const position = pivot.Add(
+			rotation.Rotate( new Vec3( 0, 0, this.Zoom ) ),
+		);
+		this.Transform.Position.CopyFrom( position );
+		this.Transform.Rotation.CopyFrom( rotation );
+		return {
+			transform: [
+				position.X,
+				position.Y,
+				position.Z,
+				rotation.X,
+				rotation.Y,
+				rotation.Z,
+				rotation.W,
+			],
+			fov: this.FovDegrees * DegToRad,
+		};
 	}
 
 	private UpdatePitch(): void {
-		const t = (this.Zoom - this.ZoomMin) / (this.ZoomMax - this.ZoomMin);
-		this.Pitch = this.PitchNear + (this.PitchFar - this.PitchNear) * t;
+		const t = ( this.Zoom - this.ZoomMin ) / ( this.ZoomMax
+			- this.ZoomMin );
+		this.Pitch = this.PitchNear + ( this.PitchFar - this.PitchNear ) * t;
 	}
 
 	/** The view's right and forward along the ground (yaw only). */
 	private GroundAxes(): [Vec3, Vec3] {
-		const yaw = Quat.FromYawPitch(this.Yaw * DegToRad, 0);
-		return [yaw.Rotate(new Vec3(1, 0, 0)), yaw.Rotate(new Vec3(0, 0, -1))];
+		const yaw = Quat.FromYawPitch( this.Yaw * DegToRad, 0 );
+
+		return [
+			yaw.Rotate( new Vec3( 1, 0, 0 ) ),
+			yaw.Rotate( new Vec3( 0, 0, -1 ) ),
+		];
 	}
 
-	private MoveFocus(by: Vec3): void {
-		this.Focus.CopyFrom(this.Focus.Add(by));
+	private MoveFocus( by: Vec3 ): void {
+		this.Focus.CopyFrom( this.Focus.Add( by ) );
 		this.Following = false;
 	}
 }

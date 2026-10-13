@@ -8,8 +8,10 @@ type Tuple3 = [number, number, number];
 
 export type MeshDescriptor =
 	| { shape: RendMesh.Sphere; diameter: number; }
-	| { shape: RendMesh.Box; size: Tuple3; } // full extents, same convention as PhysicsShapeDescriptor
-	| { shape: RendMesh.Capsule; radius: number; height: number; } // total height incl. caps, like Godot's CapsuleMesh
+	// full extents, same convention as PhysicsShapeDescriptor
+	| { shape: RendMesh.Box; size: Tuple3; }
+	// total height incl. caps, like Godot's CapsuleMesh
+	| { shape: RendMesh.Capsule; radius: number; height: number; }
 	| { shape: RendMesh.Cylinder; diameter: number; height: number; }
 	| { shape: RendMesh.Triangles; vertices: number[]; }
 	| { shape: RendMesh.Gltf; rootUrl: string; sceneFilename: string; };
@@ -21,9 +23,19 @@ export interface CameraPose {
 }
 
 export type GameLogicToRenderMessage =
-	| { operation: RendOpType.SpawnEntity; entityId: number; mesh: MeshDescriptor; transform: FlatTransform; color?: Tuple3; }
+	| {
+		operation: RendOpType.SpawnEntity;
+		entityId: number;
+		mesh: MeshDescriptor;
+		transform: FlatTransform;
+		color?: Tuple3;
+	}
 	| { operation: RendOpType.RemoveEntity; entityId: number; }
-	| ({ operation: RendOpType.Frame; frameId: number; camera: CameraPose | null; } & TransformBatchPayload)
+	| ( {
+		operation: RendOpType.Frame;
+		frameId: number;
+		camera: CameraPose | null;
+	} & TransformBatchPayload )
 	| { operation: RendOpType.ClearScene; }
 	| { operation: RendOpType.SetVisible; entityId: number; visible: boolean; }
 	| { operation: RendOpType.SetColor; entityId: number; color: Tuple3; }
@@ -33,6 +45,9 @@ export type GameLogicToRenderMessage =
 export type RenderToGameLogicMessage =
 	| { type: RenderMsg.Ready; }
 	| { type: RenderMsg.AssetLoaded; entityId: number; }
-	/** Posted once per rAF while fewer than two frames are outstanding - the frame clock for GameLogic's Update. */
+	/**
+	 * Posted once per rAF while fewer than two frames are outstanding - the
+	 * frame clock for GameLogic's Update.
+	 */
 	| { type: RenderMsg.FrameRequest; frameId: number; time: number; }
 	| { type: RenderMsg.SyncAck; token: number; };

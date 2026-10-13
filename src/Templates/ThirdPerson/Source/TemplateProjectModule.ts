@@ -1,5 +1,6 @@
-// The primary game module of TemplateProject: the engine loads it at startup (see TemplateProject.cseproject).
-// It puts the game's scenes into the engine; the first registered scene is the one that loads first.
+// The primary game module of TemplateProject: the engine loads it at startup
+// (see TemplateProject.cseproject). It puts the game's scenes into the engine;
+// the first registered scene is the one that loads first.
 
 import type EngineModule from "@cse/core/Engine/EngineModule";
 import { GameModule, ModuleManager } from "@cse/core/modules";
@@ -7,6 +8,7 @@ import { ThirdPersonScene } from "./Scenes/ThirdPersonScene";
 
 export default class TemplateProjectModule extends GameModule {
 	public override StartupModule(): void {
-		ModuleManager.Get().GetModuleChecked<EngineModule>("Engine").Scenes.Register(ThirdPersonScene);
+		ModuleManager.Get().GetModuleChecked<EngineModule>( "Engine" ).Scenes
+			.Register( ThirdPersonScene );
 	}
 }

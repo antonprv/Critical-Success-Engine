@@ -1,0 +1,56 @@
+{
+	"name": "csengine-support",
+	"displayName": "Critical Success Engine",
+	"description": "Projects made on Critical Success Engine: @cse/* imports resolve to the engine's sources, with types, completion and go to definition.",
+	"version": "1.0.0",
+	"publisher": "csengine",
+	"license": "SEE LICENSE IN LICENSE.md",
+	"engines": {
+		"vscode": "^1.90.0"
+	},
+	"categories": [
+		"Programming Languages",
+		"Other"
+	],
+	"extensionDependencies": [
+		"vscode.typescript-language-features"
+	],
+	"activationEvents": [
+		"onLanguage:typescript",
+		"onLanguage:typescriptreact",
+		"onLanguage:javascript",
+		"workspaceContains:**/*.cseproject"
+	],
+	"main": "./out/Extension.js",
+	"dependencies": {
+		"cse-ts-plugin": "1.0.0"
+	},
+	"contributes": {
+		"configuration": {
+			"title": "Critical Success Engine",
+			"properties": {
+				"cse.enginePath": {
+					"type": "string",
+					"default": "",
+					"scope": "machine-overridable",
+					"markdownDescription": "The engine's repository (the folder that holds `src/CSEngine`). Imports of `@cse/core`, `@cse/ui` and the like in your projects then resolve to the engine's sources. Leave empty inside the repository itself: the engine around the file is used."
+				}
+			}
+		},
+		"typescriptServerPlugins": [
+			{
+				"name": "cse-ts-plugin",
+				"enableForWorkspaceTypeScriptVersions": true
+			}
+		],
+		"languages": [
+			{
+				"id": "json",
+				"extensions": [
+					".cseproject",
+					".csedata"
+				]
+			}
+		]
+	}
+}

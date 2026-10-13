@@ -27,9 +27,13 @@ pwsh devops/start-desktop.ps1
 
 ## build-all - полная сборка
 
-Собирает по шагам: зависимости, физику (wasm), Project Browser, UI Designer, Desktop (Electron). Перед началом проверяет Node.js 22.12+ и pnpm.
+Собирает по шагам: зависимости, физику (wasm), Project Browser, UI Designer, Desktop (Electron), инструменты. Перед началом проверяет Node.js 22.12+ и pnpm.
 Если не найден `dotnet` или не собралась физика - печатает предупреждение и продолжает без неё (игра тогда работает без симуляции).
 Лог публикации физики - `devops/publish.log`.
+
+Шаг инструментов проходит по каждой папке `src/CSEngine/Tools` с `package.json`: расширение для VSCodium (`CSEngineSupport`) собирается и упаковывается
+в `.vsix`, оба лежат в `src/CSEngine/Binaries/Tools/CSEngineSupport`. Для упаковки скачивается `@vscode/vsce`, нужна сеть; если её нет - будет
+предупреждение, а собранное расширение без упаковки всё равно останется.
 
 | Bash | PowerShell | Что делает |
 |---|---|---|

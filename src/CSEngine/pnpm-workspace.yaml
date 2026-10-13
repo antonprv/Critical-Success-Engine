@@ -4,6 +4,7 @@ packages:
   - Modules/Engine/*
   - Modules/Editor/*
   - Programs/*
+  - Tools/*
 allowBuilds:
   '@parcel/watcher': true
   unrs-resolver: true

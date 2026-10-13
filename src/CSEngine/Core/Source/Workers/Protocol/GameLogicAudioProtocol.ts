@@ -4,7 +4,7 @@
 import type { SoundAction } from "../Common/CommonEnums";
 
 export type GameLogicToAudioMessage = {
-    action: SoundAction.PlaySound;
-    soundId: string;
-    position?: [number, number, number];
+	action: SoundAction.PlaySound;
+	soundId: string;
+	position?: [number, number, number];
 };

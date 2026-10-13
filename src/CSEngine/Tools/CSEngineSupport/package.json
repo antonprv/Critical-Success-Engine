@@ -1,0 +1,24 @@
+{
+	"name": "@cse/engine-support",
+	"version": "1.0.0",
+	"private": true,
+	"description": "VSCodium / VS Code extension for projects made on the engine: @cse/* imports resolve to the engine's sources (types, completion, go to definition).",
+	"type": "module",
+	"engines": {
+		"node": ">=22.12"
+	},
+	"scripts": {
+		"build": "node Build.mjs",
+		"package": "node Build.mjs --package",
+		"typecheck": "tsc --noEmit",
+		"lint": "eslint ."
+	},
+	"devDependencies": {
+		"@types/node": "^26.2.0",
+		"@types/vscode": "^1.90.0",
+		"eslint": "^10.11.0",
+		"typescript": "~6.0.3",
+		"typescript-eslint": "^8.71.0",
+		"vite": "^8.3.2"
+	}
+}

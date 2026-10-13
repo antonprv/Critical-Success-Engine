@@ -2,25 +2,37 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { reactive } from "vue";
-import { CreateInitialUiState, type UiState } from "../Workers/Protocol/UiProtocol";
+import {
+	CreateInitialUiState,
+	type UiState,
+} from "../Workers/Protocol/UiProtocol";
 
-/** What the Vue components can ask the engine to do - implemented by UiBridge, injected so components stay DOM/worker-free. */
+/**
+ * What the Vue components can ask the engine to do - implemented by UiBridge,
+ * injected so components stay DOM/worker-free.
+ */
 export interface UiActions {
-	/** Must be called from a click handler: pointer lock needs a user gesture. */
+	/**
+	 * Must be called from a click handler: pointer lock needs a user gesture.
+	 */
 	Resume(): void;
-	SelectScene(sceneId: string): void;
+	SelectScene( sceneId: string ): void;
 	/** The touch scheme's pause button (no Esc on a phone). */
 	Pause(): void;
-	/** The touch scheme on or off: on, every scene plays without taking the mouse. */
-	SetTouchMode(enabled: boolean): void;
+	/**
+	 * The touch scheme on or off: on, every scene plays without taking the
+	 * mouse.
+	 */
+	SetTouchMode( enabled: boolean ): void;
 }
 
 /**
- * The single reactive object Vue renders. UiWorker owns the real state and pushes whole-section patches; this store is a
- * mirror with zero logic of its own (see UiProtocol.ts for why the UI is split this way).
+ * The single reactive object Vue renders. UiWorker owns the real state and
+ * pushes whole-section patches; this store is a mirror with zero logic of its
+ * own (see UiProtocol.ts for why the UI is split this way).
  */
 export class UiStore {
-	public readonly State: UiState = reactive(CreateInitialUiState());
+	public readonly State: UiState = reactive( CreateInitialUiState() );
 
 	public Actions: UiActions = {
 		Resume: () => undefined,
@@ -29,10 +41,18 @@ export class UiStore {
 		SetTouchMode: () => undefined,
 	};
 
-	public ApplyPatch(patch: Partial<UiState>): void {
-		if (patch.loading) Object.assign(this.State.loading, patch.loading);
-		if (patch.menu) Object.assign(this.State.menu, patch.menu);
-		if (patch.hud) Object.assign(this.State.hud, patch.hud);
-		if (patch.cursor) this.State.cursor = patch.cursor;
+	public ApplyPatch( patch: Partial<UiState> ): void {
+		if ( patch.loading ) {
+			Object.assign( this.State.loading, patch.loading );
+		}
+		if ( patch.menu ) {
+			Object.assign( this.State.menu, patch.menu );
+		}
+		if ( patch.hud ) {
+			Object.assign( this.State.hud, patch.hud );
+		}
+		if ( patch.cursor ) {
+			this.State.cursor = patch.cursor;
+		}
 	}
 }

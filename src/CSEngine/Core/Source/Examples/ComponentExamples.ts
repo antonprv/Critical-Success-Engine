@@ -18,9 +18,13 @@ import type { UiService } from "../Engine/Services/UiService";
 // >>
 
 // <<hover
-/** Bobs up and down forever. A purely script-driven entity: no physics, just a Transform written every frame. */
+/**
+ * Bobs up and down forever. A purely script-driven entity: no physics, just a
+ * Transform written every frame.
+ */
 export class Hover extends Component {
 	public Amplitude = 0.5;
+
 	public Speed = 2;
 
 	private _baseY = 0;
@@ -29,14 +33,18 @@ export class Hover extends Component {
 		this._baseY = this.Transform.Position.Y;
 	}
 
-	public override Update(_dt: number): void {
-		this.Transform.Position.Y = this._baseY + Math.sin(this.Engine.Time.Elapsed * this.Speed) * this.Amplitude;
+	public override Update( _dt: number ): void {
+		this.Transform.Position.Y = this._baseY + Math.sin(
+			this.Engine.Time.Elapsed * this.Speed,
+		) * this.Amplitude;
 	}
 }
 // >>
 
 // <<lifetime
-/** Removes its entity after `Seconds` - back to its pool if it came from one. */
+/**
+ * Removes its entity after `Seconds` - back to its pool if it came from one.
+ */
 export class Lifetime extends Component {
 	public Seconds = 3;
 
@@ -46,15 +54,20 @@ export class Lifetime extends Component {
 		this._age = 0;
 	}
 
-	public override Update(dt: number): void {
+	public override Update( dt: number ): void {
 		this._age += dt;
-		if (this._age >= this.Seconds) Despawn(this.Entity);
+		if ( this._age >= this.Seconds ) {
+			Despawn( this.Entity );
+		}
 	}
 }
 // >>
 
 // <<initial-velocity
-/** Gives the rigid body a starting velocity once the body exists - and again each time the entity is reused. */
+/**
+ * Gives the rigid body a starting velocity once the body exists - and again
+ * each time the entity is reused.
+ */
 export class InitialVelocity extends Component {
 	public Velocity: Vec3Tuple = [0, 0, 0];
 
@@ -67,40 +80,66 @@ export class InitialVelocity extends Component {
 	}
 
 	private Launch(): void {
-		this.Entity.RequireComponent(RigidBody).SetLinearVelocity(Vec3.FromTuple(this.Velocity));
+		this.Entity.RequireComponent( RigidBody )
+			.SetLinearVelocity( Vec3.FromTuple( this.Velocity ) );
 	}
 }
 // >>
 
 // <<ball-gun
-/** Click to throw a ball where the camera looks. Balls come from a pool and go back to it after 10 seconds. */
+/**
+ * Click to throw a ball where the camera looks. Balls come from a pool and go
+ * back to it after 10 seconds.
+ */
 export class BallGun extends Component {
 	public Speed = 15;
+
 	public MaxBalls = 16;
 
 	private _balls: EntityPool | null = null;
 
-	public override OnInputUpdate(input: InputService): void {
-		if (!input.ActionJustPressed("Fire")) return;
+	public override OnInputUpdate( input: InputService ): void {
+		if ( !input.ActionJustPressed( "Fire" ) ) {
+			return;
+		}
 
-		const camera = this.Engine.World.FindByName("Camera")?.GetComponent(CameraComponent);
-		if (!camera) return;
+		const camera = this.Engine.World.FindByName( "Camera" )
+			?.GetComponent( CameraComponent );
+
+		if ( !camera ) {
+			return;
+		}
 
 		const direction = camera.GetForwardDirection();
-		this._balls ??= new EntityPool(this.Engine.World, BallGun.Ball, { MaxSize: this.MaxBalls });
-		this._balls.Acquire(camera.Transform.Position.Add(direction.Mul(1.5)), (ball) => {
-			ball.RequireComponent(InitialVelocity).Velocity = direction.Mul(this.Speed).ToTuple();
-		});
+		this._balls ??= new EntityPool(
+			this.Engine.World,
+			BallGun.Ball,
+			{ MaxSize: this.MaxBalls },
+		);
+		this._balls.Acquire(
+			camera.Transform.Position.Add( direction.Mul( 1.5 ) ),
+			( ball ) => {
+				ball.RequireComponent( InitialVelocity ).Velocity =
+					direction.Mul( this.Speed ).ToTuple();
+			},
+		);
 	}
 
 	private static Ball() {
-		const shape = Shapes.Sphere(0.3);
-		return Ent("Thrown Ball", [
-			Comp(MeshRenderer, { Mesh: MeshForShape(shape), Color: [1, 0.5, 0.2] }),
-			Comp(RigidBody, { Shape: shape, Mass: 1, Layer: CollisionLayer.Prop }),
-			Comp(InitialVelocity),
-			Comp(Lifetime, { Seconds: 10 }),
-		]);
+		const shape = Shapes.Sphere( 0.3 );
+
+		return Ent( "Thrown Ball", [
+			Comp(
+				MeshRenderer,
+				{ Mesh: MeshForShape( shape ), Color: [1, 0.5, 0.2] },
+			),
+			Comp(
+				RigidBody,
+				{ Shape: shape, Mass: 1, Layer: CollisionLayer.Prop },
+			),
+			Comp( InitialVelocity ),
+			Comp( Lifetime, { Seconds: 10 } ),
+		] );
 	}
 }
 // >>
@@ -108,8 +147,10 @@ export class BallGun extends Component {
 // <<fps-counter
 /** HUD line with the frame rate. */
 export class FpsCounter extends Component {
-	public override OnUIUpdate(ui: UiService, dt: number): void {
-		if (dt > 0) ui.SetHud("fps", `FPS: ${(1 / dt).toFixed(0)}`);
+	public override OnUIUpdate( ui: UiService, dt: number ): void {
+		if ( dt > 0 ) {
+			ui.SetHud( "fps", `FPS: ${ ( 1 / dt ).toFixed( 0 ) }` );
+		}
 	}
 }
 // >>
@@ -120,12 +161,19 @@ export class Greeter extends Component {
 	public TargetName = "Player";
 
 	public override Start(): void {
-		const target = this.Engine.World.FindByName(this.TargetName);
-		if (!target) {
-			this.Engine.Ui.Toast(`${this.Entity.Name}: nobody called "${this.TargetName}" here`);
+		const target = this.Engine.World.FindByName( this.TargetName );
+
+		if ( !target ) {
+			this.Engine.Ui.Toast(
+				`${ this.Entity.Name }: nobody called "${ this.TargetName }" `
+					+ "here",
+			);
 			return;
 		}
-		this.Engine.Ui.Toast(`${this.Entity.Name} sees ${target.Name} at ${target.Transform.Position.ToString()}`);
+		this.Engine.Ui.Toast(
+			`${ this.Entity.Name } sees ${ target.Name } `
+				+ `at ${ target.Transform.Position.ToString() }`,
+		);
 	}
 }
 // >>

@@ -7,67 +7,116 @@ import type { ResolvedSound } from "../Protocol/AudioProtocol";
 import { WorkerScope } from "../Common/WorkerScope";
 
 /**
- * Sound id -> URL registry with fetch, cache and decoding, all inside AudioWorker. Decoding in a worker needs
- * OfflineAudioContext, which only Chromium exposes there (https://github.com/WebAudio/web-audio-api/issues/2423);
- * elsewhere the encoded bytes go to the main thread, where AudioPlayer decodes them once.
+ * Sound id -> URL registry with fetch, cache and decoding, all inside
+ * AudioWorker. Decoding in a worker needs OfflineAudioContext, which only
+ * Chromium exposes there
+ * (https://github.com/WebAudio/web-audio-api/issues/2423); elsewhere the
+ * encoded bytes go to the main thread, where AudioPlayer decodes them once.
  */
 export class AudioBank {
 	private readonly _offlineCtor =
 		WorkerScope().OfflineAudioContext;
+
 	private readonly _rawCache = new Map<string, ArrayBuffer>();
-	private readonly _pcmCache = new Map<string, { sampleRate: number; channels: Float32Array[]; }>();
+
+	private readonly _pcmCache = new Map<
+		string,
+		{ sampleRate: number; channels: Float32Array[]; }
+	>();
 
 	/** Registry of sound-id -> URL. Fill in with your actual asset list. */
 	private readonly _soundUrls: Record<string, string> = {
 		// impact: "assets/audio/impact.wav",
 	};
 
-	/** Resolves a sound id to something AudioPlayer can play, decoding/caching along the way. */
-	public async Resolve(soundId: string): Promise<ResolvedSound | null> {
-		const cachedPcm = this._pcmCache.get(soundId);
-		if (cachedPcm) return { kind: SoundKind.Pcm, sampleRate: cachedPcm.sampleRate, channels: cachedPcm.channels.map((c) => c.slice()) };
+	/**
+	 * Resolves a sound id to something AudioPlayer can play, decoding/caching
+	 * along the way.
+	 */
+	public async Resolve( soundId: string ): Promise<ResolvedSound | null> {
+		const cachedPcm = this._pcmCache.get( soundId );
 
-		const raw = await this.LoadRaw(soundId);
-		if (!raw) return null;
+		if ( cachedPcm ) {
+			return {
+				kind: SoundKind.Pcm,
+				sampleRate: cachedPcm.sampleRate,
+				channels: cachedPcm.channels.map( ( c ) => c.slice() ),
+			};
+		}
 
-		const decoded = await this.TryDecode(soundId, raw);
-		if (decoded) return { kind: SoundKind.Pcm, sampleRate: decoded.sampleRate, channels: decoded.channels.map((c) => c.slice()) };
+		const raw = await this.LoadRaw( soundId );
 
-		// Copy, not the cached original - LoadRaw's cache entry must survive being transferred away.
-		return { kind: SoundKind.Encoded, data: raw.slice(0) };
-	}
-
-	private async LoadRaw(soundId: string): Promise<ArrayBuffer | null> {
-		const cached = this._rawCache.get(soundId);
-		if (cached) return cached;
-
-		const url = this._soundUrls[soundId];
-		if (!url) {
-			Logger.LogWarning(`[AudioBank] no URL registered for sound "${soundId}" - add it to _soundUrls.`);
+		if ( !raw ) {
 			return null;
 		}
 
-		const response = await fetch(url);
+		const decoded = await this.TryDecode( soundId, raw );
+
+		if ( decoded ) {
+			return {
+				kind: SoundKind.Pcm,
+				sampleRate: decoded.sampleRate,
+				channels: decoded.channels.map( ( c ) => c.slice() ),
+			};
+		}
+
+		// Copy, not the cached original - LoadRaw's cache entry must survive
+		// being transferred away.
+		return { kind: SoundKind.Encoded, data: raw.slice( 0 ) };
+	}
+
+	private async LoadRaw( soundId: string ): Promise<ArrayBuffer | null> {
+		const cached = this._rawCache.get( soundId );
+
+		if ( cached ) {
+			return cached;
+		}
+
+		const url = this._soundUrls[soundId];
+
+		if ( !url ) {
+			Logger.LogWarning(
+				`[AudioBank] no URL registered for sound "${ soundId }" - add `
+					+ "it "
+					+ "to _soundUrls.",
+			);
+			return null;
+		}
+
+		const response = await fetch( url );
 		const buffer = await response.arrayBuffer();
-		this._rawCache.set(soundId, buffer);
+		this._rawCache.set( soundId, buffer );
 		return buffer;
 	}
 
-	private async TryDecode(soundId: string, raw: ArrayBuffer): Promise<{ sampleRate: number; channels: Float32Array[]; } | null> {
-		if (!this._offlineCtor) return null;
+	private async TryDecode( soundId: string, raw: ArrayBuffer ): Promise<
+		{ sampleRate: number; channels: Float32Array[]; } | null
+	> {
+		if ( !this._offlineCtor ) {
+			return null;
+		}
 
 		try {
-			// The (channels, length, sampleRate) triple here is just what decodeAudioData
-			// needs to exist on - it has no bearing on the file's actual format.
-			const probe = new this._offlineCtor(2, 1, 44100);
-			// decodeAudioData detaches whatever ArrayBuffer it's given - never pass `raw` itself.
-			const decoded = await probe.decodeAudioData(raw.slice(0));
-			const channels = Array.from({ length: decoded.numberOfChannels }, (_, i) => decoded.getChannelData(i));
+			// The (channels, length, sampleRate) triple here is just what
+			// decodeAudioData needs to exist on - it has no bearing on the
+			// file's actual format.
+			const probe = new this._offlineCtor( 2, 1, 44100 );
+			// decodeAudioData detaches whatever ArrayBuffer it's given - never
+			// pass `raw` itself.
+			const decoded = await probe.decodeAudioData( raw.slice( 0 ) );
+			const channels = Array.from(
+				{ length: decoded.numberOfChannels },
+				( _, i ) => decoded.getChannelData( i ),
+			);
 			const resolved = { sampleRate: decoded.sampleRate, channels };
-			this._pcmCache.set(soundId, resolved);
+			this._pcmCache.set( soundId, resolved );
 			return resolved;
-		} catch (error) {
-			Logger.LogWarning(`[AudioBank] in-worker decode unavailable/failed for "${soundId}", falling back to main-thread decode: ${String(error)}`);
+		} catch ( error ) {
+			Logger.LogWarning(
+				"[AudioBank] in-worker decode unavailable/failed for "
+					+ `"${ soundId }", falling back to main-thread `
+					+ `decode: ${ String( error ) }`,
+			);
 			return null;
 		}
 	}

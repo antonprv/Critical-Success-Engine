@@ -11,106 +11,169 @@ import type { EngineContext } from "./EngineContext";
 import { Entity } from "./Entity";
 import type { EntityManifest } from "./EntityManifest";
 
-type Hook = (component: Component) => void;
+type Hook = ( component: Component ) => void;
 
 /**
- * The live entities and the driver of every hook: entities in spawn order, components in manifest order. Spawns and
- * destroys during a pass take effect after it, so no hook sees the collection change.
+ * The live entities and the driver of every hook: entities in spawn order,
+ * components in manifest order. Spawns and destroys during a pass take effect
+ * after it, so no hook sees the collection change.
  */
 export class EntityWorld {
 	private readonly _engine: EngineContext;
+
 	private readonly _byId = new Map<number, Entity>();
+
 	private _ordered: Entity[] = [];
 
 	private readonly _awakeQueue: Component[] = [];
+
 	private readonly _startQueue: Component[] = [];
+
 	private readonly _destroyQueue: Entity[] = [];
 
 	private _nextEntityId = 1;
 
-	/** Entities that draw something - registered by MeshRenderer, read when building each frame. */
+	/**
+	 * Entities that draw something - registered by MeshRenderer, read when
+	 * building each frame.
+	 */
 	public readonly Renderables = new Map<number, Entity>();
 
-	public constructor(engine: EngineContext) {
+	public constructor( engine: EngineContext ) {
 		this._engine = engine;
 	}
 
-	public get Entities(): readonly Entity[] { return this._ordered; }
-	public get Count(): number { return this._ordered.length; }
-
-	public Get(id: number): Entity | undefined { return this._byId.get(id); }
-
-	public FindByName(name: string): Entity | undefined {
-		return this._ordered.find((entity) => entity.Name === name && !entity.IsDestroyed);
+	public get Entities(): readonly Entity[] {
+		return this._ordered;
 	}
 
-	public FindByTag(tag: string): Entity[] {
-		return this._ordered.filter((entity) => entity.Tags.has(tag) && !entity.IsDestroyed);
+	public get Count(): number {
+		return this._ordered.length;
+	}
+
+	public Get( id: number ): Entity | undefined {
+		return this._byId.get( id );
+	}
+
+	public FindByName( name: string ): Entity | undefined {
+		return this._ordered.find(
+			( entity ) => entity.Name === name && !entity.IsDestroyed,
+		);
+	}
+
+	public FindByTag( tag: string ): Entity[] {
+		return this._ordered.filter(
+			( entity ) => entity.Tags.has( tag ) && !entity.IsDestroyed,
+		);
 	}
 
 	//#region Spawning / destroying
 
-	/** Creates the entity and its components; Awake/Start follow on the next FlushLifecycle. */
-	public Spawn(manifest: EntityManifest): Entity {
-		const entity = new Entity(this._nextEntityId++, manifest.name, this._engine);
+	/**
+	 * Creates the entity and its components; Awake/Start follow on the next
+	 * FlushLifecycle.
+	 */
+	public Spawn( manifest: EntityManifest ): Entity {
+		const entity = new Entity(
+			this._nextEntityId++,
+			manifest.name,
+			this._engine,
+		);
 
-		if (manifest.position) entity.Transform.Teleport(Vec3.FromTuple(manifest.position));
-		if (manifest.rotation) entity.Transform.Teleport(entity.Transform.Position, Quat.FromTuple(manifest.rotation));
-		for (const tag of manifest.tags ?? []) entity.Tags.add(tag);
+		if ( manifest.position ) {
+			entity.Transform.Teleport( Vec3.FromTuple( manifest.position ) );
+		}
+		if ( manifest.rotation ) {
+			entity.Transform.Teleport(
+				entity.Transform.Position,
+				Quat.FromTuple( manifest.rotation ),
+			);
+		}
+		for ( const tag of manifest.tags ?? [] ) {
+			entity.Tags.add( tag );
+		}
 
-		this._byId.set(entity.Id, entity);
-		this._ordered.push(entity);
+		this._byId.set( entity.Id, entity );
+		this._ordered.push( entity );
 
-		for (const definition of manifest.components) {
+		for ( const definition of manifest.components ) {
 			const component = new definition.type();
-			if (definition.props) Object.assign(component, definition.props);
-			entity.AddComponent(component);
+
+			if ( definition.props ) {
+				Object.assign( component, definition.props );
+			}
+			entity.AddComponent( component );
 		}
 		return entity;
 	}
 
-	public NotifyComponentAdded(component: Component): void {
-		this._awakeQueue.push(component);
-		this._startQueue.push(component);
+	public NotifyComponentAdded( component: Component ): void {
+		this._awakeQueue.push( component );
+		this._startQueue.push( component );
 	}
 
-	public QueueDestroy(entity: Entity): void {
-		this._destroyQueue.push(entity);
+	public QueueDestroy( entity: Entity ): void {
+		this._destroyQueue.push( entity );
 	}
 
-	/** Runs pending Awake hooks (all of them first), then pending Start hooks - repeat until nothing new was spawned. */
+	/**
+	 * Runs pending Awake hooks (all of them first), then pending Start hooks -
+	 * repeat until nothing new was spawned.
+	 */
 	public FlushLifecycle(): void {
-		while (this._awakeQueue.length > 0 || this._startQueue.length > 0) {
-			while (this._awakeQueue.length > 0) {
+		while ( this._awakeQueue.length > 0 || this._startQueue.length > 0 ) {
+			while ( this._awakeQueue.length > 0 ) {
 				const component = this._awakeQueue.shift()!;
-				if (component.Entity.IsDestroyed) continue;
+
+				if ( component.Entity.IsDestroyed ) {
+					continue;
+				}
 				component._awoken = true;
-				EntityWorld.Run(component, "Awake", (c) => c.Awake());
+				EntityWorld.Run( component, "Awake", ( c ) => c.Awake() );
 			}
 
-			while (this._startQueue.length > 0 && this._awakeQueue.length === 0) {
+			while ( this._startQueue.length > 0
+				&& this._awakeQueue.length === 0 ) {
 				const component = this._startQueue.shift()!;
-				if (component.Entity.IsDestroyed) continue;
+
+				if ( component.Entity.IsDestroyed ) {
+					continue;
+				}
 				component._started = true;
-				EntityWorld.Run(component, "Start", (c) => c.Start());
+				EntityWorld.Run( component, "Start", ( c ) => c.Start() );
 			}
 		}
 	}
 
-	/** Runs OnDestroy for everything queued with Entity.Destroy() and drops those entities. */
+	/**
+	 * Runs OnDestroy for everything queued with Entity.Destroy() and drops
+	 * those entities.
+	 */
 	public FlushDestroyed(): void {
-		if (this._destroyQueue.length === 0) return;
+		if ( this._destroyQueue.length === 0 ) {
+			return;
+		}
 
-		const doomed = this._destroyQueue.splice(0, this._destroyQueue.length);
-		for (const entity of doomed) this.Teardown(entity);
+		const doomed = this._destroyQueue.splice(
+			0,
+			this._destroyQueue.length,
+		);
 
-		const gone = new Set(doomed);
-		this._ordered = this._ordered.filter((entity) => !gone.has(entity));
+		for ( const entity of doomed ) {
+			this.Teardown( entity );
+		}
+
+		const gone = new Set( doomed );
+		this._ordered = this._ordered.filter(
+			( entity ) => !gone.has( entity ),
+		);
 	}
 
 	/** Scene unload: destroys every entity (OnDestroy included) immediately. */
 	public DestroyAll(): void {
-		for (const entity of this._ordered) entity.Destroy();
+		for ( const entity of this._ordered ) {
+			entity.Destroy();
+		}
 		this.FlushDestroyed();
 		this._awakeQueue.length = 0;
 		this._startQueue.length = 0;
@@ -118,90 +181,157 @@ export class EntityWorld {
 		this.Renderables.clear();
 	}
 
-	private Teardown(entity: Entity): void {
-		for (const component of entity.Components) {
-			if (component._awoken) EntityWorld.Run(component, "OnDestroy", (c) => c.OnDestroy());
+	private Teardown( entity: Entity ): void {
+		for ( const component of entity.Components ) {
+			if ( component._awoken ) {
+				EntityWorld.Run(
+					component,
+					"OnDestroy",
+					( c ) => c.OnDestroy(),
+				);
+			}
 		}
-		this._byId.delete(entity.Id);
-		this.Renderables.delete(entity.Id);
+		this._byId.delete( entity.Id );
+		this.Renderables.delete( entity.Id );
 	}
 
 	//#endregion
 
 	//#region Hook drivers
 
-	private ForEachComponent(hook: Hook, name: string): void {
+	private ForEachComponent( hook: Hook, name: string ): void {
 		const entities = this._ordered;
 		const count = entities.length;
-		for (let i = 0; i < count; i++) {
+
+		for ( let i = 0; i < count; i++ ) {
 			const entity = entities[i]!;
-			if (!entity.Active || entity.IsDestroyed) continue;
+
+			if ( !entity.Active || entity.IsDestroyed ) {
+				continue;
+			}
 
 			const components = entity.Components;
-			for (let j = 0; j < components.length && entity.Active; j++) {
+
+			for ( let j = 0; j < components.length && entity.Active; j++ ) {
 				const component = components[j]!;
-				if (!component.Enabled || !component._started) continue;
-				EntityWorld.Run(component, name, hook);
+
+				if ( !component.Enabled || !component._started ) {
+					continue;
+				}
+				EntityWorld.Run( component, name, hook );
 			}
 		}
 	}
 
-	public RunInputUpdate(input: InputService, dt: number): void {
-		this.ForEachComponent((c) => c.OnInputUpdate(input, dt), "OnInputUpdate");
+	public RunInputUpdate( input: InputService, dt: number ): void {
+		this.ForEachComponent(
+			( c ) => c.OnInputUpdate( input, dt ),
+			"OnInputUpdate",
+		);
 	}
 
-	public RunUpdate(dt: number): void {
-		this.ForEachComponent((c) => c.Update(dt), "Update");
+	public RunUpdate( dt: number ): void {
+		this.ForEachComponent( ( c ) => c.Update( dt ), "Update" );
 	}
 
-	public RunUiUpdate(ui: UiService, dt: number): void {
-		this.ForEachComponent((c) => c.OnUIUpdate(ui, dt), "OnUIUpdate");
+	public RunUiUpdate( ui: UiService, dt: number ): void {
+		this.ForEachComponent( ( c ) => c.OnUIUpdate( ui, dt ), "OnUIUpdate" );
 	}
 
 	public RunPhysicsSync(): void {
-		this.ForEachComponent((c) => c.OnPhysicsSync(), "OnPhysicsSync");
+		this.ForEachComponent( ( c ) => c.OnPhysicsSync(), "OnPhysicsSync" );
 	}
 
-	public RunPhysicsUpdate(dt: number): void {
-		this.ForEachComponent((c) => c.OnPhysicsUpdate(dt), "OnPhysicsUpdate");
+	public RunPhysicsUpdate( dt: number ): void {
+		this.ForEachComponent(
+			( c ) => c.OnPhysicsUpdate( dt ),
+			"OnPhysicsUpdate",
+		);
 	}
 
-	public NotifyActiveChanged(entity: Entity): void {
-		for (const component of entity.Components) {
-			if (!component._awoken) continue;
-			if (entity.Active) EntityWorld.Run(component, "OnEnable", (c) => c.OnEnable());
-			else EntityWorld.Run(component, "OnDisable", (c) => c.OnDisable());
-		}
-	}
-
-	/** Both sides get the callback, each with the other entity as argument (like Unity - Godot only notifies the Area). */
-	public DispatchOverlap(a: Entity, b: Entity, entered: boolean, isTrigger: boolean): void {
-		EntityWorld.NotifyOverlap(a, b, entered, isTrigger);
-		EntityWorld.NotifyOverlap(b, a, entered, isTrigger);
-	}
-
-	private static NotifyOverlap(target: Entity, other: Entity, entered: boolean, isTrigger: boolean): void {
-		if (!target.Active || target.IsDestroyed) return;
-		for (const component of target.Components) {
-			if (!component.Enabled || !component._started) continue;
-			if (isTrigger) {
-				EntityWorld.Run(component, entered ? "OnTriggerEnter" : "OnTriggerExit",
-					(c) => (entered ? c.OnTriggerEnter(other) : c.OnTriggerExit(other)));
-			} else {
-				EntityWorld.Run(component, entered ? "OnCollisionEnter" : "OnCollisionExit",
-					(c) => (entered ? c.OnCollisionEnter(other) : c.OnCollisionExit(other)));
+	public NotifyActiveChanged( entity: Entity ): void {
+		for ( const component of entity.Components ) {
+			if ( !component._awoken ) {
+				continue;
+			}
+			if ( entity.Active ) {
+				EntityWorld.Run( component, "OnEnable", ( c ) => c.OnEnable() );
+			}
+			else {
+				EntityWorld.Run(
+					component,
+					"OnDisable",
+					( c ) => c.OnDisable(),
+				);
 			}
 		}
 	}
 
-	/** One throwing script must not take the whole frame (or the other scripts) down with it. */
-	private static Run(component: Component, hookName: string, hook: Hook): void {
+	/**
+	 * Both sides get the callback, each with the other entity as argument (like
+	 * Unity - Godot only notifies the Area).
+	 */
+	public DispatchOverlap(
+		a: Entity,
+		b: Entity,
+		entered: boolean,
+		isTrigger: boolean,
+	): void {
+		EntityWorld.NotifyOverlap( a, b, entered, isTrigger );
+		EntityWorld.NotifyOverlap( b, a, entered, isTrigger );
+	}
+
+	private static NotifyOverlap(
+		target: Entity,
+		other: Entity,
+		entered: boolean,
+		isTrigger: boolean,
+	): void {
+		if ( !target.Active || target.IsDestroyed ) {
+			return;
+		}
+		for ( const component of target.Components ) {
+			if ( !component.Enabled || !component._started ) {
+				continue;
+			}
+			if ( isTrigger ) {
+				EntityWorld.Run(
+					component,
+					entered ? "OnTriggerEnter" : "OnTriggerExit",
+					( c ) => ( entered
+						? c.OnTriggerEnter( other )
+						: c.OnTriggerExit( other ) ),
+				);
+			} else {
+				EntityWorld.Run(
+					component,
+					entered ? "OnCollisionEnter" : "OnCollisionExit",
+					( c ) => ( entered
+						? c.OnCollisionEnter( other )
+						: c.OnCollisionExit( other ) ),
+				);
+			}
+		}
+	}
+
+	/**
+	 * One throwing script must not take the whole frame (or the other scripts)
+	 * down with it.
+	 */
+	private static Run(
+		component: Component,
+		hookName: string,
+		hook: Hook,
+	): void {
 		try {
-			hook(component);
-		} catch (error) {
+			hook( component );
+		} catch ( error ) {
 			Logger.LogException(
 				error,
-				`[Script] ${component.constructor.name}.${hookName} threw on entity "${component.Entity.Name}" (#${component.Entity.Id}):`
+				`[Script] ${ component.constructor.name }.${ hookName } threw `
+					+ "on "
+					+ `entity "${ component.Entity.Name }" `
+					+ `(#${ component.Entity.Id }):`,
 			);
 		}
 	}

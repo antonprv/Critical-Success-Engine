@@ -1,7 +1,8 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-  Builds everything step by step: dependencies, physics (wasm), Project Browser, UI Designer, Desktop (Electron).
+  Builds everything step by step: dependencies, physics (wasm), Project Browser, UI Designer, Desktop (Electron),
+  the tools (src/CSEngine/Tools/*: the VSCodium extension is built and packed as a .vsix into src/CSEngine/Binaries/Tools).
 .PARAMETER SkipInstall
   Do not run `pnpm install`.
 .PARAMETER SkipPhysics
@@ -104,7 +105,34 @@ Invoke-In (Join-Path $Editor 'UIDesigner') { pnpm build }
 Step 'Building Desktop (Electron main process + preload)'
 Invoke-In (Join-Path $Engine 'Programs/Desktop') { pnpm build }
 
-# --- 6. Optional: web game ---
+# --- 6. Tools (plugins) ---
+# Every folder of Tools with a package.json: one that packs itself (a "package" script) is built and packed into a
+# .vsix, one with only a "build" script is built. Output goes to src/CSEngine/Binaries/Tools/<name>.
+Step 'Building tools (Tools/*)'
+foreach ($tool in Get-ChildItem (Join-Path $Engine 'Tools') -Directory) {
+    $manifest = Join-Path $tool.FullName 'package.json'
+    if (-not (Test-Path $manifest)) { continue }
+    $scripts = (Get-Content $manifest -Raw | ConvertFrom-Json).scripts
+    $out = Join-Path $Engine "Binaries/Tools/$($tool.Name)"
+    if ($scripts.PSObject.Properties.Name -contains 'package') {
+        Write-Host "$($tool.Name): build and package"
+        try {
+            Invoke-In $tool.FullName { pnpm run package }
+        }
+        catch {
+            # The build comes first and leaves the unpacked extension; only the packing (it fetches @vscode/vsce with npm) can fail alone.
+            if (-not (Test-Path (Join-Path $out 'package.json'))) { throw }
+            Warn "$($tool.Name): built, but the .vsix was not packed (it needs the network for @vscode/vsce)."
+        }
+        Get-ChildItem $out -Filter *.vsix -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "$($tool.Name): $($_.FullName)" }
+    }
+    elseif ($scripts.PSObject.Properties.Name -contains 'build') {
+        Write-Host "$($tool.Name): build"
+        Invoke-In $tool.FullName { pnpm build }
+    }
+}
+
+# --- 7. Optional: web game ---
 if ($Web) {
     Step 'Building the web game (Core)'
     Invoke-In (Join-Path $Engine 'Core') { pnpm build }

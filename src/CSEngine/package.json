@@ -2,5 +2,11 @@
   "name": "critical-success-engine-workspace",
   "private": true,
   "description": "Critical Success Engine: the engine (Core) and its modules (Modules/*).",
-  "engines": { "node": ">=22.12" }
+  "engines": {
+    "node": ">=22.12"
+  },
+  "devDependencies": {
+    "@stylistic/eslint-plugin": "^5.10.0",
+    "eslint-plugin-jsonc": "^3.4.2"
+  }
 }

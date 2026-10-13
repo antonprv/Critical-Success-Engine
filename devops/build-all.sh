@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Builds everything step by step: dependencies, physics (wasm), Project Browser, UI Designer, Desktop (Electron).
+# Builds everything step by step: dependencies, physics (wasm), Project Browser, UI Designer, Desktop (Electron),
+# the tools (src/CSEngine/Tools/*: the VSCodium extension is built and packed as a .vsix into src/CSEngine/Binaries/Tools).
 #
 # Usage: bash devops/build-all.sh [--skip-install] [--skip-physics] [--web]
 #   --skip-install   do not run `pnpm install`
@@ -13,7 +14,7 @@ for arg in "$@"; do
     --skip-install) SKIP_INSTALL=1 ;;
     --skip-physics) SKIP_PHYSICS=1 ;;
     --web)          WEB=1 ;;
-    -h|--help)      sed -n '2,8p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    -h|--help)      sed -n '2,9p' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) echo "Unknown option: $arg" >&2; exit 2 ;;
   esac
 done
@@ -83,7 +84,29 @@ step "Building UI Designer"
 step "Building Desktop (Electron main process + preload)"
 (cd "$ENGINE/Programs/Desktop" && pnpm build)
 
-# --- 6. Optional: web game ---
+# --- 6. Tools (plugins) ---
+# Every folder of Tools with a package.json: one that packs itself (a "package" script) is built and packed into a
+# .vsix, one with only a "build" script is built. Output goes to src/CSEngine/Binaries/Tools/<name>.
+step "Building tools (Tools/*)"
+for TOOL in "$ENGINE"/Tools/*/; do
+  [ -f "$TOOL/package.json" ] || continue
+  NAME="$(basename "$TOOL")"
+  OUT="$ENGINE/Binaries/Tools/$NAME"
+  if grep -q '"package"' "$TOOL/package.json"; then
+    echo "$NAME: build and package"
+    if ! (cd "$TOOL" && pnpm run package); then
+      # The build comes first and leaves the unpacked extension; only the packing (it fetches @vscode/vsce with npm) can fail alone.
+      [ -f "$OUT/package.json" ] || die "$NAME: build failed."
+      warn "$NAME: built, but the .vsix was not packed (it needs the network for @vscode/vsce)."
+    fi
+    for VSIX in "$OUT"/*.vsix; do [ -f "$VSIX" ] && echo "$NAME: $VSIX"; done
+  elif grep -q '"build"' "$TOOL/package.json"; then
+    echo "$NAME: build"
+    (cd "$TOOL" && pnpm build)
+  fi
+done
+
+# --- 7. Optional: web game ---
 if [ "$WEB" -eq 1 ]; then
   step "Building the web game (Core)"
   (cd "$ENGINE/Core" && pnpm build)

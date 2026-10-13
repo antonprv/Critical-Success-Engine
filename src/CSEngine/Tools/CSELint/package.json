@@ -1,0 +1,24 @@
+{
+	"name": "@cse/eslint-plugin",
+	"version": "1.0.0",
+	"private": true,
+	"description": "ESLint plugin of the engine: max-len that fixes itself (wraps long lines of code and comments).",
+	"type": "module",
+	"main": "./Source/Index.js",
+	"exports": {
+		".": "./Source/Index.js"
+	},
+	"engines": {
+		"node": ">=22.12"
+	},
+	"scripts": {
+		"lint": "eslint ."
+	},
+	"peerDependencies": {
+		"eslint": ">=9"
+	},
+	"devDependencies": {
+		"eslint": "^10.11.0",
+		"typescript-eslint": "^8.71.0"
+	}
+}

@@ -3,7 +3,10 @@
 
 import { Project } from "virtual:cse/project";
 
-/** The name of the project being run (its .cseproject Name), shown in the UI: Games Sample for the engine's own project. */
+/**
+ * The name of the project being run (its .cseproject Name), shown in the UI:
+ * Games Sample for the engine's own project.
+ */
 export const GameTitle = Project.Name;
 
 /** The engine's name, shown as the maker's mark. */

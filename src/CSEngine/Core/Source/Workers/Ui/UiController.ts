@@ -26,156 +26,239 @@ export const enum UiPhase {
 }
 
 /**
- * The UI state machine, run in UiWorker. No DOM and no worker globals, so it is unit-tested directly.
+ * The UI state machine, run in UiWorker. No DOM and no worker globals, so it is
+ * unit-tested directly.
  *
- *   boot -> loading -> load-finished -> request pointer lock
- *     lock granted -> playing;   lock refused -> start menu (browsers need a click)
- *   Esc (lock lost) -> paused menu;   pick a scene -> loading -> request pointer lock again
+ * boot -> loading -> load-finished -> request pointer lock
+ *     lock granted -> playing; lock refused -> start menu (browsers need a
+ *     click)
+ *   Esc (lock lost) -> paused menu; pick a scene -> loading -> request pointer
+ *   lock again
  */
 export class UiController {
-	private readonly _toMain: (message: UiToMainMessage) => void;
-	private readonly _toGameLogic: (message: UiToGameLogicMessage) => void;
+	private readonly _toMain: ( message: UiToMainMessage ) => void;
+
+	private readonly _toGameLogic: ( message: UiToGameLogicMessage ) => void;
 
 	private readonly _state: UiState = CreateInitialUiState();
+
 	private _phase: UiPhase = UiPhase.Booting;
+
 	private _touch = false;
+
 	private _hasPlayed = false;
-	/** Whether the browser currently holds the pointer lock for us (as last reported by the main thread). */
+
+	/**
+	 * Whether the browser currently holds the pointer lock for us (as last
+	 * reported by the main thread).
+	 */
 	private _locked = false;
 
-	public constructor(toMain: (message: UiToMainMessage) => void, toGameLogic: (message: UiToGameLogicMessage) => void) {
+	public constructor(
+		toMain: ( message: UiToMainMessage ) => void,
+		toGameLogic: ( message: UiToGameLogicMessage ) => void,
+	) {
 		this._toMain = toMain;
 		this._toGameLogic = toGameLogic;
-		this.PushState({ loading: this._state.loading, menu: this._state.menu, hud: this._state.hud });
+		this.PushState(
+			{
+				loading: this._state.loading,
+				menu: this._state.menu,
+				hud: this._state.hud,
+			},
+		);
 	}
 
-	public get Phase(): UiPhase { return this._phase; }
-	public get State(): Readonly<UiState> { return this._state; }
+	public get Phase(): UiPhase {
+		return this._phase;
+	}
+
+	public get State(): Readonly<UiState> {
+		return this._state;
+	}
 
 	//#region From GameLogic
 
-	public OnGameLogicMessage(message: GameLogicToUiMessage): void {
-		switch (message.type) {
+	public OnGameLogicMessage( message: GameLogicToUiMessage ): void {
+		switch ( message.type ) {
 			case UiMsg.Channel:
-				this._toMain(message); // a plugin's message: passed on as it is
+				// a plugin's message: passed on as it is
+				this._toMain( message );
 				break;
 
 			case UiMsg.Scenes:
-				this._state.menu = { ...this._state.menu, scenes: message.scenes };
-				this.PushState({ menu: this._state.menu });
+				this._state.menu = {
+					...this._state.menu,
+					scenes: message.scenes,
+				};
+				this.PushState( { menu: this._state.menu } );
 				break;
 
 			case UiMsg.LoadProgress:
-				if (this._phase !== UiPhase.Booting) this._phase = UiPhase.Loading;
-				this._state.loading = { visible: true, label: message.label, fraction: message.fraction };
-				this.PushState({ loading: this._state.loading });
+				if ( this._phase !== UiPhase.Booting ) {
+					this._phase = UiPhase.Loading;
+				}
+				this._state.loading = {
+					visible: true,
+					label: message.label,
+					fraction: message.fraction,
+				};
+				this.PushState( { loading: this._state.loading } );
 				break;
 
 			case UiMsg.LoadFinished:
-				this.OnLoadFinished(message.sceneId, message.cursor ?? "locked");
+				this.OnLoadFinished(
+					message.sceneId,
+					message.cursor ?? "locked",
+				);
 				break;
 
 			case UiMsg.LoadFailed:
-				this.OnLoadFailed(message.message);
+				this.OnLoadFailed( message.message );
 				break;
 
 			case UiMsg.Hud:
 				this._state.hud = { ...this._state.hud, lines: message.lines };
-				this.PushState({ hud: this._state.hud });
+				this.PushState( { hud: this._state.hud } );
 				break;
 
 			case UiMsg.Bars:
 				this._state.hud = { ...this._state.hud, bars: message.bars };
-				this.PushState({ hud: this._state.hud });
+				this.PushState( { hud: this._state.hud } );
 				break;
 
 			case UiMsg.Toast:
-				this._toMain({ type: UiMsg.Toast, message: message.message });
+				this._toMain( { type: UiMsg.Toast, message: message.message } );
 				break;
 		}
 	}
 
-	private OnLoadFinished(sceneId: string, cursor: CursorMode): void {
+	private OnLoadFinished( sceneId: string, cursor: CursorMode ): void {
 		this._state.loading = { visible: false, label: "", fraction: 1 };
-		this._state.menu = { ...this._state.menu, currentSceneId: sceneId, visible: false };
+		this._state.menu = {
+			...this._state.menu,
+			currentSceneId: sceneId,
+			visible: false,
+		};
 		this._state.cursor = cursor;
-		this.PushState({ loading: this._state.loading, menu: this._state.menu, cursor });
-		if (cursor === "free" || this._touch) {
-			// The cursor stays visible: nothing to ask the browser for. A mouse still held from the last scene goes.
-			if (this._locked) this._toMain({ type: UiMsg.ExitPointerLock });
-			if (this._hasPlayed) this.PlayWithFreeCursor();
-			else this.ShowMenu(MenuMode.Start);
+		this.PushState(
+			{ loading: this._state.loading, menu: this._state.menu, cursor },
+		);
+		if ( cursor === "free" || this._touch ) {
+			// The cursor stays visible: nothing to ask the browser for. A mouse
+			// still held from the last scene goes.
+			if ( this._locked ) {
+				this._toMain( { type: UiMsg.ExitPointerLock } );
+			}
+			if ( this._hasPlayed ) {
+				this.PlayWithFreeCursor();
+			}
+			else {
+				this.ShowMenu( MenuMode.Start );
+			}
 			return;
 		}
-		if (this._locked) {
-			// A script reloaded the scene (e.g. "press R to restart") and the pointer never left the game:
-			// there is nothing to request, and no lock-change event will come - go straight back to playing.
+		if ( this._locked ) {
+			// A script reloaded the scene (e.g. "press R to restart") and the
+			// pointer never left the game: there is nothing to request, and no
+			// lock-change event will come - go straight back to playing.
 			this._phase = UiPhase.Playing;
 		} else {
 			this._phase = UiPhase.AwaitingLock;
-			this._toMain({ type: UiMsg.RequestPointerLock });
+			this._toMain( { type: UiMsg.RequestPointerLock } );
 		}
 	}
 
-	private OnLoadFailed(reason: string): void {
+	private OnLoadFailed( reason: string ): void {
 		this._state.loading = { visible: false, label: "", fraction: 0 };
-		this.ShowMenu(this._hasPlayed ? MenuMode.Paused : MenuMode.Start);
-		this.PushState({ loading: this._state.loading });
-		this._toMain({ type: UiMsg.Toast, message: `Failed to load: ${reason}` });
+		this.ShowMenu( this._hasPlayed ? MenuMode.Paused : MenuMode.Start );
+		this.PushState( { loading: this._state.loading } );
+		this._toMain(
+			{ type: UiMsg.Toast, message: `Failed to load: ${ reason }` },
+		);
 	}
 
 	//#endregion
 
 	//#region From the main thread (DOM events)
 
-	public OnMainMessage(message: MainToUiMessage): void {
-		switch (message.type) {
+	public OnMainMessage( message: MainToUiMessage ): void {
+		switch ( message.type ) {
 			case UiMsg.Channel:
-				this._toGameLogic(message);
+				this._toGameLogic( message );
 				break;
 
 			case UiMsg.Init:
 				break; // handled by the worker shell
 
 			case UiMsg.PointerLock:
-				if (message.locked) this.OnLockAcquired();
-				else this.OnLockLost();
+				if ( message.locked ) {
+					this.OnLockAcquired();
+				}
+				else {
+					this.OnLockLost();
+				}
 				break;
 
 			case UiMsg.PointerLockFailed:
-				// Nothing to do while a scene is loading; the next load-finished asks again.
-				if (this._phase === UiPhase.AwaitingLock || this._phase === UiPhase.Playing) {
-					this.ShowMenu(this._hasPlayed ? MenuMode.Paused : MenuMode.Start);
+				// Nothing to do while a scene is loading; the next
+				// load-finished asks again.
+				if ( this._phase === UiPhase.AwaitingLock
+					|| this._phase === UiPhase.Playing ) {
+					this.ShowMenu(
+						this._hasPlayed ? MenuMode.Paused : MenuMode.Start,
+					);
 				}
 				break;
 
 			case UiMsg.SelectScene:
-				if (this._phase === UiPhase.Loading || this._phase === UiPhase.Booting) return;
+				if ( this._phase === UiPhase.Loading
+					|| this._phase === UiPhase.Booting ) {
+					return;
+				}
 				this._phase = UiPhase.Loading;
-				this._toGameLogic({ type: UiMsg.SetCapture, enabled: false });
+				this._toGameLogic( { type: UiMsg.SetCapture, enabled: false } );
 				this._state.menu = { ...this._state.menu, visible: false };
-				this._state.loading = { visible: true, label: "Loading…", fraction: 0 };
-				this.PushState({ menu: this._state.menu, loading: this._state.loading });
-				this._toGameLogic({ type: UiMsg.LoadScene, sceneId: message.sceneId });
+				this._state.loading = {
+					visible: true,
+					label: "Loading…",
+					fraction: 0,
+				};
+				this.PushState(
+					{ menu: this._state.menu, loading: this._state.loading },
+				);
+				this._toGameLogic(
+					{ type: UiMsg.LoadScene, sceneId: message.sceneId },
+				);
 				break;
 
 			case UiMsg.Resume:
-				// A free-cursor scene just goes on. Otherwise the main thread already asked the browser for the lock inside
-				// the click handler (that is the user gesture the browser demands); if refused, "pointer-lock-failed" comes.
-				if (this.Free && this._phase === UiPhase.Menu) this.PlayWithFreeCursor();
+				// A free-cursor scene just goes on. Otherwise the main thread
+				// already asked the browser for the lock inside the click
+				// handler (that is the user gesture the browser demands); if
+				// refused, "pointer-lock-failed" comes.
+				if ( this.Free && this._phase === UiPhase.Menu ) {
+					this.PlayWithFreeCursor();
+				}
 				break;
 
 			case UiMsg.SetTouch:
-				// The touch scheme plays every scene without taking the mouse (a phone has no pointer lock).
+				// The touch scheme plays every scene without taking the mouse
+				// (a phone has no pointer lock).
 				this._touch = message.enabled;
-				if (message.enabled && this._locked) this._toMain({ type: UiMsg.ExitPointerLock });
+				if ( message.enabled && this._locked ) {
+					this._toMain( { type: UiMsg.ExitPointerLock } );
+				}
 				break;
 
 			case UiMsg.Pause:
-				// Esc in a free-cursor scene: there is no pointer lock for the browser to release, so the page says so.
-				if (this.Free && this._phase === UiPhase.Playing) {
-					this._toGameLogic({ type: UiMsg.SetCapture, enabled: false });
-					this.ShowMenu(MenuMode.Paused);
+				// Esc in a free-cursor scene: there is no pointer lock for the
+				// browser to release, so the page says so.
+				if ( this.Free && this._phase === UiPhase.Playing ) {
+					this._toGameLogic(
+						{ type: UiMsg.SetCapture, enabled: false },
+					);
+					this.ShowMenu( MenuMode.Paused );
 				}
 				break;
 		}
@@ -186,37 +269,48 @@ export class UiController {
 		this._phase = UiPhase.Playing;
 		this._hasPlayed = true;
 		this._state.menu = { ...this._state.menu, visible: false };
-		this.PushState({ menu: this._state.menu });
-		this._toGameLogic({ type: UiMsg.SetCapture, enabled: true });
+		this.PushState( { menu: this._state.menu } );
+		this._toGameLogic( { type: UiMsg.SetCapture, enabled: true } );
 	}
 
 	private OnLockLost(): void {
 		this._locked = false;
-		if (this.Free) return; // let go on purpose (a free-cursor scene, the touch scheme): not a pause
-		this._toGameLogic({ type: UiMsg.SetCapture, enabled: false });
-		if (this._phase === UiPhase.Playing) this.ShowMenu(MenuMode.Paused);
+		if ( this.Free ) {
+			return;
+		// let go on purpose (a free-cursor scene, the touch scheme): not a
+		// pause
+		}
+		this._toGameLogic( { type: UiMsg.SetCapture, enabled: false } );
+		if ( this._phase === UiPhase.Playing ) {
+			this.ShowMenu( MenuMode.Paused );
+		}
 	}
 
 	//#endregion
 
-	/** The game plays without taking the mouse: a free-cursor scene, or the touch scheme. */
-	private get Free(): boolean { return this._state.cursor === "free" || this._touch; }
+	/**
+	 * The game plays without taking the mouse: a free-cursor scene, or the
+	 * touch scheme.
+	 */
+	private get Free(): boolean {
+		return this._state.cursor === "free" || this._touch;
+	}
 
 	private PlayWithFreeCursor(): void {
 		this._phase = UiPhase.Playing;
 		this._hasPlayed = true;
 		this._state.menu = { ...this._state.menu, visible: false };
-		this.PushState({ menu: this._state.menu });
-		this._toGameLogic({ type: UiMsg.SetCapture, enabled: true });
+		this.PushState( { menu: this._state.menu } );
+		this._toGameLogic( { type: UiMsg.SetCapture, enabled: true } );
 	}
 
-	private ShowMenu(mode: MenuMode): void {
+	private ShowMenu( mode: MenuMode ): void {
 		this._phase = UiPhase.Menu;
 		this._state.menu = { ...this._state.menu, visible: true, mode };
-		this.PushState({ menu: this._state.menu });
+		this.PushState( { menu: this._state.menu } );
 	}
 
-	private PushState(patch: Partial<UiState>): void {
-		this._toMain({ type: UiMsg.State, patch });
+	private PushState( patch: Partial<UiState> ): void {
+		this._toMain( { type: UiMsg.State, patch } );
 	}
 }

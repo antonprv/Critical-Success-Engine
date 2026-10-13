@@ -3,17 +3,23 @@
 
 import type { Plugin } from "vite";
 
-import { StartLogServerSidecar, StopLogServerSidecar } from "./LogServerSidecar.mjs";
+import {
+	StartLogServerSidecar,
+	StopLogServerSidecar,
+} from "./LogServerSidecar.mjs";
 
-/** Starts Tools/LogServer.mjs with `vite dev` and stops it with the server (a page can't write files itself). */
+/**
+ * Starts Tools/LogServer.mjs with `vite dev` and stops it with the server (a
+ * page can't write files itself).
+ */
 export function LogServerPlugin(): Plugin {
 	return {
 		name: "log-server-sidecar",
 
-		configureServer(server) {
+		configureServer( server ) {
 			void StartLogServerSidecar();
 
-			server.httpServer?.once("close", StopLogServerSidecar);
+			server.httpServer?.once( "close", StopLogServerSidecar );
 		},
 	};
 }
