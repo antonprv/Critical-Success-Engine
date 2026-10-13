@@ -3,7 +3,7 @@
 # How to make a game on Critical Success Engine - guide series
 
 These are step-by-step guides to what the engine already has. Read them in order: each one builds on the previous.
-All the code in the guides is real: it lives in `Source/Game/**`, is compiled by `pnpm typecheck` and exercised by the
+All the code in the guides is real: it lives in `Core/Source/Examples/**` and in the project templates (`src/Templates/*/Source`), is compiled by `pnpm typecheck` and exercised by the
 tests (`pnpm test`), so when the engine API changes the guides don't silently go stale.
 
 | # | Guide | What's in it |
@@ -24,6 +24,7 @@ tests (`pnpm test`), so when the engine API changes the guides don't silently go
 | 14 | [Input](14-input.md) | A project's input files, action maps (on foot, vehicle...), primary and fallback key, gamepad |
 | 15 | [Data files](15-data-assets.md) | `.csedata`: typed project parameters in JSON, editable without a rebuild |
 | 16 | [Desktop app](16-desktop.md) | Electron, the Project Manager (templates by genre, themes), the designer on a project: documents, Save into the project |
+| 17 | [Logging](17-logging.md) | The Logger: levels, what stays in a production build, the log sidecar, logs in tests |
 
 ## The model in one paragraph
 
@@ -47,3 +48,4 @@ is services that a component reaches through `this.Engine`.
 - …make action-based controls, connect a gamepad → 14
 - …move the game's parameters into files that can be edited without a rebuild → 15
 - …create a project in the Project Manager, run the tools as a desktop app → 16
+- …find out what the game logs and where it goes → 17

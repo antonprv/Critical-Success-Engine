@@ -3,8 +3,8 @@
 # 10. UI Toolkit: интерфейсы в стиле Windows 98 - 7
 
 Отдельный от игры набор Vue-компонентов, повторяющих элементы Windows от 98 до 7 со всеми их привычными поведениями.
-Код - `src/CSEngine/Core/Source/Toolkit/`, живая демонстрация - страница `Modules/Engine/UI (pnpm dev в папке модуля)`
-(`pnpm dev`, затем `http://127.0.0.1:5173/Modules/Engine/UI (pnpm dev в папке модуля)`; в собранном сайте - `/Modules/Engine/UI (pnpm dev в папке модуля)`). Окно «More controls»
+Код - модуль `src/CSEngine/Modules/Engine/UI` (пакет `@cse/ui`, папка `Source/`), живая демонстрация - галерея этого модуля
+(`Source/Gallery`): `pnpm dev` в папке модуля, затем `http://127.0.0.1:5176/`. Окно «More controls»
 ждёт на панели задач свёрнутым: в нём поле ввода, счётчик, комбобокс, полоса прокрутки, панель инструментов, подсказка
 и кнопка, открывающая окно сообщения.
 
@@ -12,9 +12,9 @@
 
 У каждого элемента две части:
 
-- **контроллер** (`Toolkit/Controls/*Controller.ts`) - вся логика и всё состояние, чистый TypeScript без DOM. Его можно
+- **контроллер** (`Source/Controls/*Controller.ts`) - вся логика и всё состояние, чистый TypeScript без DOM. Его можно
   создать, читать и менять из кода, тестировать без браузера;
-- **компонент** (`Toolkit/Components/Win*.vue`) - только рисует состояние контроллера и передаёт ему ввод мыши и клавиатуры.
+- **компонент** (`Source/Components/Win*.vue`) - только рисует состояние контроллера и передаёт ему ввод мыши и клавиатуры.
 
 Точки расширения:
 
@@ -31,15 +31,7 @@
 
 ```vue
 <script setup lang="ts">
-import { ButtonController } from "./Toolkit/Controls/ButtonController";
-import { WindowController } from "./Toolkit/Controls/WindowController";
-import { WindowManager } from "./Toolkit/Controls/WindowManager";
-import { WinTheme } from "./Toolkit/Core/Themes";
-import { UseControl } from "./Toolkit/Core/UseControl";
-import WinButton from "./Toolkit/Components/WinButton.vue";
-import WinDesktop from "./Toolkit/Components/WinDesktop.vue";
-import WinThemeProvider from "./Toolkit/Components/WinThemeProvider.vue";
-import WinWindow from "./Toolkit/Components/WinWindow.vue";
+import { ButtonController, UseControl, WinButton, WinDesktop, WinTheme, WinThemeProvider, WinWindow, WindowController, WindowManager } from "@cse/ui";
 
 const dialog = UseControl(new WindowController({ Title: "Save changes?", Width: 300, Height: 120 }));
 const save = UseControl(new ButtonController({ Label: "Save", IsDefault: true }));
@@ -76,15 +68,15 @@ dialog.Events.On("closing", (event) => { if (!save.Enabled) event.Cancel(); });
 | Aero (Vista и 7) | `VistaBasic`, `VistaAero`, `Win7Basic`, `Win7Aero` (Aero - стекло с размытием, Basic - непрозрачная рамка) |
 
 `AllThemes` - список с названиями и годами, `GetTheme(id)` - описание одной темы. Цвета каждой темы - CSS-переменные
-в `Toolkit/Styles/toolkit.css` (`--face`, `--title-1`, `--select`...): свою тему можно сделать, переопределив их.
+в `Source/Styles/classic-kit.css` (`--face`, `--title-1`, `--select`...): свою тему можно сделать, переопределив их.
 
 ## Наборы оформления: Classic и Tailwind
 
 Одни и те же компоненты, контроллеры, события, скины и редактор - два набора стилей (`WinKit`):
 
-- **Classic** - темы Windows 98 - 7 выше; стили - `Toolkit/Styles/classic-kit.css`, все правила внутри `.win-kit--classic`;
-- **Tailwind** - каждый компонент нарисован утилитами Tailwind CSS 4 на его дизайн-токенах (`Toolkit/Styles/tailwind-kit.css`).
-  Тема набора (`TailwindTheme`, `Core/Kits.ts`):
+- **Classic** - темы Windows 98 - 7 выше; стили - `Source/Styles/classic-kit.css`, все правила внутри `.win-kit--classic`;
+- **Tailwind** - каждый компонент нарисован утилитами Tailwind CSS 4 на его дизайн-токенах (`Source/Styles/tailwind-kit.css`).
+  Тема набора (`TailwindTheme`, `Source/Core/Kits.ts`):
   - `Accent` - любая из 26 палитр Tailwind (red ... rose, а также slate ... taupe);
   - `Neutral` - серая семья для поверхностей, линий и текста: slate, gray, zinc, neutral, stone, mauve, olive, mist, taupe;
   - `Dark` - светлый или тёмный режим;
@@ -131,8 +123,8 @@ dialog.Events.On("closing", (event) => { if (!save.Enabled) event.Cancel(); });
 
 ## Тесты
 
-Контроллеры и компоненты написаны по TDD и покрыты на 100% (`Tests/Toolkit/`); страницу `Modules/Engine/UI (pnpm dev в папке модуля)` в настоящем
-браузере проверяет `E2E/toolkit.spec.ts` (мышь, клавиатура, все темы).
+Контроллеры и компоненты написаны по TDD и покрыты на 100% (`Tests/`); галерею в настоящем
+браузере проверяет `E2E/toolkit.spec.ts` модуля (мышь, клавиатура, все темы).
 
 ## Сенсорные элементы: стик и игровая кнопка
 

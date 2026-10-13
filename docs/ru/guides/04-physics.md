@@ -113,7 +113,7 @@ Ent("Lift", [
 ```
 
 Поменяй их местами - платформа будет отставать на шаг и персонаж начнёт «скользить» по ней. Готовые `PlatformMover` и `Door` - в
-`Game/Scripts/`.
+`Engine/Gameplay/` (`Scripts.ts`, `Recipes.ts`).
 
 ## Запросы: «что впереди?»
 
@@ -154,7 +154,7 @@ export class RangeFinder extends Component {
 `Projectile` (радиус, `Velocity`, `ApplyGravity`, `Gravity`, `MaxLifetimeSeconds`, `DestroyOnHit`) двигается проверками, а не
 решателем: не «отскакивает», а **останавливается в точке попадания** и сообщает ровно один раз - на любой скорости не проходит
 сквозь стену. Чтобы узнать, во что попал, реализуй на любом компоненте этой же сущности `OnProjectileHit(point, normal, hitEntity)`
-(пример - `BulletHit` и `Shooter` в `Game/Scripts/Scripts.ts`, они используются в сцене *Character test room*). После попадания
+(пример - `BulletHit` и `Shooter` в `Engine/Gameplay/Scripts.ts`, они используются в сцене *Character test room*). После попадания
 или по истечении `MaxLifetimeSeconds` снаряд вызывает `Despawn`: пуля из пула возвращается в него, остальные уничтожаются.
 `Shooter` берёт пули из `EntityPool` на `MaxBullets` штук (см. гайд 03, «Пул вместо Spawn/Destroy»).
 

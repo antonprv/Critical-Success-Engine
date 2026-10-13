@@ -7,7 +7,7 @@
 модуль в отдельный файл, и браузер скачивает его только тогда, когда модуль загружается. Главный модуль - игра.
 
 Код: `Source/Engine/Modules/ModuleManager.ts` (модули), `Source/Engine/Modules/Plugins.ts` (плагины, проект),
-`Source/Project.ts` (проект этого репозитория).
+`Source/Project.ts` (модули движка и проект, который собирается).
 
 ## Соответствие Unreal
 
@@ -30,23 +30,28 @@
 ## Свой модуль
 
 ```ts
-// Source/Game/InventoryModule.ts
+// Source/InventoryModule.ts в проекте
 export default class InventoryModule extends ModuleInterface {
 	public readonly Items = new ItemDatabase();
 	public override StartupModule(): void { /* регистрирует то, что модуль даёт */ }
 	public override ShutdownModule(): void { /* отменяет StartupModule */ }
 }
+```
 
-// Source/Project.ts - в Modules проекта (или в Modules плагина)
-{ Name: "Inventory", Type: ModuleType.Runtime, LoadingPhase: LoadingPhase.None, Dependencies: ["Engine"],
-  Load: () => import("./Game/InventoryModule") }
+Модуль проекта объявляется в его дескрипторе `.cseproject`, в списке `Modules` (гайд 13); `Entry` - файл, который экспортирует класс модуля по умолчанию:
 
-// где он нужен
+```json
+{ "Name": "Inventory", "Type": "Runtime", "LoadingPhase": "None", "Dependencies": ["Engine"], "Entry": "Source/InventoryModule.ts" }
+```
+
+Там, где он нужен:
+
+```ts
 const inventory = await ModuleManager.Get().LoadModuleChecked<InventoryModule>("Inventory");
 ```
 
 Модуль получает то, что дают другие модули, так же, как в Unreal: `ModuleManager.Get().GetModuleChecked<EngineModule>("Engine")`.
-Так главный модуль игры (`Source/Game/GamesSampleModule.ts`) регистрирует свои сцены в модуле движка.
+Так главный модуль игры (в шаблоне - `Source/TemplateProjectModule.ts`) регистрирует свои сцены в модуле движка (гайд 02).
 
 ## Загрузка
 
@@ -91,6 +96,7 @@ const off = channels.On("ui", (payload) => { /* ... */ }); // из другог�
 ## Что уже модули
 
 - `Engine` - сервисы движка (реестр сцен); фаза `EarliestPossible`.
-- `GamesSample` - главный модуль игры; фаза `Default`.
+- главный модуль проекта (`Primary`) - сама игра; фаза `Default`. Games Sample берёт главные модули всех шаблонов.
+- UI-плагин: модули `UIHost` (страница) и `UIGame` (воркер игры), гайд 13.
 
-Дальше в модули переезжают тулкит, редактор интерфейсов и редактор кода (тип `Editor`, загрузка по требованию).
+Тулкит и UI-документы живут в UI-плагине (`Modules/Engine/UI`, гайд 13), редакторы - в `Modules/Editor/*` (гайды 11 и 16).

@@ -13,6 +13,7 @@ Starfall/
   Source/StarfallModule.ts      the main game module
   Content/UI/Ui.manifest.json   the list of UI documents
   Content/UI/MainMenu.ui.json   UI documents (made by the UI Designer)
+  Binaries/                     finished builds from the Project Manager: Web|Desktop / Dev|Prod (guide 16)
 ```
 
 `Starfall.cseproject`:
@@ -48,6 +49,8 @@ CSE_PROJECT=Starfall pnpm dev                          # by a name from the regi
 CSE_PROJECT=D:/Games/Starfall pnpm build               # by a folder
 CSE_PROJECT=../../Templates/Blank pnpm build           # a template is a project too
 ```
+
+Besides `CSE_PROJECT`, the build reads `CSE_OUT_DIR`: with it the site goes to that folder (with relative URLs) instead of `Binaries/Core`. This is how the Project Manager's **Build** makes a project's `Binaries/<Web|Desktop>/<Dev|Prod>`, and its **Run** starts the dev server for a project (guide 16, "Running and building a project").
 
 The `BuildTools/ProjectPlugin.ts` plugin gives the project to the engine as the `virtual:cse/project` module: the descriptor, the project's modules
 (each `Entry` is loaded dynamically, as a separate build file) and UI documents (read on demand,

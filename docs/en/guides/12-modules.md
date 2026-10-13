@@ -7,7 +7,7 @@ descriptor (a name, a type, a loading phase, dependencies). Its code is attached
 the module in a separate file, and the browser downloads it only when the module is loaded. The main module is the game.
 
 The code: `Source/Engine/Modules/ModuleManager.ts` (modules), `Source/Engine/Modules/Plugins.ts` (plugins, the project),
-`Source/Project.ts` (this repository's project).
+`Source/Project.ts` (the engine's modules and the project being built).
 
 ## The Unreal correspondence
 
@@ -30,23 +30,28 @@ The code: `Source/Engine/Modules/ModuleManager.ts` (modules), `Source/Engine/Mod
 ## Your own module
 
 ```ts
-// Source/Game/InventoryModule.ts
+// Source/InventoryModule.ts in a project
 export default class InventoryModule extends ModuleInterface {
 	public readonly Items = new ItemDatabase();
 	public override StartupModule(): void { /* registers what the module provides */ }
 	public override ShutdownModule(): void { /* undoes StartupModule */ }
 }
+```
 
-// Source/Project.ts - in the project's Modules (or in a plugin's Modules)
-{ Name: "Inventory", Type: ModuleType.Runtime, LoadingPhase: LoadingPhase.None, Dependencies: ["Engine"],
-  Load: () => import("./Game/InventoryModule") }
+A project's module is declared in its `.cseproject` descriptor, in the `Modules` list (guide 13); `Entry` is the file that exports the module class by default:
 
-// where it's needed
+```json
+{ "Name": "Inventory", "Type": "Runtime", "LoadingPhase": "None", "Dependencies": ["Engine"], "Entry": "Source/InventoryModule.ts" }
+```
+
+Where it's needed:
+
+```ts
 const inventory = await ModuleManager.Get().LoadModuleChecked<InventoryModule>("Inventory");
 ```
 
 A module gets what other modules provide the same way as in Unreal: `ModuleManager.Get().GetModuleChecked<EngineModule>("Engine")`.
-This is how the game's main module (`Source/Game/GamesSampleModule.ts`) registers its scenes in the engine module.
+This is how the game's main module (in a template, `Source/TemplateProjectModule.ts`) registers its scenes in the engine module (guide 02).
 
 ## Loading
 
@@ -91,6 +96,7 @@ What's missing, `InitEngine` returns as a list, and the game's thread writes it 
 ## What's already a module
 
 - `Engine` - the engine services (the scene registry); the `EarliestPossible` phase.
-- `GamesSample` - the game's main module; the `Default` phase.
+- the project's main module (`Primary`) - the game itself; the `Default` phase. Games Sample takes the main modules of all the templates.
+- the UI plugin: the `UIHost` module (the page) and `UIGame` (the game worker), guide 13.
 
-Next, the toolkit, the UI designer and the code editor are moving into modules (the `Editor` type, loaded on demand).
+The toolkit and UI documents live in the UI plugin (`Modules/Engine/UI`, guide 13), the editors in `Modules/Editor/*` (guides 11 and 16).

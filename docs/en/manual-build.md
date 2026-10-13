@@ -67,6 +67,15 @@ cd src/CSEngine/Modules/Editor/UIDesigner && pnpm dev        # http://127.0.0.1:
 
 and launch the program with the variables `CSE_PROJECT_BROWSER_URL=http://127.0.0.1:5177/` and `CSE_UI_DESIGNER_URL=http://127.0.0.1:5175/`. The designer on its own: `pnpm start -- --ui-designer` in `src/CSEngine/Programs/Desktop`. Details are in [guide 16](guides/16-desktop.md).
 
+The same builds the Project Manager's **Build** and **Run** buttons make can be made by hand, from `src/CSEngine/Core` (the engine's Vite builds whichever project it's told to):
+
+```bash
+CSE_PROJECT=/path/to/MyGame.cseproject CSE_OUT_DIR=/path/to/MyGame/Binaries/Web/Prod pnpm exec vite build
+CSE_PROJECT=/path/to/MyGame.cseproject pnpm exec vite --host 127.0.0.1    # the dev server that "Run - dev" starts
+```
+
+For a Dev build add `--mode development`; the Desktop shell (`electron-main.cjs`, `package.json`) is added only by the manager, see [guide 16](guides/16-desktop.md).
+
 ## Checks and tests
 
 The commands are run in `src/CSEngine/Core` (the other modules have a similar set, see their `package.json`):

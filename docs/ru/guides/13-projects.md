@@ -13,6 +13,7 @@ Starfall/
   Source/StarfallModule.ts      главный игровой модуль
   Content/UI/Ui.manifest.json   список UI-документов
   Content/UI/MainMenu.ui.json   UI-документы (их делает UI Designer)
+  Binaries/                     готовые сборки из утилиты проектов: Web|Desktop / Dev|Prod (гайд 16)
 ```
 
 `Starfall.cseproject`:
@@ -48,6 +49,8 @@ CSE_PROJECT=Starfall pnpm dev                          # по имени из р
 CSE_PROJECT=D:/Games/Starfall pnpm build               # по папке
 CSE_PROJECT=../../Templates/Blank pnpm build           # шаблон - тоже проект
 ```
+
+Кроме `CSE_PROJECT`, сборка читает `CSE_OUT_DIR`: с ней сайт кладётся в эту папку (с относительными адресами), а не в `Binaries/Core`. Так кнопка **Build** утилиты проектов делает `Binaries/<Web|Desktop>/<Dev|Prod>` проекта, а **Run** запускает dev-сервер проекта (гайд 16, «Запуск и сборка проекта»).
 
 Плагин `BuildTools/ProjectPlugin.ts` отдаёт проект движку как модуль `virtual:cse/project`: дескриптор, модули проекта
 (каждый `Entry` грузится динамически, отдельным файлом сборки) и UI-документы (читаются по требованию,

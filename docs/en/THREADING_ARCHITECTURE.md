@@ -1,126 +1,83 @@
 **English** | [Русский](../ru/THREADING_ARCHITECTURE.md)
 
-# Critical Success Engine threading architecture
+# Threading architecture
 
-> **Update:** there are now **five** workers - a `UiWorker` was added (UI state/logic; Vue + Quasar on the main thread
-> only render it), and `gamelogic` became a component/scene runtime. The reasoning below still holds; for the current
-> picture and the scripting model read [ENGINE_ARCHITECTURE.md](ENGINE_ARCHITECTURE.md) and the guides in
-> [guides/](guides/00-index.md). File names below use the old lowercase names (`render.worker.ts`...); the current ones
-> are `RenderWorker.ts`, `PhysicsWorker.ts`, `GameLogicWorker.ts`, `AudioWorker.ts`, `UiWorker.ts`.
+The engine runs in the page (the main thread) and five workers. This document says who owns what, why the split looks like this, and
+what to keep in mind when relying on it. The code is in `src/CSEngine/Core/Source/Workers`; the model of scripting and scenes is in
+[ENGINE_ARCHITECTURE.md](ENGINE_ARCHITECTURE.md) and the [guides](guides/00-index.md).
 
-What changed, why it's split this way, and what to check before you rely on
-any of it.
+## Who owns what
 
-## Before / after
-
-**Before:** `app.ts` synchronously imported `game/Game.ts`, which created a
-Babylon `Engine`/`Scene` directly on the main thread's `<canvas>`, and used
-Babylon's default Havok (WASM) plugin for physics if/when one was added. One
-thread did input, game logic, physics, and rendering, in whatever order
-Babylon's render loop happened to call them.
-
-**After:** `app.ts` boots `src/workers/orchestrator.ts`, which owns nothing
-but four `Worker` instances and the DOM event listeners that can only exist
-on the main thread (keyboard/pointer events, `AudioContext` unlock gesture,
-window resize). Everything else moved into its own worker:
-
-| Worker | Owns | Does not own |
+| Thread | Owns | Does not own |
 |---|---|---|
-| `render.worker.ts` | OffscreenCanvas, Babylon `Engine`/`Scene`, meshes, `AssetLoader` | game state, physics |
-| `physics.worker.ts` | the BEPU simulation (via `physics-wasm`), fixed-timestep stepping | mesh objects, gameplay rules |
-| `gamelogic.worker.ts` | entity registry, input handling, gameplay/AI | rendering, physics internals |
-| `audio.worker.ts` | `AudioContext`, sound playback | everything else |
+| main thread (`App.ts`, `Orchestrator.ts`) | DOM listeners (keyboard, pointer, pointer lock, window size), the `AudioContext` playback, drawing the UI state (Vue/Quasar) | game state, physics, rendering |
+| `RenderWorker.ts` | the OffscreenCanvas, Babylon `Engine`/`Scene`, meshes, `AssetLoader` | game state, physics |
+| `PhysicsWorker.ts` | the BEPU simulation (through the wasm bridge), fixed-step stepping | mesh objects, gameplay rules |
+| `GameLogicWorker.ts` | entities, components, scenes, input state, the frame and physics ticks | rendering, physics internals |
+| `AudioWorker.ts` | sound decoding | playback (that is on the main thread) |
+| `UiWorker.ts` | the state and logic of the menu / loading screen (`Workers/Ui/UiController.ts`) | drawing (Vue on the main thread draws the state) |
 
-## Why these four, and not more/fewer
+`Workers/Orchestrator.ts` starts the workers; `Workers/OrchestratorUtils/GameWorkers.ts` wires them: the main thread talks to every worker, and
+GameLogic gets a direct `MessageChannel` to each of the render, physics, audio and UI workers (port 1 goes to GameLogic, port 2 to the other worker).
+The message types are in `Workers/Protocol/`. A new system (asset streaming, networking, a pathfinding worker) gets its own file and its own channel to
+whoever needs its output; the channels are created in one place, `GameWorkers`.
 
-You chose "maximally split - one worker per system" over the router asked.
-The four above are the systems that currently exist in this codebase. If you
-add a fifth system later (streaming/asset-prefetch, networking, a dedicated
-AI/pathfinding worker), give it its own file and its own `MessageChannel`
-edge to whichever worker needs its output - `orchestrator.ts`'s `wireWorkers`
-is the one place that creates channels and hands out ports, so that's the
-only file a new worker's wiring touches.
+## Why messages and not SharedArrayBuffer
 
-## Why message-passing, not SharedArrayBuffer
+The engine uses `postMessage` / structured clone, not `SharedArrayBuffer` + Atomics. In plain terms:
 
-You picked `postMessage`/structured-clone over `SharedArrayBuffer` + Atomics.
-That trade-off in plain terms:
+- **What you get**: no COOP/COEP response headers anywhere the game is hosted (`Cross-Origin-Opener-Policy: same-origin` +
+  `Cross-Origin-Embedder-Policy: require-corp`). They are easy to forget, easy to break by adding a single third-party `<script src>`, and out of your
+  control on a platform that doesn't let you set response headers.
+- **What it costs**: every batch of transforms, spawn command and event is copied between worker realms on each tick, instead of several threads
+  reading the same memory. At the entity counts of a single-player web game this hardly matters. If transform messages ever show up in a profile, the
+  first step is `Transferable` objects (send the underlying `ArrayBuffer` of a `Float64Array` with `postMessage(msg, [buffer])` - no copy, still no
+  SharedArrayBuffer, no COOP/COEP), before reaching for shared memory.
 
-- **What you get**: no COOP/COEP response headers required anywhere the game
-  is hosted (`Cross-Origin-Opener-Policy: same-origin` +
-  `Cross-Origin-Embedder-Policy: require-corp` - easy to forget, easy to break
-  by adding one third-party `<script src>` later, and outside your control if
-  you ever host on a platform that doesn't let you set response headers).
-- **What it costs**: every transform batch, spawn command, and event is
-  copied (structured clone) between worker realms every tick, instead of
-  multiple threads reading the same memory. For the entity counts a
-  single-player web game like this deals in, that cost is very unlikely to
-  matter; if transform-batch messages ever show up as a profiler hotspot,
-  the fix is `Transferable` objects (send a `Float64Array`'s underlying
-  `ArrayBuffer` with `postMessage(msg, [buffer])` instead of a plain array -
-  zero-copy, still no SharedArrayBuffer/Atomics/COOP/COEP needed) before
-  reaching for shared memory.
+## Why the physics is real BEPU through WASM
 
-## Why physics is real BEPU-via-WASM, not a JS physics library
+The physics is the real BEPU Physics, not a JS library: `Physics/Bridge` compiles the engine's `Physics.Integration` (with the vendored `BepuPhysics` /
+`BepuUtilities` and `FastMath`) to a browser wasm module with the .NET `wasm-tools` workload, and `Workers/Physics/PhysicsWorld.ts` is the only place that
+calls it (`[JSExport]` methods of `PhysicsBridge.cs`). How to build it: `devops/build-physics.sh` (or `build-all` without `--skip-physics`), details in
+`Physics/Bridge/BUILD.md`.
 
-You specifically asked to port the Bepu integration from your Godot project,
-not adopt Rapier/Cannon/etc. `physics-wasm/` compiles your actual
-`Framework.Physics` + vendored `BepuPhysics`/`BepuUtilities` (copied from
-`Setup.7z`) to a browser wasm module via .NET 8's `wasm-tools` workload, and
-`physics.worker.ts` calls into it through `[JSExport]`
-(`physics-wasm/Bridge/PhysicsBridge.cs`). See `physics-wasm/BUILD.md` for the
-actual build steps and, importantly, the caveats - **I have not built or run
-this myself** (no NuGet access in the sandbox I wrote it in), so treat the
-wasm side as unverified until you've run through BUILD.md's smoke test.
+`PhysicsWorker.ts` degrades gracefully if the wasm module fails to load: it reports the error, the game shows a toast and carries on without a simulation, and
+the other workers keep working. That is handy for working on rendering and gameplay without a physics build.
 
-`physics.worker.ts` degrades gracefully if the wasm module fails to load
-(logs an error, stops stepping) rather than crashing the other three workers
-- useful for iterating on rendering/gameplay before the physics build exists.
-
-## Message flow (current)
+## The message flow
 
 ```
-PhysicsWorker (setInterval + accumulator, fixed 60 Hz)
-  -> PhysicsWorld.Step(dt)                            [wasm call, in-thread]
-  -> postMessage(Step snapshot: bodies, characters, overlaps)   -> GameLogicWorker
-GameLogicWorker (physics clock)
-  -> OnPhysicsSync -> overlap callbacks -> OnPhysicsUpdate for every component
+PhysicsWorker (setInterval + accumulator, a fixed 60 Hz)
+  -> PhysicsWorld.Step(dt)                            [a wasm call, in the same thread]
+  -> postMessage(step snapshot: bodies, characters, overlaps)   -> GameLogicWorker
+GameLogicWorker (the physics tick)
+  -> OnPhysicsSync -> overlap callbacks -> every component's OnPhysicsUpdate
   -> postMessage({ commands: [...] }) back to PhysicsWorker       (one batch per tick)
 
-RenderWorker (display clock, once per displayed frame, max 2 outstanding)
+RenderWorker (the display tick, once per shown frame, at most 2 pending)
   -> "frame-request"                                  -> GameLogicWorker
-GameLogicWorker (render clock)
-  -> OnInputUpdate -> Update -> OnUIUpdate for every component
-  -> "Frame": interpolated poses of all renderables + camera pose  (Transferable buffer)
-RenderWorker draws the latest frame it has received.
+GameLogicWorker (the render tick)
+  -> OnInputUpdate -> Update -> OnUIUpdate of every component
+  -> "Frame": interpolated poses of everything drawn + the camera pose  (a Transferable buffer)
+RenderWorker draws the latest frame it received.
 ```
 
-Physics steps and render frames are decoupled. Interpolation between the last two physics poses happens in GameLogic
+Physics steps and render frames are decoupled. The interpolation between the last two physics poses happens in GameLogic
 (`Transform.WriteInterpolated`), so the render worker just applies what it is told.
 
-## Dev tooling
+## Developer tools
 
-Babylon's Inspector (`scene.debugLayer`) creates its own DOM overlay and
-needs `document`, which doesn't exist in a worker. It's not wired up in
-`render.worker.ts` for that reason. Two ways forward if you want it back
-during development:
+Babylon's Inspector (`scene.debugLayer`) builds its own DOM overlay and needs `document`, which a worker doesn't have, so the render worker's
+`SetInspectorVisible` is deliberately a no-op. If you want an Inspector during development there are two ways:
 
-1. Keep a second, non-worker boot path for `pnpm dev` specifically (import
-   `Game.ts`'s old direct-Babylon setup instead of the orchestrator when
-   `__DEV__` is true), accepting that dev and prod then diverge structurally.
-2. Forward whatever Inspector needs to inspect back to the main thread and
-   render a custom, non-Babylon-Inspector debug UI there instead (more work,
-   but keeps dev/prod using the same worker split).
+1. Keep a second, non-worker launch path just for `pnpm dev` (a direct Babylon setup on the page's canvas instead of the orchestrator), accepting that dev and
+   prod then differ in structure.
+2. Send whatever the Inspector needs back to the main thread and draw your own debug UI there (more work, but dev and prod share the same worker split).
 
-Neither is implemented - `Game.ts` is left in the repo (marked superseded)
-specifically so option 1 is a small diff if you want it.
+Neither is implemented.
 
 ## Known gaps
 
-- The whole `PhysicsWorld` API is exposed through `PhysicsBridge`. `PhysicsBridge.cs` was compile-checked against the
-  real Integration/Bepu sources (C# only, net8 reference assemblies); the browser-wasm build itself
-  (`dotnet workload install wasm-tools`, net10) and the runtime behaviour in a browser have NOT been run by the author of
-  this change - build it per `Physics/Bridge/BUILD.md` and walk through the character test scene before trusting it.
-- The loading screen shows scene-loading progress, not real background-asset download progress.
-- A character move that arrives after its step already ran is skipped (commands are consumed exactly once); this only shows
-  after a stall, when the physics worker catches up with several steps at once.
+- The loading screen shows the scene-load progress, not the real progress of background asset loading.
+- A character move that arrives after its step has already run is skipped (commands are consumed exactly once); this is visible only after a stall, when the
+  physics worker catches up with several steps at once.

@@ -30,11 +30,13 @@ pwsh devops/build-all.ps1 -SkipPhysics
 pwsh devops/start-desktop.ps1
 ```
 
+`--skip-physics` подходит для самой утилиты, но проекты, которые вы запускаете из неё кнопкой **Run**, берут физику из её сборки: если хотите, чтобы в них была физика, уберите флаг (нужен .NET SDK).
+
 После первой сборки достаточно `start-desktop`; `--build` (`-Build`) пересоберёт перед запуском, `--designer` (`-Designer`) откроет UI Designer отдельно. Бинарник Electron скачивается при первом запуске.
 
 - [`docs/ru/devops-commands.md`](docs/ru/devops-commands.md) - все скрипты и их параметры (в том числе `--web` для сборки веб-игры и сборка физики).
 - [`docs/ru/manual-build.md`](docs/ru/manual-build.md) - ручная сборка по шагам: зависимости, dev-сервер, веб-игра, физика (wasm), десктопная программа, проверки.
-- [`docs/ru/guides/16-desktop.md`](docs/ru/guides/16-desktop.md) - как устроены десктопная программа и Project Manager.
+- [`docs/ru/guides/16-desktop.md`](docs/ru/guides/16-desktop.md) - как устроены десктопная программа и Project Manager, включая создание проекта из шаблона и **Run** / **Build** проекта (Web или Desktop, Dev или Prod, в `Binaries/` проекта).
 
 ## Сборка и запуск веб-игры
 

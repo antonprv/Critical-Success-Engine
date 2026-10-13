@@ -2,7 +2,7 @@
 
 # 08. Рецепты
 
-Короткие готовые компоненты. Код - из `Source/Game/Scripts/Recipes.ts`, он компилируется и протестирован (`Tests/Recipes.test.ts`):
+Короткие готовые компоненты. Код - из `Core/Source/Engine/Gameplay/Recipes.ts`, он компилируется и протестирован (`Tests/Recipes.test.ts`):
 копируй нужное себе.
 
 ## Раздвижная дверь
@@ -161,13 +161,14 @@ Ent("Launch Pad", [
 
 ## Спринт
 
-Зажал Shift - быстрее. Меняет число в профиле мувера (профиль общий для всех режимов движения).
+Зажал Shift - быстрее. Меняет число в профиле мувера (профиль общий для всех режимов движения). Клавиша берётся из действия `Sprint` файла ввода проекта (в шаблоне First Person - Shift и клик левого стика, гайд 14); `Action` можно поменять в манифесте.
 
 ```ts
 /** Hold Left Shift to run faster. Works by scaling the mover's profile (the profile is shared by all movement modes). */
 export class Sprint extends Component {
 	public Multiplier = 1.6;
-	public Key = "ShiftLeft";
+	/** The input action that sprints (Shift, the left stick's click). */
+	public Action = "Sprint";
 
 	private _baseSpeed = 0;
 	private _mover!: MoverComponent;
@@ -178,7 +179,7 @@ export class Sprint extends Component {
 	}
 
 	public override OnInputUpdate(input: InputService): void {
-		this._mover.Profile!.MaxSpeed = this._baseSpeed * (input.IsKeyDown(this.Key) ? this.Multiplier : 1);
+		this._mover.Profile!.MaxSpeed = this._baseSpeed * (input.IsActionDown(this.Action) ? this.Multiplier : 1);
 	}
 }
 ```

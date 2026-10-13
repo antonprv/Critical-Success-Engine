@@ -113,7 +113,7 @@ Ent("Lift", [
 ```
 
 Swap them and the platform will lag a step behind and the character will start to "slide" on it. The ready-made `PlatformMover` and `Door` are in
-`Game/Scripts/`.
+`Engine/Gameplay/` (`Scripts.ts`, `Recipes.ts`).
 
 ## Queries: "what's ahead?"
 
@@ -154,7 +154,7 @@ The camera's spring arm (`CameraComponent`) and the bullet (`Projectile`) work t
 `Projectile` (radius, `Velocity`, `ApplyGravity`, `Gravity`, `MaxLifetimeSeconds`, `DestroyOnHit`) moves with checks, not with the
 solver: it doesn't "bounce" but **stops at the point of impact** and reports exactly once - at any speed it doesn't pass
 through a wall. To find out what it hit, implement `OnProjectileHit(point, normal, hitEntity)` on any component of the same entity
-(an example is `BulletHit` and `Shooter` in `Game/Scripts/Scripts.ts`, used in the *Character test room* scene). After a hit
+(an example is `BulletHit` and `Shooter` in `Engine/Gameplay/Scripts.ts`, used in the *Character test room* scene). After a hit
 or once `MaxLifetimeSeconds` runs out, the projectile calls `Despawn`: a bullet from a pool goes back into it, the others are destroyed.
 `Shooter` takes bullets from an `EntityPool` of `MaxBullets` (see guide 03, "A pool instead of Spawn/Destroy").
 

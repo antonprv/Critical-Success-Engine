@@ -128,7 +128,7 @@ Ent("Player", [
 ```
 
 The order of traits in the list matters (they run top to bottom). If you want a double jump, the ready-made `DoubleJumpMover` is in
-`Game/Scripts/Recipes.ts` (recipes, guide 08). The context a trait receives (`MovementContext`): `WishDirection`, `JumpRequested`,
+`Engine/Gameplay/Recipes.ts` (recipes, guide 08). The context a trait receives (`MovementContext`): `WishDirection`, `JumpRequested`,
 `JumpConsumed` (set it to `true` if you performed the jump yourself), `IsOnFloor`, `Gravity`, `Profile`, `Delta`.
 
 ## The camera

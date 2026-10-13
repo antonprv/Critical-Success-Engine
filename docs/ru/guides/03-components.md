@@ -121,13 +121,15 @@ export class Lifetime extends Component {
 
 ## Ввод
 
-`this.Engine.Input` (и параметр `input` в `OnInputUpdate`):
+`this.Engine.Input` (и параметр `input` в `OnInputUpdate`). Игра спрашивает не «нажат ли Space», а «нажато ли действие Jump»: действия и их клавиши, кнопки мыши и геймпада описывает файл ввода проекта, а игрок может их переназначить (гайд 14). Поэтому в своих компонентах бери действия:
 
-- `IsKeyDown("KeyW")` - зажата ли клавиша. Коды - как в `KeyboardEvent.code`: `KeyW`, `Space`, `ShiftLeft`, `Digit1`…
-- `JustPressed("Space")` - нажата **в этом кадре** (для `Update`/`OnInputUpdate`).
-- `JustPressedPhysics("Space")` - нажата с прошлого физического шага (для `OnPhysicsUpdate`; короткий тап не потеряется).
-- Мышь: кнопки как `"Mouse0"` (левая), `"Mouse1"`, …; `ConsumeLookDelta()` - сдвиг в пикселях с прошлого вызова.
-- `GetInputVector()` - WASD/стрелки как `[x, y]` (вперёд = **отрицательный** y, как в Godot).
+- `IsActionDown("Jump")` - действие зажато (клавиатура, мышь, геймпад или экранная кнопка).
+- `ActionJustPressed("Fire")` - нажато **в этом кадре** (для `Update`/`OnInputUpdate`); `ActionJustPressedPhysics("Fire")` - нажато с прошлого физического шага (для `OnPhysicsUpdate`; короткий тап не потеряется).
+- `ActionValue("Accelerate")` - значение 0..1 (триггеры и стики аналоговые).
+- `GetMoveVector()` - действия `Move…` активной карты как `[x, y]` длиной не больше 1 (вперёд = **отрицательный** y, как в Godot); `GetInputVector()` - то же самое.
+- `ConsumeLookDelta()` - сдвиг мыши в пикселях с прошлого вызова; `ConsumeWheel()` - колесо.
+
+Действия есть только в тех картах, которые описал проект: если в активной карте нет действия `Fire`, оно просто никогда не нажимается. Есть и «сырые» коды: `IsKeyDown("KeyW")`, `JustPressed("Space")`, `JustPressedPhysics("Space")` (коды как в `KeyboardEvent.code`: `KeyW`, `Space`, `ShiftLeft`, `Digit1`…; кнопки мыши - `"Mouse0"` (левая), `"Mouse1"`, …). Но такая клавиша не переназначается и не работает с геймпадом.
 
 Пока игра не захватила мышь (меню на экране), весь ввод «пустой» - клавиши не нажимаются, мышь не копится.
 
@@ -146,7 +148,7 @@ export class BallGun extends Component {
 	private _balls: EntityPool | null = null;
 
 	public override OnInputUpdate(input: InputService): void {
-		if (!input.JustPressed("Mouse0")) return;
+		if (!input.ActionJustPressed("Fire")) return;
 
 		const camera = this.Engine.World.FindByName("Camera")?.GetComponent(CameraComponent);
 		if (!camera) return;
@@ -169,6 +171,8 @@ export class BallGun extends Component {
 	}
 }
 ```
+
+`Fire` - действие из файла ввода проекта (в шаблоне First Person оно привязано к левой кнопке мыши, гайд 14); в проекте, где в активной карте нет `Fire`, пушка не стреляет.
 
 Обрати внимание: начальную скорость мы отдаём не прямым вызовом (тела ещё нет), а компонентом `InitialVelocity`.
 

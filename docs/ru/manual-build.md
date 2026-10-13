@@ -67,6 +67,15 @@ cd src/CSEngine/Modules/Editor/UIDesigner && pnpm dev        # http://127.0.0.1:
 
 и запускать программу с переменными `CSE_PROJECT_BROWSER_URL=http://127.0.0.1:5177/` и `CSE_UI_DESIGNER_URL=http://127.0.0.1:5175/`. Дизайнер отдельно: `pnpm start -- --ui-designer` в `src/CSEngine/Programs/Desktop`. Подробности - в [гайде 16](guides/16-desktop.md).
 
+Те же сборки, что делает кнопка **Build** утилиты проектов, можно сделать вручную из `src/CSEngine/Core` (Vite движка собирает тот проект, который ему указали):
+
+```bash
+CSE_PROJECT=/path/to/MyGame.cseproject CSE_OUT_DIR=/path/to/MyGame/Binaries/Web/Prod pnpm exec vite build
+CSE_PROJECT=/path/to/MyGame.cseproject pnpm exec vite --host 127.0.0.1    # dev-сервер, который запускает «Run - dev»
+```
+
+Для Dev-сборки добавьте `--mode development`; оболочку Desktop (`electron-main.cjs`, `package.json`) добавляет только утилита, см. [гайд 16](guides/16-desktop.md).
+
 ## Проверки и тесты
 
 Команды выполняются в `src/CSEngine/Core` (у остальных модулей набор похожий, см. их `package.json`):

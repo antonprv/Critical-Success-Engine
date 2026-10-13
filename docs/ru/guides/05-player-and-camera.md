@@ -128,7 +128,7 @@ Ent("Player", [
 ```
 
 Порядок трейтов в списке важен (они исполняются сверху вниз). Хочешь двойной прыжок - готовый `DoubleJumpMover` лежит в
-`Game/Scripts/Recipes.ts` (рецепты, гайд 08). Контекст, который получает трейт (`MovementContext`): `WishDirection`, `JumpRequested`,
+`Engine/Gameplay/Recipes.ts` (рецепты, гайд 08). Контекст, который получает трейт (`MovementContext`): `WishDirection`, `JumpRequested`,
 `JumpConsumed` (поставь `true`, если сам выполнил прыжок), `IsOnFloor`, `Gravity`, `Profile`, `Delta`.
 
 ## Камера

@@ -30,11 +30,13 @@ pwsh devops/build-all.ps1 -SkipPhysics
 pwsh devops/start-desktop.ps1
 ```
 
+`--skip-physics` is fine for the manager itself, but projects you **Run** from it use the physics build: drop the flag (this needs the .NET SDK) if you want them to have physics.
+
 After the first build it's enough to run `start-desktop`; `--build` (`-Build`) rebuilds before launching, `--designer` (`-Designer`) opens the UI Designer on its own. The Electron binary is downloaded on first launch.
 
 - [`docs/en/devops-commands.md`](docs/en/devops-commands.md) - all the scripts and their options (including `--web` to build the web game and the physics build).
 - [`docs/en/manual-build.md`](docs/en/manual-build.md) - building by hand, step by step: dependencies, the dev server, the web game, physics (wasm), the desktop app, checks.
-- [`docs/en/guides/16-desktop.md`](docs/en/guides/16-desktop.md) - how the desktop app and the Project Manager work.
+- [`docs/en/guides/16-desktop.md`](docs/en/guides/16-desktop.md) - how the desktop app and the Project Manager work, including creating a project from a template, and **Run** / **Build** for a project (Web or Desktop, Dev or Prod, into the project's `Binaries/`).
 
 ## Building and running the web game
 

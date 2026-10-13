@@ -34,7 +34,7 @@ export const MyScene: SceneManifest = {
 };
 ```
 
-Register it in `Game/GameScenes.ts` and it shows up in the pause menu.
+Register it in the `StartupModule` of the project's main module (`Scenes.Register(MyScene)`, guide 02) and it shows up in the pause menu.
 
 A component is a class (`Engine/Core/Component.ts`); plain public fields are what `Comp(Type, props)` sets:
 

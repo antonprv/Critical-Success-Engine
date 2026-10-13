@@ -3,8 +3,8 @@
 # 10. UI Toolkit: Windows 98 - 7 style interfaces
 
 A set of Vue components separate from the game, reproducing Windows elements from 98 to 7 with all their familiar behaviours.
-The code is `src/CSEngine/Core/Source/Toolkit/`, a live demo is the page `Modules/Engine/UI (run pnpm dev in the module folder)`
-(`pnpm dev`, then `http://127.0.0.1:5173/Modules/Engine/UI (run pnpm dev in the module folder)`; in the built site - `/Modules/Engine/UI (run pnpm dev in the module folder)`). The "More controls" window
+The code is the module `src/CSEngine/Modules/Engine/UI` (the `@cse/ui` package, its `Source/` folder), a live demo is that module's gallery
+(`Source/Gallery`): `pnpm dev` in the module folder, then `http://127.0.0.1:5176/`. The "More controls" window
 waits minimised on the taskbar: it has a text box, a spinner, a combo box, a scroll bar, a toolbar, a tooltip
 and a button that opens a message box.
 
@@ -12,9 +12,9 @@ and a button that opens a message box.
 
 Every element has two parts:
 
-- the **controller** (`Toolkit/Controls/*Controller.ts`) - all the logic and all the state, pure TypeScript without a DOM. It can be
+- the **controller** (`Source/Controls/*Controller.ts`) - all the logic and all the state, pure TypeScript without a DOM. It can be
   created, read and changed from code, and tested without a browser;
-- the **component** (`Toolkit/Components/Win*.vue`) - only draws the controller's state and passes it mouse and keyboard input.
+- the **component** (`Source/Components/Win*.vue`) - only draws the controller's state and passes it mouse and keyboard input.
 
 Extension points:
 
@@ -31,15 +31,7 @@ Common to all controls (`ControlBase`): the flags `Enabled`, `Visible`, `Focused
 
 ```vue
 <script setup lang="ts">
-import { ButtonController } from "./Toolkit/Controls/ButtonController";
-import { WindowController } from "./Toolkit/Controls/WindowController";
-import { WindowManager } from "./Toolkit/Controls/WindowManager";
-import { WinTheme } from "./Toolkit/Core/Themes";
-import { UseControl } from "./Toolkit/Core/UseControl";
-import WinButton from "./Toolkit/Components/WinButton.vue";
-import WinDesktop from "./Toolkit/Components/WinDesktop.vue";
-import WinThemeProvider from "./Toolkit/Components/WinThemeProvider.vue";
-import WinWindow from "./Toolkit/Components/WinWindow.vue";
+import { ButtonController, UseControl, WinButton, WinDesktop, WinTheme, WinThemeProvider, WinWindow, WindowController, WindowManager } from "@cse/ui";
 
 const dialog = UseControl(new WindowController({ Title: "Save changes?", Width: 300, Height: 120 }));
 const save = UseControl(new ButtonController({ Label: "Save", IsDefault: true }));
@@ -76,15 +68,15 @@ If no controller is passed, the button, checkbox, progress bar and text box comp
 | Aero (Vista and 7) | `VistaBasic`, `VistaAero`, `Win7Basic`, `Win7Aero` (Aero is blurred glass, Basic is an opaque frame) |
 
 `AllThemes` is a list with names and years, `GetTheme(id)` is the description of one theme. Each theme's colours are CSS variables
-in `Toolkit/Styles/toolkit.css` (`--face`, `--title-1`, `--select`...): you can make your own theme by overriding them.
+in `Source/Styles/classic-kit.css` (`--face`, `--title-1`, `--select`...): you can make your own theme by overriding them.
 
 ## Style kits: Classic and Tailwind
 
 The same components, controllers, events, skins and editor - two sets of styles (`WinKit`):
 
-- **Classic** - the Windows 98 - 7 themes above; the styles are `Toolkit/Styles/classic-kit.css`, all rules inside `.win-kit--classic`;
-- **Tailwind** - every component is drawn with Tailwind CSS 4 utilities on its design tokens (`Toolkit/Styles/tailwind-kit.css`).
-  The kit's theme (`TailwindTheme`, `Core/Kits.ts`):
+- **Classic** - the Windows 98 - 7 themes above; the styles are `Source/Styles/classic-kit.css`, all rules inside `.win-kit--classic`;
+- **Tailwind** - every component is drawn with Tailwind CSS 4 utilities on its design tokens (`Source/Styles/tailwind-kit.css`).
+  The kit's theme (`TailwindTheme`, `Source/Core/Kits.ts`):
   - `Accent` - any of the 26 Tailwind palettes (red ... rose, as well as slate ... taupe);
   - `Neutral` - the grey family for surfaces, lines and text: slate, gray, zinc, neutral, stone, mauve, olive, mist, taupe;
   - `Dark` - light or dark mode;
@@ -131,8 +123,8 @@ extend beyond the window; in the designer it's the Embed in window bounds checkb
 
 ## Tests
 
-The controllers and components were written with TDD and are 100% covered (`Tests/Toolkit/`); the page `Modules/Engine/UI (run pnpm dev in the module folder)` is checked in a real
-browser by `E2E/toolkit.spec.ts` (mouse, keyboard, all themes).
+The controllers and components were written with TDD and are 100% covered (`Tests/`); the gallery is checked in a real
+browser by the module's `E2E/toolkit.spec.ts` (mouse, keyboard, all themes).
 
 ## Touch elements: the stick and the game button
 

@@ -22,6 +22,9 @@ pwsh devops/start-desktop.ps1
 The first command installs the dependencies and builds the Project Manager, the UI Designer and the Electron program; the second launches the program.
 The Electron binary is downloaded on first launch.
 
+`--skip-physics` is enough for the manager itself. But the **Run** and **Build** buttons for projects use the engine's physics build, so to run projects with physics
+leave the flag out (this needs the .NET SDK) or run `build-physics` separately. What those buttons do is in [guide 16](guides/16-desktop.md).
+
 ## build-all - the full build
 
 Builds step by step: dependencies, physics (wasm), Project Browser, UI Designer, Desktop (Electron). Before starting it checks for Node.js 22.12+ and pnpm.

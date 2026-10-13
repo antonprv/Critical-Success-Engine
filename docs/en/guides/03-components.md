@@ -121,13 +121,15 @@ export class Lifetime extends Component {
 
 ## Input
 
-`this.Engine.Input` (and the `input` parameter in `OnInputUpdate`):
+`this.Engine.Input` (and the `input` parameter in `OnInputUpdate`). The game doesn't ask "is Space pressed" but "is the Jump action pressed": the actions and their keys, mouse buttons and gamepad bindings are described by the project's input file, and the player can remap them (guide 14). So in your own components, use actions:
 
-- `IsKeyDown("KeyW")` - is the key held. The codes are the same as `KeyboardEvent.code`: `KeyW`, `Space`, `ShiftLeft`, `Digit1`…
-- `JustPressed("Space")` - pressed **in this frame** (for `Update`/`OnInputUpdate`).
-- `JustPressedPhysics("Space")` - pressed since the last physics step (for `OnPhysicsUpdate`; a short tap won't be lost).
-- Mouse: buttons like `"Mouse0"` (left), `"Mouse1"`, …; `ConsumeLookDelta()` - the movement in pixels since the last call.
-- `GetInputVector()` - WASD/arrows as `[x, y]` (forward = **negative** y, as in Godot).
+- `IsActionDown("Jump")` - the action is held (keyboard, mouse, gamepad or an on-screen button).
+- `ActionJustPressed("Fire")` - pressed **in this frame** (for `Update`/`OnInputUpdate`); `ActionJustPressedPhysics("Fire")` - pressed since the last physics step (for `OnPhysicsUpdate`; a short tap won't be lost).
+- `ActionValue("Accelerate")` - a value 0..1 (triggers and sticks are analogue).
+- `GetMoveVector()` - the active map's `Move...` actions as `[x, y]` with a length of at most 1 (forward = **negative** y, as in Godot); `GetInputVector()` is the same.
+- `ConsumeLookDelta()` - the mouse movement in pixels since the last call; `ConsumeWheel()` - the wheel.
+
+Actions exist only in the maps the project describes: if the active map has no `Fire` action, it is simply never pressed. There are raw codes too: `IsKeyDown("KeyW")`, `JustPressed("Space")`, `JustPressedPhysics("Space")` (the codes are the same as `KeyboardEvent.code`: `KeyW`, `Space`, `ShiftLeft`, `Digit1`…; mouse buttons are `"Mouse0"` (left), `"Mouse1"`, …). But such a key can't be remapped and doesn't work with a gamepad.
 
 While the game hasn't captured the mouse (a menu is on screen), all input is "empty" - keys aren't pressed, the mouse doesn't accumulate.
 
@@ -146,7 +148,7 @@ export class BallGun extends Component {
 	private _balls: EntityPool | null = null;
 
 	public override OnInputUpdate(input: InputService): void {
-		if (!input.JustPressed("Mouse0")) return;
+		if (!input.ActionJustPressed("Fire")) return;
 
 		const camera = this.Engine.World.FindByName("Camera")?.GetComponent(CameraComponent);
 		if (!camera) return;
@@ -169,6 +171,8 @@ export class BallGun extends Component {
 	}
 }
 ```
+
+`Fire` is an action from the project's input file (the First Person template binds it to the left mouse button, guide 14); in a project whose active map has no `Fire`, the gun doesn't shoot.
 
 Note: we hand over the initial velocity not with a direct call (there's no body yet), but through the `InitialVelocity` component.
 

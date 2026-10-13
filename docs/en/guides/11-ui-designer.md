@@ -57,18 +57,6 @@ When a document is shown over the game, who gets a click is decided by the docum
 Only what differs from the defaults is stored in the file (`"ClickThrough": true` on a widget, `"ClickThrough": false` on a
 document). In the designer's canvas the checkboxes don't affect selection.
 
-## Click pass-through: who gets the mouse
-
-Documents are drawn over the game, and who gets a click is decided by an explicit parameter, not by guesses:
-
-- **on the document** (the "Layout" panel, the "Click pass-through" checkbox): on - empty areas of the document let clicks through
-  to the game (a HUD); off - the document covers the game under it (a pause menu: the background can't be picked). On by default;
-- **on each widget** (the "Click pass-through" checkbox in its properties): on - a click passes through the widget itself
-  to what's under it (a crosshair in the middle of the screen doesn't get in the way of shooting). Off by default: the widget takes clicks.
-
-Only the difference from the default is stored in the file (`"ClickThrough": false` on a document, `"ClickThrough": true` on a widget).
-In edit mode the parameter doesn't prevent selecting widgets on the canvas.
-
 ## Embed in window bounds: drop-down lists outside the window
 
 In Windows Forms a combo box's list can extend beyond the form's bounds. On the web a window clips everything inside it
@@ -208,7 +196,7 @@ selected, default button, inactive window). For each pair:
 
 An empty field clears the setting - the theme shows again. A skin works over both style kits - Classic and Tailwind (guide 10). A skin is stored in the layout and applies only to it; Save skin /
 Open skin move it between layouts. Two examples - **Celestial** (a light adventure) and **Grimoire** (dark
-fantasy), all their sprites are drawn in SVG right in the code (`Toolkit/Skins/SkinPresets.ts`). Outside layouts a skin can be given
+fantasy), all their sprites are drawn in SVG right in the code (`Modules/Engine/UI/Source/Skins/SkinPresets.ts`). Outside layouts a skin can be given
 to a theme: `<WinThemeProvider :theme="..." :skin="skin">`.
 
 ## Your own widgets in Vue

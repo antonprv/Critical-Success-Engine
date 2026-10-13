@@ -45,20 +45,48 @@ relies on anchors and adapts to the window size.
   rules and names already taken), a folder (by default `~/CSE Projects`, **Browse...** - a system dialog). **Create** copies the
   template with all the template code and registers the project.
 - **Open in UI Designer** - the designer in its own OS window, the project is passed to it in the address (`?project=...`).
+- **Run** and **Build**, each with a combo box for the mode - run a project and make a finished build of it (see below).
 - **Remove from list** - the project is forgotten, its files stay.
 - **Theme** - all the toolkit's themes: 12 classic ones and Tailwind light and dark.
+- **The status line** at the bottom of the window says what's going on: "Starting the dev server...", "Built ... : <folder>", the error text if a run or a build failed.
+
+The list rows look like `Name - Template (Genre) - path`. Open in UI Designer, Run and Build work on the picked project and are disabled for one that is missing from disk.
+
+### Running and building a project
+
+**Build** makes a finished build of the picked project in a folder next to its `.cseproject`, `Binaries/<Platform>/<Configuration>`, so the targets never overwrite each other:
+
+| Target | Folder | What's there |
+|---|---|---|
+| Web - Dev, Web - Prod | `Binaries/Web/Dev`, `Binaries/Web/Prod` | the static site; the URLs are relative, so the folder can be hosted anywhere (a sub-path, a static host) |
+| Desktop - Dev, Desktop - Prod | `Binaries/Desktop/Dev`, `Binaries/Desktop/Prod` | the same site plus an Electron shell (`electron-main.cjs` and a `package.json`): `electron .` in the folder opens the game in its own window |
+
+Dev is a development build (`--mode development`: the `__DEV__` branches and debug logs are on), Prod is the production one. Under the hood the manager runs the engine's Vite (`pnpm exec vite build` in `src/CSEngine/Core`) with `CSE_PROJECT` set to the project and `CSE_OUT_DIR` to the target folder; the folder is emptied first. While a build runs, Run and Build are disabled; if it fails, the status line shows the end of the build's output.
+
+**Run** starts the project in the mode chosen in its combo box:
+
+| Mode | What happens |
+|---|---|
+| dev | the engine's Vite dev server starts for this project on a free port (once per project: a second Run reuses the running one) and the page opens in the system browser. If the server doesn't answer within 60 seconds, that's an error |
+| Web - Dev, Web - Prod | the finished build is served by a local static server (`127.0.0.1`, a free port) and opened in the system browser |
+| Desktop - Dev, Desktop - Prod | the finished build opens in its own Electron window (run by the manager's own Electron) |
+
+`dev` is always available. The build modes are greyed out in the combo box until that build exists in the project's `Binaries`; after a Build the list is refreshed by itself. The dev servers and the local servers stop when the manager is closed.
+
+What it needs: `pnpm` in the PATH and the dependencies installed (`pnpm install` in `src/CSEngine`) - the builds are made by the Core's Vite. The Core folder is found next to the program; `CSE_CORE_DIR` points to another one. The physics a game runs on is the engine's physics build (`devops/build-physics.sh`, or `build-all` without `--skip-physics`): without it a project still runs, but with no simulation (guide 01).
 
 ## How it works
 
 The page talks to the main process only through `window.cse.projects`, which the preload provides
-(`contextIsolation`, `sandbox`, no Node on the page). Each call is an IPC channel (`projects:list`, `projects:create`...);
+(`contextIsolation`, `sandbox`, no Node on the page). Each call is an IPC channel (`projects:list`, `projects:create`, `projects:run-modes`, `projects:run`, `projects:build`...);
 the main process answers `{ ok, value }` or `{ ok: false, error }`, and the page receives an ordinary error with the text from
-the main process. The work with projects is done by `ProjectsService` on top of `Core/BuildTools/Projects.ts`.
+the main process. The work with projects is done by `ProjectsService` on top of `Core/BuildTools/Projects.ts`; running and building
+is `ProjectRunner` (`Programs/Desktop/Source/Main/ProjectRunner.ts`), which spawns the Core's Vite and the Electron shells.
 
 The preload is built in a separate pass into a single file: a preload in a `sandbox` can only import `electron`.
 
 In an ordinary browser (without the program) the manager works on in-memory projects (`MemoryProjectsApi`) - for previews and
-tests.
+tests; there is nothing to really run or build there.
 
 ## Tests
 

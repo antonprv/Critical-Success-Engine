@@ -15,17 +15,17 @@ We'll make the **Ball pit** scene: a box and twelve balls falling into it.
 
 ## Step 1. The scene file
 
-Create `Source/Game/Scenes/BallPitScene.ts` (the finished version is in `Game/GuideExamples/BallPitScene.ts`):
+In your project, create `Source/Scenes/BallPitScene.ts` (the finished version is `Core/Source/Examples/BallPitScene.ts`; its imports are relative, while in a project the engine is imported through `@cse/core`):
 
 ```ts
-import { CollisionLayer } from "../../Engine/Core/CollisionLayer";
-import { Comp, Ent, type EntityManifest, type SceneManifest } from "../../Engine/Core/EntityManifest";
-import { MeshForShape, Shapes } from "../../Engine/Core/Shapes";
-import { FixedCamera } from "../../Engine/Components/Camera/CameraComponent";
-import { MeshRenderer } from "../../Engine/Components/MeshRenderer";
-import { RigidBody } from "../../Engine/Components/Physics/PhysicsBodies";
-import { StaticBox } from "../SceneHelpers";
-import { HudText } from "../Scripts/Scripts";
+import { CollisionLayer } from "@cse/core/Engine/Core/CollisionLayer";
+import { Comp, Ent, type EntityManifest, type SceneManifest } from "@cse/core/Engine/Core/EntityManifest";
+import { MeshForShape, Shapes } from "@cse/core/Engine/Core/Shapes";
+import { FixedCamera } from "@cse/core/Engine/Components/Camera/CameraComponent";
+import { MeshRenderer } from "@cse/core/Engine/Components/MeshRenderer";
+import { RigidBody } from "@cse/core/Engine/Components/Physics/PhysicsBodies";
+import { StaticBox } from "@cse/core/Engine/Scenes/SceneHelpers";
+import { HudText } from "@cse/core/Engine/Gameplay/Scripts";
 ```
 
 ```ts
@@ -68,18 +68,27 @@ export const BallPitScene: SceneManifest = {
 
 ## Step 2. Register the scene
 
-In `Source/Game/GameScenes.ts`:
+Scenes get into the engine through the project's main module (guide 12): in a template it is `Source/TemplateProjectModule.ts`, in a project created from a template - `Source/<Name>Module.ts`. Add your scene to its `StartupModule` (`BouncingBallScene` here is the scene the module already registered; we keep it):
 
 ```ts
-registry.Register(BouncingBallScene).Register(CharacterTestScene).Register(CoinHuntScene).Register(BallPitScene);
+import type EngineModule from "@cse/core/Engine/EngineModule";
+import { GameModule, ModuleManager } from "@cse/core/modules";
+import { BouncingBallScene } from "./Scenes/BouncingBallScene";
+import { BallPitScene } from "./Scenes/BallPitScene";
+
+export default class TemplateProjectModule extends GameModule {
+	public override StartupModule(): void {
+		const scenes = ModuleManager.Get().GetModuleChecked<EngineModule>("Engine").Scenes;
+		scenes.Register(BouncingBallScene).Register(BallPitScene);
+	}
+}
 ```
 
-(don't forget `import { BallPitScene } from "./Scenes/BallPitScene";`). The first registered scene is loaded at startup,
-the rest are available in the menu via `Esc`.
+The first registered scene is loaded at startup, the rest are available in the menu via `Esc`.
 
 ## Step 3. Run it
 
-`pnpm dev` → Play → `Esc` → pick *Ball pit*. The balls should fall into the box (if the physics is built - see 01).
+Run the project (`CSE_PROJECT=<path to the .cseproject> pnpm dev` in `src/CSEngine/Core`, or **Run → dev** in the Project Manager, guide 16) → Play → `Esc` → pick *Ball pit*. The balls should fall into the box (if the physics is built - see 01).
 
 ## Breakdown
 
@@ -100,7 +109,7 @@ and so on). To avoid writing the numbers twice, there's `MeshForShape(shape)` - 
 **`Shapes.*`** - collider shapes: `Box(w, h, d)` (full sizes), `Sphere(r)`, `Capsule(r, fullHeight)`,
 `Cylinder(r, h)`, `ConvexHull(points)`, `TriangleMesh(vertices)` (static only). **`Meshes.*`** - the same for the picture.
 
-**`StaticBox(...)`** from `Game/SceneHelpers.ts` is just a shortcut: an entity with a box mesh and a static box collider.
+**`StaticBox(...)`** from `Engine/Scenes/SceneHelpers.ts` is just a shortcut: an entity with a box mesh and a static box collider.
 Open the file and look, it's short - your own helpers are written the same way (`DynamicBox`, `DynamicShape` are there too).
 
 **The camera.** A scene needs an entity with a camera component. `FixedCamera` stays in place and looks at `LookAt`;
@@ -115,7 +124,7 @@ Open the file and look, it's short - your own helpers are written the same way (
 | The object exists but isn't visible | No `MeshRenderer`, or its `Mesh` isn't set |
 | The object is visible but falls through / hangs | No body (`StaticBody`/`RigidBody`) or the physics isn't built |
 | The ball is stuck inside the floor | The position in the manifest is already inside the collider: start higher |
-| The scene didn't show up in the menu | Not registered in `GameScenes.ts`, or its `id` matches another one |
+| The scene didn't show up in the menu | Not registered in the `StartupModule` of the project's main module, or its `id` matches another one |
 | The error "Scene … is already registered" | Two `id`s are the same |
 
 ## Exercises

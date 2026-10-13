@@ -17,6 +17,8 @@ cd Core
 pnpm dev            # http://127.0.0.1:5173
 ```
 
+Без `CSE_PROJECT` движок собирает **Games Sample** - собственный проект движка, где собраны игры всех шаблонов (Blank, First Person, Coin Hunt, Third Person, Top-Down); их сцены есть в меню по `Esc`. Чтобы работать над одним проектом, укажи его: `CSE_PROJECT=../../Templates/CoinHunt pnpm dev` (шаблон - тоже проект) или проект, созданный в Project Manager (гайды 13 и 16).
+
 Что увидишь, если **физику ещё не собирали**: экран загрузки, потом сцена и всплывающее сообщение
 *«Physics failed to load - the scene runs without a simulation»*. Это нормально: воркер физики сообщает об ошибке сразу,
 движок не ждёт его, а сцены, меню, скрипты и рендер работают. Шар в *Bouncing ball* просто висит в воздухе.
@@ -53,49 +55,66 @@ bash build-physics.sh        # Windows: build-physics.bat - то же самое
 | `R` | рестарт (в *Coin Hunt* после победы/поражения) |
 | `Esc` | браузер отпускает мышь - открывается меню со списком сцен |
 
+Это клавиши по умолчанию: игра берёт их из файлов ввода проекта, и игрок может их переназначить (гайд 14). Исключение - `1`…`5`: это клавиши самого `MoverComponent`.
+
 ## Карта проекта
 
 ```
-src/CSEngine/
-  Core/                         ← всё, что про TypeScript
-    Source/
-      App.ts                    точка входа главного потока: поднимает Vue-UI и Orchestrator
-      Ui/                       Vue + Quasar (только ОТРИСОВКА интерфейса)
-      Workers/                  пять воркеров и протоколы между ними
-        GameLogicWorker.ts        тонкая оболочка над Engine/Runtime
-        RenderWorker.ts           Babylon на OffscreenCanvas
-        PhysicsWorker.ts          цикл фиксированного шага
-        Physics/PhysicsWorld.ts   ЕДИНСТВЕННОЕ место, которое говорит с wasm-мостом
-        UiWorker.ts, Ui/UiController.ts   состояние и логика меню/загрузки
-        Protocol/                 типы сообщений между воркерами
-      Engine/                   ядро движка - работает внутри GameLogic
-        Core/                     Component, Entity, EntityWorld, манифесты, Shapes, CollisionLayer
-        Components/               готовые компоненты: MeshRenderer, тела, Mover, Camera…
-        Services/                 Physics / Render / Input / Ui / Audio для скриптов
-        Scenes/                   SceneManager (загрузка/выгрузка), SceneRegistry
-        Runtime/GameLogicRuntime  два «такта»: кадр (Update) и физика (OnPhysicsUpdate)
-        Math/                     Vec3, Quat
-      Game/                     ← ТВОЯ ИГРА
-        GameScenes.ts             список сцен (то, что видно в меню)
-        Scenes/                   манифесты сцен
-        Scripts/                  твои компоненты
-        GuideExamples/            код из этих гайдов
-    Tests/                      Vitest: юнит- и интеграционные тесты (в т.ч. весь рантайм на поддельных портах)
-    E2E/                        Playwright: тесты собранного сайта в настоящем браузере
-    BuildTools/                 плагины Vite: физика (раздача/копирование), sidecar логов
-    public/                     статика, копируется в сборку как есть (public/assets/x → /assets/x)
-    index.html                  HTML-точка входа Vite
-    vite.config.ts              сборка и dev-сервер
-  Physics/
-    Bridge/PhysicsBridge.cs     C#-мост: единственное, что написано на C#
-    Vendor/                     BEPU и обвязка Integration
+src/
+  CSEngine/
+    Core/                         ← всё, что про TypeScript (@cse/core)
+      Source/
+        App.ts                    точка входа главного потока: поднимает Vue-UI и Orchestrator
+        Project.ts                модули движка и проект, который собирается (CSE_PROJECT)
+        Ui/                       Vue + Quasar (только ОТРИСОВКА): HUD, тосты, запасные экраны меню и загрузки
+        Workers/                  пять воркеров и протоколы между ними
+          Orchestrator.ts           поднимает воркеры и соединяет их каналами
+          GameLogicWorker.ts        тонкая оболочка над Engine/Runtime
+          RenderWorker.ts           Babylon на OffscreenCanvas
+          PhysicsWorker.ts          цикл фиксированного шага
+          Physics/PhysicsWorld.ts   ЕДИНСТВЕННОЕ место, которое говорит с wasm-мостом
+          UiWorker.ts, Ui/UiController.ts   состояние и логика меню/загрузки
+          Protocol/                 типы сообщений между воркерами
+        Engine/                   ядро движка - работает внутри GameLogic
+          Core/                     Component, Entity, EntityWorld, EntityPool, манифесты, Shapes, CollisionLayer
+          Components/               готовые компоненты: MeshRenderer, тела, Mover, Camera…
+          Gameplay/                 готовые скрипты (Scripts.ts) и рецепты (Recipes.ts, гайд 08)
+          Services/                 Physics / Render / Input / Ui / Audio / Settings для скриптов
+          Input/, Data/, Storage/   действия ввода, файлы данных, SettingsStorage (гайды 14, 15)
+          Modules/, Projects/       модули и плагины, дескриптор проекта (гайды 12, 13)
+          Scenes/                   SceneManager (загрузка/выгрузка), SceneRegistry, SceneHelpers (StaticBox…)
+          Runtime/GameLogicRuntime  два «такта»: кадр (Update) и физика (OnPhysicsUpdate)
+          Math/                     Vec3, Quat
+        Logging/                  Logger (гайд 17)
+        Examples/                 код из этих гайдов (его проверяет Tests/GuideExamples.test.ts)
+      Samples/                    Games Sample: проект движка, где собраны игры всех шаблонов
+      Tests/                      Vitest: юнит- и интеграционные тесты (в т.ч. весь рантайм на поддельных портах)
+      E2E/                        Playwright: тесты собранного сайта в настоящем браузере
+      BuildTools/                 плагины Vite: физика (раздача/копирование), проекты, sidecar логов
+      public/                     статика, копируется в сборку как есть (public/assets/x → /assets/x)
+      index.html                  HTML-точка входа Vite
+      vite.config.ts              сборка и dev-сервер
+    Modules/                    Engine/UI (@cse/ui), Editor/ProjectBrowser, Editor/UIDesigner
+    Programs/Desktop/           десктопная программа (Electron), гайд 16
+    Physics/
+      Bridge/PhysicsBridge.cs     C#-мост: единственное, что написано на C#
+      Vendor/                     BEPU и обвязка Integration
+  Templates/                    ← ТВОЯ ИГРА начинается здесь: шаблоны проектов
+    CoinHunt/
+      TemplateProject.cseproject          дескриптор проекта
+      Source/TemplateProjectModule.ts     главный модуль игры: регистрирует сцены
+      Source/Scenes/, Scripts/, Data/     сцены, твои компоненты, классы данных
+      Content/UI/, Input/, Data/          UI-документы, файлы ввода, файлы .csedata
 ```
+
+Игра - это **проект** (гайд 13): её код лежит в `Source/` самого проекта, а не внутри `Core`. Образец целиком - шаблон
+`src/Templates/CoinHunt`. Импорты движка в коде проекта пишутся через `@cse/core/...` (например `@cse/core/Engine/Core/Component`).
 
 Принцип, на котором всё держится: **C# есть только для физики и моста к ней**. Всё остальное - TypeScript.
 
 ## Цикл разработки
 
-1. Правишь файлы в `Source/Game/**`.
+1. Правишь код проекта (`Source/**` проекта; у шаблона - `src/Templates/<Имя>/Source`).
 2. Обновляешь страницу (изменения воркеров применяются перезагрузкой; Vue-компоненты обновляются на лету).
 3. `pnpm test` - Vitest. Прогоняет **настоящий** GameLogicRuntime с поддельными воркерами (скрипты и сцены проверяются
    без браузера), а ещё Vue-интерфейс, мосты, оболочки воркеров и сборочные плагины. Считается покрытие, и прогон падает,
@@ -108,7 +127,6 @@ src/CSEngine/
 
 Всё сразу: `pnpm verify` (типы, линт, тесты, сборка, E2E).
 
-Логи воркеров идут в консоль браузера. Если запущен sidecar-логгер (`vite dev` стартует его сам), они ещё пишутся в файл.
-Файла `Tools/LogServer.mjs` в присланном мне архиве не было; если его нет и у тебя, sidecar не стартует, а логи останутся только в консоли браузера (игре это не должно мешать).
+Логи воркеров идут в консоль браузера, а на локальном dev-сервере могут ещё уходить в лог-файл через sidecar. Как это устроено - в [гайде 17](17-logging.md).
 
 Дальше → [02. Первая сцена](02-first-scene.md)

@@ -34,7 +34,7 @@ export const MyScene: SceneManifest = {
 };
 ```
 
-Зарегистрируйте её в `Game/GameScenes.ts` - и она появится в меню паузы.
+Зарегистрируйте её в `StartupModule` главного модуля проекта (`Scenes.Register(MyScene)`, гайд 02) - и она появится в меню паузы.
 
 Компонент - это класс (`Engine/Core/Component.ts`); простые публичные поля - то, что выставляет `Comp(Type, props)`:
 

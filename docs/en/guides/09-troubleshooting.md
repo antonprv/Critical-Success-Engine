@@ -16,7 +16,7 @@ and the script ones as a line like `[Script] ClassName.Hook threw on entity "…
 | `pnpm test` fails with "Coverage … does not meet global threshold (100%)" | The tests passed, but the new code isn't fully covered. The file and the metric are in the message; the detailed report is `coverage/index.html` |
 | `pnpm test:e2e`: "Executable doesn't exist" | The Playwright browser isn't installed: `pnpm exec playwright install chromium` (once) |
 | E2E failed | The cause is printed in the terminal; a trace is saved for a failed test: `pnpm exec playwright show-trace test-results/<test>/trace.zip` (in CI - also an HTML report in the artifacts). Tests also fail on any error or warning in the browser console, and on a Warning/Error in the game's log - the test's message says exactly what it was |
-| Complaints in the console about `Tools/LogServer.mjs` | This file wasn't in the archive sent to me; if you don't have it either, the sidecar logger won't start, which shouldn't get in the game's way (logs go to the console) |
+| `[Logger] failed to reach log sidecar` in the console every 5 seconds | The log sidecar isn't running (`Core/Tools/LogServer.mjs` is absent from the repository, or port 4790 is busy). It doesn't affect the game: logs stay in the console. See guide 17 |
 | Script changes aren't visible | Workers pick up changes with a full page reload; Vue components - "on the fly" |
 
 ## Mouse and menu
@@ -32,7 +32,7 @@ and the script ones as a line like `[Script] ClassName.Hook threw on entity "…
 
 | Symptom | Cause → what to do |
 |---|---|
-| The scene isn't in the menu | Not registered in `Game/GameScenes.ts` |
+| The scene isn't in the menu | Not registered in the `StartupModule` of the project's main module |
 | "Scene … is already registered" | A duplicate `id` |
 | An object isn't visible | No `MeshRenderer`/no `Mesh` set; or it's behind the camera; or there's no camera in the scene |
 | An object is visible but falls through or hangs | No body; or the physics isn't built; or the layer/mask doesn't intersect with the floor |

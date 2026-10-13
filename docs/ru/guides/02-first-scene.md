@@ -15,17 +15,17 @@
 
 ## Шаг 1. Файл сцены
 
-Создай `Source/Game/Scenes/BallPitScene.ts` (готовая версия лежит в `Game/GuideExamples/BallPitScene.ts`):
+Создай в своём проекте файл `Source/Scenes/BallPitScene.ts` (готовая версия лежит в `Core/Source/Examples/BallPitScene.ts`; там импорты относительные, а в проекте движок импортируется через `@cse/core`):
 
 ```ts
-import { CollisionLayer } from "../../Engine/Core/CollisionLayer";
-import { Comp, Ent, type EntityManifest, type SceneManifest } from "../../Engine/Core/EntityManifest";
-import { MeshForShape, Shapes } from "../../Engine/Core/Shapes";
-import { FixedCamera } from "../../Engine/Components/Camera/CameraComponent";
-import { MeshRenderer } from "../../Engine/Components/MeshRenderer";
-import { RigidBody } from "../../Engine/Components/Physics/PhysicsBodies";
-import { StaticBox } from "../SceneHelpers";
-import { HudText } from "../Scripts/Scripts";
+import { CollisionLayer } from "@cse/core/Engine/Core/CollisionLayer";
+import { Comp, Ent, type EntityManifest, type SceneManifest } from "@cse/core/Engine/Core/EntityManifest";
+import { MeshForShape, Shapes } from "@cse/core/Engine/Core/Shapes";
+import { FixedCamera } from "@cse/core/Engine/Components/Camera/CameraComponent";
+import { MeshRenderer } from "@cse/core/Engine/Components/MeshRenderer";
+import { RigidBody } from "@cse/core/Engine/Components/Physics/PhysicsBodies";
+import { StaticBox } from "@cse/core/Engine/Scenes/SceneHelpers";
+import { HudText } from "@cse/core/Engine/Gameplay/Scripts";
 ```
 
 ```ts
@@ -68,18 +68,27 @@ export const BallPitScene: SceneManifest = {
 
 ## Шаг 2. Зарегистрируй сцену
 
-В `Source/Game/GameScenes.ts`:
+Сцены в движок кладёт главный модуль проекта (гайд 12): в шаблоне это `Source/TemplateProjectModule.ts`, в проекте, созданном из шаблона, - `Source/<Имя>Module.ts`. Добавь свою сцену в его `StartupModule` (здесь `BouncingBallScene` - сцена, которую модуль уже регистрировал, её оставляем):
 
 ```ts
-registry.Register(BouncingBallScene).Register(CharacterTestScene).Register(CoinHuntScene).Register(BallPitScene);
+import type EngineModule from "@cse/core/Engine/EngineModule";
+import { GameModule, ModuleManager } from "@cse/core/modules";
+import { BouncingBallScene } from "./Scenes/BouncingBallScene";
+import { BallPitScene } from "./Scenes/BallPitScene";
+
+export default class TemplateProjectModule extends GameModule {
+	public override StartupModule(): void {
+		const scenes = ModuleManager.Get().GetModuleChecked<EngineModule>("Engine").Scenes;
+		scenes.Register(BouncingBallScene).Register(BallPitScene);
+	}
+}
 ```
 
-(не забудь `import { BallPitScene } from "./Scenes/BallPitScene";`). Первая зарегистрированная сцена грузится при старте,
-остальные доступны в меню по `Esc`.
+Первая зарегистрированная сцена грузится при старте, остальные доступны в меню по `Esc`.
 
 ## Шаг 3. Запусти
 
-`pnpm dev` → Play → `Esc` → выбери *Ball pit*. Шары должны упасть в коробку (если физика собрана - см. 01).
+Запусти проект (`CSE_PROJECT=<путь к .cseproject> pnpm dev` в `src/CSEngine/Core` или **Run → dev** в Project Manager, гайд 16) → Play → `Esc` → выбери *Ball pit*. Шары должны упасть в коробку (если физика собрана - см. 01).
 
 ## Разбор
 
@@ -100,7 +109,7 @@ registry.Register(BouncingBallScene).Register(CharacterTestScene).Register(CoinH
 **`Shapes.*`** - формы коллайдеров: `Box(w, h, d)` (полные размеры), `Sphere(r)`, `Capsule(r, полнаяВысота)`,
 `Cylinder(r, h)`, `ConvexHull(точки)`, `TriangleMesh(вершины)` (только для статики). **`Meshes.*`** - то же для картинки.
 
-**`StaticBox(...)`** из `Game/SceneHelpers.ts` - просто сокращение: сущность с боксом-мешем и статическим боксом-коллайдером.
+**`StaticBox(...)`** из `Engine/Scenes/SceneHelpers.ts` - просто сокращение: сущность с боксом-мешем и статическим боксом-коллайдером.
 Открой файл и посмотри, он короткий - так же пишутся твои собственные хелперы (`DynamicBox`, `DynamicShape` там же).
 
 **Камера.** Сцене нужна сущность с компонентом-камерой. `FixedCamera` стоит на месте и смотрит в `LookAt`;
@@ -115,7 +124,7 @@ registry.Register(BouncingBallScene).Register(CharacterTestScene).Register(CoinH
 | Объект есть, но его не видно | Нет `MeshRenderer`, или у него не задан `Mesh` |
 | Объект виден, но проваливается / висит | Нет тела (`StaticBody`/`RigidBody`) или физика не собрана |
 | Шар застрял внутри пола | Позиция в манифесте уже внутри коллайдера: стартуй выше |
-| Сцена не появилась в меню | Не зарегистрирована в `GameScenes.ts` или `id` совпадает с другой |
+| Сцена не появилась в меню | Не зарегистрирована в `StartupModule` главного модуля проекта или `id` совпадает с другой |
 | Ошибка «Scene … is already registered» | Два `id` одинаковые |
 
 ## Упражнения
