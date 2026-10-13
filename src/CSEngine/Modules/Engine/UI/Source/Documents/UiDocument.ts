@@ -2,7 +2,9 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { reactive } from "vue";
+import { Logger } from "../../../../../Core/Source/Logging/Logger";
 import type { ButtonController } from "../Controls/ButtonController";
+import type { WindowController } from "../Controls/WindowController";
 import { CancelableEvent, EventHub } from "../Core/EventHub";
 import { DialogResult } from "./DialogResult";
 import type { DialogService } from "./Dialogs";
@@ -47,7 +49,7 @@ export class ValidationContext {
 		public readonly Trigger: string | null,
 		/** Anything validators want to share: limits, lookups, results of earlier checks. */
 		public readonly Data: Record<string, unknown> = {},
-	) {}
+	) { }
 
 	public get IsValid(): boolean { return this.Errors.length === 0; }
 
@@ -227,7 +229,7 @@ export class UiDocument {
 		if (button === undefined) return false;
 		const target = this._widgets.get(button as string)?.Controller as ButtonController | undefined;
 		if (target) target.PerformClick();
-		else if (code === "Escape") this.Close(DialogResult.Cancel);
+		else if (code === "Escape") this.CloseWindow(window, DialogResult.Cancel);
 		return target !== undefined || code === "Escape";
 	}
 
@@ -249,12 +251,24 @@ export class UiDocument {
 		this._widgets.set(node.Name, { Node: node, Controller: controller });
 		if (parent) this._parents.set(node.Name, parent.Name);
 
-		const report = (event: string, args: unknown[]): void => this.Events.Emit("widget-event", node.Name, event, args);
-		for (const event of definition.Events) {
-			this._subscriptions.push((controller as Subscribable).Events.On(event, (...args) => report(event, args)));
-		}
+		const report = (event: string, args: unknown[]): void =>
+			this.Events.Emit("widget-event", node.Name, event, args);
+
 		if (controller) {
-			this._subscriptions.push((controller as Subscribable).Events.On("focus-change", (focused) => report(focused ? "enter" : "leave", [])));
+			for (const event of definition.Events) {
+				this._subscriptions
+					.push(
+						(controller as Subscribable)
+							.Events
+							.On(event, (...args) => report(event, args))
+					);
+			}
+			this._subscriptions
+				.push(
+					(controller as Subscribable)
+						.Events
+						.On("focus-change", (focused) => report(focused ? "enter" : "leave", []))
+				);
 		}
 		if (node.Type === WidgetType.Button && node.Props["CausesValidation"]) {
 			// Validation runs before the click handlers: they can read the outcome from the "validated" event.
@@ -264,22 +278,76 @@ export class UiDocument {
 				report("validated", [context]);
 			}));
 		}
-		if (node.Type === WidgetType.Window && parent === this.Layout.Root) {
-			// The close box of a top-level window closes the form, with Cancel.
-			this._subscriptions.push((controller as Subscribable).Events.On("closing", (event) => {
-				if (!this.Close(DialogResult.Cancel)) (event as CancelableEvent).Cancel();
-			}));
+		if (node.Type === WidgetType.Window && parent) {
+			this._subscriptions
+				.push((controller as Subscribable)
+					.Events
+					.On("closing", (event) => {
+						if (this.IsMainWindow(node.Name)) {
+							if (!this.Close(DialogResult.Cancel)) {
+								(event as CancelableEvent).Cancel();
+							}
+						}
+						else {
+							(event as CancelableEvent).Cancel();
+							this.CloseWindow(node.Name, DialogResult.Cancel);
+						}
+					})
+				);
 		}
-		for (const child of node.Children ?? []) this.Build(child, node);
+
+		for (const child of node.Children ?? []) {
+			this.Build(child, node);
+		}
+	}
+
+	/** The main window is the first top-level one: only its result (or an explicit Close document) ends the document. */
+	private IsMainWindow(name: string): boolean {
+		return this._parents.get(name) === this.Layout.Root.Name && this.Layout.Root.Children?.[0]?.Name === name;
+	}
+
+	/** The nearest window above a widget, or null. */
+	private WindowOf(name: string): string | null {
+		for (let up = this._parents.get(name); up; up = this._parents.get(up)) {
+			if (this._widgets.get(up)!.Node.Type === "window") return up;
+		}
+		return null;
+	}
+
+	/** Closes a window with a result; the document closes only when it is the main window. */
+	public CloseWindow(window: string, result: DialogResult | undefined): boolean {
+		if (result === undefined) {
+			Logger.LogError(`Error: ${window} closed with undefined dialog result`);
+			return false;
+		}
+
+		if (this.IsMainWindow(window)) return this.Close(result);
+		this.Controller<WindowController>(window).CloseWith(result!);
+		return true;
 	}
 
 	private WireDialogResults(node: LayoutNode): void {
 		const result = node.Props["DialogResult"] as DialogResult | undefined;
 		if (node.Type === WidgetType.Button && result !== DialogResult.None) {
-			this._subscriptions.push((this._widgets.get(node.Name)!.Controller as Subscribable).Events.On("click", () => {
-				if (node.Props["CausesValidation"] && !this._validClick.get(node.Name)) return;
-				this.Close(result);
-			}));
+
+			this._subscriptions
+				.push(
+					(this._widgets.get(node.Name)!
+						.Controller as Subscribable)
+						.Events.On("click", () => {
+							if (node.Props["CausesValidation"] && !this._validClick.get(node.Name)) {
+								return;
+							}
+							const window = this.WindowOf(node.Name);
+							if (window) {
+								this.CloseWindow(window, result);
+							}
+							else {
+								this.Close(result);
+							}
+						})
+				);
+
 		}
 		for (const child of node.Children ?? []) this.WireDialogResults(child);
 	}

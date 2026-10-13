@@ -5,13 +5,13 @@ import { defineComponent, h, type Component, type PropType } from "vue";
 import WinButton from "../Components/WinButton.vue";
 import WinCheckBox from "../Components/WinCheckBox.vue";
 import WinComboBox from "../Components/WinComboBox.vue";
+import WinGameButton from "../Components/WinGameButton.vue";
 import WinGroupBox from "../Components/WinGroupBox.vue";
+import WinJoystick from "../Components/WinJoystick.vue";
 import WinListView from "../Components/WinListView.vue";
 import WinProgressBar from "../Components/WinProgressBar.vue";
 import WinRadioGroup from "../Components/WinRadioGroup.vue";
 import WinSlider from "../Components/WinSlider.vue";
-import WinJoystick from "../Components/WinJoystick.vue";
-import WinGameButton from "../Components/WinGameButton.vue";
 import WinSpinner from "../Components/WinSpinner.vue";
 import WinStatusBar from "../Components/WinStatusBar.vue";
 import WinTextBox from "../Components/WinTextBox.vue";
@@ -19,13 +19,13 @@ import WinWindow from "../Components/WinWindow.vue";
 import { ButtonController } from "../Controls/ButtonController";
 import { CheckBoxController, CheckState } from "../Controls/CheckBoxController";
 import { ComboBoxController } from "../Controls/ComboBoxController";
+import { GameButtonController } from "../Controls/GameButtonController";
+import { JoystickController } from "../Controls/JoystickController";
 import { LabelController } from "../Controls/LabelController";
 import { ListViewController, SelectionMode } from "../Controls/ListViewController";
 import { ProgressBarController } from "../Controls/ProgressBarController";
 import { RadioGroupController } from "../Controls/RadioGroupController";
 import { SliderController } from "../Controls/SliderController";
-import { JoystickController } from "../Controls/JoystickController";
-import { GameButtonController } from "../Controls/GameButtonController";
 import { SpinnerController } from "../Controls/SpinnerController";
 import { StatusBarController } from "../Controls/StatusBarController";
 import { TextBoxController } from "../Controls/TextBoxController";
@@ -164,7 +164,10 @@ const Control = (component: Component): Component => defineComponent({
 	setup: (props) => () => h(component, { controller: props.controller }),
 });
 
-const CanvasView = defineComponent({ setup: (_props, { slots }) => () => slots["default"]!() });
+const CanvasView = defineComponent({
+	inheritAttrs: false,
+	setup: (_props, { slots }) => () => slots["default"]!()
+});
 
 /** A window, with the dialog keys: Enter presses its AcceptButton, Escape its CancelButton (WinForms). */
 const WindowView = defineComponent({
@@ -229,9 +232,23 @@ const P = (node: LayoutNode) => ({
 });
 
 export const BuiltInWidgets = new WidgetRegistry()
-	.Register({ Type: WidgetType.Canvas, Label: "Canvas", Container: true, Size: [800, 500], Props: [], Events: [], Hidden: true, Component: CanvasView })
 	.Register({
-		Type: WidgetType.Window, Label: "Window", Container: true, Size: [320, 240], Events: ["close"], Component: WindowView,
+		Type: WidgetType.Canvas,
+		Label: "Canvas",
+		Container: true,
+		Size: [800, 500],
+		Props: [],
+		Events: ["close", "dialog-result"],
+		Hidden: true,
+		Component: CanvasView
+	})
+	.Register({
+		Type: WidgetType.Window,
+		Label: "Window",
+		Container: true,
+		Size: [320, 240],
+		Events: ["close", "dialog-result"],
+		Component: WindowView,
 		Props: [
 			Prop("Title", "Title", PropKind.Text, "Window"), Prop("Closable", "Close box", PropKind.Boolean, true), Prop("Minimizable", "Minimize box", PropKind.Boolean, true),
 			Prop("Maximizable", "Maximize box", PropKind.Boolean, true), Prop("Resizable", "Resizable", PropKind.Boolean, true),
@@ -246,13 +263,15 @@ export const BuiltInWidgets = new WidgetRegistry()
 		},
 	})
 	.Register({ Type: WidgetType.GroupBox, Label: "Group box", Container: true, Size: [200, 120], Events: [], Props: [Prop("Title", "Title", PropKind.Text, "Group")], Component: GroupBoxView })
-	.Register({ Type: WidgetType.Label, Label: "Label", Container: false, Size: [100, 16], Events: [], Props: [
+	.Register({
+		Type: WidgetType.Label, Label: "Label", Container: false, Size: [100, 16], Events: [], Props: [
 			Text("Label"), Prop("FontSize", "Font size", PropKind.Number, 11), Prop("Bold", "Bold", PropKind.Boolean, false),
 			Prop("Wrap", "Wrap text", PropKind.Boolean, false), Prop("Color", "Text color (CSS, empty: the theme's)", PropKind.Text, ""),
 			{ ...Prop("Align", "Align", PropKind.Choice, "left"), Choices: ["left", "center", "right"] },
 		], Component: LabelView,
 		// A live widget: scripts (and node graphs) change its text and visibility.
-		CreateController: (node) => UseControl(new LabelController({ Label: P(node).text("Text") })) })
+		CreateController: (node) => UseControl(new LabelController({ Label: P(node).text("Text") }))
+	})
 	.Register({ Type: WidgetType.Image, Label: "Image", Container: false, Size: [64, 64], Events: [], Props: [Prop("Source", "Image URL", PropKind.Text, ""), Prop("Fit", "Fit (contain, cover, fill)", PropKind.Text, "contain")], Component: ImageView })
 	.Register({
 		Type: WidgetType.Button, Label: "Button", Container: false, Size: [75, 23], Events: ["click"], Component: Control(WinButton),

@@ -4,10 +4,10 @@
 import { CheckState, type CheckBoxController } from "../Controls/CheckBoxController";
 import { ComboBoxController } from "../Controls/ComboBoxController";
 import { RadioGroupController } from "../Controls/RadioGroupController";
-import type { ControlBase } from "../Core/ControlBase";
 import { StatusBarController } from "../Controls/StatusBarController";
 import { TextBoxController } from "../Controls/TextBoxController";
 import { WindowController } from "../Controls/WindowController";
+import type { ControlBase } from "../Core/ControlBase";
 import type { DialogResult } from "./DialogResult";
 import type { UiDocument } from "./UiDocument";
 
@@ -89,7 +89,7 @@ export const ActionInfos: Record<ActionType, ActionInfo> = {
 	[ActionType.SetText]: { Label: "Set text", Params: [WidgetParam, { Key: "Text", Label: "Text", Kind: "text" }] },
 	[ActionType.Focus]: { Label: "Focus", Params: [WidgetParam] },
 	[ActionType.MessageBox]: { Label: "Message box", Params: [{ Key: "Text", Label: "Text", Kind: "text" }, { Key: "Title", Label: "Title", Kind: "text" }] },
-	[ActionType.CloseForm]: { Label: "Close form", Params: [{ Key: "Result", Label: "Result", Kind: "result" }] },
+	[ActionType.CloseForm]: { Label: "Close document", Params: [{ Key: "Result", Label: "Result", Kind: "result" }] },
 };
 
 export const ActionTypes = Object.keys(ActionInfos) as ActionType[];
@@ -158,6 +158,11 @@ export function Chain(graph: UiGraph, from: string, visited = new Set<string>([f
 }
 
 function Passes(node: GraphNode, args: unknown[], controller: unknown): boolean {
+	if (node.Type === "dialog-result") {
+		const want = node.Params["When"];
+		return want === undefined || want === "" || want === "any" || want === args[0];
+	}
+
 	const option = node.Type === "change" ? ChoiceIndex(node.Params["When"]) : null;
 	if (option !== null) {
 		// A combo box reports the new index; radio buttons the new value, which is looked up among their options.

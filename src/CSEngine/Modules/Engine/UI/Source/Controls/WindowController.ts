@@ -52,6 +52,7 @@ export type WindowEvents = {
 	"drag-end": [];
 	"resize-start": [];
 	"resize-end": [];
+	"dialog-result": [result: string];
 };
 
 interface Bounds { X: number; Y: number; Width: number; Height: number; }
@@ -177,6 +178,13 @@ export class WindowController extends ControlBase<WindowEvents> {
 		this._closed = true;
 		this.Emit("close");
 		return true;
+	}
+
+	/** Closes just this window with a dialog result: hides it (Show brings it back) and reports the result. */
+	public CloseWith(result: string): void {
+		this.SetVisible(false);
+		this.Emit("dialog-result", result);
+		this.Emit("close");
 	}
 
 	/** Set by the WindowManager. */
