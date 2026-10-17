@@ -198,6 +198,17 @@ describe( "SdfField", () => {
 		expect( field.MaterialAt( 0.5, 0, 0 ) ).toBe( 9 );
 		expect( field.MaterialAt( -1, 0, 0 ) ).toBe( 1 );
 
+		// an intersection's surface is its own where it cuts deeper
+		const clip = list.Add( {
+			Shape: SdfShape.Box,
+			Op: SdfOp.Intersect,
+			Params: [ 0.8, 5, 5, 0 ],
+			MaterialId: 4,
+		} );
+
+		expect( field.MaterialAt( -0.85, 0, 0 ) ).toBe( 4 );
+		expect( field.MaterialAt( 0, 0.95, 0 ) ).toBe( 1 );
+		list.Remove( clip.Id );
 		list.Update( hole.Id, { Flags: SdfEditFlags.Muted } );
 		expect( field.Distance( 1, 0, 0 ) ).toBe( 0 );
 		expect( field.Distance( 0, 0, 0 ) ).toBe( -1 );

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>SDF world</title>
+	<style>
+		html, body { margin: 0; height: 100%; overflow: hidden; background: #14181f; color: #e6e6e6; font: 13px system-ui, sans-serif; }
+		canvas { width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
+		#panel { position: absolute; top: 8px; left: 8px; padding: 8px 10px; background: #0009; border-radius: 6px; line-height: 1.7; }
+		#panel button { margin: 0 4px 0 0; }
+		#stats { white-space: pre; font-family: ui-monospace, monospace; }
+	</style>
+</head>
+<body>
+	<canvas id="view"></canvas>
+	<div id="panel">
+		<div>
+			Tier:
+			<button data-tier="gl">Ray march (B)</button>
+			<button data-tier="mesh">Meshes (C)</button>
+		</div>
+		<div>
+			View:
+			<button data-view="0">Lit</button>
+			<button data-view="1">Normals</button>
+			<button data-view="2">Steps</button>
+			<button data-view="3">Distance</button>
+		</div>
+		<div><label><input id="hole" type="checkbox" checked> Moving hole</label></div>
+		<div id="stats"></div>
+	</div>
+	<script type="module" src="./Demo/Main.ts"></script>
+</body>
+</html>

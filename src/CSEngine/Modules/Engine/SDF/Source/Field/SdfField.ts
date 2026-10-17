@@ -3,7 +3,12 @@
 
 import { FMath } from "@cse/fastmath";
 import type { EditList } from "../Edits/EditList";
-import { IsCarving, SdfEditFlags, type SdfEdit } from "../Edits/SdfEdit";
+import {
+	IsCarving,
+	IsGlobal,
+	SdfEditFlags,
+	type SdfEdit,
+} from "../Edits/SdfEdit";
 import type { SdfBaseLayer } from "./BaseLayers";
 import { ApplyOp } from "./Ops";
 import { ShapeDistance } from "./Shapes";
@@ -73,15 +78,23 @@ export class SdfField {
 			const e = EditDistance( edit, x, y, z );
 			const next = ApplyOp( edit.Op, d, e, edit.SmoothK );
 
-			// the surface here is this edit's: it added material (a union
-			// that came closer) or it carved the surface out
-			if ( IsCarving( edit.Op ) ? next > d : e <= next ) {
+			// the surface here is the edit's where it wins the plain
+			// operation: nearer for a union, farther for an intersection, its
+			// inside deeper for a subtraction
+			if ( IsCarving( edit.Op ) ? -e > d
+				: IsGlobal( edit.Op ) ? e > d
+					: e < d ) {
 				material = edit.MaterialId;
 			}
 			d = next;
 		}
 		this._material = material;
 		return d;
+	}
+
+	/** Material at the point of the last Evaluate (or Distance). */
+	public get LastMaterial(): number {
+		return this._material;
 	}
 
 	/** Material of the surface nearest to a world point. */
