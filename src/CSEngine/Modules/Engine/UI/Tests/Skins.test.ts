@@ -89,7 +89,7 @@ describe("GenerateSkinCss", () => {
 		const css = GenerateSkinCss({ Id: "test", Name: "", Font: "Palatino", TextColor: "#eee", Parts: {} });
 		expect(css).toBe(`${scope} { font-family: Palatino; color: #eee; }\n`);
 		expect(GenerateSkinCss({ Id: "test", Name: "", TextColor: "#eee", Parts: {} })).toBe(`${scope} { color: #eee; }\n`);
-		expect(GenerateSkinCss({ Id: "test", Name: "", Desktop: "#123", Parts: {} })).toBe(`${scope}, ${scope} .win-desktop { background: #123; }\n`);
+		expect(GenerateSkinCss({ Id: "test", Name: "", Desktop: "#123", Parts: {} })).toBe(`${scope} { --skin-desktop: #123; --skin-desktop-opacity: 1; --skin-desktop-blur: 0px; }\n${scope} .win-desktop { background: #123; }\n`);
 	});
 
 	it("values can't break out of their declaration or rule; image URLs can't break out of url()", () => {

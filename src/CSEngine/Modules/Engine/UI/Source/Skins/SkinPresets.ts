@@ -49,12 +49,10 @@ const Celestial: Skin = {
 	Name: "Celestial (bright adventure)",
 	Font: "\"Trebuchet MS\", Tahoma, sans-serif",
 	TextColor: "#3b4256",
-	Desktop: "radial-gradient(circle at 50% 25%, #e6f2ff, #8fb6e6)",
-	DesktopOpacity: 1, DesktopBlur: 0,
 	Parts: {
-		[SkinPart.Window]: { [SkinState.Normal]: { Sprite: Sprite(Panel({ Top: "#fbf7ec", Bottom: "#efe3c8", Stroke: "#c9a86a", Radius: 14, Inner: "#e8d5a8" }), 16, 12), Shadow: "0 10px 28px rgba(40, 60, 110, 0.35)" } },
+		[SkinPart.Window]: { [SkinState.Normal]: { Sprite: Sprite(Panel({ Top: "#fbf7ec", Bottom: "#efe3c8", Stroke: "#c9a86a", Radius: 14, Inner: "#e8d5a8" }), 16, 8), Shadow: "0 10px 28px rgba(40, 60, 110, 0.35)" } },
 		[SkinPart.TitleBar]: {
-			[SkinState.Normal]: { Background: "linear-gradient(90deg, #3a4a6b, #56688f)", TextColor: "#f6e7c1", FontSize: 13, Radius: 8 },
+			[SkinState.Normal]: { Background: "linear-gradient(90deg, #3a4a6b, #56688f)", TextColor: "#f6e7c1", FontSize: 13, Radius: 8, MinHeight: 26, Padding: Pad(0, 10) },
 			[SkinState.Inactive]: { Background: "linear-gradient(90deg, #7d8aa6, #98a4be)", TextColor: "#eef0f5" },
 		},
 		[SkinPart.TitleButton]: { [SkinState.Normal]: { Sprite: Sprite(Box("#f6e7c1", "#c9a86a", 11), 8, 6) } },
@@ -94,12 +92,10 @@ const Grimoire: Skin = {
 	Name: "Grimoire (dark fantasy RPG)",
 	Font: "Georgia, \"Times New Roman\", serif",
 	TextColor: "#e6d6b0",
-	Desktop: "radial-gradient(circle at 50% 40%, #3a2c22, #0d0907)",
-	DesktopOpacity: 1, DesktopBlur: 0,
 	Parts: {
-		[SkinPart.Window]: { [SkinState.Normal]: { Sprite: Sprite(Panel({ Top: "#2c2119", Bottom: "#16100c", Stroke: "#8a6a3a", Radius: 4, Inner: Gold, Corners: Gold }), 16, 14), Shadow: "0 12px 30px rgba(0, 0, 0, 0.7)" } },
+		[SkinPart.Window]: { [SkinState.Normal]: { Sprite: Sprite(Panel({ Top: "#2c2119", Bottom: "#16100c", Stroke: "#8a6a3a", Radius: 4, Inner: Gold, Corners: Gold }), 16, 8), Shadow: "0 12px 30px rgba(0, 0, 0, 0.7)" } },
 		[SkinPart.TitleBar]: {
-			[SkinState.Normal]: { Background: "linear-gradient(180deg, #3b2a1d, #22170f)", TextColor: "#e8d3a0", Font: "Georgia, serif", FontSize: 14 },
+			[SkinState.Normal]: { Background: "linear-gradient(180deg, #3b2a1d, #22170f)", TextColor: "#e8d3a0", Font: "Georgia, serif", FontSize: 14, MinHeight: 26, Padding: Pad(0, 10) },
 			[SkinState.Inactive]: { Background: "#1c140f", TextColor: "#8f7a58" },
 		},
 		[SkinPart.TitleButton]: { [SkinState.Normal]: { Sprite: Sprite(Box("#2a1d15", Gold, 2), 8, 5) } },

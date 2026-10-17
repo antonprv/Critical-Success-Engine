@@ -204,9 +204,9 @@ export function GenerateSkinCss(skin: Skin): string {
 	if (skin.TextColor !== undefined) root.push(`color: ${Css(skin.TextColor)}`);
 	if (root.length > 0) css += Rule(scope, root);
 	if (skin.Desktop !== undefined) {
-		css += Rule(`${scope}, ${scope} .win-desktop`, [`background: ${Css(skin.Desktop)}`, `--skin-desktop: ${Css(skin.Desktop)}`, `--skin-desktop-opacity: ${skin.DesktopOpacity ?? 1}`, `--skin-desktop-blur: ${skin.DesktopBlur ?? 0}px`]);
-		// A canvas filled with "skin" paints the desktop itself (with opacity and blur), so the layout stops painting it underneath.
-		css += Rule(`${scope}:has(.win-fill--skin)`, ["background: transparent"]);
+		// The layout itself paints nothing: a canvas with Fill "skin" draws the desktop (with opacity and blur) from these variables.
+		css += Rule(scope, [`--skin-desktop: ${Css(skin.Desktop)}`, `--skin-desktop-opacity: ${skin.DesktopOpacity ?? 1}`, `--skin-desktop-blur: ${skin.DesktopBlur ?? 0}px`]);
+		css += Rule(`${scope} .win-desktop`, [`background: ${Css(skin.Desktop)}`]);
 	}
 
 	for (const part of SkinParts) {
