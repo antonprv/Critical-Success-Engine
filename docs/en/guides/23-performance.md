@@ -21,7 +21,6 @@ measures several windows of time and keeps the median. It writes, at the reposit
 
 | | |
 |---|---|
-| `perf/REPORT.md` | the table "scenario x metric x target" (🔴 where the target isn't met), the machine, the method, the applied optimizations |
 | `perf/results/<time>.json`, `latest.json` | every number, every window |
 | `perf/baseline.json` | the reference: a frame rate more than 5 % below it is a regression (the command fails) |
 

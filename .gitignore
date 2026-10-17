@@ -17,8 +17,12 @@ pnpm-debug.log*
 # === Test output ===
 **/coverage/
 **/.e2e/
+
 # the perf harness's builds (src/CSEngine/Core/Perf/Run.mjs)
 **/.perf/
+# the perf tests logs and metrics
+perf/
+
 **/test-results/
 **/playwright-report/
 
