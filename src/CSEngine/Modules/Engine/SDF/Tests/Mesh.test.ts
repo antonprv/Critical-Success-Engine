@@ -190,6 +190,7 @@ describe( "SdfMeshChunks", () => {
 
 		expect( chunks.ChunkSize ).toBe( 2 );
 		expect( chunks.Keys ).toHaveLength( 27 );
+		expect( chunks.Pending ).toBe( 27 );
 		// the same area, nearest chunk (0, 0, 0)
 		chunks.CenterOn( 1, 1, 1 );
 

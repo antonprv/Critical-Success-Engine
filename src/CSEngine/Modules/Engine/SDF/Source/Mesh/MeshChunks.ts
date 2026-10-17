@@ -95,6 +95,11 @@ export class SdfMeshChunks {
 		return this.CellSize * this.ChunkCells;
 	}
 
+	/** Chunks waiting for a (re)mesh (edits taken by the next Update aside). */
+	public get Pending(): number {
+		return this._queue.size;
+	}
+
 	/** Keys of the chunks in the area. */
 	public get Keys(): string[] {
 		return [ ...this._area.keys() ];

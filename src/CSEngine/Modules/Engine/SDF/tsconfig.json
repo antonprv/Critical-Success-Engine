@@ -16,5 +16,5 @@
 		"allowImportingTsExtensions": true,
 		"skipLibCheck": true
 	},
-	"include": [ "Source", "Tests", "Demo", "vite.config.ts", "vitest.config.ts" ]
+	"include": [ "Source", "Tests", "Demo", "E2E", "vite.config.ts", "vitest.config.ts", "playwright.config.ts" ]
 }
