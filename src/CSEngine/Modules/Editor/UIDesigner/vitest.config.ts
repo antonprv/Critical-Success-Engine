@@ -4,6 +4,7 @@
 import tailwindcss from "@tailwindcss/vite";
 import vue from "@vitejs/plugin-vue";
 import { defineConfig } from "vitest/config";
+import { QuasarDefines } from "@cse/ui/build";
 import { EngineTypesPlugin } from "../../../Core/BuildTools/EngineTypes.ts";
 
 // The designer's unit and component tests (jsdom). Coverage counts this module's own sources: the toolkit it builds on is
@@ -11,6 +12,8 @@ import { EngineTypesPlugin } from "../../../Core/BuildTools/EngineTypes.ts";
 export default defineConfig({
 	// The engine's types module answers empty here: the tests stand in for Monaco, which alone reads it.
 	plugins: [vue(), tailwindcss(), EngineTypesPlugin(() => ({}))],
+	// Quasar\'s widgets of @cse/ui are built from Quasar\'s sources, which expect its build flags.
+	define: QuasarDefines,
 	test: {
 		include: ["Tests/**/*.test.ts"],
 		environment: "jsdom",

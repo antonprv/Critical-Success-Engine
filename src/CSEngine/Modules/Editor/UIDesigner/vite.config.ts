@@ -7,6 +7,7 @@ import vue from "@vitejs/plugin-vue";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
+import { QuasarDefines } from "@cse/ui/build";
 
 const RootDirectory = fileURLToPath(new URL(".", import.meta.url));
 
@@ -14,6 +15,8 @@ const RootDirectory = fileURLToPath(new URL(".", import.meta.url));
 export default defineConfig({
 	// The engine's declarations, for the code editor's TypeScript (virtual:cse/engine-types).
 	plugins: [vue(), tailwindcss(), EngineTypesPlugin()],
+	// Quasar\'s widgets of @cse/ui are built from Quasar\'s sources, which expect its build flags.
+	define: QuasarDefines,
 	// Relative paths: the desktop app opens the built page from disk (file://).
 	base: "./",
 	server: {

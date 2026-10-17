@@ -7,6 +7,8 @@ import type { UiDocument } from "../Documents/UiDocument";
 import type { UiManager } from "../Documents/UiManager";
 import { UiChannel, type UiChannels, type UiCommand } from "./GameUi";
 import { Task } from "@cse/task";
+import type { JsonValue } from "../Documents/Json";
+import { GetQuasarServices } from "../Quasar/QuasarServices";
 
 type Listen = { id: string; widget: string; event: string; };
 
@@ -25,6 +27,8 @@ function ChangeKey(command: UiCommand): string | null {
 	switch (command.op) {
 		case "set-text": case "set-visible": case "set-enabled": case "set-value": case "set-items":
 			return `${command.op}\u0000${command.id}\u0000${command.widget}`;
+		case "set-prop":
+			return `${command.op}\u0000${command.id}\u0000${command.widget}\u0000${command.key}`;
 		case "set-variable":
 			return `${command.op}\u0000${command.id}\u0000${command.name}`;
 		default:
@@ -97,17 +101,36 @@ export class UiHostBridge {
 			case "set-visible": this.Shown(command.id).Controller<ControlBase>(command.widget).SetVisible(command.visible); break;
 			case "set-enabled": this.Shown(command.id).Controller<ControlBase>(command.widget).SetEnabled(command.enabled); break;
 			case "set-value": {
-				const control = this.Shown(command.id).Controller<{ SetValue?: (value: number) => void; }>(command.widget);
+				const control = this.Shown(command.id).Controller<{ SetValue?: (value: JsonValue) => void; }>(command.widget);
 				if (!control.SetValue) throw new Error(`Widget "${command.widget}" has no value`);
 				control.SetValue(command.value);
 				break;
 			}
 			case "set-items": {
-				const control = this.Shown(command.id).Controller<{ SetItems?: (items: { text: string; }[]) => void; }>(command.widget);
+				const control = this.Shown(command.id).Controller<{ SetItems?: (items: JsonValue[]) => void; Row?: unknown; }>(command.widget);
 				if (!control.SetItems) throw new Error(`Widget "${command.widget}" has no items`);
-				control.SetItems(command.items.map((text) => ({ text })));
+				// A Quasar widget takes the items as they are; a toolkit list box, as rows of text.
+				control.SetItems(control.Row ? command.items : command.items.map((text) => ({ text: String(text) })));
 				break;
 			}
+			case "set-prop": {
+				const control = this.Shown(command.id).Controller<{ SetProp?: (key: string, value: JsonValue) => void; Props?: Record<string, JsonValue>; }>(command.widget);
+				if (!control.SetProp) throw new Error(`Widget "${command.widget}" has no props to set (only Quasar's widgets have)`);
+				if (command.value === null) delete control.Props![command.key];
+				else control.SetProp(command.key, command.value);
+				break;
+			}
+			case "notify": await GetQuasarServices().Notify(command.options); break;
+			case "dialog": case "bottom-sheet": {
+				// Not awaited: the game's other commands go on while the dialog is open.
+				const services = GetQuasarServices();
+				const ask = command.op === "dialog" ? services.Dialog(command.options) : services.BottomSheet(command.options).then((data) => ({ Ok: data !== null, Data: data }));
+				void ask.then((outcome) => this._channels.Post(UiChannel, { op: "reply", request: command.request, ok: outcome.Ok, data: outcome.Data }));
+				break;
+			}
+			case "loading": await (command.show ? GetQuasarServices().ShowLoading(command.options) : GetQuasarServices().HideLoading()); break;
+			case "loading-bar": await GetQuasarServices().LoadingBar(command.action, command.amount); break;
+			case "fullscreen": await GetQuasarServices().ToggleFullscreen(); break;
 			case "set-variable": this._manager.SetVariable(command.id, command.name, command.value); break;
 			case "listen": {
 				const listen = { id: command.id, widget: command.widget, event: command.event };

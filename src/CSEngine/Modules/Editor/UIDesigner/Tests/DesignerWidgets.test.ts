@@ -58,8 +58,9 @@ describe("a custom widget in the designer", () => {
 		expect(designer.Import(designer.Export())).toBeNull();
 
 		const wrapper = mount(WinDesigner, { props: { widgets: registry }, attachTo: document.body });
-		expect(wrapper.findAll(".win-designer__palette-item").map((i) => i.text()).slice(-2)).toEqual(["Rating", "My panel"]);
-		await wrapper.findAll(".win-designer__palette-item").at(-2)!.trigger("click");
+		const own = wrapper.findAll('[data-group="Controls"] .win-designer__palette-item');
+		expect(own.map((i) => i.text()).slice(-2)).toEqual(["Rating", "My panel"]);
+		await own.at(-2)!.trigger("click");
 		expect(wrapper.find('.win-designer__canvas [data-name="Rating1"] .rating').exists()).toBe(true);
 		expect(wrapper.find('[data-prop="Max"]').exists()).toBe(true);
 		wrapper.unmount();

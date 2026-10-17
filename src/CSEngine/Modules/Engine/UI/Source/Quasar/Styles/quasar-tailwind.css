@@ -1,0 +1,157 @@
+/*
+ * How the Tailwind kit dresses Quasar's components: its semantic tokens (panel, field, line, ink, primary...) on its
+ * palettes, its radius, Tailwind's flat look - thin borders and rings instead of Material's shadows and underlines, no
+ * capital letters on buttons. The Quasar kit (whose root carries the Tailwind kit's classes too, for the toolkit's own
+ * components) keeps Quasar's look and only takes its colours from the palette.
+ */
+
+@layer cse-quasar {
+	/* ---------- tokens: the Tailwind and the Quasar kit ---------- */
+
+	.win-kit--tailwind {
+		--q-primary: var(--kit-primary);
+		--q-secondary: var(--neutral-500);
+		--q-accent: var(--accent-400);
+		--q-positive: var(--color-emerald-600);
+		--q-negative: var(--color-red-600);
+		--q-info: var(--color-sky-600);
+		--q-warning: var(--color-amber-500);
+		--q-dark: var(--neutral-900);
+		--q-dark-page: var(--neutral-950);
+	}
+	.win-kit--tailwind.tw-dark {
+		--q-positive: var(--color-emerald-500);
+		--q-negative: var(--color-red-500);
+		--q-info: var(--color-sky-500);
+	}
+	.win-kit--quasar { --q-primary: var(--accent-700); --q-secondary: var(--color-teal-600); --q-accent: var(--color-purple-500); }
+	.win-kit--quasar.tw-dark { --q-primary: var(--accent-400); }
+	.win-kit--quasar .q-card--dark, .win-kit--quasar .q-menu--dark, .win-kit--quasar .q-table--dark,
+	.win-kit--quasar .q-date--dark, .win-kit--quasar .q-time--dark, .win-kit--quasar .q-color-picker--dark,
+	.win-kit--quasar .q-stepper--dark, .win-kit--quasar .q-editor--dark, .win-kit--quasar .q-uploader--dark { background: var(--neutral-900); }
+
+	/* ---------- the Tailwind kit only from here ---------- */
+
+	.win-kit--tailwind:not(.win-kit--quasar) .win-quasar,
+	.win-kit--tailwind.win-portals:not(.win-kit--quasar) .q-menu,
+	.win-kit--tailwind.win-portals:not(.win-kit--quasar) .q-dialog,
+	.win-kit--tailwind.win-portals:not(.win-kit--quasar) .q-notification { font-family: inherit; letter-spacing: normal; color: var(--kit-ink); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-ripple { display: none; }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-focus-helper { border-radius: inherit; }
+
+	/* buttons */
+	.win-kit--tailwind:not(.win-kit--quasar) .q-btn { min-height: 36px; padding: 0 14px; border-radius: var(--kit-radius); font-size: 14px; font-weight: 500; text-transform: none; letter-spacing: normal; }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-btn:before { box-shadow: 0 1px 2px rgb(0 0 0 / 0.08); border-radius: inherit; }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-btn--flat:before, .win-kit--tailwind:not(.win-kit--quasar) .q-btn--unelevated:before { box-shadow: none; }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-btn--outline:before { border: 1px solid var(--kit-line); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-btn--standard:not([class*="bg-"]) { background: var(--kit-panel); color: var(--kit-ink); box-shadow: inset 0 0 0 1px var(--kit-line); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-btn:focus-visible { outline: 2px solid var(--kit-primary); outline-offset: 2px; }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-btn--round { border-radius: 9999px; }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-btn-group { border-radius: var(--kit-radius); box-shadow: none; }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-btn-group > .q-btn-item:not(:last-child) { border-right: 1px solid color-mix(in oklab, currentColor 20%, transparent); }
+
+	/* fields: a bordered box with a ring when focused */
+	.win-kit--tailwind:not(.win-kit--quasar) .q-field__control { min-height: 38px; height: auto; padding: 0 10px; border-radius: var(--kit-radius); background: var(--kit-field); color: var(--kit-ink); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-field__control:before { border: 1px solid var(--kit-line) !important; border-radius: inherit; }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-field__control:after { height: auto; inset: -1px; border: 2px solid var(--kit-primary); border-radius: inherit; background: none; transform: none; opacity: 0; transition: opacity 0.15s; }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-field--focused .q-field__control:after { opacity: 1; }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-field--error .q-field__control:before { border-color: var(--q-negative) !important; }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-field--error .q-field__control:after { border-color: var(--q-negative); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-field__native, .win-kit--tailwind:not(.win-kit--quasar) .q-field__input { color: var(--kit-ink); font-size: 14px; }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-field__label { color: var(--kit-muted); font-size: 14px; }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-field--focused .q-field__label { color: var(--kit-primary); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-field__marginal { color: var(--kit-muted); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-field--disabled .q-field__control { background: var(--kit-soft); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-field__bottom { color: var(--kit-muted); }
+
+	/* check box, radio, toggle */
+	.win-kit--tailwind:not(.win-kit--quasar) .q-checkbox__bg { border: 1px solid var(--kit-line); border-radius: calc(var(--kit-radius) * 0.6); background: var(--kit-field); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-checkbox__inner--truthy .q-checkbox__bg, .win-kit--tailwind:not(.win-kit--quasar) .q-checkbox__inner--indet .q-checkbox__bg { border-color: var(--kit-primary); background: var(--kit-primary); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-checkbox__inner, .win-kit--tailwind:not(.win-kit--quasar) .q-radio__inner, .win-kit--tailwind:not(.win-kit--quasar) .q-toggle__inner { color: var(--kit-muted); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-checkbox__inner--truthy, .win-kit--tailwind:not(.win-kit--quasar) .q-radio__inner--truthy, .win-kit--tailwind:not(.win-kit--quasar) .q-toggle__inner--truthy { color: var(--kit-primary); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-checkbox__label, .win-kit--tailwind:not(.win-kit--quasar) .q-radio__label, .win-kit--tailwind:not(.win-kit--quasar) .q-toggle__label { color: var(--kit-ink); font-size: 14px; }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-toggle__track { height: 20px; border-radius: 9999px; background: var(--kit-pressed); opacity: 1; }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-toggle__inner--truthy .q-toggle__track { background: var(--kit-primary); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-toggle__thumb:after { background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / 0.3); }
+
+	/* slider, progress */
+	.win-kit--tailwind:not(.win-kit--quasar) .q-slider__track { border-radius: 9999px; background: var(--kit-pressed); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-slider__selection { background: var(--kit-primary); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-slider__thumb { color: var(--kit-panel); filter: drop-shadow(0 0 1px var(--kit-primary)) drop-shadow(0 1px 1px rgb(0 0 0 / 0.25)); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-linear-progress { border-radius: 9999px; color: var(--kit-primary); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-linear-progress__track { background: var(--kit-pressed); opacity: 1; }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-circular-progress__track { color: var(--kit-pressed); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-circular-progress { color: var(--kit-primary); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-knob { color: var(--kit-primary); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-rating__icon--active { color: var(--color-amber-400); }
+
+	/* surfaces */
+	.win-kit--tailwind:not(.win-kit--quasar) .q-card,
+	.win-kit--tailwind:not(.win-kit--quasar) .q-table__container,
+	.win-kit--tailwind:not(.win-kit--quasar) .q-markup-table,
+	.win-kit--tailwind:not(.win-kit--quasar) .q-stepper,
+	.win-kit--tailwind:not(.win-kit--quasar) .q-date,
+	.win-kit--tailwind:not(.win-kit--quasar) .q-time,
+	.win-kit--tailwind:not(.win-kit--quasar) .q-color-picker,
+	.win-kit--tailwind:not(.win-kit--quasar) .q-uploader,
+	.win-kit--tailwind:not(.win-kit--quasar) .q-editor { border-radius: calc(var(--kit-radius) * 1.5); background: var(--kit-panel); color: var(--kit-ink); box-shadow: 0 0 0 1px var(--kit-line), 0 1px 3px rgb(0 0 0 / 0.06); border: none; }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-banner { border-radius: var(--kit-radius); background: var(--kit-selected); color: var(--kit-selected-ink); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-toolbar, .win-kit--tailwind:not(.win-kit--quasar) .q-header, .win-kit--tailwind:not(.win-kit--quasar) .q-footer { background: var(--kit-panel); color: var(--kit-ink); border-bottom: 1px solid var(--kit-line); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-bar { background: var(--kit-soft); color: var(--kit-ink); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-drawer { background: var(--kit-panel); color: var(--kit-ink); border-right: 1px solid var(--kit-line); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-layout, .win-kit--tailwind:not(.win-kit--quasar) .q-page { background: var(--kit-surface); color: var(--kit-ink); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-separator { background: var(--kit-line); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-splitter__separator { background: var(--kit-line); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-scrollarea__thumb { border-radius: 9999px; background: var(--kit-muted); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-skeleton { border-radius: var(--kit-radius); background: var(--kit-soft); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-inner-loading { background: color-mix(in oklab, var(--kit-panel) 60%, transparent); }
+
+	/* lists, tree, tables */
+	.win-kit--tailwind:not(.win-kit--quasar) .q-list { color: var(--kit-ink); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-list--bordered { border: 1px solid var(--kit-line); border-radius: var(--kit-radius); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-item { border-radius: var(--kit-radius); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-item--active { background: var(--kit-selected); color: var(--kit-selected-ink); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-item__label--caption { color: var(--kit-muted); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-tree { color: var(--kit-ink); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-tree__node-header { border-radius: var(--kit-radius); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-tree__node--selected { background: var(--kit-selected); color: var(--kit-selected-ink); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-table th { color: var(--kit-muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-table thead tr, .win-kit--tailwind:not(.win-kit--quasar) .q-table tbody td { border-color: var(--kit-line); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-table tbody tr:hover > td { background: var(--kit-soft); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-table tbody td:before { display: none; }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-table__bottom { color: var(--kit-muted); border-color: var(--kit-line); }
+
+	/* navigation */
+	.win-kit--tailwind:not(.win-kit--quasar) .q-tab { text-transform: none; color: var(--kit-muted); border-radius: var(--kit-radius) var(--kit-radius) 0 0; }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-tab--active { color: var(--kit-primary); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-tab__label { font-weight: 500; }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-tab__indicator { height: 2px; background: var(--kit-primary); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-tab-panels { background: transparent; color: var(--kit-ink); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-breadcrumbs__el { color: var(--kit-muted); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-breadcrumbs > div:last-child .q-breadcrumbs__el { color: var(--kit-ink); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-stepper__dot { background: var(--kit-primary) !important; }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-timeline__dot:before { border-color: var(--kit-primary); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-timeline__dot:after { background: var(--kit-line); }
+
+	/* pop-ups */
+	.win-kit--tailwind:not(.win-kit--quasar) .q-menu { border-radius: var(--kit-radius); background: var(--kit-panel); color: var(--kit-ink); box-shadow: 0 0 0 1px var(--kit-line), 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-tooltip { border-radius: var(--kit-radius); background: var(--kit-tip); color: var(--kit-tip-ink); font-size: 12px; }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-dialog__inner > div { border-radius: calc(var(--kit-radius) * 2); box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-dialog__backdrop { background: rgb(0 0 0 / 0.45); backdrop-filter: blur(2px); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-notification { border-radius: var(--kit-radius); box-shadow: 0 0 0 1px var(--kit-line), 0 10px 15px -3px rgb(0 0 0 / 0.1); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-bottom-sheet { border-radius: calc(var(--kit-radius) * 2) calc(var(--kit-radius) * 2) 0 0; background: var(--kit-panel); color: var(--kit-ink); }
+
+	/* small things */
+	.win-kit--tailwind:not(.win-kit--quasar) .q-badge { border-radius: 9999px; padding: 2px 8px; font-weight: 500; color: var(--kit-primary-ink); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-chip { border-radius: 9999px; background: var(--kit-soft); color: var(--kit-ink); box-shadow: inset 0 0 0 1px var(--kit-line); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-avatar__content { border-radius: 9999px; }
+
+	/* pickers */
+	.win-kit--tailwind:not(.win-kit--quasar) .q-date__header, .win-kit--tailwind:not(.win-kit--quasar) .q-time__header,
+	.win-kit--tailwind:not(.win-kit--quasar) .q-color-picker__header, .win-kit--tailwind:not(.win-kit--quasar) .q-uploader__header { background: var(--kit-primary); color: var(--kit-primary-ink); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-editor__toolbar { border-bottom: 1px solid var(--kit-line); background: var(--kit-soft); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-message-text { border-radius: calc(var(--kit-radius) * 2); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-message-text--received { background: var(--kit-soft); color: var(--kit-ink); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-message-text--sent { background: var(--kit-primary); color: var(--kit-primary-ink); }
+	.win-kit--tailwind:not(.win-kit--quasar) .q-carousel { border-radius: calc(var(--kit-radius) * 1.5); }
+}

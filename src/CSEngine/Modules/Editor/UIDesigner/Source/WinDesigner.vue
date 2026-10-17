@@ -13,6 +13,7 @@ import { SplitterController } from "@cse/ui";
 import { StatusBarController } from "@cse/ui";
 import { ToolbarController } from "@cse/ui";
 import { UsePointerTracking } from "@cse/ui";
+import { AllKits, KitLabels } from "@cse/ui";
 import { DefaultTailwindTheme, DefaultToolTheme, RememberedTheme, RememberTheme, TailwindAccents, TailwindNeutrals, WinKit, type TailwindTheme, type ToolTheme } from "@cse/ui";
 import { AllThemes, WinTheme } from "@cse/ui";
 import { UseControl } from "@cse/ui";
@@ -33,11 +34,12 @@ import { PropKind, SerializeLayout, type LayoutNode, type PropDefinition, type U
 import { UiDocument } from "@cse/ui";
 import { UiScriptRegistry } from "@cse/ui";
 import { DialogService } from "@cse/ui";
-import { BuiltInWidgets, type WidgetRegistry } from "@cse/ui";
+import { BuiltInWidgets, GroupOf, PaletteOrder, ToolkitGroup, type WidgetRegistry } from "@cse/ui";
 import { WinDialogHost } from "@cse/ui";
 import { GenerateGraphScript, GraphClassName } from "./GraphCodegen";
 import { WinLayoutView } from "@cse/ui";
 import WinNodeEditor from "./WinNodeEditor.vue";
+import WinQuasarInspector from "./WinQuasarInspector.vue";
 
 /** controller: the designer to show (made here when not given); project: the project its documents belong to (the desktop app). */
 const props = defineProps<{ layout?: UiLayout; scripts?: UiScriptRegistry; widgets?: WidgetRegistry; controller?: DesignerController; project?: ProjectSession; code?: CodeSession; }>();
@@ -171,8 +173,8 @@ themes.Events.On("change", (_index, value) => { theme.value = value; Remember();
 
 // The kit the designer (and the layout on its canvas) is drawn with.
 const kit = ref(initial.Kit);
-const kitValues = [WinKit.Classic, WinKit.Tailwind];
-const kits = UseControl(new ComboBoxController({ Options: [{ Value: WinKit.Classic, Label: "Windows (Classic)" }, { Value: WinKit.Tailwind, Label: "Tailwind" }], SelectedIndex: kitValues.indexOf(initial.Kit) }));
+const kitValues = AllKits;
+const kits = UseControl(new ComboBoxController({ Options: AllKits.map((value) => ({ Value: value, Label: KitLabels[value] })), SelectedIndex: kitValues.indexOf(initial.Kit) }));
 kits.Events.On("change", (_index, value) => { kit.value = value; Remember(); });
 const tailwind = reactive<TailwindTheme>({ ...DefaultTailwindTheme, ...initial.Tailwind });
 function TailwindChoice(values: readonly string[], field: "Accent" | "Neutral"): ComboBoxController<string> {
@@ -240,6 +242,24 @@ onUnmounted(() => {
 
 //#endregion
 
+//#region palette
+
+/** The palette by groups: the toolkit's widgets first, then Quasar's by Quasar's own groups; the search narrows all of them. */
+const paletteFilter = ref("");
+const paletteGroups = computed(() => {
+	const wanted = paletteFilter.value.trim().toLowerCase();
+	const groups = new Map<string, string[]>();
+	for (const type of widgets.Palette) {
+		const definition = widgets.Get(type)!;
+		if (wanted && !definition.Label.toLowerCase().includes(wanted) && !type.includes(wanted)) continue;
+		const group = GroupOf(definition);
+		groups.set(group, [...(groups.get(group) ?? []), type]);
+	}
+	return [...groups].sort(([a], [b]) => PaletteOrder(a) - PaletteOrder(b)).map(([Name, Types]) => ({ Name, Types, Open: Name === ToolkitGroup || wanted !== "" }));
+});
+
+//#endregion
+
 //#region canvas
 
 function OnDragStart(event: DragEvent, type: string): void {
@@ -255,6 +275,11 @@ function OnDrop(event: DragEvent): void {
 	const type = event.dataTransfer!.getData(WidgetMime);
 	const widget = (event.target as Element).closest<HTMLElement>("[data-name]");
 	if (!type || !widget) return;
+	// A widget with slots (Quasar's) takes it into its default slot, where its own layout places it.
+	if (widgets.Get(designer.Find(widget.dataset["name"]!)!.Type)!.Slots) {
+		designer.Add(type, { Parent: widget.dataset["name"]! });
+		return;
+	}
 	const own = widget.querySelector<HTMLElement>(`[data-container="${widget.dataset["name"]}"]`);
 	const container = own ?? widget.parentElement!.closest<HTMLElement>("[data-container]")!;
 	const rect = container.getBoundingClientRect();
@@ -286,6 +311,12 @@ function OnCanvasPointerDown(event: PointerEvent): void {
 
 const selected = computed<LayoutNode | null>(() => designer.Selected);
 const isRoot = computed(() => selected.value?.Name === designer.Layout.Root.Name);
+/** The selected widget is in a slot of a Quasar widget: its parent lays it out, so it has no place or anchors of its own. */
+const inSlot = computed(() => {
+	// (asked only while a widget is selected)
+	const parent = designer.ParentOf(selected.value!.Name);
+	return parent !== null && widgets.Get(parent.Type)!.Slots !== undefined;
+});
 const containers = computed(() => designer.Hierarchy.filter((entry) => entry.Node.Children).map((entry) => entry.Node.Name));
 
 function WithSelected(action: (name: string) => void): void {
@@ -293,6 +324,16 @@ function WithSelected(action: (name: string) => void): void {
 }
 
 const InputValue = (event: Event): string => (event.target as HTMLInputElement).value;
+
+/** The document's shortcuts, one "keys = widget" per line. */
+const HotkeysText = (): string => Object.entries(designer.Layout.Hotkeys ?? {}).map(([keys, widget]) => `${keys} = ${widget}`).join("\n");
+/** The shortcuts as written: lines that aren't one (or name no widget) are reported and left out. */
+function OnHotkeys(event: Event): void {
+	const wanted = InputValue(event).split("\n").map((line) => line.split("=").map((part) => part.trim())).filter(([keys]) => keys);
+	for (const keys of Object.keys(designer.Layout.Hotkeys ?? {})) designer.SetHotkey(keys, null);
+	const bad = wanted.filter(([keys, widget]) => designer.SetHotkey(keys!, widget ?? "") === null).map(([keys]) => keys);
+	message.value = bad.length ? `Not a shortcut or no such widget: ${bad.join(", ")}` : "Ready";
+}
 
 /** The name applies as soon as it is a valid unique identifier; until then the field is marked and the old name kept. */
 const nameInvalid = ref(false);
@@ -574,9 +615,13 @@ const Checked = (event: Event): boolean => (event.target as HTMLInputElement).ch
 					<WinProjectPanel v-if="project" :session="project" :designer="designer" @message="(text: string) => message = text" @use-theme="UseThemeInGame" />
 					<fieldset class="win-groupbox win-designer__palette">
 						<legend class="win-groupbox__title">Palette</legend>
+						<input v-model="paletteFilter" class="win-textbox win-designer__palette-filter" data-field="PaletteFilter" placeholder="Find a widget…">
+						<div class="win-designer__palette-groups">
+						<details v-for="group in paletteGroups" :key="group.Name" class="win-designer__palette-group" :open="group.Open" :data-group="group.Name">
+						<summary>{{ group.Name }}</summary>
 						<div class="win-designer__palette-list">
 						<button
-							v-for="type in widgets.Palette"
+							v-for="type in group.Types"
 							:key="type"
 							type="button"
 							class="win-button win-designer__palette-item"
@@ -585,7 +630,9 @@ const Checked = (event: Event): boolean => (event.target as HTMLInputElement).ch
 							@click="designer.Add(type)"
 							@dragstart="OnDragStart($event, type)"
 						>{{ widgets.Get(type)!.Label }}</button>
-					</div>
+						</div>
+						</details>
+						</div>
 					</fieldset>
 					<fieldset class="win-groupbox win-designer__hierarchy">
 						<legend class="win-groupbox__title">Hierarchy</legend>
@@ -668,12 +715,15 @@ const Checked = (event: Event): boolean => (event.target as HTMLInputElement).ch
 						<label title="On: clicks on empty places go through to the game (a HUD). Off: the document covers the game (a pause menu).">Click pass-through
 							<input type="checkbox" data-field="LayoutClickThrough" :checked="IsClickThrough(designer.Layout)" @change="designer.SetDocumentClickThrough(Checked($event))">
 						</label>
+						<label title="Keyboard shortcuts while the document is shown, one per line: Ctrl+S = SaveButton presses the widget SaveButton.">Hotkeys
+							<textarea class="win-textbox" data-field="Hotkeys" :value="HotkeysText()" @change="OnHotkeys"></textarea>
+						</label>
 					</fieldset>
 
 					<fieldset v-if="selected" class="win-groupbox">
 						<legend class="win-groupbox__title">{{ widgets.Get(selected.Type)!.Label }}</legend>
 						<label>Name <input class="win-textbox" :class="{ 'win-designer__field--invalid': nameInvalid }" data-field="Name" :value="selected.Name" @keydown.enter="Commit" @focus="designer.BeginEdit()" @blur="OnNameBlur" @input="OnRename"></label>
-						<template v-if="!isRoot">
+						<template v-if="!isRoot && !inSlot">
 							<label>Parent
 								<select class="win-textbox" data-field="Parent" :value="designer.ParentOf(selected.Name)!.Name" @change="OnReparent">
 									<option v-for="name in containers" :key="name" :value="name">{{ name }}</option>
@@ -696,13 +746,19 @@ const Checked = (event: Event): boolean => (event.target as HTMLInputElement).ch
 						<label title="On: pop-ups of this widget (a combo box list) stay inside the window and are clipped by it. Off: they float above everything and can leave the window, as in Windows Forms.">Embed in window bounds
 							<input type="checkbox" data-field="EmbedInWindow" :checked="selected.EmbedInWindow !== false" @change="designer.SetEmbedInWindow(selected.Name, Checked($event))">
 						</label>
-						<div class="win-designer__geometry">
+						<label v-if="inSlot">Parent
+							<select class="win-textbox" data-field="Parent" :value="designer.ParentOf(selected.Name)!.Name" @change="OnReparent">
+								<option v-for="name in containers" :key="name" :value="name">{{ name }}</option>
+							</select>
+						</label>
+						<div v-if="!inSlot" class="win-designer__geometry">
 							<template v-for="geometry in geometryFields" :key="geometry.Field">
 								<span>{{ geometry.Label }}</span>
 								<input class="win-textbox" type="number" :data-field="geometry.Field" :value="selected[geometry.Field]" @keydown.enter="Commit" @focus="designer.BeginEdit()" @blur="designer.EndEdit()" @input="OnGeometry(geometry.Field, $event)">
 							</template>
 						</div>
-						<template v-for="prop in widgets.Get(selected.Type)!.Props" :key="prop.Key">
+						<WinQuasarInspector v-if="widgets.Get(selected.Type)!.OpenProps" :designer="designer" :node="selected" :widgets="widgets" />
+						<template v-for="prop in widgets.Get(selected.Type)!.Props" v-else :key="prop.Key">
 						<div v-if="prop.Kind === PropKind.Items" class="win-designer__items" :data-prop="prop.Key">
 							<label>{{ prop.Label }}
 								<input class="win-textbox" type="number" min="1" :max="MaxItems" :data-items-count="prop.Key" :value="ItemsOf(prop.Key).length" @keydown.enter="Commit" @focus="designer.BeginEdit()" @blur="designer.EndEdit()" @input="OnItemCount(prop, $event)">
@@ -824,8 +880,10 @@ const Checked = (event: Event): boolean => (event.target as HTMLInputElement).ch
 /* A fieldset is never narrower than its widest content by default: here the groups fit the column instead. */
 .win-designer__side > fieldset { min-inline-size: 0; }
 .win-designer__details { border-left: 1px solid var(--d-line); }
-.win-designer__palette { flex: 0 0 auto; }
-.win-designer__palette-list { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; max-height: 132px; overflow-y: auto; align-content: start; scrollbar-gutter: stable; }
+.win-designer__palette { flex: 0 1 auto; display: flex; flex-direction: column; gap: 4px; min-height: 120px; max-height: 45%; }
+.win-designer__palette-groups { overflow-y: auto; scrollbar-gutter: stable; min-height: 0; }
+.win-designer__palette-group > summary { cursor: default; padding: 2px 0; font-weight: bold; }
+.win-designer__palette-list { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; align-content: start; padding-bottom: 4px; }
 .win-designer__palette-item { min-width: 0; padding: 0 4px; font-size: 10px; cursor: grab; }
 .win-designer__hierarchy { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .win-designer__hierarchy-tools { display: flex; gap: 2px; margin-bottom: 4px; }

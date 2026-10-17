@@ -1,0 +1,7 @@
+/* Quasar's own CSS sits in a layer of its own, under the kits' dress of its components (cse-quasar): whatever the order the
+   files load in, a kit's rule wins over Quasar's, and anything unlayered (the toolkit's own kits, a layout's skin) over both.
+   Quasar marks its colour classes !important (.bg-primary); an !important wins in the EARLIER layer, so the few places a kit
+   must override one (a Windows button is the face colour whatever its colour prop) are in cse-quasar-force, first of all. */
+@layer cse-quasar-force, quasar, cse-quasar;
+@import "quasar/dist/quasar.css" layer(quasar);
+@import "../Fonts/MaterialIcons/MaterialIcons.css" layer(quasar);

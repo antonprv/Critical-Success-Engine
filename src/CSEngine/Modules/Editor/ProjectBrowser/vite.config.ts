@@ -6,12 +6,15 @@ import vue from "@vitejs/plugin-vue";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
+import { QuasarDefines } from "@cse/ui/build";
 
 const RootDirectory = fileURLToPath(new URL(".", import.meta.url));
 
 /** The Project Browser, an editor module: its page builds to Binaries/Modules/Editor/ProjectBrowser (the desktop app loads it from there). */
 export default defineConfig({
 	plugins: [vue(), tailwindcss()],
+	// Quasar\'s widgets of @cse/ui are built from Quasar\'s sources, which expect its build flags.
+	define: QuasarDefines,
 	// Relative paths: the desktop app opens the built page from disk (file://).
 	base: "./",
 	server: { host: "127.0.0.1", port: 5177, fs: { allow: [resolve(RootDirectory, "../../..")] } },

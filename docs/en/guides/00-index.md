@@ -32,6 +32,7 @@ tests (`pnpm test`), so when the engine API changes the guides don't silently go
 | 22 | [Contracts](22-contracts.md) | `.contract` files: C# and TypeScript calling each other through DI (`@FromCSharp`, `[FromTypeScript]`), DI in C# |
 | 23 | [Performance](23-performance.md) | `pnpm perf`: the perf harness, its metrics and scenarios, `?scene=` and `?uncapped` |
 | 24 | [The SDF world](24-sdf.md) | The edit list, the exact field, bricks, the mesh tier, the ray-marched layer in a Babylon scene |
+| 25 | [Quasar in UI documents](25-quasar.md) | Every Quasar component as a widget, the three kits, Quasar's plugins as services, bindings, shortcuts, screens |
 
 ## The model in one paragraph
 

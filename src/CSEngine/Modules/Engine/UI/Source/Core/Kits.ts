@@ -7,7 +7,17 @@ export const enum WinKit {
 	Classic = "classic",
 	/** Tailwind CSS design tokens: any palette, light or dark, any radius. */
 	Tailwind = "tailwind",
+	/**
+	 * Quasar's own look (Material): Quasar's components as Quasar draws them, the toolkit's on the Tailwind kit's tokens
+	 * with Quasar's font; the palette, dark mode and radius are the Tailwind theme's.
+	 */
+	Quasar = "quasar",
 }
+
+export const AllKits: readonly WinKit[] = [WinKit.Classic, WinKit.Tailwind, WinKit.Quasar];
+
+/** The kit's name for people. */
+export const KitLabels: Readonly<Record<WinKit, string>> = { [WinKit.Classic]: "Windows (Classic)", [WinKit.Tailwind]: "Tailwind", [WinKit.Quasar]: "Quasar" };
 
 /** Every colour palette of Tailwind CSS 4, in Tailwind's order: any of them can be the accent. */
 export const TailwindAccents: readonly string[] = [
@@ -30,9 +40,17 @@ export interface TailwindTheme {
 
 export const DefaultTailwindTheme: Readonly<TailwindTheme> = Object.freeze({ Accent: "indigo", Neutral: "zinc", Dark: false, Radius: "md" });
 
+/** The Quasar kit starts in Quasar's own colours: its primary is a blue, its corners small. */
+export const DefaultQuasarTheme: Readonly<TailwindTheme> = Object.freeze({ Accent: "blue", Neutral: "gray", Dark: false, Radius: "sm" });
+
 /** The classes that select a Tailwind theme on the kit's root element. */
 export function TailwindThemeClasses(theme: TailwindTheme): string[] {
 	const classes = ["win-kit--tailwind", `tw-accent--${theme.Accent}`, `tw-neutral--${theme.Neutral}`, `tw-radius--${theme.Radius}`];
 	if (theme.Dark) classes.push("tw-dark");
 	return classes;
+}
+
+/** The classes of the Quasar kit's root: the Tailwind kit's (its tokens dress the toolkit's components) plus Quasar's. */
+export function QuasarThemeClasses(theme: TailwindTheme): string[] {
+	return ["win-kit--quasar", ...TailwindThemeClasses(theme)];
 }

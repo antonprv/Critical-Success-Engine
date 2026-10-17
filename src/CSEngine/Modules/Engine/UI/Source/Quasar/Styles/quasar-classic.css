@@ -1,0 +1,308 @@
+/*
+ * How the Classic kit (Windows 98..7) dresses Quasar's components: the theme's colours (Quasar's brand colours are the
+ * theme's selection and accent), its font and size, square bevelled controls in the classic family, Luna's rounded
+ * gradients, Aero's glassy ones. Scoped to .win-kit--classic, which the kit's root and the pop-ups' host wear.
+ */
+
+@layer cse-quasar {
+	/* ---------- tokens ---------- */
+
+	.win-kit--classic {
+		--q-primary: var(--select);
+		--q-secondary: var(--shadow);
+		--q-accent: var(--accent);
+		--q-positive: #008000;
+		--q-negative: #c00000;
+		--q-info: var(--accent);
+		--q-warning: #b77b00;
+		--q-dark: #202020;
+		--q-dark-page: #101010;
+		--bevel-out: inset -1px -1px var(--dark), inset 1px 1px var(--hilight), inset -2px -2px var(--shadow), inset 2px 2px var(--light);
+		--bevel-in: inset 1px 1px var(--shadow), inset -1px -1px var(--hilight), inset 2px 2px var(--dark), inset -2px -2px var(--light);
+		--bevel-thin: inset 1px 1px var(--shadow), inset -1px -1px var(--hilight);
+	}
+	.win-kit--classic .win-quasar,
+	.win-kit--classic.win-portals .q-menu,
+	.win-kit--classic.win-portals .q-tooltip,
+	.win-kit--classic.win-portals .q-dialog,
+	.win-kit--classic.win-portals .q-notification,
+	.win-kit--classic.win-portals .q-bottom-sheet {
+		font-family: var(--font);
+		font-size: 11px;
+		letter-spacing: normal;
+		color: var(--text);
+	}
+	.win-kit--classic .q-icon { font-size: 16px; }
+	.win-kit--classic .q-focus-helper { display: none; }
+	/* Material's focus and hover halo around check boxes, radios and toggles: Windows marks the label instead. */
+	.win-kit--classic .q-checkbox__inner:before, .win-kit--classic .q-radio__inner:before, .win-kit--classic .q-toggle__inner:before { display: none; }
+	.win-kit--classic .q-checkbox:focus-visible .q-checkbox__label, .win-kit--classic .q-radio:focus-visible .q-radio__label, .win-kit--classic .q-toggle:focus-visible .q-toggle__label { outline: 1px dotted var(--dark); }
+	.win-kit--classic .q-ripple { display: none; }
+
+	/* ---------- buttons ---------- */
+
+	.win-kit--classic .q-btn {
+		min-height: 23px;
+		padding: 0 10px;
+		border-radius: 0;
+		font: inherit;
+		text-transform: none;
+		letter-spacing: normal;
+		color: var(--text);
+	}
+	.win-kit--classic .q-btn:before { box-shadow: none; border: none; border-radius: inherit; }
+	.win-kit--classic .q-btn--standard,
+	.win-kit--classic .q-btn--push,
+	.win-kit--classic .q-btn--unelevated { background: var(--face); box-shadow: var(--bevel-out); }
+	.win-kit--classic .q-btn--standard:active,
+	.win-kit--classic .q-btn--push:active,
+	.win-kit--classic .q-btn--active { box-shadow: var(--bevel-in); }
+	.win-kit--classic .q-btn--standard:focus-visible .q-btn__content { outline: 1px dotted var(--dark); outline-offset: 2px; }
+	.win-kit--classic .q-btn--flat { background: transparent; }
+	.win-kit--classic .q-btn--flat:hover { box-shadow: var(--bevel-thin); }
+	.win-kit--classic .q-btn--outline:before { border: 1px solid var(--shadow); }
+	.win-kit--classic .q-btn--round, .win-kit--classic .q-btn--rounded { border-radius: 50%; }
+	.win-kit--classic .q-btn--rounded { border-radius: 12px; }
+	.win-kit--classic .q-btn.disabled { opacity: 1 !important; color: var(--shadow); text-shadow: 1px 1px var(--hilight); }
+
+	.win-kit--classic.win-family--luna .q-btn--standard,
+	.win-kit--classic.win-family--luna .q-btn--push,
+	.win-kit--classic.win-family--luna .q-btn--unelevated { border: 1px solid var(--button-border); border-radius: 3px; background: linear-gradient(180deg, #fff 0%, #ecebe6 86%, #d6d0c5 100%); box-shadow: none; }
+	.win-kit--classic.win-family--luna .q-btn--standard:hover { box-shadow: inset 0 0 0 2px var(--hover); }
+	.win-kit--classic.win-family--luna .q-btn--standard:focus-visible { box-shadow: inset 0 0 0 2px var(--focus); }
+	.win-kit--classic.win-family--luna .q-btn--standard:active { background: linear-gradient(180deg, #e3e2da 0%, #f2f1eb 100%); }
+	.win-kit--classic.win-family--luna .q-btn--flat:hover { box-shadow: none; background: rgba(255, 255, 255, 0.6); outline: 1px solid var(--shadow); }
+
+	.win-kit--classic.win-family--aero .q-btn--standard,
+	.win-kit--classic.win-family--aero .q-btn--push,
+	.win-kit--classic.win-family--aero .q-btn--unelevated { border: 1px solid #707070; border-radius: 3px; background: linear-gradient(180deg, #f2f2f2 0%, #ebebeb 50%, #dddddd 51%, #cfcfcf 100%); box-shadow: none; }
+	.win-kit--classic.win-family--aero .q-btn--standard:hover { border-color: #3c7fb1; background: linear-gradient(180deg, #eaf6fd 0%, #d9f0fc 50%, #bee6fd 51%, #a7d9f5 100%); }
+	.win-kit--classic.win-family--aero .q-btn--standard:active { border-color: #2c628b; background: linear-gradient(180deg, #e5f4fc 0%, #c4e5f6 50%, #98d1ef 51%, #68b3db 100%); }
+	.win-kit--classic.win-family--aero .q-btn--flat:hover { box-shadow: none; background: linear-gradient(180deg, #fafbfd, #e8f0fa); outline: 1px solid #a6c9e2; border-radius: 3px; }
+
+	.win-kit--classic .q-btn-group { border-radius: 0; box-shadow: none; }
+	.win-kit--classic .q-btn-group > .q-btn-item { border-radius: 0; }
+	.win-kit--classic .q-btn-toggle .q-btn--active,
+	.win-kit--classic .q-btn-group .q-btn.bg-primary { box-shadow: var(--bevel-in); }
+	.win-kit--classic .q-fab .q-btn--fab { width: 40px; height: 40px; min-height: 40px; padding: 0; border-radius: 50%; }
+
+	/* ---------- fields: a sunken white box ---------- */
+
+	.win-kit--classic .q-field { font-size: 11px; }
+	.win-kit--classic .q-field__control { height: 23px; min-height: 23px; padding: 0 4px; background: var(--window); color: var(--text); }
+	.win-kit--classic .q-field--standard .q-field__control,
+	.win-kit--classic .q-field--filled .q-field__control,
+	.win-kit--classic .q-field--outlined .q-field__control,
+	.win-kit--classic .q-field--borderless .q-field__control { border-radius: 0; box-shadow: var(--bevel-in); }
+	.win-kit--classic .q-field__control:before,
+	.win-kit--classic .q-field__control:after { display: none; }
+	.win-kit--classic .q-field--auto-height .q-field__control,
+	.win-kit--classic .q-field--auto-height .q-field__native { height: auto; min-height: 23px; }
+	.win-kit--classic .q-field__native,
+	.win-kit--classic .q-field__input,
+	.win-kit--classic .q-field__prefix,
+	.win-kit--classic .q-field__suffix { min-height: 21px; padding: 2px 0; font: inherit; line-height: 17px; color: var(--text); }
+	.win-kit--classic .q-field__marginal { height: 21px; font-size: 14px; color: var(--glyph, var(--text)); }
+	.win-kit--classic .q-field--labeled .q-field__native,
+	.win-kit--classic .q-field--labeled .q-field__prefix,
+	.win-kit--classic .q-field--labeled .q-field__suffix { padding-top: 2px; padding-bottom: 2px; }
+	/* The label is a caption above the box, as a WinForms label next to a text box. */
+	.win-kit--classic .q-field--labeled { padding-top: 15px; }
+	.win-kit--classic .q-field--labeled .q-field__control-container { padding-top: 0; }
+	.win-kit--classic .q-field__label { top: -16px; left: 0; max-width: 100%; font-size: 11px; color: var(--text); transform: none !important; }
+	.win-kit--classic .q-field--float .q-field__label { transform: none; }
+	.win-kit--classic .q-field--focused .q-field__control { outline: 1px solid var(--focus, var(--select)); outline-offset: -1px; }
+	.win-kit--classic .q-field--error .q-field__control { outline: 1px solid var(--q-negative); outline-offset: -1px; }
+	.win-kit--classic .q-field--disabled .q-field__control { background: var(--face); }
+	.win-kit--classic .q-field--disabled .q-field__control > div { opacity: 1 !important; color: var(--shadow); }
+	.win-kit--classic .q-field__bottom { padding: 2px 0 0; font-size: 11px; min-height: 16px; }
+	.win-kit--classic .q-field--with-bottom { padding-bottom: 16px; }
+	.win-kit--classic .q-select__dropdown-icon { width: 17px; height: 19px; margin-right: -3px; background: var(--face); box-shadow: var(--bevel-out); font-size: 14px; }
+	.win-kit--classic.win-family--luna .q-select__dropdown-icon { border: 1px solid var(--control-border); border-radius: 2px; background: linear-gradient(180deg, var(--control-1), var(--control-2)); box-shadow: none; color: var(--glyph); }
+
+	/* ---------- check box, radio, toggle ---------- */
+
+	.win-kit--classic .q-checkbox__inner,
+	.win-kit--classic .q-radio__inner { width: 20px; min-width: 20px; height: 20px; font-size: 13px; }
+	.win-kit--classic .q-checkbox__bg { top: 3.5px; left: 3.5px; width: 13px; height: 13px; border: none; border-radius: 0; background: var(--window); box-shadow: var(--bevel-in); }
+	.win-kit--classic .q-checkbox__inner--truthy .q-checkbox__bg,
+	.win-kit--classic .q-checkbox__inner--indet .q-checkbox__bg { background: var(--window); }
+	.win-kit--classic .q-checkbox__svg { color: var(--text); padding: 2px; }
+	.win-kit--classic .q-checkbox__truthy, .win-kit--classic .q-checkbox__indet { stroke: var(--text); }
+	.win-kit--classic .q-checkbox__label, .win-kit--classic .q-radio__label, .win-kit--classic .q-toggle__label { font-size: 11px; padding-left: 4px; color: var(--text); }
+	/* The radio's own circle is a sunken round box; Quasar's dot (its check path) stays, in the text colour. */
+	.win-kit--classic .q-radio__bg { top: 3.5px; left: 3.5px; width: 13px; height: 13px; border-radius: 50%; background: var(--window); color: var(--text); box-shadow: inset 1px 1px var(--shadow), inset -1px -1px var(--hilight), inset 2px 2px var(--dark), inset -2px -2px var(--light); }
+	.win-kit--classic .q-radio__bg path:not(.q-radio__check) { display: none; }
+	.win-kit--classic .q-toggle__track { height: 14px; border-radius: 0; background: var(--window); box-shadow: var(--bevel-in); opacity: 1; }
+	.win-kit--classic .q-toggle__thumb:after { border-radius: 0; background: var(--face); box-shadow: var(--bevel-out); }
+	.win-kit--classic .q-toggle__inner--truthy .q-toggle__track { background: var(--select); }
+	.win-kit--classic.win-family--luna .q-checkbox__bg,
+	.win-kit--classic.win-family--aero .q-checkbox__bg { border: 1px solid #1c5180; background: linear-gradient(135deg, #dcdcd7, #fff); box-shadow: none; }
+	.win-kit--classic.win-family--luna .q-checkbox__truthy { stroke: #21a121; }
+	.win-kit--classic.win-family--luna .q-toggle__track, .win-kit--classic.win-family--aero .q-toggle__track { border: 1px solid #1c5180; border-radius: 7px; box-shadow: none; }
+	.win-kit--classic.win-family--luna .q-toggle__thumb:after, .win-kit--classic.win-family--aero .q-toggle__thumb:after { border-radius: 50%; border: 1px solid #1c5180; background: linear-gradient(180deg, #fff, var(--face)); box-shadow: none; }
+
+	/* ---------- slider, range, knob, rating ---------- */
+
+	.win-kit--classic .q-slider__track { height: 4px; border-radius: 0; background: var(--window); box-shadow: var(--bevel-in); }
+	.win-kit--classic .q-slider__selection { background: var(--progress); }
+	.win-kit--classic .q-slider__thumb { width: 11px; height: 21px; }
+	.win-kit--classic .q-slider__thumb-shape { display: none; }
+	.win-kit--classic .q-slider__thumb:after { content: ""; position: absolute; inset: 0; background: var(--face); box-shadow: var(--bevel-out); }
+	.win-kit--classic.win-family--luna .q-slider__thumb:after,
+	.win-kit--classic.win-family--aero .q-slider__thumb:after { border: 1px solid var(--button-border, #707070); border-radius: 2px; background: linear-gradient(180deg, #fff, var(--face)); box-shadow: none; }
+	.win-kit--classic .q-slider__focus-ring { display: none; }
+	.win-kit--classic .q-slider__text-container { border-radius: 0; background: var(--tip, #ffffe1); color: #000; outline: 1px solid #000; }
+	.win-kit--classic .q-circular-progress__track { color: var(--light); }
+	.win-kit--classic .q-circular-progress__circle { color: var(--progress); }
+	.win-kit--classic .q-rating__icon { color: var(--shadow); }
+	.win-kit--classic .q-rating__icon--active { color: #e8a317; }
+
+	/* ---------- progress ---------- */
+
+	.win-kit--classic .q-linear-progress { height: 15px !important; border-radius: 0; background: var(--face); box-shadow: var(--bevel-thin); color: var(--progress); }
+	.win-kit--classic .q-linear-progress__track { opacity: 0; }
+	.win-kit--classic .q-linear-progress__model { background: repeating-linear-gradient(90deg, var(--progress) 0 8px, transparent 8px 10px); margin: 2px; }
+	.win-kit--classic.win-family--luna .q-linear-progress { border: 1px solid #686868; border-radius: 3px; background: #fff; box-shadow: none; }
+	.win-kit--classic.win-family--aero .q-linear-progress__model { background: linear-gradient(180deg, #8ae68a, #06b025 50%, #04a121); margin: 1px; }
+
+	/* ---------- surfaces: cards, banners, toolbars, layout ---------- */
+
+	.win-kit--classic .q-card { border-radius: 0; background: var(--face); color: var(--text); box-shadow: var(--bevel-out); }
+	.win-kit--classic .q-card--bordered { border: none; }
+	.win-kit--classic .q-card__section--vert { padding: 8px; }
+	.win-kit--classic .q-card__actions { padding: 6px 8px; gap: 6px; }
+	.win-kit--classic .q-banner { min-height: 0; padding: 6px 8px; border-radius: 0; background: var(--tip, #ffffe1); color: #000; box-shadow: inset 0 0 0 1px var(--shadow); }
+	.win-kit--classic .q-toolbar { min-height: 30px; padding: 0 4px; background: var(--face); color: var(--text); box-shadow: var(--bevel-thin); }
+	.win-kit--classic .q-toolbar__title { font-size: 11px; font-weight: bold; }
+	.win-kit--classic .q-bar { height: 20px; padding: 0 3px; background: linear-gradient(90deg, var(--title-1), var(--title-2)); color: var(--title-text); font-weight: bold; }
+	.win-kit--classic .q-header, .win-kit--classic .q-footer { background: var(--face); color: var(--text); box-shadow: var(--bevel-thin); }
+	.win-kit--classic .q-drawer { background: var(--face); color: var(--text); box-shadow: var(--bevel-thin); }
+	.win-kit--classic .q-layout, .win-kit--classic .q-page { background: var(--face); }
+	.win-kit--classic .q-separator { background: var(--shadow); box-shadow: 0 1px var(--hilight); }
+	.win-kit--classic .q-separator--vertical { box-shadow: 1px 0 var(--hilight); }
+	.win-kit--classic .q-splitter__separator { background: var(--face); box-shadow: var(--bevel-thin); }
+	.win-kit--classic .q-splitter--vertical > .q-splitter__separator { width: 4px; }
+	.win-kit--classic .q-splitter--horizontal > .q-splitter__separator { height: 4px; }
+	.win-kit--classic .q-scrollarea__thumb { width: 16px; border-radius: 0; background: var(--face); box-shadow: var(--bevel-out); opacity: 1; }
+	.win-kit--classic .q-scrollarea__bar { width: 16px; background: repeating-conic-gradient(var(--face) 0 25%, var(--hilight) 0 50%) 0 0 / 2px 2px; opacity: 1; }
+	.win-kit--classic .q-skeleton { border-radius: 0; background: var(--light); }
+	.win-kit--classic .q-skeleton--anim-wave:after { background: linear-gradient(90deg, transparent, var(--hilight), transparent); }
+	.win-kit--classic .q-inner-loading { background: rgba(255, 255, 255, 0.5); }
+
+	/* ---------- lists, items, expansion, tree ---------- */
+
+	.win-kit--classic .q-list { background: var(--window); color: var(--text); }
+	.win-kit--classic .q-list--bordered { border: none; box-shadow: var(--bevel-in); }
+	.win-kit--classic .q-item { min-height: 20px; padding: 2px 6px; font-size: 11px; }
+	.win-kit--classic .q-item--active, .win-kit--classic .q-item.q-manual-focusable--focused { background: var(--select); color: var(--select-text); }
+	.win-kit--classic .q-item--clickable:hover { background: var(--select); color: var(--select-text); }
+	.win-kit--classic .q-item__section--avatar { min-width: 24px; padding-right: 6px; }
+	.win-kit--classic .q-item__label--header { padding: 4px 6px; font-weight: bold; color: var(--text); }
+	.win-kit--classic .q-item__label--caption { font-size: 11px; color: var(--shadow); }
+	.win-kit--classic .q-expansion-item__container > .q-item { background: var(--face); box-shadow: var(--bevel-out); }
+	.win-kit--classic .q-tree { color: var(--text); font-size: 11px; }
+	.win-kit--classic .q-tree__node-header { margin-top: 0; padding: 1px 2px; border-radius: 0; }
+	.win-kit--classic .q-tree__node--selected .q-tree__node-header-content { background: var(--select); color: var(--select-text); }
+	.win-kit--classic .q-tree__arrow { font-size: 14px; color: var(--text); }
+	.win-kit--classic .q-tree__node--child { padding-left: 18px; }
+	.win-kit--classic .q-tree__node-header:before, .win-kit--classic .q-tree__node:after { border-color: var(--shadow); border-style: dotted; }
+	.win-kit--classic .q-slide-item__left, .win-kit--classic .q-slide-item__right { background: var(--select); color: var(--select-text); }
+	.win-kit--classic .q-virtual-scroll { background: var(--window); }
+
+	/* ---------- tables: a list view ---------- */
+
+	.win-kit--classic .q-table__container { border-radius: 0; background: var(--window); color: var(--text); box-shadow: var(--bevel-in); font-size: 11px; }
+	.win-kit--classic .q-table__card { box-shadow: var(--bevel-in); }
+	.win-kit--classic .q-table__top { padding: 4px 6px; background: var(--face); }
+	.win-kit--classic .q-table__title { font-size: 11px; font-weight: bold; }
+	.win-kit--classic .q-table th { height: 20px; padding: 0 6px; background: var(--face); box-shadow: var(--bevel-out); font-size: 11px; font-weight: normal; color: var(--text); }
+	.win-kit--classic .q-table td { height: 18px; padding: 1px 6px; font-size: 11px; border-color: transparent; }
+	.win-kit--classic .q-table tbody tr.selected td, .win-kit--classic .q-table tbody tr:hover td { background: var(--select); color: var(--select-text); }
+	.win-kit--classic .q-table tbody td:before, .win-kit--classic .q-table tbody td:after { display: none; }
+	.win-kit--classic .q-table__bottom { min-height: 24px; padding: 2px 6px; font-size: 11px; background: var(--face); border-top: 1px solid var(--shadow); }
+	.win-kit--classic .q-table__bottom .q-field__control { height: 19px; min-height: 19px; }
+	.win-kit--classic .q-markup-table { border-radius: 0; box-shadow: var(--bevel-in); }
+
+	/* ---------- navigation: tabs, breadcrumbs, pagination, stepper, timeline ---------- */
+
+	.win-kit--classic .q-tabs { min-height: 22px; background: transparent; color: var(--text); }
+	.win-kit--classic .q-tab { min-height: 20px; padding: 0 8px; margin-top: 2px; text-transform: none; font-size: 11px; background: var(--face); box-shadow: inset 1px 1px var(--hilight), inset -1px 0 var(--dark), inset -2px 0 var(--shadow); }
+	.win-kit--classic .q-tab--active { margin-top: 0; min-height: 22px; }
+	.win-kit--classic .q-tab__label { font-size: 11px; font-weight: normal; line-height: 1; }
+	.win-kit--classic .q-tab__indicator { display: none; }
+	.win-kit--classic.win-family--luna .q-tab { border: 1px solid #919b9c; border-bottom: none; border-radius: 3px 3px 0 0; background: linear-gradient(180deg, #fff, #ecebe5); box-shadow: none; }
+	.win-kit--classic.win-family--luna .q-tab--active { border-top: 2px solid #ffc83c; background: #fcfcfe; }
+	.win-kit--classic .q-tab-panels { background: var(--face); box-shadow: var(--bevel-out); }
+	.win-kit--classic .q-tab-panel { padding: 8px; }
+	.win-kit--classic .q-breadcrumbs { font-size: 11px; }
+	.win-kit--classic .q-breadcrumbs__el { color: var(--accent); text-decoration: underline; }
+	.win-kit--classic .q-pagination .q-btn { min-width: 23px; padding: 0 4px; }
+	.win-kit--classic .q-stepper { border-radius: 0; background: var(--face); box-shadow: var(--bevel-out); }
+	.win-kit--classic .q-stepper__tab { padding: 6px 8px; font-size: 11px; }
+	.win-kit--classic .q-stepper__dot { border-radius: 0; background: var(--select) !important; color: var(--select-text); }
+	.win-kit--classic .q-stepper__title { font-size: 11px; }
+	.win-kit--classic .q-timeline__dot:before { border-color: var(--select); background: var(--face); }
+	.win-kit--classic .q-timeline__dot:after { background: var(--shadow); }
+	.win-kit--classic .q-timeline__title { font-size: 13px; font-weight: bold; }
+
+	/* ---------- pop-ups: menus, tooltips, dialogs, notifications ---------- */
+
+	.win-kit--classic .q-menu { border-radius: 0; background: var(--face); color: var(--text); box-shadow: var(--bevel-out), 2px 2px 3px rgba(0, 0, 0, 0.35); }
+	.win-kit--classic.win-family--luna .q-menu, .win-kit--classic.win-family--aero .q-menu { border: 1px solid var(--shadow); background: #fff; box-shadow: 2px 2px 3px rgba(0, 0, 0, 0.35); }
+	.win-kit--classic .q-menu .q-item { min-height: 19px; padding: 1px 18px; }
+	.win-kit--classic .q-tooltip { padding: 2px 5px; border-radius: 0; background: #ffffe1; color: #000; font-size: 11px; box-shadow: 0 0 0 1px #000, 2px 2px 2px rgba(0, 0, 0, 0.25); }
+	.win-kit--classic.win-family--aero .q-tooltip { border-radius: 2px; background: linear-gradient(180deg, #fff, #e4e5f0); box-shadow: 0 0 0 1px #767676, 2px 2px 2px rgba(0, 0, 0, 0.25); }
+	.win-kit--classic .q-dialog__inner > div { border-radius: 0; box-shadow: var(--bevel-out), 3px 3px 6px rgba(0, 0, 0, 0.35); }
+	.win-kit--classic .q-dialog__backdrop { background: rgba(0, 0, 0, 0.15); }
+	/* A dialog's card is a window: its first section (or a bar) is the title bar. */
+	.win-kit--classic .q-dialog .q-card > .q-bar:first-child,
+	.win-kit--classic .q-dialog .q-card > .q-card__section:first-child.win-dialog-title { height: 22px; padding: 0 4px; background: linear-gradient(90deg, var(--title-1), var(--title-2)); color: var(--title-text); font: bold 11px var(--title-font); }
+	.win-kit--classic .q-notification { min-height: 0; padding: 6px 10px; border-radius: 0; background: #ffffe1 !important; color: #000 !important; box-shadow: 0 0 0 1px #000, 2px 2px 3px rgba(0, 0, 0, 0.3); }
+	.win-kit--classic.win-family--luna .q-notification, .win-kit--classic.win-family--aero .q-notification { border-radius: 6px; }
+	.win-kit--classic .q-bottom-sheet { border-radius: 0; background: var(--face); box-shadow: var(--bevel-out); }
+	.win-kit--classic .q-loading .q-spinner { color: var(--select); }
+
+	/* ---------- small things: badges, chips, avatars, icons ---------- */
+
+	.win-kit--classic .q-badge { min-height: 14px; padding: 1px 4px; border-radius: 0; font-size: 10px; line-height: 12px; }
+	.win-kit--classic .q-chip { height: 20px; margin: 2px; padding: 0 6px; border-radius: 0; background: var(--face); color: var(--text); font-size: 11px; box-shadow: var(--bevel-out); }
+	.win-kit--classic .q-chip--selected, .win-kit--classic .q-chip--clickable:active { box-shadow: var(--bevel-in); }
+	.win-kit--classic .q-avatar__content { border-radius: 0; }
+	.win-kit--classic .q-avatar--rounded .q-avatar__content, .win-kit--classic .q-avatar .q-avatar__content { font-size: 0.45em; }
+
+	/* ---------- pickers ---------- */
+
+	.win-kit--classic .q-date, .win-kit--classic .q-time, .win-kit--classic .q-color-picker { border-radius: 0; background: var(--face); color: var(--text); box-shadow: var(--bevel-out); font-size: 11px; }
+	.win-kit--classic .q-date__header, .win-kit--classic .q-time__header, .win-kit--classic .q-color-picker__header { border-radius: 0; background: linear-gradient(90deg, var(--title-1), var(--title-2)); color: var(--title-text); }
+	.win-kit--classic .q-date__content, .win-kit--classic .q-time__content { background: var(--window); box-shadow: var(--bevel-in); margin: 4px; }
+	.win-kit--classic .q-date__calendar-item .q-btn { min-height: 0; border-radius: 0; }
+	.win-kit--classic .q-date__today { box-shadow: 0 0 0 1px var(--q-negative); }
+	.win-kit--classic .q-editor { border-radius: 0; border: none; box-shadow: var(--bevel-in); background: var(--window); }
+	.win-kit--classic .q-editor__toolbar { background: var(--face); border-bottom: 1px solid var(--shadow); }
+	.win-kit--classic .q-uploader { border-radius: 0; box-shadow: var(--bevel-out); background: var(--face); }
+	.win-kit--classic .q-uploader__header { border-radius: 0; background: linear-gradient(90deg, var(--title-1), var(--title-2)); color: var(--title-text); }
+	.win-kit--classic .q-uploader__list { background: var(--window); box-shadow: var(--bevel-in); margin: 4px; }
+
+	/* ---------- media and the rest ---------- */
+
+	.win-kit--classic .q-carousel { border-radius: 0; background: var(--window); box-shadow: var(--bevel-in); }
+	.win-kit--classic .q-carousel__navigation .q-btn { box-shadow: none; }
+	.win-kit--classic .q-img { box-shadow: var(--bevel-in); }
+	.win-kit--classic .q-message-text { border-radius: 0; box-shadow: 0 0 0 1px var(--shadow); }
+	.win-kit--classic .q-message-text--received { background: var(--window); color: var(--text); }
+	.win-kit--classic .q-message-text--sent { background: #ffffe1; color: #000; }
+	.win-kit--classic .q-message-text:last-child:before { display: none; }
+	.win-kit--classic .q-message-name { font-size: 11px; }
+	.win-kit--classic .q-pull-to-refresh__puller { border-radius: 0; box-shadow: var(--bevel-out); }
+	.win-kit--classic .q-knob { color: var(--progress); }
+}
+
+/* Quasar's colour classes are !important: a Windows control is the face colour whatever colour prop it got. */
+@layer cse-quasar-force {
+	.win-kit--classic .q-btn--standard.bg-primary, .win-kit--classic .q-btn--standard[class*="bg-"],
+	.win-kit--classic .q-btn--push[class*="bg-"], .win-kit--classic .q-btn--unelevated[class*="bg-"] { background-color: var(--face) !important; color: var(--text) !important; }
+	.win-kit--classic.win-family--luna .q-btn--standard[class*="bg-"], .win-kit--classic.win-family--luna .q-btn--push[class*="bg-"], .win-kit--classic.win-family--luna .q-btn--unelevated[class*="bg-"] { background-image: linear-gradient(180deg, #fff 0%, #ecebe6 86%, #d6d0c5 100%) !important; }
+	.win-kit--classic.win-family--aero .q-btn--standard[class*="bg-"], .win-kit--classic.win-family--aero .q-btn--push[class*="bg-"], .win-kit--classic.win-family--aero .q-btn--unelevated[class*="bg-"] { background-image: linear-gradient(180deg, #f2f2f2 0%, #ebebeb 50%, #dddddd 51%, #cfcfcf 100%) !important; }
+	.win-kit--classic .q-btn-toggle .q-btn--active[class*="bg-"], .win-kit--classic .q-btn-group .q-btn--active[class*="bg-"] { background-color: var(--light) !important; }
+}

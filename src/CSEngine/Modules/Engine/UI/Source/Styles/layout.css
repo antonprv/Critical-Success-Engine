@@ -20,6 +20,17 @@
 .win-layout .win-layout__node--window .win-window__body { padding: 0; overflow: hidden; }
 /* A button is exactly its rectangle: its text stays on one line and never leaves it (the kits' minimum widths and paddings don't apply). */
 .win-layout .win-layout__node > .win-button { min-width: 0; padding-inline: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* A widget in a slot of a Quasar widget flows in its parent's layout: a Quasar one is its component alone (display: contents, so a
+   toolbar's flex or a list takes it as its own child), a toolkit one keeps its size. */
+.win-layout__node--flow { position: relative; display: inline-block; vertical-align: middle; }
+.win-layout__node--contents { display: contents; }
+.win-layout .win-layout__node--contents > :not(.win-layout__handle, .win-layout__error) { width: auto; height: auto; }
+.win-layout__node--contents.win-layout__node--selected > :first-child { outline: 1px dashed #0a64ff; outline-offset: 1px; }
+.win-layout--design .win-layout__node--contents > :first-child { pointer-events: auto; }
+/* Quasar's pop-ups (see KitContext): above the game and every document, in the theme's look. */
+#cse-portals { position: relative; z-index: 9000; }
+.win-quasar--loading { min-width: 8px; min-height: 8px; }
+.win-quasar--failed { color: #d40000; font: 11px sans-serif; overflow: hidden; }
 .win-layout__container { position: relative; width: 100%; height: 100%; min-height: 0; }
 .win-layout__label { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .win-layout__image { display: block; }

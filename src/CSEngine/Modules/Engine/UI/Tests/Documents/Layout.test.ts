@@ -21,10 +21,10 @@ import { UiScript, UiScriptRegistry } from "../../Source/Documents/UiScript";
 
 describe("widget definitions", () => {
 	it("cover containers and every toolkit control, each with a palette label, a default size and typed props", () => {
-		expect(BuiltInWidgets.Palette).toEqual([
+		expect(BuiltInWidgets.Palette.filter((type) => !type.startsWith("q-"))).toEqual([
 			WidgetType.Window, WidgetType.GroupBox, WidgetType.Label, WidgetType.Image, WidgetType.Button, WidgetType.CheckBox,
-			WidgetType.RadioGroup, WidgetType.TextBox, WidgetType.Spinner, WidgetType.ComboBox, WidgetType.ProgressBar,
-			WidgetType.Slider, WidgetType.Joystick, WidgetType.GameButton, WidgetType.ListBox, WidgetType.StatusBar, WidgetType.Toast,
+			WidgetType.RadioGroup, WidgetType.TextBox, WidgetType.Spinner, WidgetType.ComboBox, WidgetType.ProgressBar, WidgetType.Toast,
+			WidgetType.Slider, WidgetType.Joystick, WidgetType.GameButton, WidgetType.ListBox, WidgetType.StatusBar,
 		]);
 		for (const type of [WidgetType.Canvas, ...BuiltInWidgets.Palette]) {
 			const definition = BuiltInWidgets.Get(type)!;

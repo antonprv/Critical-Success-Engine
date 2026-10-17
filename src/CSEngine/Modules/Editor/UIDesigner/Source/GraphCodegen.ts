@@ -34,6 +34,13 @@ function Statement(graph: UiGraph, node: GraphNode): string {
 		case ActionType.SetVariable: return `this.SetVariable(${Str(p["Variable"])}, ${Value(graph, p["Variable"], p["Value"])});`;
 		case ActionType.AddToVariable: return `this.AddToVariable(${Str(p["Variable"])}, ${Amount(p["Amount"])});`;
 		case ActionType.CloseForm: return `this.Close(DialogResult.${p["Result"] as string});`;
+		case ActionType.Notify: return `this.Notify(${Text(p["Text"])}, ${Text(p["Type"])});`;
+		case ActionType.ShowLoading: return `this.ShowLoading(${Text(p["Text"])});`;
+		case ActionType.HideLoading: return "this.HideLoading();";
+		case ActionType.ToggleFullscreen: return "this.ToggleFullscreen();";
+		case ActionType.Navigate: return `this.Navigate(${Text(p["Document"])});`;
+		case ActionType.GoBack: return "this.GoBack();";
+		case ActionType.CopyToClipboard: return `this.CopyToClipboard(${Text(p["Text"])});`;
 		default: return `this.${ActionMethods[node.Type as ActionType]}(${Str(p["Widget"])});`;
 	}
 }

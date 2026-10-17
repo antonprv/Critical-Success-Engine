@@ -34,6 +34,9 @@ import { TextBoxController } from "../Controls/TextBoxController";
 import { WindowController } from "../Controls/WindowController";
 import { UseControl } from "../Core/UseControl";
 import { DialogResult, DialogResults } from "./DialogResult";
+import { IsJson, type JsonValue } from "./Json";
+import { QuasarWidgets } from "../Quasar/QuasarWidgets";
+import type { ChildTemplate } from "../Quasar/QuasarTypes";
 import type { LayoutNode } from "./Layout";
 import type { UiDocument } from "./UiDocument";
 
@@ -69,9 +72,14 @@ export const enum PropKind {
 	Items = "items",
 	/** One of the definition's Choices. */
 	Choice = "choice",
+	/** Any JSON: objects and lists of them (a table's columns and rows, a tree's nodes). */
+	Json = "json",
+	/** Validation rules of a field: Quasar's rule names or rule specs (see QuasarRules). */
+	Rules = "rules",
 }
 
-export type PropValue = string | number | boolean | string[];
+/** What a layout file holds in a prop: JSON. */
+export type PropValue = JsonValue;
 
 export interface PropDefinition {
 	Key: string;
@@ -99,6 +107,20 @@ export interface WidgetDefinition {
 	Events: string[];
 	/** Not offered in the palette (the root canvas). */
 	Hidden?: boolean;
+	/** The palette's group ("Quasar: Forms"); the toolkit's own widgets when absent. */
+	Group?: string;
+	/**
+	 * Props aren't limited to `Props` (only what the widget starts with): a layout may hold any other prop, as JSON
+	 * (Quasar's widgets: the designer knows their props from Quasar's catalog).
+	 */
+	OpenProps?: boolean;
+	/** Widgets a node of this type starts with (CreateNode): a tab bar's tabs, a list's items. */
+	Children?: ChildTemplate[];
+	/**
+	 * The named slots child widgets can go into (LayoutNode.Slot). Such a widget lays its children out itself, in the
+	 * flow of its slots, not at their X and Y.
+	 */
+	Slots?: string[];
 	/** The live control for a node (anything with an `Events` EventHub); omit for widgets without behaviour. */
 	CreateController?: (node: LayoutNode) => object;
 	/** Draws the widget. Props: `node`, `controller` (null if it has none) and `document`; slot: its children. */
@@ -117,12 +139,22 @@ export const KindCheck: Record<PropKind, (value: unknown) => boolean> = {
 	[PropKind.Lines]: (value) => Array.isArray(value) && value.every((line) => typeof line === "string"),
 	[PropKind.Items]: (value) => Array.isArray(value) && value.every((line) => typeof line === "string"),
 	[PropKind.Choice]: (value) => typeof value === "string",
+	[PropKind.Json]: (value) => IsJson(value),
+	[PropKind.Rules]: (value) => Array.isArray(value) && IsJson(value),
 };
 
 /** Whether a value fits a prop: the right kind, and one of its choices if it has any. */
 export function IsValidProp(definition: PropDefinition, value: unknown): boolean {
 	return KindCheck[definition.Kind](value) && (definition.Choices === undefined || definition.Choices.includes(value as string));
 }
+
+/** The palette group of a widget type. */
+export function GroupOf(definition: WidgetDefinition): string {
+	return definition.Group ?? ToolkitGroup;
+}
+
+/** The palette group of the toolkit's own widgets. */
+export const ToolkitGroup = "Controls";
 
 /** Widget types by id. Use `BuiltInWidgets.Extend()` to get a registry of your own with the built-ins in it. */
 export class WidgetRegistry {
@@ -392,3 +424,6 @@ export const BuiltInWidgets = new WidgetRegistry()
 	});
 
 //#endregion
+
+// Every Quasar component is a widget type too: available to every document, loaded only when one is shown.
+for (const definition of QuasarWidgets()) BuiltInWidgets.Register(definition);

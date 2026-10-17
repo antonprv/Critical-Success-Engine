@@ -10,8 +10,8 @@ import { Coerce, GraphNodeKind, VariableKind, type GraphNode, type GraphParam, t
 
 /** The params of graph nodes that name a widget. */
 const WidgetParams = ["Widget", "Check"];
-import { CreateNode, NewLayout, ParseLayout, SerializeLayout, type LayoutNode, type PropValue, type UiLayout } from "@cse/ui";
-import { BuiltInWidgets, IsValidProp, type WidgetRegistry } from "@cse/ui";
+import { CreateNode, NewLayout, ParseHotkey, ParseLayout, SerializeLayout, type LayoutNode, type PropValue, type UiLayout } from "@cse/ui";
+import { BuiltInWidgets, IsJson, IsValidProp, type WidgetRegistry } from "@cse/ui";
 export const enum DesignerMode {
 	Design = "design",
 	Preview = "preview",
@@ -424,11 +424,89 @@ export class DesignerController {
 		return true;
 	}
 
+	/** Sets a prop: one of the widget's own, of the right kind; on an open widget (Quasar's) any prop, as JSON. */
 	public SetProp(name: string, key: string, value: PropValue): boolean {
 		const node = this.Find(name);
-		const definition = node ? this.Widgets.Get(node.Type)!.Props.find((prop) => prop.Key === key) : undefined;
-		if (!node || !definition || !IsValidProp(definition, value)) return false;
+		const widget = node ? this.Widgets.Get(node.Type)! : undefined;
+		const definition = widget?.Props.find((prop) => prop.Key === key);
+		const valid = definition ? IsValidProp(definition, value) : widget?.OpenProps === true && key !== "" && IsJson(value);
+		if (!node || !valid) return false;
 		this.Mutate(() => { node.Props[key] = value; });
+		return true;
+	}
+
+	/** A keyboard shortcut of the document ("Ctrl+S") pressing a widget; null takes it off. Returns its written form, or null when it isn't one. */
+	public SetHotkey(keys: string, widget: string | null): string | null {
+		const hotkey = ParseHotkey(keys);
+		if (hotkey === null || (widget !== null && !this.Find(widget))) return null;
+		this.Mutate(() => {
+			const hotkeys = { ...this._layout.Hotkeys };
+			if (widget === null) delete hotkeys[hotkey];
+			else hotkeys[hotkey] = widget;
+			if (Object.keys(hotkeys).length) this._layout.Hotkeys = hotkeys;
+			else delete this._layout.Hotkeys;
+		});
+		return hotkey;
+	}
+
+	/** A prop of a widget follows a variable (model-value both ways); null takes the binding off. */
+	public SetBinding(name: string, prop: string, variable: string | null): boolean {
+		const node = this.Find(name);
+		if (!node || prop === "" || variable === "") return false;
+		this.Mutate(() => {
+			const bindings = { ...node.Bindings };
+			if (variable === null) delete bindings[prop];
+			else bindings[prop] = variable;
+			if (Object.keys(bindings).length) node.Bindings = bindings;
+			else delete node.Bindings;
+		});
+		return true;
+	}
+
+	/** Takes a prop out of an open widget (Quasar's): the component's own default applies again. */
+	public ClearProp(name: string, key: string): boolean {
+		const node = this.Find(name);
+		if (!node || !this.Widgets.Get(node.Type)!.OpenProps || !(key in node.Props)) return false;
+		this.Mutate(() => { delete node.Props[key]; });
+		return true;
+	}
+
+	/** The text of a widget's default slot while it holds no widgets; empty: none. */
+	public SetContent(name: string, text: string): void {
+		const node = this.Find(name);
+		if (!node) return;
+		this.Mutate(() => {
+			if (text === "") delete node.Content;
+			else node.Content = text;
+		});
+	}
+
+	/** The slot of its parent a widget goes into; null or "default": the default one. */
+	public SetSlot(name: string, slot: string | null): boolean {
+		const node = this.Find(name);
+		const parent = this.ParentOf(name);
+		const slots = parent ? this.Widgets.Get(parent.Type)!.Slots : undefined;
+		if (!node || !slots || (slot !== null && !slots.includes(slot) && !slots.some((pattern) => SlotPattern(pattern).test(slot)))) return false;
+		this.Mutate(() => {
+			if (slot === null || slot === "default") delete node.Slot;
+			else node.Slot = slot;
+		});
+		return true;
+	}
+
+	/** Puts a directive on a widget ("ripple", "touch-swipe:mouse.left") with its value; undefined takes it off. */
+	public SetDirective(name: string, key: string, value: PropValue | undefined): boolean {
+		const node = this.Find(name);
+		if (!node || !/^[a-z][a-z-]*(:[\w-]+)?(\.[\w-]+)*$/.test(key) || (value !== undefined && !IsJson(value))) return false;
+		this.Mutate(() => {
+			const directives = { ...node.Directives };
+			// one entry per directive: another argument or modifiers replace the old ones
+			const base = key.split(/[:.]/)[0]!;
+			for (const old of Object.keys(directives)) if (old.split(/[:.]/)[0] === base) delete directives[old];
+			if (value !== undefined) directives[key] = value;
+			if (Object.keys(directives).length) node.Directives = directives;
+			else delete node.Directives;
+		});
 		return true;
 	}
 
@@ -618,4 +696,9 @@ export class DesignerController {
 	}
 
 	//#endregion
+}
+
+/** A slot name Quasar gives as a pattern ("body-cell-[name]"): any name in its place matches. */
+function SlotPattern(pattern: string): RegExp {
+	return new RegExp(`^${pattern.replace(/[.*+?^${}()|\\]/g, "\\$&").replace(/\\?\[[^\]]+\\?\]/g, "[\\w-]+")}$`);
 }

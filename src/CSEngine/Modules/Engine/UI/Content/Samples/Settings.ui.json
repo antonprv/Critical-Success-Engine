@@ -1,0 +1,312 @@
+{
+  "Format": 1,
+  "Name": "Settings",
+  "Script": "",
+  "Root": {
+    "Name": "Root",
+    "Type": "canvas",
+    "X": 0,
+    "Y": 0,
+    "Width": 800,
+    "Height": 500,
+    "Props": {
+      "Fill": "none",
+      "Color": "#000000",
+      "Color2": "#004e98",
+      "Angle": 180,
+      "Opacity": 1,
+      "Blur": 0
+    },
+    "Children": [
+      {
+        "Name": "Window",
+        "Type": "q-card",
+        "X": 16,
+        "Y": 16,
+        "Width": 420,
+        "Height": 380,
+        "Props": {},
+        "Children": [
+          {
+            "Name": "Tabs",
+            "Type": "q-tabs",
+            "X": 0,
+            "Y": 0,
+            "Width": 100,
+            "Height": 40,
+            "Props": {
+              "model-value": "general",
+              "align": "left",
+              "dense": true
+            },
+            "Children": [
+              {
+                "Name": "TabGeneral",
+                "Type": "q-tab",
+                "X": 0,
+                "Y": 0,
+                "Width": 100,
+                "Height": 40,
+                "Props": {
+                  "name": "general",
+                  "label": "General",
+                  "icon": "tune"
+                }
+              },
+              {
+                "Name": "TabGraphics",
+                "Type": "q-tab",
+                "X": 0,
+                "Y": 0,
+                "Width": 100,
+                "Height": 40,
+                "Props": {
+                  "name": "graphics",
+                  "label": "Graphics",
+                  "icon": "monitor"
+                }
+              }
+            ],
+            "Bindings": {
+              "model-value": "Tab"
+            }
+          },
+          {
+            "Name": "Line",
+            "Type": "q-separator",
+            "X": 0,
+            "Y": 0,
+            "Width": 100,
+            "Height": 40,
+            "Props": {}
+          },
+          {
+            "Name": "Panels",
+            "Type": "q-tab-panels",
+            "X": 0,
+            "Y": 0,
+            "Width": 100,
+            "Height": 40,
+            "Props": {
+              "model-value": "general",
+              "animated": true
+            },
+            "Children": [
+              {
+                "Name": "General",
+                "Type": "q-tab-panel",
+                "X": 0,
+                "Y": 0,
+                "Width": 100,
+                "Height": 40,
+                "Props": {
+                  "name": "general"
+                },
+                "Children": [
+                  {
+                    "Name": "Sound",
+                    "Type": "q-toggle",
+                    "X": 0,
+                    "Y": 0,
+                    "Width": 100,
+                    "Height": 40,
+                    "Props": {
+                      "label": "Sound",
+                      "model-value": true
+                    }
+                  },
+                  {
+                    "Name": "Volume",
+                    "Type": "q-slider",
+                    "X": 0,
+                    "Y": 0,
+                    "Width": 100,
+                    "Height": 40,
+                    "Props": {
+                      "model-value": 70,
+                      "min": 0,
+                      "max": 100,
+                      "label": true
+                    }
+                  },
+                  {
+                    "Name": "Language",
+                    "Type": "q-select",
+                    "X": 0,
+                    "Y": 0,
+                    "Width": 100,
+                    "Height": 40,
+                    "Props": {
+                      "label": "Language",
+                      "model-value": "English",
+                      "options": [
+                        "English",
+                        "Русский",
+                        "Polski"
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "Name": "Graphics",
+                "Type": "q-tab-panel",
+                "X": 0,
+                "Y": 0,
+                "Width": 100,
+                "Height": 40,
+                "Props": {
+                  "name": "graphics"
+                },
+                "Children": [
+                  {
+                    "Name": "Quality",
+                    "Type": "q-option-group",
+                    "X": 0,
+                    "Y": 0,
+                    "Width": 100,
+                    "Height": 40,
+                    "Props": {
+                      "model-value": "high",
+                      "options": [
+                        {
+                          "label": "Low",
+                          "value": "low"
+                        },
+                        {
+                          "label": "Medium",
+                          "value": "medium"
+                        },
+                        {
+                          "label": "High",
+                          "value": "high"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "Name": "Fullscreen",
+                    "Type": "q-btn",
+                    "X": 0,
+                    "Y": 0,
+                    "Width": 100,
+                    "Height": 40,
+                    "Props": {
+                      "outline": true,
+                      "label": "Full screen",
+                      "icon": "fullscreen"
+                    }
+                  }
+                ]
+              }
+            ],
+            "Bindings": {
+              "model-value": "Tab"
+            }
+          },
+          {
+            "Name": "Buttons",
+            "Type": "q-card-actions",
+            "X": 0,
+            "Y": 0,
+            "Width": 100,
+            "Height": 40,
+            "Props": {
+              "align": "right"
+            },
+            "Children": [
+              {
+                "Name": "Cancel",
+                "Type": "q-btn",
+                "X": 0,
+                "Y": 0,
+                "Width": 100,
+                "Height": 40,
+                "Props": {
+                  "flat": true,
+                  "label": "Cancel"
+                }
+              },
+              {
+                "Name": "Ok",
+                "Type": "q-btn",
+                "X": 0,
+                "Y": 0,
+                "Width": 100,
+                "Height": 40,
+                "Props": {
+                  "color": "primary",
+                  "label": "OK"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "Graph": {
+    "Nodes": [
+      {
+        "Id": "e1",
+        "Kind": "event",
+        "Type": "click",
+        "X": 0,
+        "Y": 0,
+        "Params": {
+          "Widget": "Ok"
+        }
+      },
+      {
+        "Id": "a1",
+        "Kind": "action",
+        "Type": "notify",
+        "X": 0,
+        "Y": 0,
+        "Params": {
+          "Text": "Settings saved",
+          "Type": "positive"
+        }
+      },
+      {
+        "Id": "e2",
+        "Kind": "event",
+        "Type": "click",
+        "X": 0,
+        "Y": 0,
+        "Params": {
+          "Widget": "Fullscreen"
+        }
+      },
+      {
+        "Id": "a2",
+        "Kind": "action",
+        "Type": "toggle-fullscreen",
+        "X": 0,
+        "Y": 0,
+        "Params": {}
+      }
+    ],
+    "Links": [
+      {
+        "From": "e1",
+        "To": "a1"
+      },
+      {
+        "From": "e2",
+        "To": "a2"
+      }
+    ],
+    "Variables": [
+      {
+        "Name": "Tab",
+        "Kind": "text",
+        "Default": "general"
+      }
+    ]
+  },
+  "Hotkeys": {
+    "Escape": "Cancel",
+    "Enter": "Ok"
+  }
+}

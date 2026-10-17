@@ -97,6 +97,18 @@ export const EngineAliases = {
 	),
 };
 
+/**
+ * Aliases as Vite's list: "quasar" itself resolves to Quasar's sources (as @cse/ui imports Quasar file by file), so the
+ * page has one Quasar - one $q, one Dark, one pop-up container - in development too (@quasar/vite-plugin would serve
+ * its single-file build there); "quasar/..." paths are left alone.
+ */
+export const ResolveAliases = [
+	{ find: /^quasar$/, replacement: "quasar/src/index.dev.js" },
+	...Object.entries( EngineAliases ).map(
+		( [find, replacement] ) => ( { find, replacement } ),
+	),
+];
+
 /** The project's folder and C# scripts project, for ScriptsWasmPlugin. */
 function ScriptsProject(): { Directory: string; CSharp: string | null; } {
 	const { Directory } = ResolveProject(
@@ -152,7 +164,7 @@ export default defineConfig( ( { mode } ) => {
 		],
 
 		resolve: {
-			alias: EngineAliases,
+			alias: ResolveAliases,
 		},
 
 		// @Inject( IContract ) fields: TypeScript's own (legacy) decorators.

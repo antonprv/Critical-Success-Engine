@@ -1,7 +1,7 @@
 <!-- Created by Anton Piruev in 2026. Any direct commercial use of derivative work is strictly prohibited. -->
 <script setup lang="ts">
-import { IsClickThrough } from "./Layout";
-import { watchEffect } from "vue";
+import { HotkeyOf, IsClickThrough } from "./Layout";
+import { onBeforeUnmount, watchEffect } from "vue";
 import { SkinClass } from "../Skins/Skin";
 import { UseSkinStyle } from "../Skins/UseSkinStyle";
 import type { UiDocument } from "./UiDocument";
@@ -18,6 +18,12 @@ const props = withDefaults(defineProps<{ document: UiDocument; design?: boolean;
 UseSkinStyle(() => props.document.Layout.Skin ?? null);
 // Once on screen, the document's script gets OnShown.
 watchEffect(() => props.document.NotifyShown(), { flush: "post" });
+// Its keyboard shortcuts work while it is on screen (not on the designer's canvas).
+const OnKeyDown = (event: KeyboardEvent): void => {
+	if (!props.design && props.document.PressHotkey(HotkeyOf(event))) event.preventDefault();
+};
+window.addEventListener("keydown", OnKeyDown);
+onBeforeUnmount(() => window.removeEventListener("keydown", OnKeyDown));
 </script>
 
 <template>

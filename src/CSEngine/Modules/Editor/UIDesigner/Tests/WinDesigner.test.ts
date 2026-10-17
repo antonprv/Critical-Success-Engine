@@ -2,6 +2,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { QuasarGroups } from "@cse/ui";
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { nextTick, reactive } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -49,9 +50,11 @@ const status = (wrapper: VueWrapper) => wrapper.findAll(".win-designer__statusba
 describe("WinDesigner: building", () => {
 	it("starts with the given layout (or an empty one), the palette, and an empty hierarchy", () => {
 		const { wrapper } = Mount();
-		expect(wrapper.findAll(".win-designer__palette-item").map((i) => i.text())).toEqual([
-			"Window", "Group box", "Label", "Image", "Button", "Check box", "Radio buttons", "Text box", "Spinner", "Combo box", "Progress bar", "Slider", "Stick (touch)", "Game button (touch)", "List box", "Status bar",
+		expect(wrapper.findAll('[data-group="Controls"] .win-designer__palette-item').map((i) => i.text())).toEqual([
+			"Window", "Group box", "Label", "Image", "Button", "Check box", "Radio buttons", "Text box", "Spinner", "Combo box", "Progress bar", "Toast", "Slider", "Stick (touch)", "Game button (touch)", "List box", "Status bar",
 		]);
+		// then Quasar's components, by Quasar's groups
+		expect(wrapper.findAll(".win-designer__palette-group").map((group) => group.attributes("data-group"))).toEqual(["Controls", ...QuasarGroups.map((group) => `Quasar: ${group}`)]);
 		expect(wrapper.findAll(".win-designer__tree-item").map((i) => i.text())).toEqual(["Root"]);
 		expect(status(wrapper)).toEqual(["Ready", "Design", ""]);
 

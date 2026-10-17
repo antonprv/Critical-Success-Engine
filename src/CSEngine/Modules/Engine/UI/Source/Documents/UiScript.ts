@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { GetQuasarServices, type QuasarServices } from "../Quasar/QuasarServices";
 import type { MessageBoxButtons, MessageBoxIcon, MessageBoxResult } from "../Controls/MessageBoxController";
 import type { DialogResult } from "./DialogResult";
 import { watch } from "vue";
@@ -63,6 +64,16 @@ export abstract class UiScript {
 	protected Focus(name: string): void { Actions.Focus(this.Document, name); }
 	/** Closes the form with a result (WinForms: setting DialogResult). */
 	protected Close(result: DialogResult): void { this.Document.Close(result); }
+	/** Quasar's services: notifications, dialogs, bottom sheets, loading, full screen, Quasar's own language. */
+	protected get Quasar(): QuasarServices { return GetQuasarServices(); }
+	protected Notify(text: string, type = ""): void { Actions.Notify(text, type); }
+	protected ShowLoading(text = ""): void { Actions.ShowLoading(text); }
+	protected HideLoading(): void { Actions.HideLoading(); }
+	protected ToggleFullscreen(): void { Actions.ToggleFullscreen(); }
+	/** Another screen of the app (a document of the manifest), and back. */
+	protected Navigate(id: string): void { Actions.Navigate(this.Document, id); }
+	protected GoBack(): void { Actions.GoBack(this.Document); }
+	protected CopyToClipboard(text: string): void { Actions.CopyToClipboard(text); }
 
 	/** A variable of the document (its graph declares them; the game sets them through GameUi.SetVariable). */
 	protected Variable(name: string): GraphValue | undefined { return this.Document.Variables[name]; }

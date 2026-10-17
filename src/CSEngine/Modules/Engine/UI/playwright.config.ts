@@ -12,6 +12,8 @@ export default defineConfig({
 	testDir: "E2E",
 	timeout: 60_000,
 	expect: { timeout: 15_000 },
+	// The Quasar widgets' pictures (quasar.spec.ts), one file per kit and component.
+	snapshotPathTemplate: "{testDir}/Screenshots/{arg}{ext}",
 	workers: 1,
 	reporter: [["list"]],
 	use: {

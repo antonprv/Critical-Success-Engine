@@ -1,0 +1,13 @@
+/*
+ * The Quasar kit: the toolkit's own components on the Tailwind kit's tokens (its classes are on the root too), in
+ * Quasar's font and type scale. Quasar's components themselves are drawn by Quasar's CSS (loaded with the first one).
+ */
+@import "../Quasar/Fonts/Roboto/Roboto.css";
+
+.win-kit--quasar {
+	font-family: Roboto, "Helvetica Neue", Arial, sans-serif;
+	font-size: 14px;
+	line-height: 1.5;
+	-webkit-font-smoothing: antialiased;
+}
+.win-kit--quasar .win-button { text-transform: uppercase; font-weight: 500; letter-spacing: 0.0892857143em; }

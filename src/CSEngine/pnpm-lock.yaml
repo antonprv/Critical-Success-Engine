@@ -354,6 +354,9 @@ importers:
       '@cse/task':
         specifier: workspace:*
         version: link:../../Common/Task
+      quasar:
+        specifier: ^2.34.0
+        version: 2.34.0
       vue:
         specifier: ^3.5.43
         version: 3.5.43(typescript@6.0.3)

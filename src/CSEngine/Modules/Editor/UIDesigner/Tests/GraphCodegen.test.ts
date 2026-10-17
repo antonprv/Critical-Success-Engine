@@ -70,14 +70,17 @@ describe("code generation", () => {
 				Action("5", ActionType.EnabledFollowsCheck, { Widget: "E", Check: "Offline", Invert: true }),
 				Action("6", ActionType.Focus, { Widget: "F" }), Action("7", ActionType.MessageBox, { Text: 'Say "hi"\\n', Title: "T" }),
 				Action("8", ActionType.CloseForm, { Result: "Cancel" }), Action("9", ActionType.SetText, { Widget: "G", Text: "x" }),
+				Action("10", ActionType.Notify, { Text: "Saved {Count}", Type: "positive" }), Action("11", ActionType.ShowLoading, { Text: "Wait" }),
+				Action("12", ActionType.HideLoading, {}), Action("13", ActionType.ToggleFullscreen, {}),
+				Action("14", ActionType.Navigate, { Document: "Settings" }), Action("15", ActionType.GoBack, {}), Action("16", ActionType.CopyToClipboard, { Text: "Id {Count}" }),
 			],
-			Links: ["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((to, i, all) => ({ From: i === 0 ? "e" : all[i - 1]!, To: to })),
+			Links: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16"].map((to, i, all) => ({ From: i === 0 ? "e" : all[i - 1]!, To: to })),
 		};
 		const layout = Screen(graph);
 		layout.Name = "  ";
 		const code = GenerateGraphScript(layout);
 		expect(code).toContain("export class LayoutNodes extends UiScript {");
-		for (const line of ['this.Hide("A");', 'this.ToggleVisible("B");', 'this.Enable("C");', 'this.EnabledFollowsCheck("D", "Offline", false);', 'this.EnabledFollowsCheck("E", "Offline", true);', 'this.Focus("F");', 'void this.MessageBox("Say \\"hi\\"\\\\n", "T");', 'this.Close(DialogResult.Cancel);', 'this.SetText("G", "x");']) {
+		for (const line of ['this.Hide("A");', 'this.ToggleVisible("B");', 'this.Enable("C");', 'this.EnabledFollowsCheck("D", "Offline", false);', 'this.EnabledFollowsCheck("E", "Offline", true);', 'this.Focus("F");', 'void this.MessageBox("Say \\"hi\\"\\\\n", "T");', 'this.Close(DialogResult.Cancel);', 'this.SetText("G", "x");', 'this.Notify(this.Format("Saved {Count}"), "positive");', 'this.ShowLoading("Wait");', "this.HideLoading();", "this.ToggleFullscreen();", 'this.Navigate("Settings");', "this.GoBack();", 'this.CopyToClipboard(this.Format("Id {Count}"));']) {
 			expect(code, line).toContain(line);
 		}
 		expect(GenerateGraphScript(NewLayout("Empty"))).toContain("public override OnConstruct(): void {\n\t}");

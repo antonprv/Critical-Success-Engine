@@ -4,11 +4,14 @@
 import tailwindcss from "@tailwindcss/vite";
 import vue from "@vitejs/plugin-vue";
 import { defineConfig } from "vitest/config";
+import { QuasarDefines } from "@cse/ui/build";
 
 // The project browser's unit and component tests (jsdom). Coverage counts this module's own sources: the toolkit it builds on is
 // covered by the engine's tests.
 export default defineConfig({
 	plugins: [vue(), tailwindcss()],
+	// Quasar\'s widgets of @cse/ui are built from Quasar\'s sources, which expect its build flags.
+	define: QuasarDefines,
 	test: {
 		include: ["Tests/**/*.test.ts"],
 		environment: "jsdom",

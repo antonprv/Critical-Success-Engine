@@ -8,7 +8,7 @@ import type { GraphValue } from "./Graph";
 import { DialogService } from "./Dialogs";
 import { ParseLayout, type UiLayout } from "./Layout";
 import type { UiManifest } from "./UiManifest";
-import { UiDocument } from "./UiDocument";
+import { UiDocument, type UiNavigator } from "./UiDocument";
 import type { UiScriptRegistry } from "./UiScript";
 import type { WidgetRegistry } from "./Widgets";
 import { Task } from "@cse/task";
@@ -42,6 +42,8 @@ export class UiManager {
 	private readonly _layouts = new Map<string, UiLayout>();
 	private readonly _showing = new Map<string, Task<UiDocument>>();
 	private readonly _variables = new Map<string, Record<string, GraphValue>>();
+	/** The screens an app went through (Navigate), the current one last. */
+	private readonly _history: string[] = reactive([]);
 
 	public constructor(private readonly _options: UiManagerOptions) {
 		this.Dialogs = _options.Dialogs ?? new DialogService();
@@ -109,6 +111,47 @@ export class UiManager {
 		for (const entry of [...this.Shown]) this.Hide(entry.Id);
 	}
 
+	//#region navigation (an app's screens)
+
+	/** The screens navigated through, the current one last. */
+	public get History(): readonly string[] { return this._history; }
+
+	/**
+	 * Goes to another screen: the current one (the last navigated to) hides, this one shows and is remembered. Moves
+	 * between screens happen one after another, in the order asked (a graph's "go there, then back" does both).
+	 */
+	public Navigate(id: string): Promise<UiDocument> {
+		return this.InTurn(async () => {
+			const current = this._history.at(-1);
+			if (current === id) return this.Show(id);
+			const document = await this.Show(id);
+			if (current !== undefined) this.Hide(current);
+			this._history.push(id);
+			return document;
+		});
+	}
+
+	/** Back to the screen before; false when there is none. */
+	public Back(): Promise<boolean> {
+		return this.InTurn(async () => {
+			if (this._history.length < 2) return false;
+			const current = this._history.pop()!;
+			await this.Show(this._history.at(-1)!);
+			this.Hide(current);
+			return true;
+		});
+	}
+
+	private _turn: Promise<unknown> = Promise.resolve();
+
+	private InTurn<T>(move: () => Promise<T>): Promise<T> {
+		const next = this._turn.then(move);
+		this._turn = next.catch(() => undefined);
+		return next;
+	}
+
+	//#endregion
+
 	/** Shows a document as a modal dialog; resolves with how it was closed. */
 	public async ShowDialog(id: string): Promise<DialogResult> {
 		return this.Dialogs.ShowDialog(await this.Load(id), this.DocumentOptions());
@@ -116,7 +159,7 @@ export class UiManager {
 
 	private DocumentOptions() {
 		const { Scripts, Widgets } = this._options;
-		return { Dialogs: this.Dialogs, ...(Scripts ? { Scripts } : {}), ...(Widgets ? { Widgets } : {}) };
+		return { Dialogs: this.Dialogs, Navigator: this as UiNavigator, ...(Scripts ? { Scripts } : {}), ...(Widgets ? { Widgets } : {}) };
 	}
 
 	private async Load(id: string): Promise<UiLayout> {

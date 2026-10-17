@@ -3,6 +3,7 @@
 
 import tailwindcss from "@tailwindcss/vite";
 import vue from "@vitejs/plugin-vue";
+import { QuasarDefines } from "./Build/QuasarBuild.ts";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
@@ -12,6 +13,7 @@ const RootDirectory = fileURLToPath(new URL(".", import.meta.url));
 /** The engine's UI module: its page is the toolkit gallery, built to Binaries/Modules/Engine/UI. */
 export default defineConfig({
 	plugins: [vue(), tailwindcss()],
+	define: QuasarDefines,
 	server: {
 		host: "127.0.0.1",
 		port: 5176,
@@ -24,5 +26,7 @@ export default defineConfig({
 		emptyOutDir: true,
 		sourcemap: true,
 		chunkSizeWarningLimit: 4096,
+		// The toolkit gallery, and every Quasar widget in every state (what the screenshot tests photograph).
+		rollupOptions: { input: { index: resolve(RootDirectory, "index.html"), quasar: resolve(RootDirectory, "quasar.html") } },
 	},
 });

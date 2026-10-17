@@ -1,0 +1,174 @@
+{
+  "Format": 1,
+  "Name": "Data table",
+  "Script": "",
+  "Root": {
+    "Name": "Root",
+    "Type": "canvas",
+    "X": 0,
+    "Y": 0,
+    "Width": 800,
+    "Height": 500,
+    "Props": {
+      "Fill": "none",
+      "Color": "#000000",
+      "Color2": "#004e98",
+      "Angle": 180,
+      "Opacity": 1,
+      "Blur": 0
+    },
+    "Children": [
+      {
+        "Name": "Panel",
+        "Type": "q-card",
+        "X": 16,
+        "Y": 16,
+        "Width": 560,
+        "Height": 440,
+        "Props": {},
+        "Children": [
+          {
+            "Name": "Search",
+            "Type": "q-card-section",
+            "X": 0,
+            "Y": 0,
+            "Width": 100,
+            "Height": 40,
+            "Props": {},
+            "Children": [
+              {
+                "Name": "Filter",
+                "Type": "q-input",
+                "X": 0,
+                "Y": 0,
+                "Width": 100,
+                "Height": 40,
+                "Props": {
+                  "dense": true,
+                  "outlined": true,
+                  "label": "Filter",
+                  "model-value": "",
+                  "clearable": true,
+                  "debounce": "200"
+                },
+                "Children": [
+                  {
+                    "Name": "SearchIcon",
+                    "Type": "q-icon",
+                    "X": 0,
+                    "Y": 0,
+                    "Width": 100,
+                    "Height": 40,
+                    "Props": {
+                      "name": "search"
+                    },
+                    "Slot": "append"
+                  }
+                ],
+                "Bindings": {
+                  "model-value": "Query"
+                }
+              }
+            ]
+          },
+          {
+            "Name": "Data",
+            "Type": "q-table",
+            "X": 0,
+            "Y": 0,
+            "Width": 100,
+            "Height": 40,
+            "Props": {
+              "title": "Heroes",
+              "row-key": "name",
+              "flat": true,
+              "pagination": {
+                "rowsPerPage": 5
+              },
+              "columns": [
+                {
+                  "name": "name",
+                  "label": "Name",
+                  "field": "name",
+                  "align": "left",
+                  "sortable": true
+                },
+                {
+                  "name": "kind",
+                  "label": "Kind",
+                  "field": "kind",
+                  "align": "left",
+                  "sortable": true
+                },
+                {
+                  "name": "level",
+                  "label": "Level",
+                  "field": "level",
+                  "sortable": true
+                },
+                {
+                  "name": "score",
+                  "label": "Score",
+                  "field": "score",
+                  "sortable": true
+                }
+              ],
+              "rows": [
+                {
+                  "name": "Alpha",
+                  "kind": "Warrior",
+                  "level": 12,
+                  "score": 830
+                },
+                {
+                  "name": "Beta",
+                  "kind": "Mage",
+                  "level": 8,
+                  "score": 610
+                },
+                {
+                  "name": "Gamma",
+                  "kind": "Rogue",
+                  "level": 15,
+                  "score": 990
+                },
+                {
+                  "name": "Delta",
+                  "kind": "Warrior",
+                  "level": 5,
+                  "score": 240
+                },
+                {
+                  "name": "Epsilon",
+                  "kind": "Mage",
+                  "level": 11,
+                  "score": 720
+                },
+                {
+                  "name": "Zeta",
+                  "kind": "Rogue",
+                  "level": 3,
+                  "score": 120
+                }
+              ]
+            },
+            "Bindings": {
+              "filter": "Query"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "Graph": {
+    "Nodes": [],
+    "Links": [],
+    "Variables": [
+      {
+        "Name": "Query",
+        "Kind": "text",
+        "Default": ""
+      }
+    ]
+  }
+}

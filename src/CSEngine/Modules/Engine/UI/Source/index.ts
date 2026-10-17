@@ -77,7 +77,7 @@ export * from "./Documents/Graph";
 export * from "./Documents/UiDocument";
 export * from "./Documents/UiScript";
 export * from "./Documents/Widgets";
-export { CreateNode, IsClickThrough, NewLayout, ParseLayout, SerializeLayout, type LayoutNode, type UiLayout } from "./Documents/Layout";
+export { CreateNode, HotkeyOf, IsClickThrough, NewLayout, ParseHotkey, ParseLayout, SerializeLayout, type LayoutNode, type UiLayout } from "./Documents/Layout";
 export { DialogService, type OpenDialog } from "./Documents/Dialogs";
 export * from "./Documents/UiManifest";
 export * from "./Documents/UiManager";
@@ -85,3 +85,17 @@ export { default as WinUiHost } from "./Documents/WinUiHost.vue";
 export { default as WinDialogHost } from "./Documents/WinDialogHost.vue";
 export { default as WinLayoutNode } from "./Documents/WinLayoutNode.vue";
 export { default as WinLayoutView } from "./Documents/WinLayoutView.vue";
+
+// Quasar: every component as a widget of UI documents, its catalog for the designer, the kit context.
+export * from "./Documents/Json";
+export * from "./Core/KitContext";
+export { QuasarController, type QuasarEvents } from "./Quasar/QuasarController";
+export { ConfigureQuasar, EnsureQuasar, FindQuasarComponent, HasQuasar, LoadQuasarComponent, LoadQuasarDirective, LoadQuasarStyles, QuasarRules, type QuasarInstallOptions, type RuleSpec } from "./Quasar/QuasarRuntime";
+export { QuasarComponentTable, QuasarDirectiveTable, QuasarVersion } from "./Quasar/QuasarTable.generated";
+export type * from "./Quasar/QuasarTypes";
+export { PaletteOrder, QuasarGroupPrefix, QuasarGroups, QuasarWidget, QuasarWidgets } from "./Quasar/QuasarWidgets";
+export { ListenerOf, ParseDirectiveKey, QuasarView } from "./Quasar/QuasarView";
+/** The designer's catalog of Quasar (props, slots, events, directives, plugins), loaded on demand: it is large. */
+export const LoadQuasarCatalog = (): Promise<import("./Quasar/QuasarTypes").QuasarCatalog> => import("./Quasar/QuasarCatalog.generated.json").then((module) => module.default as unknown as import("./Quasar/QuasarTypes").QuasarCatalog);
+export { ConfigureQuasarStorage, GetQuasarServices, MemoryStore, QuasarServices, WebStorageOver, type DialogOutcome, type KeyValueStore, type QuasarOptions } from "./Quasar/QuasarServices";
+export { QuasarLanguageTable } from "./Quasar/QuasarTable.generated";

@@ -22,6 +22,14 @@ export interface UiDocumentOptions {
 	Dialogs?: DialogService;
 	/** Values of its variables to start with instead of their defaults (what the game set before it showed). */
 	Variables?: Readonly<Record<string, GraphValue>>;
+	/** Where Navigate and Back of its graph and script go (the UiManager that shows it). */
+	Navigator?: UiNavigator;
+}
+
+/** An app's screens: what a document navigates with (UiManager). */
+export interface UiNavigator {
+	Navigate(id: string): unknown;
+	Back(): unknown;
 }
 
 export interface UiWidget {
@@ -98,6 +106,7 @@ export class UiDocument {
 	public readonly Widgets: WidgetRegistry;
 	public readonly Scripts: UiScriptRegistry | null;
 	public readonly Dialogs: DialogService | null;
+	public readonly Navigator: UiNavigator | null;
 	/**
 	 * The document's variables (its graph declares them): reactive, so the graph, scripts and views follow them at once.
 	 * Write them with SetVariable, which reads a value as the variable's kind.
@@ -120,9 +129,11 @@ export class UiDocument {
 		this.Widgets = options.Widgets ?? BuiltInWidgets;
 		this.Scripts = options.Scripts ?? null;
 		this.Dialogs = options.Dialogs ?? null;
+		this.Navigator = options.Navigator ?? null;
 		this.Build(Layout.Root, null);
 		this.Variables = reactive({});
 		this.DeclareVariables(Layout.Graph?.Variables ?? [], options.Variables ?? {});
+		this.Bind(Layout.Root);
 
 		if (Layout.Script) {
 			this._script = options.Scripts?.Create(Layout.Script) ?? null;
@@ -164,6 +175,36 @@ export class UiDocument {
 	private DeclareVariables(variables: readonly GraphVariable[], initial: Readonly<Record<string, GraphValue>>): void {
 		for (const [name, value] of Object.entries(initial)) this.Variables[name] = value;
 		for (const variable of variables) this.DeclareVariable(variable);
+	}
+
+	/** Props that follow variables (LayoutNode.Bindings); a widget's value follows back. */
+	private Bind(node: LayoutNode): void {
+		const control = this._widgets.get(node.Name)!.Controller as { SetProp?: (key: string, value: GraphValue) => void; SetValue?: (value: GraphValue) => void; Events?: Subscribable["Events"]; } | null;
+		for (const [prop, variable] of Object.entries(node.Bindings ?? {})) {
+			if (!control?.SetProp) continue;
+			const value = prop === "model-value";
+			this._subscriptions.push(watch(() => this.Variables[variable], (current) => {
+				if (current === undefined) return;
+				if (value) control.SetValue!(current);
+				else control.SetProp!(prop, current);
+			}, { immediate: true, flush: "sync" }));
+			if (value) this._subscriptions.push(control.Events!.On("change", (changed) => this.SetVariable(variable, changed as GraphValue)));
+		}
+		for (const child of node.Children ?? []) this.Bind(child);
+	}
+
+	/**
+	 * A key press: when it is one of the layout's shortcuts, presses the widget (a button's click, a Quasar widget's click
+	 * event) and says it did.
+	 */
+	public PressHotkey(keys: string): boolean {
+		const name = this.Layout.Hotkeys?.[keys];
+		const control = name === undefined ? null : this._widgets.get(name)?.Controller as { PerformClick?: () => void; Raise?: (event: string, args: unknown[]) => void; Enabled?: boolean; } | null | undefined;
+		if (!control || control.Enabled === false) return false;
+		if (control.PerformClick) control.PerformClick();
+		else if (control.Raise) control.Raise("click", []);
+		else return false;
+		return true;
 	}
 
 	public Find(name: string): UiWidget | undefined {

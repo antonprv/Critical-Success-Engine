@@ -14,6 +14,11 @@ import { SettingsScreen } from "./SettingsScreen";
 import { TouchControls } from "./TouchControls";
 import WinTouchOverlay from "./WinTouchOverlay.vue";
 import { UiHostBridge } from "./UiHostBridge";
+import { IndexedDbBackend, SettingsStorage } from "@cse/core/Engine/Storage/SettingsStorage";
+import { ConfigureQuasarStorage } from "../Quasar/QuasarServices";
+
+/** Where Quasar's LocalStorage keeps a game's page-side data: a SettingsStorage of its own (the game's lives in its worker). */
+export const QuasarStorageDatabase = "cse-ui-quasar";
 
 /** What the page's Engine module offers this module: its channels and the project's UI documents. */
 type PageEngine = ModuleInterface & {
@@ -35,6 +40,9 @@ export default class UiHostModule extends ModuleInterface {
 
 	public override StartupModule(): void {
 		const engine = ModuleManager.Get().GetModuleChecked<PageEngine>("Engine");
+		// Quasar's LocalStorage (documents and their scripts may use it) keeps its data in a SettingsStorage.
+		const storage = new SettingsStorage(new IndexedDbBackend(QuasarStorageDatabase));
+		void storage.Open().then(() => ConfigureQuasarStorage(storage));
 		// The project's documents, and the engine's own screens it doesn't replace.
 		const documents = WithEngineDocuments(engine.ProjectUi);
 		this.Manager = new UiManager(documents);

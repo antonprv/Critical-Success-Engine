@@ -3,14 +3,17 @@
 
 import tailwindcss from "@tailwindcss/vite";
 import vue from "@vitejs/plugin-vue";
+import { QuasarDefines } from "./Build/QuasarBuild.ts";
 import { defineConfig } from "vitest/config";
 
 // The UI module's unit and component tests (jsdom); coverage counts its own sources.
 export default defineConfig({
 	plugins: [vue(), tailwindcss()],
+	define: QuasarDefines,
 	test: {
 		include: ["Tests/**/*.test.ts"],
 		environment: "jsdom",
+		setupFiles: ["Tests/Setup.ts"],
 		clearMocks: true,
 		restoreMocks: true,
 		unstubGlobals: true,

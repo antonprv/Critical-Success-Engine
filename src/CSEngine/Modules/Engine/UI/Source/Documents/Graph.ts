@@ -9,6 +9,7 @@ import { TextBoxController } from "../Controls/TextBoxController";
 import { WindowController } from "../Controls/WindowController";
 import type { ControlBase } from "../Core/ControlBase";
 import { watch } from "vue";
+import { GetQuasarServices } from "../Quasar/QuasarServices";
 import type { DialogResult } from "./DialogResult";
 import type { UiDocument } from "./UiDocument";
 
@@ -35,6 +36,19 @@ export const enum ActionType {
 	SetVariable = "set-variable",
 	/** A number variable grows (or shrinks) by an amount. */
 	AddToVariable = "add-to-variable",
+	/** A notification (Quasar's Notify): text, and its type (positive, negative, warning, info, ongoing). */
+	Notify = "notify",
+	/** The page-wide loading screen (Quasar's Loading), with a message. */
+	ShowLoading = "show-loading",
+	HideLoading = "hide-loading",
+	/** The page full screen, or back. */
+	ToggleFullscreen = "toggle-fullscreen",
+	/** Another screen of the app (a document by its manifest Id): this one goes, that one comes. */
+	Navigate = "navigate",
+	/** Back to the screen before. */
+	GoBack = "go-back",
+	/** Text to the clipboard. */
+	CopyToClipboard = "copy-to-clipboard",
 }
 
 //#region variables
@@ -172,6 +186,13 @@ export const ActionInfos: Record<ActionType, ActionInfo> = {
 	[ActionType.CloseForm]: { Label: "Close document", Params: [{ Key: "Result", Label: "Result", Kind: "result" }] },
 	[ActionType.SetVariable]: { Label: "Set variable", Params: [{ Key: "Variable", Label: "Variable", Kind: "variable" }, { Key: "Value", Label: "Value", Kind: "text" }] },
 	[ActionType.AddToVariable]: { Label: "Add to variable", Params: [{ Key: "Variable", Label: "Variable", Kind: "variable" }, { Key: "Amount", Label: "Amount", Kind: "text" }] },
+	[ActionType.Notify]: { Label: "Notify", Params: [{ Key: "Text", Label: "Text", Kind: "text" }, { Key: "Type", Label: "Type (positive, negative, warning, info)", Kind: "text" }] },
+	[ActionType.ShowLoading]: { Label: "Show loading screen", Params: [{ Key: "Text", Label: "Message", Kind: "text" }] },
+	[ActionType.HideLoading]: { Label: "Hide loading screen", Params: [] },
+	[ActionType.ToggleFullscreen]: { Label: "Full screen on / off", Params: [] },
+	[ActionType.Navigate]: { Label: "Go to screen", Params: [{ Key: "Document", Label: "Document (manifest Id)", Kind: "text" }] },
+	[ActionType.GoBack]: { Label: "Go back", Params: [] },
+	[ActionType.CopyToClipboard]: { Label: "Copy to clipboard", Params: [{ Key: "Text", Label: "Text", Kind: "text" }] },
 };
 
 export const ActionTypes = Object.keys(ActionInfos) as ActionType[];
@@ -205,6 +226,21 @@ export const Actions = {
 		void document.Dialogs.MessageBox(text, title);
 	},
 	CloseForm: (document: UiDocument, result: DialogResult): void => { document.Close(result); },
+	/** A notification; a type Quasar knows colours it (positive, negative, warning, info, ongoing). */
+	Notify: (text: string, type = ""): void => { void GetQuasarServices().Notify(type ? { message: text, type } : text); },
+	ShowLoading: (text = ""): void => { void GetQuasarServices().ShowLoading(text ? { message: text } : {}); },
+	HideLoading: (): void => { void GetQuasarServices().HideLoading(); },
+	ToggleFullscreen: (): void => { void GetQuasarServices().ToggleFullscreen(); },
+	Navigate: (document: UiDocument, id: string): void => {
+		if (!document.Navigator) throw new Error("This UI has no screens to go to: show it with a UiManager");
+		void document.Navigator.Navigate(id);
+	},
+	GoBack: (document: UiDocument): void => {
+		if (!document.Navigator) throw new Error("This UI has no screens to go back to: show it with a UiManager");
+		void document.Navigator.Back();
+	},
+	/** Text to the clipboard (Quasar's copyToClipboard: the browser's API, else the old way). */
+	CopyToClipboard: (text: string): void => { void import("quasar/src/utils/copy-to-clipboard/copy-to-clipboard.js").then(({ default: copy }) => (copy as (text: string) => Promise<void>)(text)).catch(() => undefined); },
 	/** Text has {Name} put in first; the value is read as the variable's kind. */
 	SetVariable: (document: UiDocument, name: string, value: GraphValue): void =>
 		document.SetVariable(name, typeof value === "string" ? Interpolate(value, document.Variables) : value),
@@ -231,6 +267,13 @@ function Execute(document: UiDocument, node: GraphNode): void {
 		case ActionType.CloseForm: Actions.CloseForm(document, text("Result") as DialogResult); break;
 		case ActionType.SetVariable: Actions.SetVariable(document, p["Variable"] as string, p["Value"] as string); break;
 		case ActionType.AddToVariable: Actions.AddToVariable(document, p["Variable"] as string, p["Amount"] as string); break;
+		case ActionType.Notify: Actions.Notify(text("Text"), text("Type")); break;
+		case ActionType.ShowLoading: Actions.ShowLoading(text("Text")); break;
+		case ActionType.HideLoading: Actions.HideLoading(); break;
+		case ActionType.ToggleFullscreen: Actions.ToggleFullscreen(); break;
+		case ActionType.Navigate: Actions.Navigate(document, text("Document")); break;
+		case ActionType.GoBack: Actions.GoBack(document); break;
+		case ActionType.CopyToClipboard: Actions.CopyToClipboard(text("Text")); break;
 	}
 }
 
