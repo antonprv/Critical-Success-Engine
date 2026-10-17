@@ -31,27 +31,37 @@ export interface SdfWorldOptions {
  * order and stays identical.
  */
 export class SdfWorld {
-	public readonly Edits = new EditList();
-
 	public readonly Field: SdfField;
 
 	public MaxEdits: number;
 
+	/**
+	 * @param Edits The recent edits to start with (by default none).
+	 */
 	public constructor(
 		public readonly Base: SdfBakedLayer,
 		options: SdfWorldOptions = {},
+		public readonly Edits = new EditList(),
 	) {
 		this.MaxEdits = options.MaxEdits ?? 32;
 		this.Field = new SdfField( this.Edits, Base );
 		this.Edits.OnFold = ( edit, reach ) => Base.Fold( edit, reach );
 	}
 
-	/** A replica for another worker: the base read back from its bytes. */
+	/**
+	 * A replica for another worker: the base and the recent edits read back
+	 * from their saved forms (SdfBakedLayer.Serialize, EditList.Serialize).
+	 */
 	public static FromBase(
 		base: ArrayBuffer,
 		options: SdfWorldOptions = {},
+		edits: ArrayBuffer | null = null,
 	): SdfWorld {
-		return new SdfWorld( SdfBakedLayer.Deserialize( base ), options );
+		return new SdfWorld(
+			SdfBakedLayer.Deserialize( base ),
+			options,
+			edits ? EditList.Deserialize( edits ) : new EditList(),
+		);
 	}
 
 	/** Adds an edit, folding the oldest ones if there are now too many. */

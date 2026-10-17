@@ -237,6 +237,35 @@ describe( "SdfMeshChunks", () => {
 		expect( chunks.Update().Built ).toEqual( [] );
 	} );
 
+	it( "hands out chunks never meshed before rebuilds", () => {
+		const { list, chunks } = World();
+
+		chunks.CenterOn( 1, 1, 1 );
+		expect( chunks.Next( 1 )[0]!.Key ).toBe( ChunkKey( 0, 0, 0 ) );
+		// an edit at the center queues that chunk again: it now waits
+		// behind the ones not meshed yet, however far they are
+		list.Add(
+			{
+				Shape: SdfShape.Sphere,
+				Position: [ 1, 1, 1 ],
+				Params: [ 0.2, 0, 0, 0 ],
+			},
+		);
+		chunks.Collect();
+		expect( chunks.Next( 1 )[0]!.Key ).not.toBe( ChunkKey( 0, 0, 0 ) );
+
+		// chunks the caller says are busy stay queued
+		const waiting = chunks.Pending;
+		const taken = chunks.Next(
+			100,
+			( key ) => key === ChunkKey( 0, 0, 0 ),
+		);
+
+		expect( taken ).toHaveLength( waiting - 1 );
+		expect( chunks.Pending ).toBe( 1 );
+		expect( chunks.Next( 1 )[0]!.Key ).toBe( ChunkKey( 0, 0, 0 ) );
+	} );
+
 	it( "drops the chunks that leave the area", () => {
 		const { chunks } = World();
 

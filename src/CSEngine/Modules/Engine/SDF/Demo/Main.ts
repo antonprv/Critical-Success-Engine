@@ -2,12 +2,16 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 // The SDF demo (plan.md 15, M0 criterion): Babylon cubes and SDF shapes in
-// one scene, sorted by depth both ways, with a hole that moves through the
-// world as an ordinary edit. ?tier=mesh shows the mesh tier, ?view=0..3 the
+// one scene, sorted by depth both ways. The "editor" edits are baked into
+// the world's base; in play, a hole moves through it (a kept edit) and a
+// double click digs (recent edits; the oldest fold into the base). The mesh
+// tier is meshed in workers. ?tier=mesh shows the mesh tier, ?view=0..3 the
 // debug views, ?hole=0 stops the hole. ?scene=depth is the end-to-end check's
 // still scene: a ball, a cube in front of it and a larger one behind.
 
 import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
+// scene.createPickingRay, for digging
+import "@babylonjs/core/Culling/ray";
 import { Engine } from "@babylonjs/core/Engines/engine";
 import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
@@ -23,11 +27,15 @@ import {
 	DetectCapabilities,
 	EditList,
 	GroundPlane,
+	SdfBakedLayer,
+	SdfEditFlags,
 	SdfField,
-	SdfMeshChunks,
+	SdfMeshWorkers,
 	SdfOp,
 	SdfShape,
 	SdfTier,
+	SdfWorld,
+	type MeshWorkerPort,
 } from "../Source/Index";
 import {
 	SdfMeshLayer,
@@ -77,7 +85,7 @@ const sun = new DirectionalLight( "sun", new Vector3( -0.4, -1, -0.5 ), scene );
 
 sun.intensity = 0.7;
 
-// the world: ground, a blob of smoothly joined shapes, a carved tunnel
+// the editor's world: ground, a blob of smoothly joined shapes, a tunnel
 const edits = new EditList();
 const field = new SdfField(
 	edits,
@@ -122,13 +130,24 @@ function AddShowcase(): void {
 	} );
 }
 
-const hole = edits.Add( {
+// the editor's build: all of it baked into one sampled base
+const bakeStart = performance.now();
+const world = new SdfWorld( SdfBakedLayer.Bake( field, {
+	Bounds: depthCheck
+		? CreateAabb( -3, -3, -3, 3, 3, 3 )
+		: CreateAabb( -8, -1.5, -8, 8, 5, 8 ),
+	Spacing: 0.1,
+} ), { MaxEdits: 8 } );
+const bakeMs = performance.now() - bakeStart;
+// in play: a hole that keeps moving, never folded
+const hole = world.Add( {
 	Shape: SdfShape.Sphere,
 	Op: SdfOp.SmoothSubtract,
 	Position: depthCheck ? [ 0, -50, 0 ] : [ 0, 0, 3 ],
 	Params: [ 0.9, 0, 0, 0 ],
 	SmoothK: 0.3,
 	MaterialId: 2,
+	Flags: SdfEditFlags.Keep,
 } );
 
 // Babylon meshes crossing the SDF shapes: the depth test sorts them
@@ -169,18 +188,20 @@ function Show( next: SdfTier ): void {
 	meshed = null;
 	tier = next;
 	if ( tier === SdfTier.Mesh ) {
-		const chunks = new SdfMeshChunks( field, {
+		const chunks = new SdfMeshWorkers( world, {
 			CellSize: 0.2,
 			ChunkCells: 20,
 			Radius: 2,
-			Budget: Number( params.get( "budget" ) ?? 6 ),
-		} );
+		}, () => new Worker(
+			new URL( "../Source/Workers/MeshWorker.ts", import.meta.url ),
+			{ type: "module" },
+		) as unknown as MeshWorkerPort );
 
 		chunks.CenterOn( 0, depthCheck ? 0 : 1, 0 );
 		meshed = new SdfMeshLayer( scene, chunks );
 	} else {
 		const grid = new DenseSdfGrid(
-			field,
+			world.Field,
 			depthCheck
 				? CreateAabb( -2, -2, -2, 2, 2, 2 )
 				: CreateAabb( -8, -1, -8, 8, 5, 8 ),
@@ -226,7 +247,7 @@ let lastWork = 0;
 scene.onBeforeRenderObservable.add( () => {
 	if ( moving ) {
 		time += engine.getDeltaTime() / 1000;
-		edits.Update( hole.Id, {
+		world.Edits.Update( hole.Id, {
 			Position: [
 				Math.sin( time * 0.7 ) * 3.5,
 				0.2,
@@ -251,10 +272,13 @@ engine.runRenderLoop( () => {
 		stats.textContent = [
 			`tier ${ tier } (auto: ${ auto.Tier }, ${ auto.Reason })`,
 			`${ ( frames * 1000 / ( now - lastReport ) ).toFixed( 0 ) } fps`,
-			`edits ${ edits.Count }, version ${ edits.Version }`,
+			`recent edits ${ world.Edits.Count }, version `
+				+ `${ world.Edits.Version }`,
+			`base: ${ world.Base.BrickCount } bricks, baked in `
+				+ `${ bakeMs.toFixed( 0 ) } ms`,
 			meshed
-				? `chunks ${ meshed.Count }, `
-					+ `meshing ${ lastWork.toFixed( 1 ) } ms`
+				? `chunks ${ meshed.Count }, main thread `
+					+ `${ lastWork.toFixed( 2 ) } ms`
 				: `grid ${ marched!.Grid.Resolution.join( "x" ) }`,
 		].join( "\n" );
 		frames = 0;
@@ -263,6 +287,32 @@ engine.runRenderLoop( () => {
 } );
 
 window.addEventListener( "resize", () => engine.resize() );
+
+// a double click digs where the ray meets the world: a recent edit
+canvas.addEventListener( "dblclick", ( event ) => {
+	const ray = scene.createPickingRay(
+		event.offsetX * engine.getHardwareScalingLevel(),
+		event.offsetY * engine.getHardwareScalingLevel(),
+		Matrix.Identity(),
+		camera,
+	);
+	const hit = world.Field.Raycast(
+		[ ray.origin.x, ray.origin.y, ray.origin.z ],
+		[ ray.direction.x, ray.direction.y, ray.direction.z ],
+		200,
+	);
+
+	if ( hit ) {
+		world.Add( {
+			Shape: SdfShape.Sphere,
+			Op: SdfOp.SmoothSubtract,
+			Position: hit.Position,
+			Params: [ 0.7, 0, 0, 0 ],
+			SmoothK: 0.15,
+			MaterialId: 6,
+		} );
+	}
+} );
 /**
  * For the end-to-end check: the color drawn where a world point lands on
  * screen (0..1 per channel), and how many chunks still wait to be meshed.

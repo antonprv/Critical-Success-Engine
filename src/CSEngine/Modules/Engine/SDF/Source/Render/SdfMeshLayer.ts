@@ -9,7 +9,7 @@ import type { Scene } from "@babylonjs/core/scene";
 import type {
 	MeshChunksUpdate,
 	SdfChunk,
-	SdfMeshChunks,
+	SdfChunkSource,
 } from "../Mesh/MeshChunks";
 import { DefaultPalette, PaletteColor } from "./Palette";
 
@@ -34,7 +34,7 @@ export class SdfMeshLayer {
 
 	public constructor(
 		private readonly _scene: Scene,
-		public readonly Chunks: SdfMeshChunks,
+		public readonly Chunks: SdfChunkSource,
 		options: MeshLayerOptions = {},
 	) {
 		this._palette = options.Palette ?? DefaultPalette;
@@ -52,7 +52,7 @@ export class SdfMeshLayer {
 		return this._meshes.get( key );
 	}
 
-	/** Remeshes within the chunks' budget; returns what changed. */
+	/** Takes the chunks the source has ready; returns what changed. */
 	public Update(): MeshChunksUpdate {
 		const update = this.Chunks.Update();
 

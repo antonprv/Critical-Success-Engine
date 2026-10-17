@@ -30,6 +30,12 @@ export interface SdfChunk {
 	readonly Version: number;
 }
 
+/** A chunk to mesh. */
+export interface ChunkJob {
+	readonly Key: string;
+	readonly Coord: Readonly<[ number, number, number ]>;
+}
+
 /** What one Update produced. */
 export interface MeshChunksUpdate {
 	/** New or rebuilt chunks: replace what was drawn for their keys. */
@@ -44,13 +50,27 @@ export interface MeshChunksUpdate {
 const AoReachCells = 5;
 
 /**
+ * Where a mesh layer gets its chunks: meshed here (SdfMeshChunks) or in
+ * workers (SdfMeshWorkers).
+ */
+export interface SdfChunkSource {
+	/** Moves the area's center (the player). */
+	CenterOn( x: number, y: number, z: number ): void;
+	/** New and rebuilt chunks, and the ones that left. */
+	Update(): MeshChunksUpdate;
+	/** Chunks waiting or being meshed. */
+	readonly Pending: number;
+	Dispose(): void;
+}
+
+/**
  * The mesh tier (plan.md 22.3, 23): the SDF world as ordinary triangles
  * around a center (the player), for devices that can't ray march, and the
  * same chunks the physics collides with (plan.md 9.2). Edits mark the chunks
  * they reach; each Update remeshes a budget of them, nearest first, so a
  * moving hole costs a few chunks a frame and lags a frame or two.
  */
-export class SdfMeshChunks {
+export class SdfMeshChunks implements SdfChunkSource {
 	public readonly CellSize: number;
 
 	public readonly ChunkCells: number;
@@ -66,6 +86,9 @@ export class SdfMeshChunks {
 
 	/** Chunks waiting for a (re)mesh. */
 	private readonly _queue = new Set<string>();
+
+	/** Chunks handed out at least once: a rebuild waits behind new ones. */
+	private readonly _given = new Set<string>();
 
 	private _removed: string[] = [];
 
@@ -131,6 +154,7 @@ export class SdfMeshChunks {
 			if ( !next.has( key ) ) {
 				this._area.delete( key );
 				this._queue.delete( key );
+				this._given.delete( key );
 				this._removed.push( key );
 			}
 		}
@@ -144,6 +168,21 @@ export class SdfMeshChunks {
 
 	/** Takes the edits' changes and remeshes up to Budget chunks. */
 	public Update(): MeshChunksUpdate {
+		this.Collect();
+
+		const built = this.Next( this.Budget ).map(
+			( job ) => this.Mesh( job.Key, job.Coord ),
+		);
+
+		return {
+			Built: built,
+			Removed: this.TakeRemoved(),
+			Remaining: this._queue.size,
+		};
+	}
+
+	/** Queues the chunks the edits changed since the last call reach. */
+	public Collect(): void {
 		const reach = this.CellSize * ( AoReachCells + 2 );
 
 		for ( const box of this._changes.Take() ) {
@@ -155,25 +194,43 @@ export class SdfMeshChunks {
 				}
 			}
 		}
+	}
 
+	/**
+	 * Takes up to `count` queued chunks off the queue: what to mesh next
+	 * (here or in a worker). Chunks never meshed go first, so an edit that
+	 * keeps moving can't starve the rest of the area; then the nearest to
+	 * the center. Chunks `busy` says no to stay queued.
+	 */
+	public Next(
+		count: number,
+		busy: ( key: string ) => boolean = () => false,
+	): ChunkJob[] {
 		const order = [ ...this._queue ]
-			.map( ( key ) => [ key, this._area.get( key )! ] as const )
-			.sort(
-				( a, b ) => this.CenterDistance( a[1] ) - this.CenterDistance(
-					b[1],
-				),
-			);
-		const built: SdfChunk[] = [];
+			.filter( ( key ) => !busy( key ) )
+			.map( ( key ) => ( {
+				Key: key,
+				Coord: this._area.get( key )!,
+				Rank: ( this._given.has( key ) ? 1e30 : 0 )
+					+ this.CenterDistance( this._area.get( key )! ),
+			} ) )
+			.sort( ( a, b ) => a.Rank - b.Rank )
+			.slice( 0, FMath.Max( 0, count ) )
+			.map( ( job ) => ( { Key: job.Key, Coord: job.Coord } ) );
 
-		for ( const [ key, coord ] of order.slice( 0, this.Budget ) ) {
-			this._queue.delete( key );
-			built.push( this.Mesh( key, coord ) );
+		for ( const job of order ) {
+			this._queue.delete( job.Key );
+			this._given.add( job.Key );
 		}
+		return order;
+	}
 
+	/** The chunks that left the area since the last call. */
+	public TakeRemoved(): string[] {
 		const removed = this._removed;
 
 		this._removed = [];
-		return { Built: built, Removed: removed, Remaining: this._queue.size };
+		return removed;
 	}
 
 	/** Meshes one chunk now (also outside the area: e.g. for the physics). */
