@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import { Logger } from "../../Logging/Logger";
 import { Quat } from "../../Engine/Math/Quat";
 import { Vec3, type Vec3Tuple } from "../../Engine/Math/Vec3";
@@ -25,7 +26,7 @@ import {
 	CHARACTER_STRIDE,
 	type FlatTransform,
 } from "../Protocol/TransformProtocol";
-import type { PhysicsBridgeExports } from "./PhysicsBridgeContract";
+import { ReadView, type PhysicsBridgeExports } from "./PhysicsBridgeContract";
 
 type Tuple3 = [number, number, number];
 
@@ -43,8 +44,8 @@ const DefaultCharacterOptions: Required<CharacterMoveOptionsDescriptor> = {
 interface ShapeEntry {
 	id: number;
 	/**
-	 * Convex hulls only: Bepu re-centres the hull; this is that offset in the
-	 * source points' local space.
+	 * Convex hulls only: CSPhysics re-centres the hull; this is that offset in
+	 * the source points' local space.
 	 */
 	centroidOffset: Tuple3;
 	capsule?: { radius: number; cylinderLength: number; };
@@ -76,10 +77,10 @@ interface CharacterEntry {
 	entity: BodyEntry;
 	/**
 	 * The character's authoritative position. Deliberately NOT read back from
-	 * the Bepu body: after Step() the kinematic body has been integrated by its
-	 * own velocity (pose + v*dt), so reading it would move the character twice
-	 * per tick. (The Godot original keeps the position on the node and only
-	 * ever *writes* the body pose, for the same reason.)
+	 * the CSPhysics body: after Step() the kinematic body has been integrated
+	 * by its own velocity (pose + v*dt), so reading it would move the character
+	 * twice per tick. (The Godot original keeps the position on the node and
+	 * only ever *writes* the body pose, for the same reason.)
 	 */
 	position: Tuple3;
 	radius: number;
@@ -277,8 +278,8 @@ export class PhysicsWorld {
 	}
 
 	/**
-	 * Bepu puts resting bodies to sleep and ignores velocity writes while they
-	 * sleep, so wake the body first.
+	 * CSPhysics puts resting bodies to sleep and ignores velocity writes while
+	 * they sleep, so wake the body first.
 	 */
 	private WithAwakeBody(
 		entityId: number,
@@ -474,9 +475,10 @@ export class PhysicsWorld {
 	}
 
 	/**
-	 * BEPU recomputes broad-phase bounds only for awake bodies: a pose written
-	 * into a sleeping one moves it without finding new overlaps (a character
-	 * that stood still and then walked through a coin never touched it).
+	 * CSPhysics recomputes broad-phase bounds only for awake bodies: a pose
+	 * written into a sleeping one moves it without finding new overlaps (a
+	 * character that stood still and then walked through a coin never touched
+	 * it).
 	 */
 	private SetPoseAwake(
 		body: BodyEntry,
@@ -678,7 +680,7 @@ export class PhysicsWorld {
 		this.ApplyKinematicPoses( dt );
 		this.MoveCharacters( dt );
 
-		const flat = this._bridge.Step( dt );
+		const flat = ReadView( this._bridge.Step( dt ) );
 		const step = this._stepIndex++;
 		const { bodies, bodyCount } = this.PackBodies( flat );
 		const { characters, characterCount } = this.PackCharacters();
@@ -701,7 +703,7 @@ export class PhysicsWorld {
 		bodyCount: number;
 	} {
 		const bodies = new Float64Array(
-			Math.floor( flat.length / BODY_STRIDE ) * BODY_STRIDE,
+			FMath.Floor( flat.length / BODY_STRIDE ) * BODY_STRIDE,
 		);
 		let bodyCount = 0;
 
@@ -782,17 +784,18 @@ export class PhysicsWorld {
 	}
 
 	private PackOverlaps(): Int32Array<ArrayBuffer> | null {
-		const events = this._bridge.GetLastOverlapEvents();
+		const events = ReadView( this._bridge.GetLastOverlapEvents() );
 
-		return events.length > 0 ? Int32Array.from( events ) : null;
+		// slice() gave a copy of its own: it can be transferred as it is.
+		return events.length > 0 ? events : null;
 	}
 
 	/**
-	 * Port of BepuAnimatableBody3D._PhysicsProcess: derive linear/angular
-	 * velocity from the pose delta (the solver builds friction/push constraints
-	 * from relative *velocity*, so a body that is only teleported would not
-	 * carry anything resting on it), then teleport the pose so the body stays
-	 * exactly glued to whatever drives it.
+	 * Port of Godot AnimatableBody3D wrapper._PhysicsProcess: derive
+	 * linear/angular velocity from the pose delta (the solver builds
+	 * friction/push constraints from relative *velocity*, so a body that is
+	 * only teleported would not carry anything resting on it), then teleport
+	 * the pose so the body stays exactly glued to whatever drives it.
 	 */
 	private ApplyKinematicPoses( dt: number ): void {
 		if ( dt <= 0 ) {
@@ -843,24 +846,24 @@ export class PhysicsWorld {
 	 */
 	private static QuatLogVector( q: Quat ): Vec3 {
 		const sign = q.W < 0 ? -1 : 1;
-		const w = Math.min( 1, sign * q.W );
+		const w = FMath.Min( 1, sign * q.W );
 		const vx = sign * q.X,
 			vy = sign * q.Y,
 			vz = sign * q.Z;
-		const vectorLength = Math.sqrt( vx * vx + vy * vy + vz * vz );
+		const vectorLength = FMath.Sqrt( vx * vx + vy * vy + vz * vz );
 
 		if ( vectorLength < 1e-9 ) {
 			return new Vec3();
 		}
-		const scale = Math.atan2( vectorLength, w ) / vectorLength;
+		const scale = FMath.FastAtan2( vectorLength, w ) / vectorLength;
 
 		return new Vec3( vx * scale, vy * scale, vz * scale );
 	}
 
 	/**
-	 * Engine-side half of BepuCharacterBody3D.MoveAndSlide: carry along
-	 * whatever we stood on last tick, run the collide-and-slide sweep, write
-	 * the resulting pose + velocity back to the kinematic body so dynamic
+	 * Engine-side half of Godot CharacterBody3D wrapper.MoveAndSlide: carry
+	 * along whatever we stood on last tick, run the collide-and-slide sweep,
+	 * write the resulting pose + velocity back to the kinematic body so dynamic
 	 * bodies still see and get pushed by the character.
 	 */
 	private MoveCharacters( dt: number ): void {

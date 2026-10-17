@@ -5,6 +5,12 @@ resolve to the engine's own sources. Types, completion and "Go to Definition" wo
 source file in the repository. The project needs no node_modules and no `paths` in a tsconfig. Projects without a
 tsconfig are checked with the engine's own compiler options (`Core/tsconfig.json`).
 
+A project's C# scripts (components written in C#, its `.csproj`) build against the engine too: the extension keeps the
+project's `.cse/Engine.props` pointing at the engine it is set to, so the C# language server sees the engine's scripting
+library (`CSEngine.Component`, the DataStream...) and the project's C# has no red underlines. Install a C# extension for
+that part: C# Dev Kit or C# in VS Code, the free C# build (`muhammad-sammy.csharp`) in VSCodium, plus the .NET 10 SDK
+with `dotnet workload install wasm-tools`.
+
 `.cseproject` and `.csedata` files are highlighted as JSON.
 
 ## Setup

@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!-- Tests of C# scripting (the host the TypeScript runtime drives) on the desktop runtime: `dotnet test`. -->
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<IsPackable>false</IsPackable>
+		<IsTestProject>true</IsTestProject>
+		<RootNamespace>CSEngine.Scripting.Tests</RootNamespace>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+		<PackageReference Include="xunit" Version="2.9.3" />
+		<PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\CSharp\CSEngine.Scripting.csproj" />
+	</ItemGroup>
+
+	<!-- the C# side of the bridge's test contracts (generated from Tests/Contracts/*.contract) -->
+	<ItemGroup>
+		<Compile Include="../Tests/Contracts/**/*.cs" LinkBase="Contracts" />
+	</ItemGroup>
+
+	<!-- the templates' C# components, tested here like the engine's own -->
+	<ItemGroup>
+		<Compile Include="../../../../Templates/*/Source/**/*.cs" LinkBase="Templates" />
+	</ItemGroup>
+
+</Project>

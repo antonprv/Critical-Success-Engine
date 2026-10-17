@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { BridgeView } from "./helpers";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { PhysicsWorld } from "../Source/Workers/Physics/PhysicsWorld";
@@ -109,11 +110,12 @@ class FakeBridge {
 		this.Record( "MoveCharacter", a ); return this.moveResult;
 	};
 
-	public Step = ( dt: number ): number[] => {
-		this.Record( "Step", [dt] ); return this.stepSnapshot;
+	public Step = ( dt: number ) => {
+		this.Record( "Step", [dt] );
+		return BridgeView( Float64Array.from( this.stepSnapshot ) );
 	};
 
-	public GetLastOverlapEvents = (): number[] => [];
+	public GetLastOverlapEvents = () => BridgeView( new Int32Array( 0 ) );
 }
 
 const ZeroTransform: [
@@ -285,7 +287,7 @@ describe( "PhysicsWorld (physics worker side)", () => {
 			);
 			const bodyId = 2; // capsule shape id 1, body id 2
 
-			// MoveCharacter says the character ends at x = 1. Bepu then
+			// MoveCharacter says the character ends at x = 1. CSPhysics then
 			// integrates the kinematic body by its velocity, so the body pose
 			// after Step() is further along (x = 1.5) - reporting THAT would
 			// make the character move twice per tick.

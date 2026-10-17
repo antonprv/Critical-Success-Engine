@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import { CollisionLayer } from "@cse/core/Engine/Core/CollisionLayer";
 import {
 	Comp,
@@ -29,10 +30,11 @@ import {
 	PlatformMover,
 	Spinner,
 } from "@cse/core/Engine/Gameplay/Scripts";
+import { CSharp } from "@cse/core/Engine/Components/CSharp";
 
 // <<coin
 // a cylinder lies along Y; turn it into a coin on its edge
-const StandingUp = Quat.FromAxisAngle( Vec3.Right(), Math.PI / 2 ).ToTuple();
+const StandingUp = Quat.FromAxisAngle( Vec3.Right(), FMath.PI / 2 ).ToTuple();
 // pickup radius - a bit generous on purpose
 const CoinShape = Shapes.Sphere( 0.6 );
 const LiftShape = Shapes.Box( 4, 0.4, 4 );
@@ -121,7 +123,7 @@ export const CoinHuntScene: SceneManifest = {
 			[4, 0.4, 8],
 			[-6, 1.2, -3],
 			[0.5, 0.5, 0.55],
-			{ rotationX: ( 20 * Math.PI ) / 180 },
+			{ rotationX: ( 20 * FMath.PI ) / 180 },
 		),
 		StaticBox( "Deck", [4, 0.4, 4], [-6, 2.55, -8.8], [0.5, 0.5, 0.55] ),
 
@@ -182,7 +184,11 @@ export const CoinHuntScene: SceneManifest = {
 			],
 		),
 
-		Ent( "Game", [Comp( GameRules, { TimeLimitSeconds: 60 } )] ),
+		Ent( "Game", [
+			Comp( GameRules, { TimeLimitSeconds: 60 } ),
+			// written in C#: Source/Scripts/StreakTracker.cs
+			CSharp( "StreakTracker", { StreakSeconds: 3 } ),
+		] ),
 		// >>
 
 		Ent(

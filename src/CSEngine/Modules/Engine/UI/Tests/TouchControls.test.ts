@@ -6,6 +6,8 @@ import { ChannelHub } from "@cse/core/Engine/Core/Channels";
 import { nextTick, reactive } from "vue";
 import { describe, expect, it, vi } from "vitest";
 import { TouchControls } from "../Source/Runtime/TouchControls";
+import { ParseLayout } from "../Source/Documents/Layout";
+import { EngineDocuments, EngineTouchId } from "../Source/Runtime/EngineScreens";
 
 const A = (Name: string, Touch: string, Label = Name) => ({ Name, Label, Category: "", Touch, Binding: { Keyboard: ["", ""], Gamepad: "" } });
 const snapshot = {
@@ -231,3 +233,59 @@ describe("TouchControls: arranging the controls", () => {
 		expect(sent.at(-1)).toEqual({ op: "touch", action: "Jump", value: 1 });
 	});
 });
+
+describe("TouchControls: the controls' places are a UI document (EngineTouch)", () => {
+	const Node = (layout: ReturnType<typeof ParseLayout>, name: string) => layout.Root.Children!.find((n) => n.Name === name)!;
+
+	it("the engine's document gives the same places as before: sticks, pause, and a slot (Button1..8) per button", async () => {
+		const { touch, settings, page, game } = Make();
+		touch.UseDocument(ParseLayout(EngineDocuments[EngineTouchId]!));
+		settings(true);
+		page.State.menu.visible = false;
+		await nextTick();
+		game(snapshot);
+		expect(touch.Position("MoveStick")).toEqual({ X: 0.14, Y: 0.78 });
+		expect(touch.Position("Pause")).toEqual({ X: 0.95, Y: 0.08 });
+		expect([touch.Position("Button:Jump"), touch.Position("Button:Fire")]).toEqual([{ X: 0.92, Y: 0.5 }, { X: 0.82, Y: 0.5 }]);
+	});
+
+	it("a project's document moves them (edited in the UI Designer); buttons past its slots go where they would", async () => {
+		const { touch, game } = Make();
+		const layout = ParseLayout(EngineDocuments[EngineTouchId]!);
+		Object.assign(Node(layout, "MoveStick"), { X: 340, Y: 190 }); // the middle: 400, 250
+		layout.Root.Children = layout.Root.Children!.filter((n) => n.Name !== "Button2" && n.Name !== "LookStick");
+		touch.UseDocument(layout);
+		game(snapshot);
+		expect(touch.Position("MoveStick")).toEqual({ X: 0.5, Y: 0.5 });
+		expect(touch.Position("LookStick")).toEqual({ X: 0.86, Y: 0.78 }); // not in it: the default
+		expect(touch.Position("Button:Fire")).toEqual({ X: 0.82, Y: 0.5 }); // its slot is gone
+		touch.StartArranging();
+		touch.Done(); // controls without a widget in it are left out of it
+		expect(layout.Root.Children!.some((n) => n.Name === "LookStick")).toBe(false);
+		// a document with no widgets at all: every control in its default place
+		const empty = ParseLayout(EngineDocuments[EngineTouchId]!);
+		delete empty.Root.Children;
+		touch.UseDocument(empty);
+		expect(touch.Position("MoveStick")).toEqual({ X: 0.14, Y: 0.78 });
+	});
+
+	it("arranging changes the document: Done writes where each control went into its widget", async () => {
+		const { touch, game } = Make();
+		const layout = ParseLayout(EngineDocuments[EngineTouchId]!);
+		touch.UseDocument(layout);
+		game(snapshot);
+		touch.StartArranging();
+		touch.MoveItem("MoveStick", 0.5, 0.5);
+		touch.MoveItem("Button:Fire", 0.25, 0.2);
+		touch.Done();
+		expect(touch.Document).toBe(layout);
+		expect([Node(layout, "MoveStick").X, Node(layout, "MoveStick").Y]).toEqual([340, 190]);
+		expect([Node(layout, "Button2").X, Node(layout, "Button2").Y]).toEqual([168, 68]);
+		// Reset: the document's own places again
+		touch.StartArranging();
+		touch.ResetLayout();
+		touch.Done();
+		expect([Node(layout, "MoveStick").X, Node(layout, "MoveStick").Y]).toEqual([52, 330]);
+	});
+});
+

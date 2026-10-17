@@ -16,6 +16,7 @@
     "test": "vitest run --coverage"
   },
   "dependencies": {
+    "@cse/fastmath": "workspace:*",
     "@cse/ui": "workspace:*",
     "vue": "^3.5.43"
   },

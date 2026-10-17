@@ -1101,6 +1101,54 @@ describe( "CameraComponent", () => {
 			).Rotate( Vec3.Forward() ).Z,
 		).toBeCloseTo( -1 );
 	} );
+
+	it(
+		"FixedCamera keeps its pose while nothing it is made of changes",
+		() => {
+			const t = MakeEngine();
+			const e = t.world.Spawn(
+				Ent( "Camera", [Comp( FixedCamera, { LookAt: [0, 0, -10] } )] ),
+			);
+			t.world.FlushLifecycle();
+			const camera = e.GetComponent( FixedCamera )!;
+			const first = camera.GetPose( 0 );
+			expect( camera.GetPose( 0 ) ).toBe( first );
+
+			// each thing it is made of, changed in turn, makes a new pose
+			const p = e.Transform.Position;
+			const changes: ( () => void )[] = [
+				() => {
+					p.X = 1;
+				}, () => {
+					p.Y = 1;
+				}, () => {
+					p.Z = 1;
+				},
+				() => {
+					camera.LookAt = [1, 0, -10];
+				},
+				() => {
+					camera.LookAt = [1, 1, -10];
+				},
+				() => {
+					camera.LookAt = [1, 1, -9];
+				},
+				() => {
+					camera.FovDegrees = 30;
+				},
+			];
+			let last = first;
+
+			for ( const change of changes ) {
+				change();
+				const pose = camera.GetPose( 0 );
+				expect( pose ).not.toBe( last );
+				expect( camera.GetPose( 0 ) ).toBe( pose );
+				last = pose;
+			}
+			expect( last.transform.slice( 0, 3 ) ).toEqual( [1, 1, 1] );
+		},
+	);
 } );
 
 class HitRecorder extends Component implements IProjectileHitListener {

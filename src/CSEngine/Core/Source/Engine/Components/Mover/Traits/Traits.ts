@@ -6,6 +6,7 @@
 // `velocity` is mutated in place, exactly like `ref Vector3 velocity` in the C#
 // version.
 
+import { FMath } from "@cse/fastmath";
 import { Vec3 } from "../../../Math/Vec3";
 import {
 	Doom3Constants,
@@ -28,7 +29,7 @@ function AccelerateAlong(
 	if ( addSpeed <= 0 ) {
 		return;
 	}
-	velocity.AddInPlace( wishDir.Mul( Math.min( accelSpeed, addSpeed ) ) );
+	velocity.AddInPlace( wishDir.Mul( FMath.Min( accelSpeed, addSpeed ) ) );
 }
 
 //#region Common
@@ -81,8 +82,8 @@ export class JumpTrait extends MovementTrait {
 		this._jumpBuffer -= delta;
 
 		if ( this._jumpBuffer > 0 && this._coyote > 0 ) {
-			const gravity = Math.max( 0.0001, -ctx.Gravity.Y );
-			velocity.Y = Math.sqrt( 2 * gravity * ctx.Profile.JumpHeight );
+			const gravity = FMath.Max( 0.0001, -ctx.Gravity.Y );
+			velocity.Y = FMath.Sqrt( 2 * gravity * ctx.Profile.JumpHeight );
 			this._jumpBuffer = 0;
 			this._coyote = 0;
 			ctx.JumpConsumed = true;
@@ -189,7 +190,7 @@ export class Doom3AccelerateTrait extends MovementTrait {
 		velocity: Vec3,
 		delta: number,
 	): void {
-		const inputMag = Math.min( ctx.WishDirection.Length(), 1 );
+		const inputMag = FMath.Min( ctx.WishDirection.Length(), 1 );
 
 		if ( inputMag < 0.0001 ) {
 			return;
@@ -225,7 +226,7 @@ export class Doom3FrictionTrait extends MovementTrait {
 		const speed = vel.Length();
 
 		if ( speed < 1.0 * Doom3Constants.InchesToMeters ) {
-			if ( Math.abs( velocity.Y ) < 1e-5 ) {
+			if ( FMath.Abs( velocity.Y ) < 1e-5 ) {
 				velocity.Set( 0, 0, 0 );
 			}
 			else {
@@ -271,9 +272,9 @@ export class Doom3JumpTrait extends MovementTrait {
 			return;
 		}
 
-		const g = Math.max( ctx.Gravity.Length(), 0.0001 );
+		const g = FMath.Max( ctx.Gravity.Length(), 0.0001 );
 		const h = this.MaxJumpHeightInches * Doom3Constants.InchesToMeters;
-		velocity.Y = Math.sqrt( 2 * h * g );
+		velocity.Y = FMath.Sqrt( 2 * h * g );
 		ctx.JumpConsumed = true;
 	}
 }
@@ -292,7 +293,7 @@ export class Doom3GroundAccelTrait extends MovementTrait {
 			return;
 		}
 
-		const inputMag = Math.min( ctx.WishDirection.Length(), 1 );
+		const inputMag = FMath.Min( ctx.WishDirection.Length(), 1 );
 
 		if ( inputMag < 0.0001 ) {
 			return;
@@ -416,7 +417,7 @@ export class GroundFrictionTrait extends MovementTrait {
 		}
 
 		const drop = speed * ctx.Profile.GroundFriction * delta;
-		const newSpeed = Math.max( speed - drop, 0 );
+		const newSpeed = FMath.Max( speed - drop, 0 );
 		const scale = newSpeed / speed;
 
 		velocity.X *= scale;

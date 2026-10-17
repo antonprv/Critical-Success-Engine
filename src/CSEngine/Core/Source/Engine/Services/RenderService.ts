@@ -1,6 +1,8 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import type { Task } from "@cse/task";
+
 import { RendOpType } from "../../Workers/Common/CommonEnums";
 import type {
 	CameraPose,
@@ -78,7 +80,7 @@ export class RenderService {
 		this.Post( { operation: RendOpType.ClearScene } );
 	}
 
-	public Sync(): Promise<void> {
+	public Sync(): Task {
 		return this._sync.Begin(
 			( token ) => this.Post( { operation: RendOpType.Sync, token } ),
 		);
@@ -90,7 +92,8 @@ export class RenderService {
 
 	/**
 	 * Answers a frame request: every renderable's pose plus the camera, with
-	 * the buffer transferred (zero copy).
+	 * the buffer transferred (zero copy); an empty one is not (it may be
+	 * shared, see EmptyFrame).
 	 */
 	public PostFrame(
 		frameId: number,
@@ -106,7 +109,10 @@ export class RenderService {
 				entityCount,
 				buffer,
 			},
-			[buffer],
+			buffer.byteLength > 0 ? [buffer] : [],
 		);
 	}
 }
+
+/** The poses of a frame where nothing moved: one buffer, never transferred. */
+export const EmptyFrame = new ArrayBuffer( 0 );

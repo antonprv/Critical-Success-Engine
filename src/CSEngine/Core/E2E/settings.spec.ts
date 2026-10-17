@@ -14,7 +14,7 @@ async function Clock( game: Game ): Promise<number> {
 
 /** The settings screen's row for a setting, and its buttons. */
 const settings = ( page: Page ) => page.locator(
-	".cse-ui-host [data-ui=\"EngineSettings\"]",
+	".cse-ui-host [data-ui=\"EngineSettings\"]:not([inert])",
 );
 const row = ( page: Page, text: RegExp ) => settings( page )
 	.locator( ".win-listview__row", { hasText: text } );

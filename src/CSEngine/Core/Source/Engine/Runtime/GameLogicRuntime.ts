@@ -1,6 +1,16 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { DataStream } from "@cse/datastream";
+import { PlayerLoop, TaskCompletionSource } from "@cse/task";
+import type { Contract, Installer } from "@cse/di";
+import { EngineContainers } from "../DI/EngineContainers";
+import { PerfSamples } from "../Diagnostics/PerfProbe";
+import { FMath } from "@cse/fastmath";
+import {
+	Hook, ImplementsContract, LogLevel, ScriptRuntime, type InputSnapshot,
+	type PhaseInfo, type ScriptBackend, type ScriptHostWorld,
+} from "@cse/scripting";
 import { InputBindings } from "../Input/InputBindings";
 import { DataAssets } from "../Data/DataAsset";
 import { MemoryBackend, SettingsStorage } from "../Storage/SettingsStorage";
@@ -38,8 +48,11 @@ import {
 	PhysicsService,
 	type OverlapEventData,
 } from "../Services/PhysicsService";
-import { RenderService } from "../Services/RenderService";
+import { EmptyFrame, RenderService } from "../Services/RenderService";
 import { UiService } from "../Services/UiService";
+
+/** Boots the .NET runtime of the project's C# scripts (when it has some). */
+export type ScriptsLoader = () => Promise<ScriptBackend>;
 
 export interface GameLogicPorts {
 	render: MessagePort;
@@ -95,6 +108,26 @@ export class GameLogicRuntime {
 
 	private _bootStarted = false;
 
+	private readonly _loadScripts: ScriptsLoader | null;
+
+	// The DI containers (the context's Container is the current one).
+	private _containers!: EngineContainers;
+
+	// The context's Scripts: set once the C# runtime is up.
+	private _scripts: ScriptRuntime | null = null;
+
+	/**
+	 * The scene to start in (the page's `?scene=` - tests and the perf harness
+	 * open a scene directly); null or unknown: the first.
+	 */
+	public StartScene: string | null = null;
+
+	/**
+	 * For the perf harness: "logic" (ms of a frame's work here), "step" (of a
+	 * physics step's), "csharp" (of each call into the C# scripts).
+	 */
+	public readonly Perf = new PerfSamples();
+
 	public constructor(
 		ports: GameLogicPorts,
 		registry: SceneRegistry,
@@ -102,8 +135,11 @@ export class GameLogicRuntime {
 		input: ProjectInput = { Manifests: {}, Default: "" },
 		storage: SettingsStorage = new SettingsStorage( new MemoryBackend() ),
 		data: DataAssets = DataAssets.Loaded( {} ),
+		scripts: ScriptsLoader | null = null,
+		installers: readonly Installer<EngineContext>[] = [],
 	) {
 		this._ports = ports;
+		this._loadScripts = scripts;
 		this._registry = registry;
 		this._channels = channels;
 
@@ -140,12 +176,34 @@ export class GameLogicRuntime {
 			Audio: new AudioService( ports.audio ),
 			Scenes: this._scenes,
 			Time: this._time,
-		} as Omit<EngineContext, "World"> & { World?: EntityWorld; };
+			Stream: new DataStream( {
+				OnError: ( error ) => Logger.LogException(
+					error,
+					"[DataStream] a subscriber failed:",
+				),
+			} ),
+		} as Omit<EngineContext, "World" | "Scripts" | "Container"> & {
+			World?: EntityWorld;
+		};
+		Object.defineProperty( context, "Scripts", {
+			enumerable: true,
+			get: () => this._scripts,
+		} );
+		// The DI containers: the root once the context is whole (below), a
+		// scene's child as each scene loads.
+		Object.defineProperty( context, "Container", {
+			enumerable: true,
+			get: () => this._containers.Current,
+		} );
 
 		this._world = new EntityWorld( context as EngineContext );
 		context.World = this._world;
 		this.Context = context as EngineContext;
 		this._scenes.Attach( this.Context );
+		this._containers = new EngineContainers( this.Context, installers );
+		this._scenes.OnBeginScene = ( manifest ) => this._containers.BeginScene(
+			manifest.installer,
+		);
 
 		this._physics.FixedDelta = this._time.FixedDelta;
 		this._physics.OnStep = ( step, overlaps ) => this.OnPhysicsStep(
@@ -177,9 +235,10 @@ export class GameLogicRuntime {
 		this._ports.ui.onmessage = (
 			e: MessageEvent<UiToGameLogicMessage>,
 		) => this.OnUiMessage( e.data );
-		this._channels.Connect(
-			( channel, payload ) => this._ports.ui.postMessage(
-				{ type: UiMsg.Channel, channel, payload },
+		this._channels.ConnectBatched(
+			( batch ) => this._ports.ui.postMessage(
+				{ type: UiMsg.Channel, batch },
+				[batch.buffer],
 			),
 		);
 	}
@@ -215,7 +274,7 @@ export class GameLogicRuntime {
 	private OnUiMessage( message: UiToGameLogicMessage ): void {
 		switch ( message.type ) {
 			case UiMsg.Channel:
-				this._channels.Deliver( message.channel, message.payload );
+				this._channels.Receive( message.batch );
 				break;
 			case UiMsg.LoadScene:
 				void this._scenes.Load( message.sceneId );
@@ -240,7 +299,9 @@ export class GameLogicRuntime {
 		}
 		this._bootStarted = true;
 
-		const first = this._registry.First;
+		const first = ( this.StartScene
+			? this._registry.Get( this.StartScene )
+			: undefined ) ?? this._registry.First;
 		this._ui.PublishScenes(
 			this._registry.All.map(
 				( s ) => ( {
@@ -257,9 +318,9 @@ export class GameLogicRuntime {
 
 		this._ui.LoadProgress( first.id, "Starting renderer…", 0.1 );
 		if ( !this._renderReady ) {
-			await new Promise<void>(
-				( resolve ) => ( this._renderReadyResolve = resolve ),
-			);
+			const ready = new TaskCompletionSource();
+			this._renderReadyResolve = () => ready.TrySetResult();
+			await ready.Task;
 		}
 
 		this._ui.LoadProgress(
@@ -268,11 +329,10 @@ export class GameLogicRuntime {
 			0.25,
 		);
 		if ( !this._physics.Ready && !this._physics.Failed ) {
-			const ready = new Promise<void>(
-				( resolve ) => ( this._physicsReadyResolve = resolve ),
-			);
+			const ready = new TaskCompletionSource();
+			this._physicsReadyResolve = () => ready.TrySetResult();
 
-			if ( !( await WithTimeout( ready, 30_000 ) ) ) {
+			if ( !( await WithTimeout( ready.Task, 30_000 ) ) ) {
 				// Non-fatal on purpose: the scene still loads (without a
 				// simulation) so rendering/UI can be iterated on.
 				Logger.LogError(
@@ -280,6 +340,15 @@ export class GameLogicRuntime {
 						+ "continuing without it.",
 				);
 			}
+		}
+
+		if ( this._loadScripts ) {
+			this._ui.LoadProgress(
+				first.id,
+				"Starting C# scripts (loading .NET runtime)…",
+				0.4,
+			);
+			await this.StartScripts( this._loadScripts );
 		}
 
 		await this._scenes.Load( first.id );
@@ -292,11 +361,151 @@ export class GameLogicRuntime {
 		}
 	}
 
+	/**
+	 * Boots the project's C# scripts. Non-fatal: without them the C#
+	 * components report themselves and the rest of the game runs.
+	 */
+	private async StartScripts( load: ScriptsLoader ): Promise<void> {
+		try {
+			this._scripts = new ScriptRuntime(
+				await load(),
+				this.Context.Stream,
+				this.ScriptWorld(),
+			);
+			this._scripts.Bridge.Resolver = ( contract, entity ) => this
+				.ImplementationFor( contract, entity );
+			Logger.LogInfo(
+				`[GameLogicRuntime] C# components: ${
+					this._scripts.Names.filter( ( n ) => !n.includes( "." ) )
+						.join( ", " ) || "none"
+				}`,
+			);
+		} catch ( error ) {
+			Logger.LogException(
+				error,
+				"[GameLogicRuntime] the C# scripts failed to load:",
+			);
+			this._ui.Toast(
+				"C# scripts failed to load - their components don't run "
+					+ "(see the log).",
+			);
+		}
+	}
+
+	/**
+	 * What answers C#'s call of a contract: a component of the entity marked
+	 * @Implements( contract ), else the current container's binding.
+	 */
+	private ImplementationFor(
+		contract: Contract<unknown>,
+		entity: number,
+	): object | null {
+		for ( const component of this._world.Get( entity )?.Components ?? [] ) {
+			if ( ImplementsContract( component, contract ) ) {
+				return component;
+			}
+		}
+		return this._containers.Current.TryResolve( contract ) as object | null;
+	}
+
+	/** What the C# components reach of this world. */
+	private ScriptWorld(): ScriptHostWorld {
+		const world = this._world;
+		const ui = this._ui;
+
+		return {
+			ReadTransform: ( id, out, offset ) => {
+				const entity = world.Get( id );
+
+				if ( !entity || entity.IsDestroyed ) {
+					return false;
+				}
+				const { Position: p, Rotation: q } = entity.Transform;
+				out[offset] = p.X;
+				out[offset + 1] = p.Y;
+				out[offset + 2] = p.Z;
+				out[offset + 3] = q.X;
+				out[offset + 4] = q.Y;
+				out[offset + 5] = q.Z;
+				out[offset + 6] = q.W;
+				return true;
+			},
+			WriteTransform: ( id, pose, offset ) => {
+				const transform = world.Get( id )?.Transform;
+
+				if ( !transform ) {
+					return;
+				}
+				transform.Position.X = pose[offset]!;
+				transform.Position.Y = pose[offset + 1]!;
+				transform.Position.Z = pose[offset + 2]!;
+				transform.Rotation.X = pose[offset + 3]!;
+				transform.Rotation.Y = pose[offset + 4]!;
+				transform.Rotation.Z = pose[offset + 5]!;
+				transform.Rotation.W = pose[offset + 6]!;
+			},
+			DestroyEntity: ( id ) => world.Get( id )?.Destroy(),
+			Toast: ( text ) => ui.Toast( text ),
+			SetHud: ( key, text ) => ui.SetHud( key, text ),
+			Log: ( level, text ) => {
+				const message = `[C#] ${ text }`;
+
+				if ( level === LogLevel.Error ) {
+					Logger.LogError( message );
+				}
+				else if ( level === LogLevel.Warning ) {
+					Logger.LogWarning( message );
+				}
+				else {
+					Logger.LogInfo( message );
+				}
+			},
+			ComponentFailed: ( component, message ) => Logger.LogError(
+				`[C#] ${ component }: ${ message }`,
+			),
+		};
+	}
+
+	/** Runs a hook on the C# components, after the TypeScript ones. */
+	private RunScripts( hook: Hook, dt: number ): void {
+		if ( !this._scripts ) {
+			return;
+		}
+		const begin = this.Perf.Begin();
+		// one object for every phase of every frame; the input is taken only
+		// if there are C# components to give it to
+		const phase = this._phase;
+
+		phase.Elapsed = this._time.Elapsed;
+		phase.FrameCount = this._time.FrameCount;
+		phase.PhysicsStepCount = this._time.PhysicsStepCount;
+		phase.Input = hook === Hook.InputUpdate ? this._takeInput : undefined;
+		this._scripts.RunHook( hook, dt, phase );
+		this.Perf.End( "csharp", begin );
+	}
+
+	/** RunScripts' phase, reused. */
+	private readonly _phase: PhaseInfo = {
+		Elapsed: 0, FrameCount: 0, PhysicsStepCount: 0,
+	};
+
+	private readonly _takeInput = (): InputSnapshot => this._input.Snapshot();
+
 	//#endregion
 
 	//#region Physics clock
 
-	private OnPhysicsStep( _step: number, overlaps: OverlapEventData[] ): void {
+	private OnPhysicsStep( step: number, overlaps: OverlapEventData[] ): void {
+		const begin = this.Perf.Begin();
+
+		this.RunPhysicsStep( step, overlaps );
+		this.Perf.End( "step", begin );
+	}
+
+	private RunPhysicsStep(
+		_step: number,
+		overlaps: OverlapEventData[],
+	): void {
 		if ( this._scenes.IsLoading ) {
 			return;
 		}
@@ -313,6 +522,7 @@ export class GameLogicRuntime {
 
 		this._world.FlushLifecycle();
 		this._world.RunPhysicsUpdate( dt );
+		this.RunScripts( Hook.PhysicsUpdate, dt );
 		this._input.EndPhysicsStep();
 
 		this._world.FlushDestroyed();
@@ -339,6 +549,8 @@ export class GameLogicRuntime {
 	//#region Render clock
 
 	private OnFrameRequest( frameId: number ): void {
+		const begin = this.Perf.Begin();
+
 		try {
 			this.RunFrame( frameId );
 		} catch ( error ) {
@@ -350,6 +562,7 @@ export class GameLogicRuntime {
 			Logger.LogException( error, "[GameLogicRuntime] frame failed:" );
 			this._render.PostFrame( frameId, 0, new ArrayBuffer( 0 ), null );
 		}
+		this.Perf.End( "logic", begin );
 	}
 
 	private RunFrame( frameId: number ): void {
@@ -366,21 +579,27 @@ export class GameLogicRuntime {
 
 		const dt = this._lastFrameMs === null
 			? 0
-			: Math.min( 0.1, ( now - this._lastFrameMs ) / 1000 );
+			: FMath.Min( 0.1, ( now - this._lastFrameMs ) / 1000 );
 		this._lastFrameMs = now;
 
 		this._time.Delta = dt;
 		this._time.Elapsed += dt;
 		this._time.FrameCount++;
-		this._time.RenderAlpha = Math.min(
+		// frame waits (Task.NextFrame, Task.Delay in game time) complete here
+		PlayerLoop.Default.Tick( dt );
+		this._time.RenderAlpha = FMath.Min(
 			1,
-			Math.max( 0, ( now - this._physics.LastStepTimeMs ) / stepMs ),
+			FMath.Max( 0, ( now - this._physics.LastStepTimeMs ) / stepMs ),
 		);
 
 		this._world.FlushLifecycle();
 		this._world.RunInputUpdate( this._input, dt );
+		this.RunScripts( Hook.InputUpdate, dt );
 		this._world.RunUpdate( dt );
+		this.RunScripts( Hook.Update, dt );
 		this._world.RunUiUpdate( this._ui, dt );
+		this.RunScripts( Hook.UIUpdate, dt );
+		this.Context.Stream.Flush();
 		this._world.FlushDestroyed();
 
 		this._ui.Flush( now );
@@ -390,26 +609,56 @@ export class GameLogicRuntime {
 		this._input.EndFrame();
 	}
 
+	/**
+	 * The frame for the renderer: the poses that changed since the last one
+	 * (an entity standing still costs nothing here or there) and the camera.
+	 */
 	private PostFrame( frameId: number ): void {
 		const renderables = this._world.Renderables;
-		const buffer = new Float64Array( renderables.size * TRANSFORM_STRIDE );
 		const alpha = this._time.RenderAlpha;
-
+		const pose = this._pose;
 		let count = 0;
-		const pose = new Float64Array( 7 );
 
 		for ( const [id, entity] of renderables ) {
-			entity.Transform.WriteInterpolated( alpha, pose, 0 );
+			const transform = entity.Transform;
+			transform.WriteInterpolated( alpha, pose, 0 );
 
+			const sent = transform.SentPose;
+
+			if ( sent && sent[0] === pose[0] && sent[1] === pose[1]
+				&& sent[2] === pose[2] && sent[3] === pose[3]
+				&& sent[4] === pose[4] && sent[5] === pose[5]
+				&& sent[6] === pose[6] ) {
+				continue;
+			}
+			( transform.SentPose ??= new Float64Array( 7 ) ).set( pose );
+			if ( ( count + 1 ) * TRANSFORM_STRIDE > this._frame.length ) {
+				const grown = new Float64Array(
+					FMath.Max( 64, this._frame.length * 2 ),
+				);
+				grown.set( this._frame );
+				this._frame = grown;
+			}
 			const base = count * TRANSFORM_STRIDE;
-			buffer[base] = id;
-			buffer.set( pose, base + 1 );
+			this._frame[base] = id;
+			this._frame.set( pose, base + 1 );
 			count++;
 		}
 
 		const camera = this._render.MainCamera?.GetPose( alpha ) ?? null;
-		this._render.PostFrame( frameId, count, buffer.buffer, camera );
+		// a copy of just the changed part: the buffer itself is kept for the
+		// next frame (what is posted is transferred away)
+		const buffer = count === 0
+			? EmptyFrame
+			: this._frame.slice( 0, count * TRANSFORM_STRIDE ).buffer;
+		this._render.PostFrame( frameId, count, buffer, camera );
 	}
+
+
+	/** PostFrame's scratch: one pose, and the frame being built. */
+	private readonly _pose = new Float64Array( 7 );
+
+	private _frame = new Float64Array( 64 );
 
 	//#endregion
 }

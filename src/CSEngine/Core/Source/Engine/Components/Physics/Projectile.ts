@@ -33,9 +33,10 @@ function IsHitListener(
 }
 
 /**
- * Fast body (bullets, rockets), port of BepuProjectile3D. Each step it sweeps a
- * sphere along `Velocity * dt` instead of using the solver, so it can't tunnel.
- * Time spent waiting for a sweep result is added to the next sweep.
+ * Fast body (bullets, rockets), port of Godot Projectile3D wrapper. Each step
+ * it sweeps a sphere along `Velocity * dt` instead of using the solver, so it
+ * can't tunnel. Time spent waiting for a sweep result is added to the next
+ * sweep.
  */
 export class Projectile extends PhysicsBody {
 	public Radius = 0.05;

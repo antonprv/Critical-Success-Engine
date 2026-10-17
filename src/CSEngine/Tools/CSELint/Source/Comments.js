@@ -120,8 +120,8 @@ export function WrapText( text, available, hang, tabWidth, lead = "" ) {
 	for ( const word of words ) {
 		if ( current.trim() === "" ) {
 			current += word;
-		} else if ( Width( `${current} ${word}`, tabWidth ) <= available ) {
-			current += ` ${word}`;
+		} else if ( Width( `${ current } ${ word }`, tabWidth ) <= available ) {
+			current += ` ${ word }`;
 		} else {
 			lines.push( current );
 			current = hang + word;
@@ -243,7 +243,7 @@ function BlockCommentFix( state, comment ) {
 		numbers.pop();
 	}
 
-	const prefix = `${indent} * `;
+	const prefix = `${ indent } * `;
 	const available = max - Width( prefix, tabWidth );
 
 	if ( texts.length === 0 || available < 20 ) {
@@ -251,7 +251,7 @@ function BlockCommentFix( state, comment ) {
 	}
 
 	const Mark = ( text ) => text === ""
-		? `${indent} *`
+		? `${ indent } *`
 		: prefix + text;
 	const body = [];
 
@@ -266,7 +266,7 @@ function BlockCommentFix( state, comment ) {
 		body.push( ...wrapped.map( Mark ) );
 	}
 
-	const text = [ opener, ...body, `${indent} */` ].join( eol );
+	const text = [ opener, ...body, `${ indent } */` ].join( eol );
 
 	return text === sourceCode.text.slice( comment.range[0], comment.range[1] )
 		? null
@@ -314,7 +314,7 @@ function LineCommentFix( state, comment, line, commentByLine ) {
 		return null;
 	}
 
-	const prefix = `${indent}// `;
+	const prefix = `${ indent }// `;
 	const available = max - Width( prefix, tabWidth );
 
 	if ( available < 20 ) {
@@ -337,7 +337,7 @@ function LineCommentFix( state, comment, line, commentByLine ) {
 		);
 
 		if ( paragraph.Reflow && paragraph.Lines.some( isLong ) ) {
-			out.push( ...wrapped.map( ( text ) => `// ${text}` ) );
+			out.push( ...wrapped.map( ( text ) => `// ${ text }` ) );
 		} else {
 			out.push( ...wrapped );
 		}

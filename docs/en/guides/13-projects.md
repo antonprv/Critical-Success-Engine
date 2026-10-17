@@ -72,6 +72,12 @@ A corrupted registry is an error, not a silent overwrite.
 (binary files as is), writes the template and the genre into the descriptor and registers the project. The project's name is an identifier
 that doesn't coincide with the engine's modules (`Engine`, `Core`, `UI`...).
 
+A template's C# scripts (its `TemplateProject.csproj` and `Source/**/*.cs`, guide 18) are copied with the name
+replaced as well; their build output (`Binaries`, `obj`) stays behind. The new project also gets a `.gitignore`, the
+engine's code style as its `.editorconfig` (the engine's rules for C# and TypeScript, without the engine's own file
+header) and, when it has C# scripts, `.cse/Engine.props`: where the engine is, so the scripts build against it and the
+editor's C# language server sees the engine (the VSCodium extension keeps it up to date).
+
 | Template | Genre | The game |
 |---|---|---|
 | Blank | Blank | a ball on the floor; the main menu as a UI document |

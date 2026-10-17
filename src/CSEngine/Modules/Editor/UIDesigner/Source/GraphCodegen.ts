@@ -1,19 +1,38 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-import { ActionType, Chain, CheckCondition, ChoiceIndex, GraphNodeKind, WidgetType, type GraphNode, type GraphParam, type LayoutNode, type UiLayout } from "@cse/ui";
+import { ActionType, Chain, CheckCondition, ChoiceIndex, Coerce, Compare, GraphNodeKind, VariableEvent, WidgetType, type GraphNode, type GraphParam, type UiGraph, type UiLayout, type LayoutNode } from "@cse/ui";
 
 /** Turns a layout's node graph into a UiScript class doing exactly what the graph does (editor tooling). */
 
 
-const Str = (value: GraphParam | undefined): string => JSON.stringify(value);
+const Str = (value: GraphParam | number | undefined): string => JSON.stringify(value);
+/** A text param: as it is, or formatted when it shows variables ({Name}). */
+const Text = (value: GraphParam | undefined): string => (typeof value === "string" && value.includes("{") ? `this.Format(${Str(value)})` : Str(value));
+const KindOf = (graph: UiGraph, name: GraphParam | undefined) => graph.Variables?.find((variable) => variable.Name === name)?.Kind;
 
-function Statement(node: GraphNode): string {
+/** A value for a variable: read as its kind here, unless it shows variables (then the script reads it when it runs). */
+function Value(graph: UiGraph, name: GraphParam | undefined, text: GraphParam | undefined): string {
+	const value = String(text ?? "");
+	return value.includes("{") ? Str(value) : Str(Coerce(KindOf(graph, name), value));
+}
+
+/** An amount to add: a number here, unless it shows variables. */
+function Amount(text: GraphParam | undefined): string {
+	const value = String(text ?? "");
+	if (value.includes("{")) return Str(value);
+	const number = Number(value);
+	return String(Number.isFinite(number) ? number : 0);
+}
+
+function Statement(graph: UiGraph, node: GraphNode): string {
 	const p = node.Params;
 	switch (node.Type as ActionType) {
 		case ActionType.EnabledFollowsCheck: return `this.EnabledFollowsCheck(${Str(p["Widget"])}, ${Str(p["Check"])}, ${p["Invert"] === true});`;
-		case ActionType.SetText: return `this.SetText(${Str(p["Widget"])}, ${Str(p["Text"])});`;
-		case ActionType.MessageBox: return `void this.MessageBox(${Str(p["Text"])}, ${Str(p["Title"])});`;
+		case ActionType.SetText: return `this.SetText(${Str(p["Widget"])}, ${Text(p["Text"])});`;
+		case ActionType.MessageBox: return `void this.MessageBox(${Text(p["Text"])}, ${Text(p["Title"])});`;
+		case ActionType.SetVariable: return `this.SetVariable(${Str(p["Variable"])}, ${Value(graph, p["Variable"], p["Value"])});`;
+		case ActionType.AddToVariable: return `this.AddToVariable(${Str(p["Variable"])}, ${Amount(p["Amount"])});`;
 		case ActionType.CloseForm: return `this.Close(DialogResult.${p["Result"] as string});`;
 		default: return `this.${ActionMethods[node.Type as ActionType]}(${Str(p["Widget"])});`;
 	}
@@ -33,6 +52,18 @@ function FindNode(node: LayoutNode, name: string): LayoutNode | undefined {
 	return undefined;
 }
 
+/** A variable event: OnVariable, with the event's test (none for any change). */
+function VariableHandler(graph: UiGraph, node: GraphNode, body: string[]): string {
+	const name = node.Params["Variable"];
+	const compare = (node.Params["Compare"] as Compare | undefined) ?? Compare.Any;
+	const text = String(node.Params["Value"] ?? "");
+	const other = text.includes("{") ? `this.Read(${Str(name)}, ${Str(text)})` : Str(Coerce(KindOf(graph, name), text));
+	const lines = compare === Compare.Any
+		? body.map((l) => `\t\t\t${l}`)
+		: [`\t\t\tif (this.Test(value, ${Str(compare)}, ${other})) {`, ...body.map((l) => `\t\t\t\t${l}`), "\t\t\t}"];
+	return [`\t\tthis.OnVariable(${Str(name)}, (${compare === Compare.Any ? "" : "value"}) => {`, ...lines, "\t\t});"].join("\n");
+}
+
 /** "Main screen" -> "MainScreenNodes". */
 export function GraphClassName(layout: UiLayout): string {
 	const words = layout.Name.split(/[^A-Za-z0-9]+/).filter((w) => w !== "");
@@ -43,9 +74,15 @@ export function GraphClassName(layout: UiLayout): string {
 /** The layout's node graph as a TypeScript UiScript class doing exactly what the graph does. */
 export function GenerateGraphScript(layout: UiLayout): string {
 	const graph = layout.Graph ?? { Nodes: [], Links: [] };
-	const handlers: string[] = [];
+	// The variables first: the handlers below may read them at once.
+	const handlers: string[] = (graph.Variables ?? []).map((variable) =>
+		`\t\tthis.DeclareVariable(${[variable.Name, variable.Kind, variable.Default, ...(variable.Widget ? [variable.Widget] : [])].map(Str).join(", ")});`);
 	for (const node of graph.Nodes.filter((n) => n.Kind === GraphNodeKind.Event)) {
-		const body = Chain(graph, node.Id).map((action) => Statement(action));
+		const body = Chain(graph, node.Id).map((action) => Statement(graph, action));
+		if (node.Type === VariableEvent) {
+			handlers.push(VariableHandler(graph, node, body));
+			continue;
+		}
 		const when = node.Params["When"];
 		const widget = FindNode(layout.Root, node.Params["Widget"] as string);
 		const option = node.Type === "change" ? ChoiceIndex(when) : null;

@@ -38,7 +38,7 @@ import { PhysicsWorld } from "../Source/Workers/Physics/PhysicsWorld";
 import { UiController } from "../Source/Workers/Ui/UiController";
 import { MakeEngine } from "./engine";
 import { Harness } from "./Harness";
-import { SilenceConsole } from "./helpers";
+import { BridgeView, SilenceConsole } from "./helpers";
 
 describe( "a camera looking straight up or down", () => {
 	function Rig() {
@@ -125,6 +125,37 @@ describe( "GameLogicRuntime boot order", () => {
 	);
 } );
 
+describe( "GameLogicRuntime start scene", () => {
+	async function BootWith( start: string | null ): Promise<string | null> {
+		const harness = new Harness(
+			new SceneRegistry()
+				.Register(
+					{ id: "a", name: "a", description: "", entities: [] },
+				)
+				.Register(
+					{ id: "b", name: "b", description: "", entities: [] },
+				),
+		);
+		harness.runtime.StartScene = start;
+		harness.render.Receive( { type: RenderMsg.Ready } );
+		harness.physics.Receive( { state: PhysState.Ready } );
+		const boot = harness.runtime.Boot();
+		await harness.Pump();
+		await boot;
+		return harness.runtime.Context.Scenes.CurrentSceneId;
+	}
+
+	it(
+		"starts in the scene asked for (the page's ?scene=), else the first; "
+			+ "an unknown one is the first too",
+		async () => {
+			expect( await BootWith( "b" ) ).toBe( "b" );
+			expect( await BootWith( null ) ).toBe( "a" );
+			expect( await BootWith( "nope" ) ).toBe( "a" );
+		},
+	);
+} );
+
 describe( "AssetLoader", () => {
 	it(
 		"a failed texture logs the exception when there is one, and a failed "
@@ -195,11 +226,13 @@ describe( "PhysicsWorld edge commands", () => {
 				get: ( target, name: string ) => ( target[name] ??= vi.fn(
 					( ...args: unknown[] ) => ( name.startsWith( "Add" )
 						? 1
-						: name === "Step" || name === "GetLastOverlapEvents"
-							? []
-							: args.length
-								? undefined
-								: 0 ),
+						: name === "Step"
+							? BridgeView( new Float64Array( 0 ) )
+							: name === "GetLastOverlapEvents"
+								? BridgeView( new Int32Array( 0 ) )
+								: args.length
+									? undefined
+									: 0 ),
 				) ),
 			},
 		);

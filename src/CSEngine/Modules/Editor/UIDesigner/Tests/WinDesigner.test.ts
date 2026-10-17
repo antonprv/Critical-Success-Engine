@@ -3,11 +3,11 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { mount, type VueWrapper } from "@vue/test-utils";
-import { nextTick } from "vue";
+import { nextTick, reactive } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ButtonController } from "@cse/ui";
 import { DesignerMode, type DesignerController } from "../Source/DesignerController";
-import { CreateNode, NewLayout, SerializeLayout, WidgetType } from "@cse/ui";
+import { CreateNode, DefaultTailwindTheme, NewLayout, RememberedTheme, SerializeLayout, WidgetType, WinKit, WinTheme, type ToolTheme } from "@cse/ui";
 import { UiScript, UiScriptRegistry } from "@cse/ui";
 import WinDesigner from "../Source/WinDesigner.vue";
 
@@ -411,6 +411,38 @@ describe("WinDesigner: menus, files, keys", () => {
 		await wrapper.get(".win-designer__theme [role=combobox]").trigger("click");
 		await wrapper.findAll(".win-designer__theme [role=option]")[0]!.trigger("click");
 		expect(wrapper.get(".win-root").classes()).toContain("win-theme--win98");
+	});
+
+	it("starts in the theme it was left in: each change is remembered", async () => {
+		const first = Mount();
+		await first.wrapper.get(".win-designer__theme [role=combobox]").trigger("click");
+		await first.wrapper.findAll(".win-designer__theme [role=option]")[0]!.trigger("click");
+		await first.wrapper.get(".win-designer__kit [role=combobox]").trigger("click");
+		await first.wrapper.findAll(".win-designer__kit [role=option]")[1]!.trigger("click");
+		await first.wrapper.get(".win-designer__tailwind .win-switch").trigger("click");
+		first.wrapper.unmount();
+		const again = Mount();
+		await nextTick();
+		expect(again.wrapper.get(".win-root").classes()).toContain("win-kit--tailwind");
+		expect(RememberedTheme("UIDesigner")).toMatchObject({ Kit: WinKit.Tailwind, Theme: WinTheme.Win98, Tailwind: { Dark: true } });
+		again.wrapper.unmount();
+	});
+
+	it("on a project: wears the project's theme (not remembering it), and makes its own the project's on request", async () => {
+		const tailwind: ToolTheme = { Kit: WinKit.Tailwind, Theme: WinTheme.XpBlue, Tailwind: { ...DefaultTailwindTheme, Accent: "rose", Dark: true } };
+		const setTheme = vi.fn(async (_theme: ToolTheme) => undefined);
+		const project = reactive({ State: { Name: "Moonrise", File: "/m", Documents: [], Current: null, Theme: tailwind as ToolTheme | null }, SetTheme: async (theme: ToolTheme) => { await setTheme(theme); return "Moonrise now uses this theme in the game"; } });
+		const { wrapper } = Mount({ project });
+		await nextTick();
+		expect(wrapper.get(".win-root").classes()).toContain("win-kit--tailwind");
+		expect(RememberedTheme("UIDesigner")).toBeNull(); // the project's look isn't the designer's own
+		await wrapper.get(".win-designer__use-theme").trigger("click");
+		await nextTick();
+		expect(setTheme).toHaveBeenCalledWith(tailwind);
+		expect(wrapper.get(".win-statusbar").text()).toContain("Moonrise now uses this theme in the game");
+		project.State.Theme = null; // a project without one: the designer stays as it is
+		await nextTick();
+		expect(wrapper.get(".win-root").classes()).toContain("win-kit--tailwind");
 	});
 });
 

@@ -3,6 +3,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { PhysicsWorld } from "../Source/Workers/Physics/PhysicsWorld";
+import { BridgeView } from "./helpers";
 import type {
 	PhysicsBridgeExports,
 } from "../Source/Workers/Physics/PhysicsBridgeContract";
@@ -48,7 +49,8 @@ function MakeBridge(): FakeBridge {
 		MoveCharacter: vi.fn( () => [0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0] ),
 		SweepProjectile: vi.fn( () => [1, 1, 2, 3, 4, 5, 6, 0, 1, 0, 7] ),
 		SweepSphereCast: vi.fn( () => [1, 1, 2, 3, 4, 5, 6, 0, 1, 0, 9, 8] ),
-		Step: vi.fn( () => [] ), GetLastOverlapEvents: vi.fn( () => [] ),
+		Step: vi.fn( () => BridgeView( new Float64Array( 0 ) ) ),
+		GetLastOverlapEvents: vi.fn( () => BridgeView( new Int32Array( 0 ) ) ),
 	} as FakeBridge;
 }
 
@@ -241,7 +243,8 @@ describe(
 			it(
 				"every pose write (teleport, kinematic pose, character move) "
 					+ "wakes "
-				+ "the body first: BEPU only updates the broad-phase bounds of "
+				+ "the body first: CSPhysics only updates the broad-phase "
+				+ "bounds of "
 				+ "awake bodies, so a sleeping character would walk through "
 				+ "coins without overlapping them",
 				() => {
@@ -617,7 +620,11 @@ describe(
 				expect( bridge.SetLinearVelocity ).not.toHaveBeenCalled();
 				// the old body id, no longer known
 				bridge.Step!.mockReturnValueOnce(
-					[2, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+					BridgeView(
+						Float64Array.from(
+							[2, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+						),
+					),
 				);
 				expect( world.Step( 1 / 60 ).bodyCount ).toBe( 0 );
 			},
@@ -632,7 +639,7 @@ describe(
 					expect( world.Step( 1 / 60 ).overlaps ).toBeNull();
 
 					bridge.GetLastOverlapEvents!.mockReturnValueOnce(
-						[3, 4, 1, 3, 5, 0],
+						BridgeView( Int32Array.from( [3, 4, 1, 3, 5, 0] ) ),
 					);
 					const overlaps = world.Step( 1 / 60 ).overlaps!;
 					expect( overlaps ).toBeInstanceOf( Int32Array );
@@ -778,12 +785,12 @@ describe(
 					spawn( 1, PhysBodyType.Dynamic );
 					// two body ids nobody registered
 					bridge.Step!.mockReturnValueOnce(
-						[
+						BridgeView( Float64Array.from( [
 							98,
-							...new Array( 13 ).fill( 0 ),
+							...new Array<number>( 13 ).fill( 0 ),
 							99,
-							...new Array( 13 ).fill( 0 ),
-						],
+							...new Array<number>( 13 ).fill( 0 ),
+						] ) ),
 					);
 					const step = world.Step( 1 / 60 );
 					expect( step.bodyCount ).toBe( 0 );

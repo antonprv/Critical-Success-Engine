@@ -3,6 +3,7 @@
 
 // Two example skins showing how far a skin can take the toolkit. Every sprite is drawn here as SVG.
 
+import { FMath } from "@cse/fastmath";
 import { SkinPart, SkinState, type Box4, type PartStyle, type Skin, type SkinSprite } from "./Skin";
 
 const Svg = (size: number, body: string): string =>
@@ -21,8 +22,8 @@ interface PanelLook {
 
 /** A 48 px rounded panel with a vertical gradient and a border: cut at 16 px it stretches to any size. */
 function Panel(look: PanelLook): string {
-	const id = `g${Math.abs([...look.Top + look.Bottom + look.Stroke].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7))}`;
-	const inner = look.Inner ? `<rect x="5" y="5" width="38" height="38" rx="${Math.max(0, look.Radius - 4)}" fill="none" stroke="${look.Inner}" stroke-width="1"/>` : "";
+	const id = `g${FMath.Abs([...look.Top + look.Bottom + look.Stroke].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7))}`;
+	const inner = look.Inner ? `<rect x="5" y="5" width="38" height="38" rx="${FMath.Max(0, look.Radius - 4)}" fill="none" stroke="${look.Inner}" stroke-width="1"/>` : "";
 	const corners = look.Corners ? [[4, 4], [44, 4], [4, 44], [44, 44]].map(([x, y]) => `<path d="M${x} ${y! - 3}L${x! + 3} ${y}L${x} ${y! + 3}L${x! - 3} ${y}Z" fill="${look.Corners}"/>`).join("") : "";
 	return Svg(48, `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${look.Top}"/><stop offset="1" stop-color="${look.Bottom}"/></linearGradient></defs>`
 		+ `<rect x="1" y="1" width="46" height="46" rx="${look.Radius}" fill="url(#${id})" stroke="${look.Stroke}" stroke-width="2"/>${inner}${corners}`);

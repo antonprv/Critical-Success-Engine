@@ -68,11 +68,12 @@ describe(
 		);
 
 		it(
-			"once documents draw the screens, the page's own menu and loading "
-			+ "screen step aside (the HUD stays)",
+			"once documents draw the screens, the page's own menu, loading "
+			+ "screen and HUD step aside",
 			async () => {
 				const store = new UiStore();
 				store.State.menu.visible = true;
+				store.State.hud.lines = ["Hint"];
 				const element = document.createElement( "div" );
 				document.body.appendChild( element );
 				CreateUi( store, element );
@@ -90,6 +91,10 @@ describe(
 				await new Promise( ( resolve ) => setTimeout( resolve, 400 ) );
 				expect( has( ".loading-overlay" ) ).toBe( false );
 				expect( has( ".menu-card" ) ).toBe( false );
+				store.State.menu.visible = false;
+				store.State.loading.visible = false;
+				await nextTick();
+				expect( has( ".hud" ) ).toBe( false );
 			},
 		);
 

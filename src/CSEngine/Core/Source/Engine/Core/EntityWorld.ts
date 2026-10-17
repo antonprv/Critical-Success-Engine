@@ -108,6 +108,20 @@ export class EntityWorld {
 	}
 
 	public NotifyComponentAdded( component: Component ): void {
+		// its @Inject fields, before anything of it runs
+		const container = this._engine.Container;
+
+		if ( container ) {
+			try {
+				container.Inject( component );
+			} catch ( error ) {
+				Logger.LogException(
+					error,
+					`[DI] ${ component.constructor.name } on `
+						+ `"${ component.Entity.Name }":`,
+				);
+			}
+		}
 		this._awakeQueue.push( component );
 		this._startQueue.push( component );
 	}

@@ -1,0 +1,223 @@
+{
+	"about": "MessagePack test vectors shared by the TypeScript and C# codecs: both encode `value` to exactly `hex` and decode `hex` back to `value`. {\"$bin\": hex} is binary data, {\"$f64\": n} a float64 even when n is whole.",
+	"vectors": [
+		{
+			"name": "nil",
+			"value": null,
+			"hex": "c0"
+		},
+		{
+			"name": "false",
+			"value": false,
+			"hex": "c2"
+		},
+		{
+			"name": "true",
+			"value": true,
+			"hex": "c3"
+		},
+		{
+			"name": "positive fixint 0",
+			"value": 0,
+			"hex": "00"
+		},
+		{
+			"name": "positive fixint 127",
+			"value": 127,
+			"hex": "7f"
+		},
+		{
+			"name": "negative fixint -1",
+			"value": -1,
+			"hex": "ff"
+		},
+		{
+			"name": "negative fixint -32",
+			"value": -32,
+			"hex": "e0"
+		},
+		{
+			"name": "uint8",
+			"value": 200,
+			"hex": "ccc8"
+		},
+		{
+			"name": "uint16",
+			"value": 60000,
+			"hex": "cdea60"
+		},
+		{
+			"name": "uint32",
+			"value": 4000000000,
+			"hex": "ceee6b2800"
+		},
+		{
+			"name": "uint64 (safe integer)",
+			"value": 9007199254740991,
+			"hex": "cf001fffffffffffff"
+		},
+		{
+			"name": "int8",
+			"value": -100,
+			"hex": "d09c"
+		},
+		{
+			"name": "int16",
+			"value": -30000,
+			"hex": "d18ad0"
+		},
+		{
+			"name": "int32",
+			"value": -2000000000,
+			"hex": "d288ca6c00"
+		},
+		{
+			"name": "int64 (safe integer)",
+			"value": -9007199254740991,
+			"hex": "d3ffe0000000000001"
+		},
+		{
+			"name": "float64",
+			"value": 1.5,
+			"hex": "cb3ff8000000000000"
+		},
+		{
+			"name": "float64 negative",
+			"value": -0.1,
+			"hex": "cbbfb999999999999a"
+		},
+		{
+			"name": "float64 whole",
+			"value": {
+				"$f64": 2
+			},
+			"hex": "cb4000000000000000"
+		},
+		{
+			"name": "empty string",
+			"value": "",
+			"hex": "a0"
+		},
+		{
+			"name": "fixstr",
+			"value": "Damage",
+			"hex": "a644616d616765"
+		},
+		{
+			"name": "fixstr UTF-8",
+			"value": "Урон",
+			"hex": "a8d0a3d180d0bed0bd"
+		},
+		{
+			"name": "str8",
+			"value": "0123456789012345678901234567890123456789",
+			"hex": "d92830313233343536373839303132333435363738393031323334353637383930313233343536373839"
+		},
+		{
+			"name": "bin8",
+			"value": {
+				"$bin": "01ff7f"
+			},
+			"hex": "c40301ff7f"
+		},
+		{
+			"name": "empty array",
+			"value": [],
+			"hex": "90"
+		},
+		{
+			"name": "fixarray",
+			"value": [
+				1,
+				"a",
+				true
+			],
+			"hex": "9301a161c3"
+		},
+		{
+			"name": "empty map",
+			"value": {},
+			"hex": "80"
+		},
+		{
+			"name": "fixmap",
+			"value": {
+				"Amount": 5,
+				"Source": "Trap"
+			},
+			"hex": "82a6416d6f756e7405a6536f75726365a454726170"
+		},
+		{
+			"name": "nested",
+			"value": {
+				"Hits": [
+					{
+						"Id": 7,
+						"At": [
+							0.5,
+							1,
+							0
+						]
+					}
+				]
+			},
+			"hex": "81a4486974739182a2496407a2417493cb3fe00000000000000100"
+		},
+		{
+			"name": "str16",
+			"value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+			"hex": "da012c787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878"
+		},
+		{
+			"name": "array16",
+			"value": [
+				0,
+				1,
+				2,
+				3,
+				4,
+				5,
+				6,
+				7,
+				8,
+				9,
+				10,
+				11,
+				12,
+				13,
+				14,
+				15
+			],
+			"hex": "dc0010000102030405060708090a0b0c0d0e0f"
+		},
+		{
+			"name": "map16",
+			"value": {
+				"k00": 0,
+				"k01": 1,
+				"k02": 2,
+				"k03": 3,
+				"k04": 4,
+				"k05": 5,
+				"k06": 6,
+				"k07": 7,
+				"k08": 8,
+				"k09": 9,
+				"k10": 10,
+				"k11": 11,
+				"k12": 12,
+				"k13": 13,
+				"k14": 14,
+				"k15": 15
+			},
+			"hex": "de0010a36b303000a36b303101a36b303202a36b303303a36b303404a36b303505a36b303606a36b303707a36b303808a36b303909a36b31300aa36b31310ba36b31320ca36b31330da36b31340ea36b31350f"
+		},
+		{
+			"name": "bin16",
+			"value": {
+				"$bin": "abababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababab"
+			},
+			"hex": "c5012cabababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababab"
+		}
+	]
+}

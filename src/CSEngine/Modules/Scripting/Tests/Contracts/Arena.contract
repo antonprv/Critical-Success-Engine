@@ -1,0 +1,29 @@
+/* The test contract of the bridge: every kind of type, both directions. */
+namespace Sample;
+
+/// A hit.
+/// Two lines of documentation.
+struct Hit {
+    Damage: float;
+    Where: Place;
+    Tags: string[];
+    Scores: int?[];
+    By: Team?;
+    Data: bytes;
+    Next: Hit?;
+}
+
+/// The arena: implemented in C# or in TypeScript, called from the other.
+contract IArena {
+    /// Adds points; returns nothing.
+    Add( points: int );
+    Total(): int;
+    Echo( hit: Hit ): Hit;
+    Find( name: string?, team: Team ): Place?;
+    Count( values: double[][], flag: bool ): int[];
+    Fail( message: string ): void;
+}
+
+/// Nothing at all.
+contract IEmpty {
+}

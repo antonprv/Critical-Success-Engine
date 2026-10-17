@@ -21,6 +21,9 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@cse/di": "workspace:*",
+    "@cse/fastmath": "workspace:*",
+    "@cse/task": "workspace:*",
     "@cse/core": "workspace:*",
     "vue": "^3.5.43"
   },

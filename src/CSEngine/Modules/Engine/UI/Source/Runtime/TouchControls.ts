@@ -1,10 +1,12 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import { shallowReactive, watch, type WatchStopHandle } from "vue";
 import { ButtonController } from "../Controls/ButtonController";
 import { GameButtonController } from "../Controls/GameButtonController";
 import { JoystickController } from "../Controls/JoystickController";
+import type { UiLayout } from "../Documents/Layout";
 import type { UiChannels } from "./GameUi";
 
 /** What the page offers the touch scheme (Core's PageUi). */
@@ -19,15 +21,15 @@ type Snapshot = { op: string; activeMap: string | null; touchLayout?: Layout; ma
 /** Where each control's middle is, as shares of the screen, by its key ("MoveStick", "LookStick", "Button:Jump", "Pause"). */
 type Layout = Record<string, { X: number; Y: number; }>;
 
-const Round = (value: number): number => Math.round(value * 1000) / 1000;
-const Clamp = (value: number): number => Round(Math.min(1, Math.max(0, value)));
+const Round = (value: number): number => FMath.Round(value * 1000) / 1000;
+const Clamp = (value: number): number => Round(FMath.Min(1, FMath.Max(0, value)));
 
 /** How far a stick pushes an action, by the direction its name ends with (MoveForward, LookLeft, SteerRight...). */
 function Push(name: string, x: number, y: number): number {
-	if (/(Forward|Up)$/.test(name)) return Math.max(0, -y);
-	if (/(Back|Down)$/.test(name)) return Math.max(0, y);
-	if (name.endsWith("Left")) return Math.max(0, -x);
-	return name.endsWith("Right") ? Math.max(0, x) : 0;
+	if (/(Forward|Up)$/.test(name)) return FMath.Max(0, -y);
+	if (/(Back|Down)$/.test(name)) return FMath.Max(0, y);
+	if (name.endsWith("Left")) return FMath.Max(0, -x);
+	return name.endsWith("Right") ? FMath.Max(0, x) : 0;
 }
 
 /**
@@ -51,6 +53,12 @@ export class TouchControls {
 		Saved: {} as Layout,
 		Draft: null as Layout | null,
 	});
+	/**
+	 * The UI document the controls' places come from (EngineTouch: MoveStick, LookStick, Pause, Button1..8): a
+	 * project edits it in the UI Designer; arranging (Done) writes the new places into it.
+	 */
+	public Document: UiLayout | null = null;
+	private _documentPlaces: Layout = {};
 	public readonly PauseButton = new GameButtonController({ Label: "II" });
 	public readonly DoneButton = new ButtonController({ Label: "Done", IsDefault: true });
 	public readonly ResetButton = new ButtonController({ Label: "Reset" });
@@ -110,18 +118,48 @@ export class TouchControls {
 		this._channels.Post("input", { op: "touch-layout", layout });
 		this.State.Saved = layout;
 		this.State.Draft = null;
+		this.WriteDocument();
 		this.State.Arranging = false;
 		this.State.Dragging = null;
 		this._back?.();
 	}
 
-	/** The default places: the sticks in the bottom corners, the buttons in rows above the right one, pause at the top. */
+	/** Takes the controls' places from a UI document (the middle of each widget, as shares of its canvas). */
+	public UseDocument(layout: UiLayout): void {
+		this.Document = layout;
+		const { Width, Height } = layout.Root;
+		this._documentPlaces = Object.fromEntries((layout.Root.Children ?? []).map((node) => [node.Name, { X: Round((node.X + node.Width / 2) / Width), Y: Round((node.Y + node.Height / 2) / Height) }]));
+	}
+
+	/** The document's widget for a control: the sticks and Pause by name, the n-th action's button in slot Button<n>. */
+	private Slot(key: string): string {
+		if (!key.startsWith("Button:")) return key;
+		return `Button${this.State.Buttons.findIndex((button) => `Button:${button.Action}` === key) + 1}`;
+	}
+
+	/** Writes each control's place into its widget of the document (arranging changes the document). */
+	private WriteDocument(): void {
+		const layout = this.Document;
+		if (!layout) return;
+		const keys = ["MoveStick", "LookStick", "Pause", ...this.State.Buttons.map((button) => `Button:${button.Action}`)];
+		for (const key of keys) {
+			const node = layout.Root.Children?.find((child) => child.Name === this.Slot(key));
+			if (!node) continue;
+			const place = this.Position(key);
+			node.X = FMath.Round(place.X * layout.Root.Width - node.Width / 2);
+			node.Y = FMath.Round(place.Y * layout.Root.Height - node.Height / 2);
+		}
+	}
+
+	/** The default places: the document's, else the sticks in the bottom corners, the buttons in rows above the right one, pause at the top. */
 	private DefaultPosition(key: string): { X: number; Y: number; } {
+		const placed = this._documentPlaces[this.Slot(key)];
+		if (placed) return placed;
 		const defaults: Layout = { MoveStick: { X: 0.14, Y: 0.78 }, LookStick: { X: 0.86, Y: 0.78 }, Pause: { X: 0.95, Y: 0.08 } };
 		if (defaults[key]) return defaults[key];
 		const index = this.State.Buttons.findIndex((button) => `Button:${button.Action}` === key);
 		if (index < 0) return { X: 0.5, Y: 0.5 };
-		return { X: Round(0.92 - (index % 4) * 0.1), Y: Round(0.5 - Math.floor(index / 4) * 0.15) };
+		return { X: Round(0.92 - (index % 4) * 0.1), Y: Round(0.5 - FMath.Floor(index / 4) * 0.15) };
 	}
 
 	public Pause(): void {

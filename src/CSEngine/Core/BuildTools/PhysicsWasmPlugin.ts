@@ -13,13 +13,25 @@ import type { Plugin, ResolvedConfig } from "vite";
 export const PhysicsWasmUrlPrefix = "/physics-wasm/_framework/";
 
 /**
- * Where `dotnet publish` of Physics/Bridge leaves the runtime
- * (devops/build-physics.sh, Physics/Bridge/BUILD.md), relative to the web
- * project. This is the location the old webpack build copied from; it has not
- * changed.
+ * Where `dotnet publish` of Modules/Physics/Bridge leaves the runtime
+ * (devops/build-physics.sh, Modules/Physics/Bridge/BUILD.md), relative to the
+ * web project. This is the location the old webpack build copied from; it has
+ * not changed.
  */
 export const PhysicsWasmDefaultDirectory =
 	"../Binaries/Physics/Release/net10.0/browser-wasm/AppBundle/_framework";
+
+/**
+ * The build for browsers without WebAssembly SIMD (`-p:CseNoSimd=true`): the
+ * main build is SIMD-only (its dotnet.js refuses to start without it), so a
+ * host that lacks SIMD gets this one, whose wide math runs on FastMath.
+ */
+export const PhysicsWasmNoSimdUrlPrefix = "/physics-wasm-nosimd/_framework/";
+
+/** Where `dotnet publish -p:CseNoSimd=true` leaves the fallback runtime. */
+export const PhysicsWasmNoSimdDefaultDirectory =
+	"../Binaries/PhysicsNoSimd/Release/net10.0/browser-wasm/AppBundle"
+	+ "/_framework";
 
 const ContentTypesByExtension: Record<string, string> = {
 	".wasm": "application/wasm",
@@ -45,25 +57,44 @@ export function ResolvePhysicsWasmDirectory(
 		: resolve( projectRoot, PhysicsWasmDefaultDirectory );
 }
 
+/**
+ * The fallback (no SIMD) runtime's folder; `PHYSICS_WASM_NOSIMD_DIR` overrides
+ * it the way `PHYSICS_WASM_DIR` does the main one.
+ */
+export function ResolvePhysicsWasmNoSimdDirectory(
+	projectRoot: string,
+	environment: NodeJS.ProcessEnv = process.env,
+): string {
+	const override = environment["PHYSICS_WASM_NOSIMD_DIR"];
+
+	return resolve(
+		projectRoot,
+		override || PhysicsWasmNoSimdDefaultDirectory,
+	);
+}
+
 type Next = ( error?: unknown ) => void;
 
 /**
  * Connect middleware that serves `directory` under {@link PhysicsWasmUrlPrefix}
  * (files only, never outside the directory).
  */
-export function CreatePhysicsWasmMiddleware( directory: string ) {
+export function CreatePhysicsWasmMiddleware(
+	directory: string,
+	prefix: string = PhysicsWasmUrlPrefix,
+) {
 	return (
 		request: Pick<IncomingMessage, "url">,
 		response: Pick<ServerResponse, "setHeader"> & NodeJS.WritableStream,
 		next: Next,
 	): void => {
-		if ( !request.url?.startsWith( PhysicsWasmUrlPrefix ) ) {
+		if ( !request.url?.startsWith( prefix ) ) {
 			next();
 			return;
 		}
 
 		const requested = decodeURIComponent(
-			request.url.slice( PhysicsWasmUrlPrefix.length )
+			request.url.slice( prefix.length )
 				.replace( /\?.*$/s, "" ),
 		);
 		const filePath = join( directory, requested );
@@ -90,11 +121,12 @@ export function CreatePhysicsWasmMiddleware( directory: string ) {
 
 /**
  * Copies the physics runtime into the built site:
- * `<outDir>/physics-wasm/_framework`, exactly where the dev server serves it.
+ * `<outDir>/<folder>/_framework`, exactly where the dev server serves it.
  */
 export function CopyPhysicsWasm(
 	directory: string,
 	outputDirectory: string,
+	folder = "physics-wasm",
 ): boolean {
 	if ( !existsSync( directory ) ) {
 		return false;
@@ -102,20 +134,25 @@ export function CopyPhysicsWasm(
 
 	cpSync(
 		directory,
-		resolve( outputDirectory, "physics-wasm/_framework" ),
+		resolve( outputDirectory, folder, "_framework" ),
 		{ recursive: true },
 	);
 	return true;
 }
 
 /**
- * Makes the physics runtime available at /physics-wasm/_framework/ - served
- * straight from the .NET publish folder by `vite dev`, copied into the output
- * by `vite build` (and therefore served by `vite preview`). A missing folder is
- * not an error: the game then runs without physics (GameLogic reports it on
- * screen), so UI/render work doesn't need a .NET build.
+ * Makes the physics runtime available at /physics-wasm/_framework/ (and the
+ * fallback for browsers without WebAssembly SIMD at
+ * /physics-wasm-nosimd/_framework/) - served straight from the .NET publish
+ * folders by `vite dev`, copied into the output by `vite build` (and therefore
+ * served by `vite preview`). A missing folder is not an error: the game then
+ * runs without physics (GameLogic reports it on screen), so UI/render work
+ * doesn't need a .NET build; without the fallback only SIMD-less browsers do.
  */
-export function PhysicsWasmPlugin( directory: string ): Plugin {
+export function PhysicsWasmPlugin(
+	directory: string,
+	noSimdDirectory?: string,
+): Plugin {
 	let config: ResolvedConfig;
 
 	return {
@@ -127,6 +164,13 @@ export function PhysicsWasmPlugin( directory: string ): Plugin {
 
 		configureServer( server ) {
 			server.middlewares.use( CreatePhysicsWasmMiddleware( directory ) );
+
+			if ( noSimdDirectory ) {
+				server.middlewares.use( CreatePhysicsWasmMiddleware(
+					noSimdDirectory,
+					PhysicsWasmNoSimdUrlPrefix,
+				) );
+			}
 		},
 
 		writeBundle() {
@@ -134,20 +178,34 @@ export function PhysicsWasmPlugin( directory: string ): Plugin {
 
 			if ( CopyPhysicsWasm( directory, outputDirectory ) ) {
 				config.logger.info(
-					"physics-wasm: "
-						+ `copied ${ directory } `
-						+ `-> ${
-							resolve(
-								outputDirectory,
-								"physics-wasm/_framework",
-							)
-						}`,
+					`physics-wasm: copied ${ directory } -> ${
+						resolve( outputDirectory, "physics-wasm/_framework" )
+					}`,
 				);
 			} else {
 				config.logger.info(
 					`physics-wasm: no physics build at ${ directory } - the `
-						+ "site "
-						+ "will run without physics.",
+						+ "site will run without physics.",
+				);
+			}
+
+			if ( noSimdDirectory && CopyPhysicsWasm(
+				noSimdDirectory,
+				outputDirectory,
+				"physics-wasm-nosimd",
+			) ) {
+				config.logger.info(
+					`physics-wasm-nosimd: copied ${ noSimdDirectory } -> ${
+						resolve(
+							outputDirectory,
+							"physics-wasm-nosimd/_framework",
+						)
+					}`,
+				);
+			} else {
+				config.logger.info(
+					"physics-wasm: no build for browsers without WebAssembly "
+						+ "SIMD - they will run without physics.",
 				);
 			}
 		},

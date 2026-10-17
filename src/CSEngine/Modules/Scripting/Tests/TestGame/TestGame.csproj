@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!-- A game's scripts for the TypeScript tests (../Integration.test.ts): built with the engine's game SDK, loaded in Node. -->
+	<Import Project="../../Sdk/CSEngine.Game.targets" />
+
+</Project>

@@ -4,6 +4,7 @@
 // Code of guide 06 (docs/en/guides/06-ui.md).
 
 // <<health
+import { FMath } from "@cse/fastmath";
 import { Component } from "../Engine/Core/Component";
 import type { UiService } from "../Engine/Services/UiService";
 
@@ -17,7 +18,7 @@ export class Health extends Component {
 	public Current = 100;
 
 	public Damage( amount: number ): void {
-		this.Current = Math.max( 0, this.Current - amount );
+		this.Current = FMath.Max( 0, this.Current - amount );
 	}
 
 	public override OnUIUpdate( ui: UiService ): void {

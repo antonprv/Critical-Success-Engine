@@ -16,6 +16,9 @@
     "test": "vitest run --coverage",
     "test:e2e": "playwright test"
   },
+  "dependencies": {
+    "@cse/task": "workspace:*"
+  },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
     "@types/node": "^26.2.0",

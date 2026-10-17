@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import type { ButtonController, ComboBoxController, LabelController, ListViewController, TextBoxController, UiDocument, UiManager } from "@cse/ui";
 import type { BuildConfiguration, BuildPlatform, ProjectRow, ProjectsApi, RunMode, TemplateRow } from "./Api";
 import { ThemeChoices, type ThemeChoice } from "./Themes";
@@ -181,7 +182,7 @@ export class ProjectBrowser {
 		const list = dialog.Controller<List>("Templates");
 		list.SetItems(this._shown.map((t) => ({ text: t.Title })));
 		this._template = -1;
-		if (this._shown.length > 0) list.Select([Math.max(0, this._shown.findIndex((t) => t.Name === keep))]);
+		if (this._shown.length > 0) list.Select([FMath.Max(0, this._shown.findIndex((t) => t.Name === keep))]);
 		else void this.Check(dialog);
 	}
 

@@ -26,4 +26,13 @@ describe("WinSelectList", () => {
 		await view.get(".win-selectlist").trigger("keydown", { code: "ArrowUp" });
 		expect(view.emitted("select")).toEqual([["b"], ["a"]]);
 	});
+
+	it("other keys pass through, and a list with nothing to choose stays as it is", async () => {
+		const view = mount(WinSelectList, { props: { items: Items, current: "a" } });
+		await view.get(".win-selectlist").trigger("keydown", { code: "Enter" });
+		expect(view.emitted("select")).toBeUndefined();
+		const empty = mount(WinSelectList, { props: { items: [{ Id: "x", Label: "Off", Disabled: true }], current: null } });
+		await empty.get(".win-selectlist").trigger("keydown", { code: "ArrowDown" });
+		expect(empty.emitted("select")).toBeUndefined();
+	});
 });

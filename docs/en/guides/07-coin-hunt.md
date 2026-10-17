@@ -27,7 +27,7 @@ We'll go the way you'd write it from scratch. Each step can be run on its own.
 | the arena, `Lift` | statics, `PlatformMover` + `KinematicBody` | where we run around |
 
 A design rule: **one component - one responsibility, communicate by name/tag**. A coin knows nothing about the timer, and the timer knows nothing
-about how coins are built: a coin just tells the referee "I was picked up".
+about how coins are built: a coin just says "I was picked up" on the DataStream, and the referee hears it.
 
 ## Step 1. The arena and the player
 
@@ -40,20 +40,31 @@ A coin is a **sensor sphere**: it collides with nothing, but reports when someth
 override `OnBodyEntered`:
 
 ```ts
-/** A pickup: a sensor volume that vanishes when the player touches it. */
+/** What a coin publishes when the player picks it up (on "Coin.Collected"). */
+export interface CoinCollected {
+	Coin: string;
+}
+
+/** A pickup: a sensor volume that vanishes when the player touches it. It doesn't know the rules: it says "Coin.Collected". */
 export class Coin extends TriggerArea {
+	@Inject(IDataStream) private readonly _stream!: IDataStream;
+
 	protected override OnBodyEntered(body: Entity): void {
 		// Only the player picks coins up (a crate or a bullet drifting through does nothing).
 		if (!body.Tags.has("player")) return;
 
-		this.Engine.World.FindByName("Game")?.GetComponent(GameRules)?.Collect();
+		this._stream.Publish<CoinCollected>("Coin.Collected", { Coin: this.Entity.Name });
 		this.Entity.Destroy();
 	}
 }
 ```
 
-Two details:
+Three details:
 
+- **The coin doesn't know the referee.** It publishes `"Coin.Collected"` on the DataStream (guide 19) and whoever cares listens: the
+  `GameRules` count it, the C# `StreakTracker` (guide 18) counts streaks. Adding a third listener changes nothing here.
+- **`@Inject(IDataStream)`** - the coin gets the stream from the game's DI container before its `Awake` (guide 20), by contract, not by
+  reaching into the engine.
 - **The `player` tag filter.** A crate or a bullet flying through a coin won't pick it up.
 - **`this.Entity.Destroy()`** - the coin disappears together with the sensor body and the mesh (both are removed in their components' `OnDestroy` - nothing needs cleaning by hand).
 
@@ -90,11 +101,19 @@ export const enum CoinHuntState {
 const HudId = "CoinHuntHud";
 
 /**
- * The referee: counts coins, runs the clock, decides win/lose, restarts on R. One of these lives on an entity called
- * "Game"; everything else finds it by name.
+ * The referee: counts coins, runs the clock, decides win/lose, restarts on R. It knows no coin: coins publish
+ * "Coin.Collected" on the DataStream, it listens. Everything it uses of the engine comes by contract (@Inject).
  */
 export class GameRules extends Component {
-	private _ui: GameUi | null = null;
+	@Inject(IGameUi) private readonly _ui!: IGameUi;
+	@Inject(IUiSubsystem) private readonly _toasts!: IUiSubsystem;
+	@Inject(IWorld) private readonly _world!: IWorld;
+	@Inject(IDataAssets) private readonly _data!: IDataAssets;
+	@Inject(ISettingsSubsystem) private readonly _settings!: ISettingsSubsystem;
+	@Inject(IScenes) private readonly _scenes!: IScenes;
+	@Inject(IDataStream) private readonly _stream!: IDataStream;
+	private _collected: Subscription | null = null;
+	private _showing = false;
 	private readonly _hudText = new Map<string, string>();
 	public TimeLimitSeconds = 60;
 	/** The data asset with the rules (Content/Data/CoinHuntRules.csedata). */
@@ -108,13 +127,14 @@ export class GameRules extends Component {
 
 	public override Start(): void {
 		// Start runs after EVERY entity's Awake, so all coins already exist here (Awake would be too early to count them).
-		this.Total = this.Engine.World.FindByTag(this.CoinTag).length;
+		this.Total = this._world.FindByTag(this.CoinTag).length;
+		this._collected = this._stream.Subscribe<CoinCollected>("Coin.Collected", () => this.Collect());
 		// Coin Hunt's own setting: the time limit (it applies when a game starts). Its default and choices come from the
 		// project's CoinHuntRules data asset; a project without one uses this component's own limit.
-		const rules = this.Engine.Data.Has(this.RulesId) ? this.Engine.Data.Get(CoinHuntRules, this.RulesId) : null;
+		const rules = this._data.Has(this.RulesId) ? this._data.Get(CoinHuntRules, this.RulesId) : null;
 		const own = String(rules?.TimeLimitSeconds ?? this.TimeLimitSeconds);
 		const choices = [...new Set([...(rules?.TimeLimitChoices ?? [30, 60, 90]).map(String), own])].sort((a, b) => Number(a) - Number(b));
-		const limit = this.Engine.Settings.Declare({ Key: "TimeLimit", Label: "Time limit (seconds)", Category: "Coin Hunt", Kind: "Choice", Default: own, Choices: choices });
+		const limit = this._settings.Declare({ Key: "TimeLimit", Label: "Time limit (seconds)", Category: "Coin Hunt", Kind: "Choice", Default: own, Choices: choices });
 		this.TimeLimitSeconds = Number(limit);
 		this.TimeLeft = this.TimeLimitSeconds;
 	}
@@ -126,31 +146,31 @@ export class GameRules extends Component {
 		if (this.Collected >= this.Total) {
 			this.State = CoinHuntState.Won;
 			const seconds = (this.TimeLimitSeconds - this.TimeLeft).toFixed(1);
-			this.Engine.Ui.Toast(`All coins collected in ${seconds} s! Press R to play again.`);
+			this._toasts.Toast(`All coins collected in ${seconds} s! Press R to play again.`);
 		}
 	}
 
 	public override Update(dt: number): void {
 		if (this.State !== CoinHuntState.Playing) return;
 
-		this.TimeLeft = Math.max(0, this.TimeLeft - dt);
+		this.TimeLeft = FMath.Max(0, this.TimeLeft - dt);
 		if (this.TimeLeft === 0) {
 			this.State = CoinHuntState.Lost;
-			this.Engine.Ui.Toast("Time's up! Press R to try again.");
+			this._toasts.Toast("Time's up! Press R to try again.");
 		}
 	}
 
 	public override OnInputUpdate(input: InputService): void {
 		if (this.State !== CoinHuntState.Playing && input.ActionJustPressed("Restart")) {
-			const scene = this.Engine.Scenes.CurrentSceneId;
-			if (scene) void this.Engine.Scenes.Load(scene); // everything, this component included, is rebuilt from the manifest
+			const scene = this._scenes.CurrentSceneId;
+			if (scene) void this._scenes.Load(scene); // everything, this component included, is rebuilt from the manifest
 		}
 	}
 
 	/** The HUD is a UI document (Content/UI/CoinHuntHud.ui.json): shown with the game, its labels changed when their text does. */
 	public override OnUIUpdate(): void {
-		if (!this._ui) {
-			this._ui = GetGameUi();
+		if (!this._showing) {
+			this._showing = true;
 			this._ui.Show(HudId);
 		}
 		this.SetHudText("Coins", `Coins: ${this.Collected} / ${this.Total}`);
@@ -159,13 +179,14 @@ export class GameRules extends Component {
 
 	/** Leaving the scene (or restarting it) takes the HUD away; the new game shows it again. */
 	public override OnDestroy(): void {
-		this._ui?.Hide(HudId);
+		this._collected?.Dispose();
+		if (this._showing) this._ui.Hide(HudId);
 	}
 
 	private SetHudText(widget: string, text: string): void {
 		if (this._hudText.get(widget) === text) return;
 		this._hudText.set(widget, text);
-		this._ui!.SetText(HudId, widget, text);
+		this._ui.SetText(HudId, widget, text);
 	}
 }
 ```
@@ -180,7 +201,7 @@ What's worth remembering here:
 - **The state is explicit** (`const enum CoinHuntState`: `Playing`, `Won`, `Lost`) and in one place. All the other checks are `if (this.State !== CoinHuntState.Playing) return`.
 - **A restart is a scene reload.** `Scenes.Load(current)` unloads everything (`OnDestroy` for all) and rebuilds from the manifest: coins in place, the timer reset, the score 0.
   There's no need to write "reset everything by hand" - a scene-as-data gives you this for free. The key is the **`Restart` action** of the input file (`R`, and `Start` on a gamepad), not a hard-coded key.
-- **The HUD is a UI document.** `OnUIUpdate` shows `CoinHuntHud` through `GetGameUi()` on the first call, then changes the `Coins` and `Time` labels - and only when their text actually changes
+- **The HUD is a UI document.** `OnUIUpdate` shows `CoinHuntHud` through the injected `IGameUi` on the first call, then changes the `Coins` and `Time` labels - and only when their text actually changes
   (otherwise it would send a message every frame). `OnDestroy` hides the document, so leaving the scene (or restarting it) takes the HUD away and the new game shows it again.
 
 We put the referee on a **separate empty entity** `Game`: it has no mesh and no body - just a "place for logic".

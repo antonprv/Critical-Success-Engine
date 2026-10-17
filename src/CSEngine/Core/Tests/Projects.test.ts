@@ -13,7 +13,8 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
-	CreateProject, FindProject, ListProjects, ListTemplates, ProjectNameProblem,
+	CreateProject, EnginePropsXml, FindProject, ProjectEditorConfig,
+	SyncEngineProps, ListProjects, ListTemplates, ProjectNameProblem,
 	ReadRegistry, RegisterProject, RegistryPath, TemplateToken,
 	UnregisterProject,
 } from "../BuildTools/Projects";
@@ -444,6 +445,212 @@ describe( "templates and new projects", () => {
 			existsSync( join( created.Directory, project.Modules[0]!.Entry ) ),
 		).toBe( true );
 		expect( existsSync( join( created.Directory, project.Ui.Manifest ) ) )
+			.toBe( true );
+	} );
+} );
+
+describe( "a project's C# scripts and code style", () => {
+	const EngineEditorConfig = [
+		"root = true",
+		"",
+		"[*.cs]",
+		"file_header_template = Created by the engine's author",
+		"dotnet_diagnostic.IDE0073.severity = warning",
+		"indent_style = tab",
+		"",
+		"[*.ts]",
+		"indent_style = tab",
+		"# the engine's own folder",
+		"[Modules/Physics/**.cs]",
+		"dotnet_diagnostic.IDE0011.severity = none",
+		"",
+	].join( "\n" );
+
+	it(
+		"a game's code style is the engine's, without the engine's file header "
+			+ "and its own folders",
+		() => {
+			const style = ProjectEditorConfig( EngineEditorConfig );
+			expect( style ).toContain( "root = true" );
+			expect( style ).toContain( "[*.cs]\nindent_style = tab" );
+			expect( style ).toContain( "[*.ts]\nindent_style = tab" );
+			expect( style ).not.toContain( "file_header_template" );
+			expect( style ).not.toContain( "IDE0073" );
+			expect( style ).not.toContain( "Modules/Physics" );
+			expect( style ).not.toContain( "the engine's own folder" );
+			expect( style.startsWith( "# The engine's code style" ) )
+				.toBe( true );
+		},
+	);
+
+	it(
+		"the templates in the repository use exactly that style "
+			+ "(src/Templates/.editorconfig)",
+		() => {
+			expect(
+				readFileSync(
+					resolve( "../../Templates/.editorconfig" ),
+					"utf8",
+				),
+			)
+				.toBe(
+					ProjectEditorConfig(
+						readFileSync( resolve( "../.editorconfig" ), "utf8" ),
+					),
+				);
+		},
+	);
+
+	it(
+		"creating a project from a template with C# scripts: names replaced in "
+			+ "C#, build output left behind, "
+			+ "the engine's place, code style and ignore list written",
+		() => {
+			const templates = join( sandbox, "Templates" );
+			const template = join( templates, "Scripted" );
+			mkdirSync( join( template, "Source" ), { recursive: true } );
+			mkdirSync(
+				join( template, "Binaries", "Scripts" ),
+				{ recursive: true },
+			);
+			mkdirSync( join( template, "obj" ), { recursive: true } );
+			writeFileSync(
+				join( template, "Template.json" ),
+				JSON.stringify(
+					{ Name: "Scripted", Title: "S", Genre: "Blank" },
+				),
+			);
+			writeFileSync(
+				join( template, "TemplateProject.cseproject" ),
+				JSON.stringify(
+					{ FileVersion: 1, Name: "TemplateProject", Modules: [] },
+				),
+			);
+			writeFileSync(
+				join( template, "TemplateProject.csproj" ),
+				"<Project><!-- TemplateProject --></Project>",
+			);
+			writeFileSync(
+				join( template, "Source", "Thing.cs" ),
+				"namespace TemplateProject;",
+			);
+			writeFileSync(
+				join( template, "Binaries", "Scripts", "big.wasm" ),
+				"x",
+			);
+			writeFileSync( join( template, "obj", "cache" ), "x" );
+			const engine = join( sandbox, "Engine" );
+			mkdirSync( join( engine, "src", "CSEngine" ), { recursive: true } );
+			writeFileSync(
+				join( engine, "src", "CSEngine", ".editorconfig" ),
+				EngineEditorConfig,
+			);
+
+			const created = CreateProject( {
+				TemplatesDirectory: templates,
+				Template: "Scripted",
+				Name: "Starfall",
+				Location: join( sandbox, "Games" ),
+				Registry: join( sandbox, "Projects.json" ),
+				EngineRoot: engine,
+			} );
+			const read = ( path: string ) => readFileSync(
+				join( created.Directory, path ),
+				"utf8",
+			);
+			expect( read( "Starfall.csproj" ) )
+				.toBe( "<Project><!-- Starfall --></Project>" );
+			expect( read( "Source/Thing.cs" ) ).toBe( "namespace Starfall;" );
+			expect( existsSync( join( created.Directory, "Binaries" ) ) )
+				.toBe( false );
+			expect( existsSync( join( created.Directory, "obj" ) ) )
+				.toBe( false );
+			expect( read( ".cse/Engine.props" ) )
+				.toContain( `<CSEnginePath>${ engine }</CSEnginePath>` );
+			expect( read( ".editorconfig" ) )
+				.toBe( ProjectEditorConfig( EngineEditorConfig ) );
+			expect( read( ".gitignore" ).split( "\n" ) )
+				.toEqual(
+					expect.arrayContaining(
+						["Binaries/", "obj/", ".cse/", "node_modules/"],
+					),
+				);
+		},
+	);
+
+	it(
+		"without C# scripts there is no .cse folder; an engine without an "
+			+ ".editorconfig gives none",
+		() => {
+			const templates = join( sandbox, "Templates" );
+			mkdirSync( join( templates, "Plain" ), { recursive: true } );
+			writeFileSync(
+				join( templates, "Plain", "Template.json" ),
+				JSON.stringify( { Name: "Plain", Title: "P", Genre: "Blank" } ),
+			);
+			writeFileSync(
+				join( templates, "Plain", "TemplateProject.cseproject" ),
+				JSON.stringify(
+					{ FileVersion: 1, Name: "TemplateProject", Modules: [] },
+				),
+			);
+			const created = CreateProject( {
+				TemplatesDirectory: templates,
+				Template: "Plain",
+				Name: "Plain",
+				Location: join( sandbox, "Games" ),
+				Registry: join( sandbox, "Projects.json" ),
+				EngineRoot: join( sandbox, "NoEngine" ),
+			} );
+			expect( existsSync( join( created.Directory, ".cse" ) ) )
+				.toBe( false );
+			expect( existsSync( join( created.Directory, ".editorconfig" ) ) )
+				.toBe( false );
+			expect( existsSync( join( created.Directory, ".gitignore" ) ) )
+				.toBe( true );
+		},
+	);
+
+	it(
+		"the editor extension keeps .cse/Engine.props pointing at the engine "
+			+ "it knows",
+		() => {
+			const project = join( sandbox, "Game" );
+			mkdirSync( project, { recursive: true } );
+			// no C#: nothing to point
+			expect( SyncEngineProps( project, "/engine" ) ).toBe( false );
+			writeFileSync( join( project, "Game.csproj" ), "<Project />" );
+			expect( SyncEngineProps( project, "/engine" ) ).toBe( true );
+			expect(
+				readFileSync( join( project, ".cse/Engine.props" ), "utf8" ),
+			)
+				.toBe( EnginePropsXml( "/engine" ) );
+			// already so
+			expect( SyncEngineProps( project, "/engine" ) ).toBe( false );
+			expect( SyncEngineProps( project, "/moved/engine" ) ).toBe( true );
+			expect( EnginePropsXml( "/moved/engine" ) )
+				.toContain( "<CSEnginePath>/moved/engine</CSEnginePath>" );
+		},
+	);
+
+	it( "by default the engine is the repository around the templates", () => {
+		const created = CreateProject( {
+			TemplatesDirectory: resolve( "../../Templates" ),
+			Template: "Blank",
+			Name: "WithEngine",
+			Location: sandbox,
+			Registry: join( sandbox, "Projects.json" ),
+		} );
+		expect(
+			readFileSync(
+				join( created.Directory, ".cse/Engine.props" ),
+				"utf8",
+			),
+		)
+			.toContain(
+				`<CSEnginePath>${ resolve( "../../.." ) }</CSEnginePath>`,
+			);
+		expect( existsSync( join( created.Directory, "WithEngine.csproj" ) ) )
 			.toBe( true );
 	} );
 } );

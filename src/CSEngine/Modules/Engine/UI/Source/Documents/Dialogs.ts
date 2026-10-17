@@ -7,6 +7,7 @@ import { UseControl } from "../Core/UseControl";
 import type { DialogResult } from "./DialogResult";
 import type { UiLayout } from "./Layout";
 import { UiDocument, type UiDocumentOptions } from "./UiDocument";
+import { TaskCompletionSource, type Task } from "@cse/task";
 
 export { DialogResult, DialogResults } from "./DialogResult";
 
@@ -25,27 +26,27 @@ export class DialogService {
 	public readonly Open: OpenDialog[] = reactive([]);
 	private _nextId = 1;
 
-	public ShowDialog(layout: UiLayout, options: UiDocumentOptions = {}): Promise<DialogResult> {
-		return new Promise((resolve) => {
-			const document = new UiDocument(layout, { ...options, Dialogs: this });
-			const entry = this.Push({ Document: document, MessageBox: null });
-			document.Events.On("closed", (result) => {
-				this.Remove(entry);
-				document.Dispose();
-				resolve(result);
-			});
+	public ShowDialog(layout: UiLayout, options: UiDocumentOptions = {}): Task<DialogResult> {
+		const closed = new TaskCompletionSource<DialogResult>();
+		const document = new UiDocument(layout, { ...options, Dialogs: this });
+		const entry = this.Push({ Document: document, MessageBox: null });
+		document.Events.On("closed", (result) => {
+			this.Remove(entry);
+			document.Dispose();
+			closed.TrySetResult(result);
 		});
+		return closed.Task;
 	}
 
-	public MessageBox(text: string, title = "", buttons = MessageBoxButtons.Ok, icon = MessageBoxIcon.None): Promise<MessageBoxResult> {
-		return new Promise((resolve) => {
-			const box = UseControl(new MessageBoxController({ Text: text, Title: title, Buttons: buttons, Icon: icon }));
-			const entry = this.Push({ Document: null, MessageBox: box });
-			box.Events.On("close", (result) => {
-				this.Remove(entry);
-				resolve(result);
-			});
+	public MessageBox(text: string, title = "", buttons = MessageBoxButtons.Ok, icon = MessageBoxIcon.None): Task<MessageBoxResult> {
+		const closed = new TaskCompletionSource<MessageBoxResult>();
+		const box = UseControl(new MessageBoxController({ Text: text, Title: title, Buttons: buttons, Icon: icon }));
+		const entry = this.Push({ Document: null, MessageBox: box });
+		box.Events.On("close", (result) => {
+			this.Remove(entry);
+			closed.TrySetResult(result);
 		});
+		return closed.Task;
 	}
 
 	private Push(dialog: Omit<OpenDialog, "Id">): OpenDialog {

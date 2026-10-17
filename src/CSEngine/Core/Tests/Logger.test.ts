@@ -131,6 +131,22 @@ describe( "Logger", () => {
 			},
 		);
 
+		it(
+			"a production build keeps nothing and posts nothing, even on "
+				+ "localhost (no sidecar there)",
+			() => {
+				SilenceConsole();
+				vi.stubGlobal( "__DEV__", false );
+				const fetchMock = vi.fn();
+				vi.stubGlobal( "fetch", fetchMock );
+				location.hostname = "localhost";
+				Logger.LogError( "shipped" );
+				expect( buffer() ).toEqual( [] );
+				Logger.FlushToDisk();
+				expect( fetchMock ).not.toHaveBeenCalled();
+			},
+		);
+
 		it( "does nothing off localhost", () => {
 			const fetchMock = vi.fn();
 			vi.stubGlobal( "fetch", fetchMock );

@@ -1,5 +1,6 @@
 <!-- Created by Anton Piruev in 2026. Any direct commercial use of derivative work is strictly prohibited. -->
 <script setup lang="ts">
+import { FMath } from "@cse/fastmath";
 import { ref } from "vue";
 import type { JoystickController } from "../Controls/JoystickController";
 import { ForwardEvents, UseControl } from "../Core/UseControl";
@@ -25,7 +26,7 @@ function OnPointerDown(event: PointerEvent): void {
 	finger = event.pointerId;
 	root.value!.setPointerCapture?.(event.pointerId); // a finger sliding off the stick still drives it
 	const rect = root.value!.getBoundingClientRect();
-	c.SetRadius(Math.min(rect.width, rect.height) * 0.3); // the knob travels to the base's edge
+	c.SetRadius(FMath.Min(rect.width, rect.height) * 0.3); // the knob travels to the base's edge
 	c.Press(...Offset(event));
 }
 

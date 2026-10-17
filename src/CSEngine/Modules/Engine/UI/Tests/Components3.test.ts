@@ -123,6 +123,13 @@ describe("WinComboBox", () => {
 		expect(wrapper.emitted("open-change")).toEqual([[true], [false]]);
 	});
 
+	it("a disabled option says so to assistive technology", async () => {
+		const controller = UseControl(new ComboBoxController({ Options: [{ Value: 1, Label: "On" }, { Value: 2, Label: "Off", Disabled: true }] }));
+		const wrapper = mount(WinComboBox, { props: { controller } });
+		await wrapper.get("[role=combobox]").trigger("click");
+		expect(wrapper.findAll("[role=option]").map((o) => o.attributes("aria-disabled"))).toEqual([undefined, "true"]);
+	});
+
 	it("keys go to the controller; a click outside closes the list", async () => {
 		const controller = UseControl(new ComboBoxController({ Options: options, SelectedIndex: 0 }));
 		const wrapper = mount(WinComboBox, { props: { controller }, attachTo: document.body });

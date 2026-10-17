@@ -12,7 +12,7 @@
 |---|---|---|
 | главный поток (`App.ts`, `Orchestrator.ts`) | DOM-слушателями (клавиатура, указатель, pointer lock, размер окна), воспроизведением через `AudioContext`, отрисовкой состояния UI (Vue/Quasar) | состоянием игры, физикой, рендером |
 | `RenderWorker.ts` | OffscreenCanvas, Babylon `Engine`/`Scene`, мешами, `AssetLoader` | состоянием игры, физикой |
-| `PhysicsWorker.ts` | симуляцией BEPU (через wasm-мост), шагами с фиксированным интервалом | объектами мешей, правилами геймплея |
+| `PhysicsWorker.ts` | симуляцией CSPhysics (через wasm-мост), шагами с фиксированным интервалом | объектами мешей, правилами геймплея |
 | `GameLogicWorker.ts` | сущностями, компонентами, сценами, состоянием ввода, тактами кадра и физики | рендером, внутренностями физики |
 | `AudioWorker.ts` | декодированием звука | воспроизведением (оно в главном потоке) |
 | `UiWorker.ts` | состоянием и логикой меню / экрана загрузки (`Workers/Ui/UiController.ts`) | отрисовкой (состояние рисует Vue в главном потоке) |
@@ -34,12 +34,12 @@
   трансформами когда-нибудь появятся в профайлере, первым шагом будут объекты `Transferable` (отправлять нижележащий `ArrayBuffer` массива
   `Float64Array` через `postMessage(msg, [buffer])` - без копирования и по-прежнему без SharedArrayBuffer и COOP/COEP), прежде чем браться за разделяемую память.
 
-## Почему физика - настоящий BEPU через WASM
+## Почему физика - настоящий CSPhysics через WASM
 
-Физика - настоящий BEPU Physics, а не JS-библиотека: `Physics/Bridge` компилирует `Physics.Integration` движка (с вендорными `BepuPhysics` /
-`BepuUtilities` и `FastMath`) в браузерный wasm-модуль через workload `wasm-tools` из .NET, а `Workers/Physics/PhysicsWorld.ts` - единственное место,
+Физика - настоящий CSPhysics, а не JS-библиотека: `Modules/Physics/Bridge` компилирует `Physics.Integration` движка (с вендорными `CSPhysics` /
+`CSPhysics.Utilities` и `FastMath`) в браузерный wasm-модуль через workload `wasm-tools` из .NET, а `Workers/Physics/PhysicsWorld.ts` - единственное место,
 которое его вызывает (методы `[JSExport]` из `PhysicsBridge.cs`). Как собрать: `devops/build-physics.sh` (или `build-all` без `--skip-physics`),
-подробности - в `Physics/Bridge/BUILD.md`.
+подробности - в `Modules/Physics/Bridge/BUILD.md`.
 
 `PhysicsWorker.ts` корректно деградирует, если wasm-модуль не загрузился: сообщает об ошибке, игра показывает тост и продолжает без симуляции, а
 остальные воркеры работают. Это удобно, чтобы дорабатывать рендер и геймплей без сборки физики.

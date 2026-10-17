@@ -9,14 +9,18 @@ export class Logger {
 
 	private static readonly _buffer: string[] = [];
 
-	// Hosts that may talk to the local log sidecar (dev server,
-	// `vite preview`).
+	// Hosts that may talk to the local log sidecar (`vite dev` starts it).
 	private static readonly _localHostnames = new Set(
 		["127.0.0.1", "localhost", "[::1]", "::1"],
 	);
 
-	private static get IsLocalHost(): boolean {
-		return Logger._localHostnames.has( self.location.hostname );
+	/**
+	 * Lines go to the sidecar only from a development build on this machine: a
+	 * production build (also one served from localhost, as `vite preview` and
+	 * the perf harness do) has no sidecar, and would only pile lines up.
+	 */
+	private static get ToSidecar(): boolean {
+		return __DEV__ && Logger._localHostnames.has( self.location.hostname );
 	}
 
 	public static LogDebug( message: string ): void {
@@ -73,10 +77,10 @@ export class Logger {
 
 	/**
 	 * Posts the lines buffered since the last flush to the local sidecar. No-op
-	 * off localhost or when nothing is new.
+	 * in a production build, off localhost, or when nothing is new.
 	 */
 	public static FlushToDisk(): void {
-		if ( !Logger.IsLocalHost || Logger._buffer.length === 0 ) {
+		if ( !Logger.ToSidecar || Logger._buffer.length === 0 ) {
 			return;
 		}
 
@@ -116,7 +120,7 @@ export class Logger {
 			`[${ new Date().toISOString() }] `
 				+ `[${ LogType[logType] }] ${ formatted }`;
 
-		if ( Logger.IsLocalHost ) {
+		if ( Logger.ToSidecar ) {
 			Logger._buffer.push( line );
 		}
 

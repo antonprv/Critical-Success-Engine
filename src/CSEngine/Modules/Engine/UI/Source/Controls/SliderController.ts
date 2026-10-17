@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import { ControlBase, type ControlOptions } from "../Core/ControlBase";
 
 export interface SliderOptions extends ControlOptions {
@@ -73,7 +74,7 @@ export class SliderController extends ControlBase<SliderEvents> {
 	}
 
 	private Snap(value: number): number {
-		const stepped = this.Min + Math.round((value - this.Min) / this.Step) * this.Step;
-		return Math.min(this.Max, Math.max(this.Min, stepped));
+		const stepped = this.Min + FMath.Round((value - this.Min) / this.Step) * this.Step;
+		return FMath.Min(this.Max, FMath.Max(this.Min, stepped));
 	}
 }

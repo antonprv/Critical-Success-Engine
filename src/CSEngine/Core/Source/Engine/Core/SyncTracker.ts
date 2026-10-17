@@ -1,6 +1,8 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { Task, TaskCompletionSource, TaskStatus } from "@cse/task";
+
 /**
  * Round-trip markers over an ordered MessagePort: post `{ token }`, the other
  * side echoes it back after processing everything that was queued before it.
@@ -11,19 +13,18 @@
 export class SyncTracker {
 	private _nextToken = 1;
 
-	private readonly _waiting = new Map<number, () => void>();
+	private readonly _waiting = new Map<number, TaskCompletionSource>();
 
-	public Begin( send: ( token: number ) => void ): Promise<void> {
+	public Begin( send: ( token: number ) => void ): Task {
 		const token = this._nextToken++;
-		const promise = new Promise<void>(
-			( resolve ) => this._waiting.set( token, resolve ),
-		);
+		const source = new TaskCompletionSource();
+		this._waiting.set( token, source );
 		send( token );
-		return promise;
+		return source.Task;
 	}
 
 	public Acknowledge( token: number ): void {
-		this._waiting.get( token )?.();
+		this._waiting.get( token )?.TrySetResult();
 		this._waiting.delete( token );
 	}
 }
@@ -33,14 +34,20 @@ export class SyncTracker {
  * never answers (e.g. wasm failed to load).
  */
 export function WithTimeout(
-	promise: Promise<void>,
+	task: PromiseLike<void>,
 	milliseconds: number,
-): Promise<boolean> {
-	return new Promise<boolean>( ( resolve ) => {
-		const timer = setTimeout( () => resolve( false ), milliseconds );
-		void promise.then( () => {
+): Task<boolean> {
+	const source = new TaskCompletionSource<boolean>();
+	const timer = setTimeout(
+		() => source.TrySetResult( false ),
+		milliseconds,
+	);
+
+	Task.From( task ).OnCompleted( ( done ) => {
+		if ( done.Status === TaskStatus.Succeeded ) {
 			clearTimeout( timer );
-			resolve( true );
-		} );
+			source.TrySetResult( true );
+		}
 	} );
+	return source.Task;
 }

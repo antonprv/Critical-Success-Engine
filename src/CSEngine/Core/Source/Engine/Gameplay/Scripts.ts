@@ -5,6 +5,7 @@
 // (settable from a manifest with Comp(...)) and the hooks it cares about. This
 // is what "scripting like in Godot" looks like in this engine.
 
+import { FMath } from "@cse/fastmath";
 import { CollisionLayer } from "../Core/CollisionLayer";
 import { Component } from "../Core/Component";
 import { Comp, Ent } from "../Core/EntityManifest";
@@ -96,8 +97,8 @@ export class PlatformMover extends Component {
 
 	public override OnPhysicsUpdate( dt: number ): void {
 		this._time += dt;
-		const offset = Math.sin(
-			( this._time / this.PeriodSeconds ) * Math.PI * 2,
+		const offset = FMath.FastSin(
+			( this._time / this.PeriodSeconds ) * FMath.PI * 2,
 		) * this.Distance;
 		const position = this._origin.Add(
 			Vec3.FromTuple( this.Axis ).Normalized()

@@ -1,6 +1,8 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { Task, TaskCompletionSource } from "@cse/task";
+
 import { Logger } from "../../Logging/Logger";
 import type { EngineContext } from "../Core/EngineContext";
 import type { SceneManifest } from "../Core/EntityManifest";
@@ -43,6 +45,12 @@ export class SceneManager {
 	 * While true the runtime skips scripts and physics snapshots (the world is
 	 * being rebuilt).
 	 */
+	/**
+	 * Called as a scene starts loading, after the last one is gone (the game
+	 * logic runtime makes the scene's DI container here).
+	 */
+	public OnBeginScene: ( ( manifest: SceneManifest ) => void ) | null = null;
+
 	public get IsLoading(): boolean {
 		return this._loading;
 	}
@@ -65,6 +73,7 @@ export class SceneManager {
 		this._loading = true;
 		try {
 			await this.Unload( sceneId );
+			this.OnBeginScene?.( manifest );
 			await this.ResetSubsystems( sceneId, manifest );
 			// The project's input manifest this scene plays with (a project of
 			// several games switches here); else the default.
@@ -121,7 +130,7 @@ export class SceneManager {
 			manifest.clearColor ?? [0.08, 0.1, 0.14],
 		);
 
-		const resets = Promise.all( [
+		const resets = Task.WhenAll( [
 			this._engine.Physics.ResetWorld(
 				{ gravity: manifest.gravity ?? [...DefaultGravity] },
 			),
@@ -176,6 +185,8 @@ export class SceneManager {
  * Lets queued messages (progress updates) actually leave before the next chunk
  * of synchronous work.
  */
-function Yield(): Promise<void> {
-	return new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
+function Yield(): Task {
+	const source = new TaskCompletionSource();
+	setTimeout( () => source.TrySetResult(), 0 );
+	return source.Task;
 }

@@ -1,7 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -47,6 +47,20 @@ describe("the project browser's IPC", () => {
 		return { handlers, shell, call };
 	}
 
+	it("running and building go to the runner; without one they say they are not available", async () => {
+		const runner = { Availability: vi.fn(() => ({ dev: true })), Run: vi.fn(async () => undefined), Build: vi.fn(async () => ({ Directory: "/out" })) };
+		const handlers = new Map<string, (event: unknown, ...args: unknown[]) => Promise<IpcResult<unknown>>>();
+		const shell = { PickFolder: vi.fn(async () => null), OpenInDesigner: vi.fn(async () => undefined) };
+		RegisterProjectIpc({ handle: (channel: string, handler: never) => { handlers.set(channel, handler); } }, Service(), shell, runner as never);
+		expect(await handlers.get(ProjectChannels.RunModes)!(null, "/m.cseproject")).toEqual({ ok: true, value: { dev: true } });
+		expect(await handlers.get(ProjectChannels.Run)!(null, "/m.cseproject", "dev")).toEqual({ ok: true, value: undefined });
+		expect(await handlers.get(ProjectChannels.Build)!(null, "/m.cseproject", "Web", "Prod")).toEqual({ ok: true, value: { Directory: "/out" } });
+		expect(runner.Run).toHaveBeenCalledWith("/m.cseproject", "dev");
+		expect(runner.Build).toHaveBeenCalledWith("/m.cseproject", "Web", "Prod");
+		const { call } = Wire();
+		expect(await call(ProjectChannels.Run, "/m.cseproject", "dev")).toEqual({ ok: false, error: "Running and building projects is not available here" });
+	});
+
 	it("answers every channel with its value, and a failure with its message", async () => {
 		const { handlers, shell, call } = Wire();
 		expect([...handlers.keys()]).toEqual(Object.values(ProjectChannels));
@@ -71,7 +85,7 @@ describe("the preload: what the pages may call", () => {
 		vi.doMock("electron", () => ({ contextBridge: { exposeInMainWorld: (key: string, api: never) => { exposed[key] = api; } }, ipcRenderer: { invoke } }));
 		await import("../Source/Preload/Preload");
 		const projects = exposed["cse"]!.projects;
-		expect(Object.keys(projects)).toEqual(["List", "Templates", "NameProblem", "DefaultLocation", "PickFolder", "Create", "Remove", "OpenInDesigner"]);
+		expect(Object.keys(projects)).toEqual(["List", "Templates", "NameProblem", "DefaultLocation", "PickFolder", "Create", "Remove", "OpenInDesigner", "RunModes", "Run", "Build"]);
 		const designer = (exposed["cse"] as unknown as { designer: Record<string, (...args: unknown[]) => Promise<unknown>>; }).designer;
 		for (const call of Object.values(designer)) await call("/p.cseproject", "Hud");
 		expect(invoke.mock.calls.slice(-Object.keys(DesignerChannels).length).map((c) => c[0])).toEqual(Object.values(DesignerChannels));
@@ -105,6 +119,7 @@ describe("the main process", () => {
 			},
 			ipcMain: { handle: (channel: string, handler: never) => handlers.set(channel, handler) },
 			dialog: { showOpenDialog: vi.fn(async () => picked) },
+			shell: { openExternal: vi.fn(async () => undefined) },
 		};
 		return { electron, windows, handlers, appEvents, ready: () => ready() };
 	}
@@ -129,6 +144,22 @@ describe("the main process", () => {
 		expect(await fake.handlers.get(DesignerChannels.IdProblem)!(null, "/nowhere.cseproject", "Hud")).toMatchObject({ ok: false }); // the designer's calls are there too
 		fake.appEvents.get("window-all-closed")!();
 		expect(fake.electron.app.quit).toHaveBeenCalled();
+		vi.doUnmock("electron");
+	});
+
+	it("a built project opens in the system's browser; quitting stops what the runner started", async () => {
+		vi.stubEnv("CSE_PROJECTS_REGISTRY", join(sandbox, "Projects.json"));
+		const fake = FakeElectron({ canceled: true, filePaths: [] });
+		vi.doMock("electron", () => fake.electron);
+		vi.resetModules();
+		await import("../Source/Main/Main");
+		const site = join(sandbox, "Moon", "Binaries", "Web", "Dev");
+		mkdirSync(site, { recursive: true });
+		writeFileSync(join(sandbox, "Moon", "Moon.cseproject"), "{}");
+		writeFileSync(join(site, "index.html"), "");
+		expect(await fake.handlers.get(ProjectChannels.Run)!(null, join(sandbox, "Moon", "Moon.cseproject"), "web:dev")).toEqual({ ok: true, value: undefined });
+		expect(fake.electron.shell.openExternal).toHaveBeenCalledWith(expect.stringMatching(/^http:\/\/127\.0\.0\.1:\d+\/$/));
+		fake.appEvents.get("before-quit")!();
 		vi.doUnmock("electron");
 	});
 
@@ -167,6 +198,7 @@ describe("the designer's IPC, and starting on the designer alone", () => {
 		expect(await handlers.get(DesignerChannels.Open)!(null, project)).toMatchObject({ ok: true, value: { Name: "Ball" } });
 		expect(((await handlers.get(DesignerChannels.CodeFiles)!(null, project)) as { value: string[]; }).value).toContain("Source/BallModule.ts");
 		expect(await handlers.get(DesignerChannels.CodeWrite)!(null, project, "Source/New.ts", "export {};\n")).toEqual({ ok: true, value: undefined });
+		expect(await handlers.get(DesignerChannels.SetTheme)!(null, project, { Kit: "classic", Theme: "win98" })).toEqual({ ok: true, value: undefined });
 		expect(await handlers.get(DesignerChannels.CodeRead)!(null, project, "Source/New.ts")).toEqual({ ok: true, value: "export {};\n" });
 		expect(await handlers.get(DesignerChannels.IdProblem)!(null, project, "Hud")).toEqual({ ok: true, value: null });
 		const layout = JSON.stringify({ Format: 1, Name: "Hud", Script: "", Root: { Name: "Root", Type: "canvas", X: 0, Y: 0, Width: 800, Height: 500, Props: {}, Children: [] } });

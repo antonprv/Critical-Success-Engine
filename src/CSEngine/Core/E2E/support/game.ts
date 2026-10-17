@@ -16,6 +16,17 @@ import { SimulatePointerLock } from "./pointer-lock";
  */
 const LogSinkUrl = "http://127.0.0.1:4790";
 
+/**
+ * A UI document on screen by its Id - not one still fading out (a leaving
+ * layer is inert), so there is one per Id.
+ */
+export function UiLayer( id: string ): string {
+	return `.cse-ui-host [data-ui="${ id }"]:not([inert])`;
+}
+
+/** The lines of the HUD: the cells of the hints document's list. */
+const HudLines = `${ UiLayer( "EngineHints" ) } [role=gridcell]`;
+
 export type LockMode = "simulated" | "real";
 
 export interface OpenOptions {
@@ -81,17 +92,21 @@ export class Game {
 	 * EnginePauseMenu).
 	 */
 	public get loadingOverlay(): Locator {
-		return this.page.locator( ".cse-ui-host [data-ui=\"EngineLoading\"]" );
+		return this.page.locator( UiLayer( "EngineLoading" ) );
 	}
 
 	public get menu(): Locator {
 		return this.page.locator(
-			".cse-ui-host [data-ui=\"EnginePauseMenu\"]",
+			UiLayer( "EnginePauseMenu" ),
 		);
 	}
 
+	/**
+	 * The HUD's lines: the rows of the engine's hints document (EngineHints,
+	 * top left), which shows the HUD while the game plays.
+	 */
 	public get hud(): Locator {
-		return this.page.locator( ".hud-line" );
+		return this.page.locator( HudLines );
 	}
 
 	/**
@@ -102,8 +117,11 @@ export class Game {
 		return this.menu.or( this.hud.first() ).first();
 	}
 
+	/** Toasts: the rows of the engine's toasts document (bottom right). */
 	public get toasts(): Locator {
-		return this.page.locator( ".q-notification" );
+		return this.page.locator(
+			`${ UiLayer( "EngineToasts" ) } [role=gridcell]`,
+		);
 	}
 
 	public get canvas(): Locator {
@@ -131,8 +149,8 @@ export class Game {
 		await this.page.goto( "/" );
 		await expect(
 			this.page.locator(
-				"#boot-splash, .cse-ui-host [data-ui=\"EngineLoading\"], "
-					+ ".cse-ui-host [data-ui=\"EnginePauseMenu\"], .hud-line",
+				`#boot-splash, ${ UiLayer( "EngineLoading" ) }, `
+					+ `${ UiLayer( "EnginePauseMenu" ) }, ${ HudLines }`,
 			).first(),
 		).toBeVisible();
 		await expect( this.menuOrHud ).toBeVisible( { timeout: 45_000 } );
@@ -192,7 +210,7 @@ export class Game {
 	 */
 	public uiWidget( document: string, widget: string ) {
 		return this.page.locator(
-			`.cse-ui-host [data-ui="${ document }"] [data-name="${ widget }"]`,
+			`${ UiLayer( document ) } [data-name="${ widget }"]`,
 		);
 	}
 
@@ -269,6 +287,20 @@ export class Game {
 			await this.page.screenshot(
 				{ animations: "disabled", timeout: 60_000 },
 			),
+		);
+	}
+
+	/**
+	 * The 3D scene alone: a screenshot with the UI documents hidden, so their
+	 * panels (and a toast coming or going) don't count as the scene's pixels.
+	 */
+	public async scenePixels(): Promise<PNG> {
+		return PNG.sync.read(
+			await this.page.screenshot( {
+				animations: "disabled",
+				timeout: 60_000,
+				style: ".cse-ui-host { visibility: hidden !important; }",
+			} ),
 		);
 	}
 

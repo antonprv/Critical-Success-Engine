@@ -8,12 +8,12 @@
 main thread   DOM-события, отрисовка UiStore (Vue + Quasar), pointer lock, AudioContext
 UiWorker      состояние и логика UI (автомат меню / загрузки / паузы)              Workers/Ui/UiController.ts
 GameLogic     сущности, компоненты, сцены, состояние ввода, такты кадра и физики   Engine/Runtime/GameLogicRuntime.ts
-PhysicsWorker BEPU через wasm: цикл фиксированного шага, выполнение команд, снимки Workers/Physics/PhysicsWorld.ts
+PhysicsWorker CSPhysics через wasm: цикл фиксированного шага, выполнение команд, снимки Workers/Physics/PhysicsWorld.ts
 RenderWorker  Babylon на OffscreenCanvas, протокол frame-request/frame            Workers/RenderWorker.ts
 AudioWorker   декодирование звука; воспроизведение идёт в главном потоке (AudioPlayer)
 ```
 
-C# есть только для физического движка и его моста (`Physics/Bridge/PhysicsBridge.cs`). Всё остальное - TypeScript.
+C# есть только для физического движка и его моста (`Modules/Physics/Bridge/PhysicsBridge.cs`). Всё остальное - TypeScript.
 
 ## Скриптинг: сущности, компоненты, манифесты
 
@@ -54,6 +54,20 @@ export const MyScene: SceneManifest = {
 Встроенные компоненты: `MeshRenderer`, `StaticBody`, `RigidBody`, `KinematicBody`, `TriggerArea`, `SimpleTriggerArea`,
 `Projectile`, `CharacterBody`, `MoverComponent` (+ все пресеты и трейты движения), `CameraComponent` (от первого/третьего лица с
 пружинной штангой), `FixedCamera`, `Follower`.
+
+### Компоненты на C# и DataStream
+
+Компонент может быть и на C# (`CSharp( "Класс", поля )`, руководство 18). Его TypeScript-сторона, `CSharpComponent`,
+копит жизненный цикл и события сущности; после компонентов TypeScript каждой фазы (ввод, обновление, UI, шаг физики)
+`ScriptRuntime` отправляет их вместе с трансформами сущностей, у которых есть C#-компоненты, и сообщениями DataStream
+для C# в рантайм .NET скриптов проекта (он загружается в воркере GameLogic) **одним** вызовом MessagePack и применяет
+результаты. Компоненты на C# и TypeScript встречаются двумя способами: на тегах DataStream (`EngineContext.Stream`,
+руководство 19; связь переносит сообщение только в теги, на которые подписана другая сторона) и через **контракты**
+(руководство 22) — интерфейсы, объявленные один раз в файлах `.contract` и скомпилированные в оба языка
+(`Modules/Scripting/Source/Contracts`, `Core/BuildTools/ContractsPlugin.ts`). Контракт реализуется на одной стороне и
+синхронно вызывается с другой (`ScriptBridge`: `[JSExport] Call` в одну сторону, `[JSImport]` в другую). У каждой
+стороны свой DI-контейнер; `@FromCSharp` / `[FromTypeScript]` и привязки `FromCSharp()` / `FromTypeScript()` находят
+реализацию другой стороны — сначала компонент той же сущности, затем её контейнер.
 
 ## Граница физики
 

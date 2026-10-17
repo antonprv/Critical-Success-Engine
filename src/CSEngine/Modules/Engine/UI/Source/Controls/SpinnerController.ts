@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import { ControlBase, type ControlOptions } from "../Core/ControlBase";
 
 export interface SpinnerOptions extends ControlOptions {
@@ -78,6 +79,6 @@ export class SpinnerController extends ControlBase<SpinnerEvents> {
 	}
 
 	private Clamp(value: number): number {
-		return Math.min(this.Max, Math.max(this.Min, value));
+		return FMath.Min(this.Max, FMath.Max(this.Min, value));
 	}
 }

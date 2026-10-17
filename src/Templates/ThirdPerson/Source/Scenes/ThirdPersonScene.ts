@@ -19,6 +19,7 @@ import { HudText } from "@cse/core/Engine/Gameplay/Scripts";
 import { StaticBox } from "@cse/core/Engine/Scenes/SceneHelpers";
 import { CameraDistance } from "../Scripts/CameraDistance";
 import { DistanceHud } from "../Scripts/DistanceHud";
+import { CSharp } from "@cse/core/Engine/Components/CSharp";
 
 const Grey: [number, number, number] = [0.45, 0.47, 0.5];
 const Wall: [number, number, number] = [0.3, 0.33, 0.38];
@@ -58,6 +59,8 @@ export const ThirdPersonScene: SceneManifest = {
 				{ Mesh: MeshForShape( PlayerShape ), Color: [0.9, 0.9, 0.95] },
 			),
 			Comp( MoverComponent, { CameraName: "Camera" } ),
+			// written in C#: Source/Scripts/WalkMilestones.cs
+			CSharp( "WalkMilestones", { MilestoneMeters: 25 } ),
 		], { position: [0, 1.2, 6], tags: ["player"] } ),
 		Ent(
 			"Camera",

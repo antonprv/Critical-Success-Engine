@@ -8,6 +8,7 @@ import { StatusBarController } from "../Controls/StatusBarController";
 import { TextBoxController } from "../Controls/TextBoxController";
 import { WindowController } from "../Controls/WindowController";
 import type { ControlBase } from "../Core/ControlBase";
+import { watch } from "vue";
 import type { DialogResult } from "./DialogResult";
 import type { UiDocument } from "./UiDocument";
 
@@ -30,7 +31,84 @@ export const enum ActionType {
 	Focus = "focus",
 	MessageBox = "message-box",
 	CloseForm = "close-form",
+	/** A variable gets a value (text, with {Name} put in, read as the variable's kind). */
+	SetVariable = "set-variable",
+	/** A number variable grows (or shrinks) by an amount. */
+	AddToVariable = "add-to-variable",
 }
+
+//#region variables
+
+/** The event of a variable node: runs at the start and whenever the variable changes, when its test holds. */
+export const VariableEvent = "variable";
+
+export type GraphValue = string | number | boolean;
+
+export const enum VariableKind {
+	Number = "number",
+	Text = "text",
+	Boolean = "boolean",
+}
+
+export const VariableKinds: readonly VariableKind[] = [VariableKind.Number, VariableKind.Text, VariableKind.Boolean];
+
+/**
+ * A value of the document the graph reads, tests and changes. The game sets it (a component's parameter, through
+ * GameUi.SetVariable), the graph or a script sets it, or it follows a widget's value (Widget).
+ */
+export interface GraphVariable {
+	Name: string;
+	Kind: VariableKind;
+	Default: GraphValue;
+	/** The widget whose value the variable follows: a check box's checked, a text box's or slider's value, a label's text. */
+	Widget?: string;
+}
+
+/** The test of a variable event, between the variable and its Value param. */
+export const enum Compare {
+	Any = "any",
+	Equal = "==",
+	NotEqual = "!=",
+	Greater = ">",
+	Less = "<",
+	GreaterOrEqual = ">=",
+	LessOrEqual = "<=",
+}
+
+export const Compares: readonly Compare[] = [Compare.Any, Compare.Equal, Compare.NotEqual, Compare.Greater, Compare.Less, Compare.GreaterOrEqual, Compare.LessOrEqual];
+
+/** A value read as a kind: "3" as 3 (not a number: 0), "true" / 1 as true. */
+export function Coerce(kind: VariableKind | undefined, value: GraphValue): GraphValue {
+	switch (kind) {
+		case VariableKind.Number: {
+			const number = Number(value);
+			return Number.isFinite(number) ? number : 0;
+		}
+		case VariableKind.Boolean: return value === true || value === "true" || value === 1;
+		case VariableKind.Text: return String(value);
+		default: return value;
+	}
+}
+
+/** Text with each {Name} of a known variable replaced by its value. */
+export function Interpolate(text: string, variables: Readonly<Record<string, GraphValue>>): string {
+	return text.replace(/\{([A-Za-z_][\w]*)\}/g, (whole, name: string) => (name in variables ? String(variables[name]) : whole));
+}
+
+/** Whether a variable's value passes a test against another (both read as the variable's kind). */
+export function Test(value: GraphValue, compare: Compare, other: GraphValue): boolean {
+	switch (compare) {
+		case Compare.Equal: return value === other;
+		case Compare.NotEqual: return value !== other;
+		case Compare.Greater: return value > other;
+		case Compare.Less: return value < other;
+		case Compare.GreaterOrEqual: return value >= other;
+		case Compare.LessOrEqual: return value <= other;
+		default: return true;
+	}
+}
+
+//#endregion
 
 /** For change events of check boxes: run only when it became checked / unchecked. */
 export const enum CheckCondition {
@@ -69,12 +147,14 @@ export interface GraphLink { From: string; To: string; }
 export interface UiGraph {
 	Nodes: GraphNode[];
 	Links: GraphLink[];
+	/** The document's variables (absent: none). */
+	Variables?: GraphVariable[];
 }
 
 export interface ActionInfo {
 	Label: string;
 	/** Parameter name and what it holds. */
-	Params: { Key: string; Label: string; Kind: "widget" | "text" | "boolean" | "result"; }[];
+	Params: { Key: string; Label: string; Kind: "widget" | "text" | "boolean" | "result" | "variable"; }[];
 }
 
 const WidgetParam = { Key: "Widget", Label: "Widget", Kind: "widget" } as const;
@@ -90,6 +170,8 @@ export const ActionInfos: Record<ActionType, ActionInfo> = {
 	[ActionType.Focus]: { Label: "Focus", Params: [WidgetParam] },
 	[ActionType.MessageBox]: { Label: "Message box", Params: [{ Key: "Text", Label: "Text", Kind: "text" }, { Key: "Title", Label: "Title", Kind: "text" }] },
 	[ActionType.CloseForm]: { Label: "Close document", Params: [{ Key: "Result", Label: "Result", Kind: "result" }] },
+	[ActionType.SetVariable]: { Label: "Set variable", Params: [{ Key: "Variable", Label: "Variable", Kind: "variable" }, { Key: "Value", Label: "Value", Kind: "text" }] },
+	[ActionType.AddToVariable]: { Label: "Add to variable", Params: [{ Key: "Variable", Label: "Variable", Kind: "variable" }, { Key: "Amount", Label: "Amount", Kind: "text" }] },
 };
 
 export const ActionTypes = Object.keys(ActionInfos) as ActionType[];
@@ -123,11 +205,19 @@ export const Actions = {
 		void document.Dialogs.MessageBox(text, title);
 	},
 	CloseForm: (document: UiDocument, result: DialogResult): void => { document.Close(result); },
+	/** Text has {Name} put in first; the value is read as the variable's kind. */
+	SetVariable: (document: UiDocument, name: string, value: GraphValue): void =>
+		document.SetVariable(name, typeof value === "string" ? Interpolate(value, document.Variables) : value),
+	AddToVariable: (document: UiDocument, name: string, amount: GraphValue): void => {
+		const by = Number(typeof amount === "string" ? Interpolate(amount, document.Variables) : amount);
+		document.SetVariable(name, Number(document.Variables[name] ?? 0) + (Number.isFinite(by) ? by : 0));
+	},
 };
 
 function Execute(document: UiDocument, node: GraphNode): void {
 	const p = node.Params;
-	const text = (key: string): string => p[key] as string;
+	// Text params show variables: "Score: {Score}".
+	const text = (key: string): string => Interpolate(p[key] as string, document.Variables);
 	switch (node.Type as ActionType) {
 		case ActionType.Show: Actions.Show(document, text("Widget")); break;
 		case ActionType.Hide: Actions.Hide(document, text("Widget")); break;
@@ -139,6 +229,8 @@ function Execute(document: UiDocument, node: GraphNode): void {
 		case ActionType.Focus: Actions.Focus(document, text("Widget")); break;
 		case ActionType.MessageBox: Actions.MessageBox(document, text("Text"), text("Title")); break;
 		case ActionType.CloseForm: Actions.CloseForm(document, text("Result") as DialogResult); break;
+		case ActionType.SetVariable: Actions.SetVariable(document, p["Variable"] as string, p["Value"] as string); break;
+		case ActionType.AddToVariable: Actions.AddToVariable(document, p["Variable"] as string, p["Amount"] as string); break;
 	}
 }
 
@@ -181,6 +273,10 @@ export class GraphRunner {
 
 	public constructor(document: UiDocument, graph: UiGraph) {
 		for (const node of graph.Nodes) {
+			if (node.Kind === GraphNodeKind.Event && node.Type === VariableEvent) {
+				this.WatchVariable(document, graph, node);
+				continue;
+			}
 			const widget = node.Params["Widget"] as string;
 			if (node.Kind !== GraphNodeKind.Event || !document.Find(widget)?.Controller) continue;
 			const actions = Chain(graph, node.Id);
@@ -189,6 +285,19 @@ export class GraphRunner {
 				if (Passes(node, args, controller)) for (const action of actions) Execute(document, action);
 			}));
 		}
+	}
+
+	/** Runs the chain now and on every change of the variable, when the test holds (Vue, synchronously: no frame to wait). */
+	private WatchVariable(document: UiDocument, graph: UiGraph, node: GraphNode): void {
+		const name = node.Params["Variable"] as string;
+		const compare = (node.Params["Compare"] as Compare | undefined) ?? Compare.Any;
+		const kind = graph.Variables?.find((variable) => variable.Name === name)?.Kind;
+		const actions = Chain(graph, node.Id);
+		this._subscriptions.push(watch(() => document.Variables[name], (value) => {
+			if (value === undefined) return;
+			const other = Coerce(kind, Interpolate(String(node.Params["Value"] ?? ""), document.Variables));
+			if (Test(value, compare, other)) for (const action of actions) Execute(document, action);
+		}, { immediate: true, flush: "sync" }));
 	}
 
 	public Dispose(): void {
@@ -212,6 +321,20 @@ function ReadNode(raw: unknown): GraphNode | null {
 	return { Id: raw["Id"], Kind: raw["Kind"] as GraphNodeKind, Type: raw["Type"], X: raw["X"], Y: raw["Y"], Params: params };
 }
 
+function ReadVariables(raw: unknown[]): GraphVariable[] {
+	const out: GraphVariable[] = [];
+	for (const item of raw) {
+		if (!IsObject(item) || typeof item["Name"] !== "string" || item["Name"] === "" || !VariableKinds.includes(item["Kind"] as VariableKind)) continue;
+		if (out.some((variable) => variable.Name === item["Name"])) continue;
+		const kind = item["Kind"] as VariableKind;
+		const value = item["Default"];
+		const variable: GraphVariable = { Name: item["Name"], Kind: kind, Default: Coerce(kind, typeof value === "number" || typeof value === "string" || typeof value === "boolean" ? value : "") };
+		if (typeof item["Widget"] === "string") variable.Widget = item["Widget"];
+		out.push(variable);
+	}
+	return out;
+}
+
 /** Reads a graph from a layout file, keeping what is valid: unknown nodes, bad params and dangling links are dropped. */
 export function ParseGraph(raw: unknown): UiGraph {
 	const record = IsObject(raw) ? raw : {};
@@ -219,7 +342,9 @@ export function ParseGraph(raw: unknown): UiGraph {
 	const ids = new Set(nodes.map((n) => n.Id));
 	const links = (Array.isArray(record["Links"]) ? record["Links"] : []).filter((l): l is GraphLink =>
 		IsObject(l) && typeof l["From"] === "string" && typeof l["To"] === "string" && ids.has(l["From"]) && ids.has(l["To"]));
-	return { Nodes: nodes, Links: links.map((l) => ({ From: l.From, To: l.To })) };
+	const graph: UiGraph = { Nodes: nodes, Links: links.map((l) => ({ From: l.From, To: l.To })) };
+	if (Array.isArray(record["Variables"])) graph.Variables = ReadVariables(record["Variables"]);
+	return graph;
 }
 
 //#endregion

@@ -228,6 +228,9 @@ const Copy = ( binding: ActionBinding ): ActionBinding => ( {
 	Gamepad: binding.Gamepad,
 } );
 
+/** An action bound to nothing. */
+const NoCodes: readonly string[] = [];
+
 /**
  * One action map: its actions and what presses them now (the defaults, or the
  * player's).
@@ -247,16 +250,28 @@ export class InputMap {
 		return binding && Copy( binding );
 	}
 
-	/** Every key, button or stick direction that presses the action. */
-	public Codes( name: string ): string[] {
-		const binding = this._bindings.get( name );
+	/**
+	 * Every key, button or stick direction that presses the action. Asked
+	 * several times a frame for every action: made once per binding (a
+	 * rebinding makes it again), not to be changed.
+	 */
+	public Codes( name: string ): readonly string[] {
+		let codes = this._codes.get( name );
 
-		return binding
-			? [...binding.Keyboard, binding.Gamepad].filter(
-				( code ) => code !== "",
-			)
-			: [];
+		if ( !codes ) {
+			const binding = this._bindings.get( name );
+			codes = binding
+				? [...binding.Keyboard, binding.Gamepad].filter(
+					( code ) => code !== "",
+				)
+				: NoCodes;
+			this._codes.set( name, codes );
+		}
+		return codes;
 	}
+
+	/** Codes' answers, by action (cleared when a binding changes). */
+	private readonly _codes = new Map<string, readonly string[]>();
 
 	/** Binds a slot of an action ("" leaves it empty). */
 	public Rebind( name: string, slot: BindingSlot, code: string ): void {
@@ -271,6 +286,7 @@ export class InputMap {
 		else {
 			binding.Keyboard[slot === "KeyboardPrimary" ? 0 : 1] = code;
 		}
+		this._codes.delete( name );
 	}
 
 	/** Back to the defaults: one action, or all. */
@@ -278,6 +294,7 @@ export class InputMap {
 		for ( const action of this.Actions ) {
 			if ( name === undefined || action.Name === name ) {
 				this._bindings.set( action.Name, Copy( action.Default ) );
+				this._codes.delete( action.Name );
 			}
 		}
 	}
@@ -305,6 +322,7 @@ export class InputMap {
 
 			if ( valid ) {
 				this._bindings.set( name, Copy( binding ) );
+				this._codes.delete( name );
 			}
 		}
 	}
@@ -360,10 +378,16 @@ export class InputSystem {
 
 	/** The action map in force (an empty one before any manifest is in use). */
 	public get Map(): InputMap {
-		return this._manifest === null
-			? this._empty
-			: this.MapOf( this._manifest, this._map! );
+		if ( this._manifest === null ) {
+			return this._empty;
+		}
+		// asked many times a frame: found once, until the manifest or the map
+		// in use changes
+		return this._current ??= this.MapOf( this._manifest, this._map! );
 	}
+
+	/** The map in force, once found (Map). */
+	private _current: InputMap | null = null;
 
 	/** Takes the project's manifests and puts its default one in use. */
 	public Install( project: ProjectInput ): void {
@@ -379,6 +403,7 @@ export class InputSystem {
 	/** Adds (or replaces) a manifest of the project. */
 	public Register( id: string, manifest: InputManifest ): void {
 		this._manifests.set( id, manifest );
+		this._current = null;
 		for ( const key of [...this._maps.keys()] ) {
 			if ( key.startsWith( `${ id }\u0000` ) ) {
 				this._maps.delete( key );
@@ -398,6 +423,7 @@ export class InputSystem {
 		}
 		this._manifest = id;
 		this._map = manifest.DefaultMap;
+		this._current = null;
 	}
 
 	/**
@@ -408,7 +434,7 @@ export class InputSystem {
 		if ( this._manifest === null ) {
 			throw new Error( "No input manifest is in use" );
 		}
-		this.MapOf( this._manifest, name );
+		this._current = this.MapOf( this._manifest, name );
 		this._map = name;
 	}
 

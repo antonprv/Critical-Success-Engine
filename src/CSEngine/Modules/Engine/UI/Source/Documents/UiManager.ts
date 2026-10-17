@@ -4,12 +4,14 @@
 import { markRaw, reactive } from "vue";
 import { EventHub } from "../Core/EventHub";
 import type { DialogResult } from "./DialogResult";
+import type { GraphValue } from "./Graph";
 import { DialogService } from "./Dialogs";
 import { ParseLayout, type UiLayout } from "./Layout";
 import type { UiManifest } from "./UiManifest";
 import { UiDocument } from "./UiDocument";
 import type { UiScriptRegistry } from "./UiScript";
 import type { WidgetRegistry } from "./Widgets";
+import { Task } from "@cse/task";
 
 export interface UiManagerOptions {
 	Manifest: UiManifest;
@@ -38,7 +40,8 @@ export class UiManager {
 	public readonly Shown: ShownDocument[] = reactive([]);
 
 	private readonly _layouts = new Map<string, UiLayout>();
-	private readonly _showing = new Map<string, Promise<UiDocument>>();
+	private readonly _showing = new Map<string, Task<UiDocument>>();
+	private readonly _variables = new Map<string, Record<string, GraphValue>>();
 
 	public constructor(private readonly _options: UiManagerOptions) {
 		this.Dialogs = _options.Dialogs ?? new DialogService();
@@ -57,14 +60,14 @@ export class UiManager {
 	}
 
 	/** Shows a document (loading it the first time); if it is shown already, returns it. */
-	public Show(id: string): Promise<UiDocument> {
+	public Show(id: string): Task<UiDocument> {
 		const shown = this.Get(id);
-		if (shown) return Promise.resolve(shown);
+		if (shown) return Task.FromResult(shown);
 		const pending = this._showing.get(id);
 		if (pending) return pending;
-		const showing = this.Load(id).then((layout) => {
+		const showing = Task.From(this.Load(id)).then((layout) => {
 			// The document itself stays plain (its controllers are reactive already): Get returns the very object Show did.
-			const document = markRaw(new UiDocument(layout, this.DocumentOptions()));
+			const document = markRaw(new UiDocument(layout, { ...this.DocumentOptions(), Variables: this.Variables(id) }));
 			// A document that closes itself (a button's DialogResult, its close box) leaves the screen.
 			document.Events.On("closed", () => this.Hide(id));
 			this.Shown.push({ Id: id, Document: document });
@@ -73,6 +76,17 @@ export class UiManager {
 		}).finally(() => this._showing.delete(id));
 		this._showing.set(id, showing);
 		return showing;
+	}
+
+	/** The variables the game set for a document (what it starts with when it shows). */
+	public Variables(id: string): Readonly<Record<string, GraphValue>> {
+		return this._variables.get(id) ?? {};
+	}
+
+	/** Sets a document's variable: kept for when it shows, and put on it now when it is shown. */
+	public SetVariable(id: string, name: string, value: GraphValue): void {
+		this._variables.set(id, { ...this.Variables(id), [name]: value });
+		this.Get(id)?.SetVariable(name, value);
 	}
 
 	public Hide(id: string): boolean {

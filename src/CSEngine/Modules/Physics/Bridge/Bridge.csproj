@@ -1,0 +1,133 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<RuntimeIdentifier>browser-wasm</RuntimeIdentifier>
+		<OutputType>Exe</OutputType>
+
+		<WasmMainJSPath>main.js</WasmMainJSPath>
+		<SelfContained>true</SelfContained>
+
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>annotations</Nullable>
+		<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+		<RootNamespace>Physics.Wasm</RootNamespace>
+		<AssemblyName>PhysicsBridge</AssemblyName>
+
+		<!-- Physics: the main (SIMD) build; PhysicsNoSimd: the fallback for browsers without WebAssembly SIMD (CseNoSimd). -->
+		<CsePhysicsBinaries Condition="'$(CseNoSimd)' != 'true'">Physics</CsePhysicsBinaries>
+		<CsePhysicsBinaries Condition="'$(CseNoSimd)' == 'true'">PhysicsNoSimd</CsePhysicsBinaries>
+		<BaseOutputPath>..\..\..\Binaries\$(CsePhysicsBinaries)\</BaseOutputPath>
+		<ProduceReferenceAssembly>False</ProduceReferenceAssembly>
+
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
+		<DocumentationFile>..\..\..\..\..\docs\Physics\Physics.xml</DocumentationFile>
+
+		<!-- wasm runtime -->
+		<WasmEnableThreads>false</WasmEnableThreads>
+		<WasmEnableSIMD Condition="'$(CseNoSimd)' != 'true'">true</WasmEnableSIMD>
+		<WasmEnableSIMD Condition="'$(CseNoSimd)' == 'true'">false</WasmEnableSIMD>
+		<InvariantGlobalization>true</InvariantGlobalization>
+
+		<!-- excessive runtime builds -->
+		<EventSourceSupport>false</EventSourceSupport>
+		<DebuggerSupport>false</DebuggerSupport>
+		<MetadataUpdaterSupport>false</MetadataUpdaterSupport>
+
+		<!-- comon publishing flags (can be overriden) -->
+		<RunAOTCompilation>false</RunAOTCompilation>
+		<PublishReadyToRun>true</PublishReadyToRun>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">
+		<PublishReadyToRun>false</PublishReadyToRun>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)'=='Debug'">
+		<UseSystemResourceKeys>false</UseSystemResourceKeys>
+		<Optimize>False</Optimize>
+		<IsAotCompatible>True</IsAotCompatible>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)'=='Release'">
+		<UseSystemResourceKeys>true</UseSystemResourceKeys>
+		<IsAotCompatible>True</IsAotCompatible>
+		<PublishTrimmed>true</PublishTrimmed>
+		<TrimMode>full</TrimMode>
+		<WasmBuildNative>true</WasmBuildNative>
+		<WasmEmitSymbolMap>false</WasmEmitSymbolMap>
+		<Optimize>True</Optimize>
+		<WasmEnableLegacyJsInterop>false</WasmEnableLegacyJsInterop>
+
+		<RunAOTCompilation>true</RunAOTCompilation>
+
+		<!-- Reverse engineering. Most of these are already the .NET 10 defaults for an AOT publish; pinned here so a
+		     future SDK default change can't silently ship IL or symbols. What stays readable regardless: type and method
+		     names in the Webcil assemblies' metadata, which the runtime needs. -->
+		<WasmStripILAfterAOT>true</WasmStripILAfterAOT>         <!-- drop IL bodies of AOT-compiled methods -->
+		<WasmNativeDebugSymbols>false</WasmNativeDebugSymbols>  <!-- no DWARF in dotnet.native.wasm -->
+		<WasmNativeStrip>true</WasmNativeStrip>                 <!-- wasm-opt strip of names/debug sections -->
+		<WasmEmitSourceMap>false</WasmEmitSourceMap>            <!-- no dotnet*.js.map next to the runtime JS -->
+		<DebugType>none</DebugType>
+		<DebugSymbols>false</DebugSymbols>
+		<StackTraceSupport>false</StackTraceSupport>            <!-- exceptions carry no managed stack trace text -->
+
+		<!-- Feature switches: trimmed out of CoreLib before AOT. Together with StackTraceSupport above: dotnet.native.wasm.gz 2.67 -> 2.44 MB. -->
+		<InvariantTimezone>true</InvariantTimezone>
+		<NullabilityInfoContextSupport>false</NullabilityInfoContextSupport>
+		<_AggressiveAttributeTrimming>true</_AggressiveAttributeTrimming>
+		<AutoreleasePoolSupport>false</AutoreleasePoolSupport>
+		<BuiltInComInteropSupport>false</BuiltInComInteropSupport>
+		<EnableUnsafeBinaryFormatterSerialization>false</EnableUnsafeBinaryFormatterSerialization>
+		<HttpActivityPropagationSupport>false</HttpActivityPropagationSupport>
+		<MetricsSupport>false</MetricsSupport>
+		<XmlResolverIsNetworkingEnabledByDefault>false</XmlResolverIsNetworkingEnabledByDefault>
+	</PropertyGroup>
+
+	<!--
+		Profile-guided AOT (see Profiling/README.md). Mono's wasm AOT compiles the methods of generic classes instantiated
+		over value types (all of CSPhysics's hot paths: collision tasks, constraint type processors, NarrowPhase<TCallbacks>...)
+		only as shared "gsharedvt" code, which is slow and, in .NET 10, crashes on the first Step. Methods listed in an AOT
+		profile are compiled as real instances instead; everything not in the profile runs in the interpreter.
+	-->
+	<PropertyGroup>
+		<CseAotProfileFile Condition="'$(CseNoSimd)' != 'true'">$(MSBuildThisFileDirectory)Profiling\aot.profile</CseAotProfileFile>
+		<!-- Without SIMD, Vector<T> runs .NET's managed code instead of SIMD instructions: other methods, its own profile. -->
+		<CseAotProfileFile Condition="'$(CseNoSimd)' == 'true'">$(MSBuildThisFileDirectory)Profiling\aot.nosimd.profile</CseAotProfileFile>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)'=='Release' and '$(CseAotProfile)' != 'true'">
+		<WasmAotProfilePath>$(CseAotProfileFile)</WasmAotProfilePath>
+	</PropertyGroup>
+
+	<!-- dotnet publish -c Release -p:CseAotProfile=true : interpreted build with the AOT profiler, used to record the profile. -->
+	<PropertyGroup Condition="'$(CseAotProfile)' == 'true'">
+		<RunAOTCompilation>false</RunAOTCompilation>
+		<WasmProfilers>aot</WasmProfilers>
+		<DefineConstants>$(DefineConstants);CSE_AOT_PROFILE</DefineConstants>
+	</PropertyGroup>
+
+	<!-- The SDK's AOT up-to-date check compares assemblies with their .bc outputs only and ignores the profile, so a new
+	     profile would silently be skipped. Drop the bitcode whenever aot.profile is newer than the last AOT run. -->
+	<Target Name="CseInvalidateAotOnProfileChange" BeforeTargets="_WasmAotCompileApp"
+			Condition="'$(RunAOTCompilation)' == 'true' and Exists('$(CseAotProfileFile)')"
+			Inputs="$(CseAotProfileFile)" Outputs="$(_WasmIntermediateOutputPath)cse-aot-profile.stamp">
+		<ItemGroup>
+			<_CseStaleAotBitcode Include="$(_WasmIntermediateOutputPath)*.dll.bc" />
+		</ItemGroup>
+		<Delete Files="@(_CseStaleAotBitcode)" />
+		<Touch Files="$(_WasmIntermediateOutputPath)cse-aot-profile.stamp" AlwaysCreate="true" />
+	</Target>
+
+	<Target Name="CseRequireAotProfile" BeforeTargets="Build" Condition="'$(RunAOTCompilation)' == 'true' and !Exists('$(CseAotProfileFile)')">
+		<Error Text="AOT-сборка без профиля: $(CseAotProfileFile) не найден. Без него CSPhysics падает в рантайме на первом Step. Запишите профиль: src/CSEngine/Physics/Bridge/Profiling/record-aot-profile.sh" />
+	</Target>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Integration\Integration.csproj" />
+	</ItemGroup>
+    
+    <!-- Compress final WASM build -->
+	<Import Project="$(MSBuildThisFileDirectory)GzipCompressWasmAssets.targets" />
+
+</Project>

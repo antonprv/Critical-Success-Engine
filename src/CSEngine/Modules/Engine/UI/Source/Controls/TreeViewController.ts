@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import { ControlBase, type ControlOptions } from "../Core/ControlBase";
 
 export interface TreeNode {
@@ -121,8 +122,8 @@ export class TreeViewController extends ControlBase<TreeViewEvents> {
 		const index = visible.findIndex((v) => v.Node.Id === this._selectedId);
 		const current = visible[index];
 		switch (code) {
-			case "ArrowDown": this.Select(visible[index < 0 ? 0 : Math.min(index + 1, visible.length - 1)]!.Node.Id); break;
-			case "ArrowUp": this.Select(visible[Math.max(index - 1, 0)]!.Node.Id); break;
+			case "ArrowDown": this.Select(visible[index < 0 ? 0 : FMath.Min(index + 1, visible.length - 1)]!.Node.Id); break;
+			case "ArrowUp": this.Select(visible[FMath.Max(index - 1, 0)]!.Node.Id); break;
 			case "Home": this.Select(visible[0]!.Node.Id); break;
 			case "End": this.Select(visible.at(-1)!.Node.Id); break;
 			case "ArrowRight": if (current) this.Right(current.Node); break;

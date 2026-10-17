@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!-- The C# scripts of the Games Sample: those of every template, as its scenes are theirs. -->
+	<Import Project="../../Modules/Scripting/Sdk/CSEngine.Game.targets" />
+
+	<ItemGroup>
+		<Compile Include="../../../Templates/*/Source/**/*.cs" LinkBase="Templates" />
+	</ItemGroup>
+
+</Project>

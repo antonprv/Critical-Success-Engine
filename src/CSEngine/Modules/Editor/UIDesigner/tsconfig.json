@@ -54,6 +54,8 @@
   },
 
   "include": [
+    // The engine's globals (__DEV__...): the module imports engine code that uses them.
+    "../../../Core/Source/Env.d.ts",
     "./Source/**/*.ts",
     "./Source/**/*.tsx",
     "./Source/**/*.vue",

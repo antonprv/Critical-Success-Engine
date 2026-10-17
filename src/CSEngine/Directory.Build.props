@@ -1,4 +1,20 @@
 <Project>
+  <!-- The .editorconfig style rules (formatting, naming) are checked by every build, like ESLint for the TypeScript. -->
+  <PropertyGroup>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+  <!--
+    The physics' fallback for browsers without WebAssembly SIMD: `dotnet publish ... -p:CseNoSimd=true` builds every project
+    with CSE_NO_SIMD (the wide math goes through FastMath's FMathWide instead of .NET's software Vector<T>) into separate
+    obj/bin folders, so it never mixes with the main (SIMD) build. See Modules/Physics/Bridge/BUILD.md.
+  -->
+  <PropertyGroup Condition="'$(CseNoSimd)'=='true'">
+    <BaseIntermediateOutputPath>obj/nosimd/</BaseIntermediateOutputPath>
+    <BaseOutputPath>bin/nosimd/</BaseOutputPath>
+    <!-- The main build's own obj/bin (generated sources included) are not this build's sources. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj/**;bin/**</DefaultItemExcludes>
+    <DefineConstants>$(DefineConstants);CSE_NO_SIMD</DefineConstants>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>

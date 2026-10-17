@@ -1,5 +1,6 @@
 <!-- Created by Anton Piruev in 2026. Any direct commercial use of derivative work is strictly prohibited. -->
 <script setup lang="ts">
+import { FMath } from "@cse/fastmath";
 import { computed } from "vue";
 import { XpProgressVariant } from "./XpProgressVariant";
 
@@ -11,7 +12,7 @@ const props = withDefaults(defineProps<{
 	label: string;
 }>(), { variant: XpProgressVariant.Luna });
 
-const percent = computed(() => Math.round(Math.min(1, Math.max(0, props.value)) * 100));
+const percent = computed(() => FMath.Round(FMath.Min(1, FMath.Max(0, props.value)) * 100));
 </script>
 
 <template>

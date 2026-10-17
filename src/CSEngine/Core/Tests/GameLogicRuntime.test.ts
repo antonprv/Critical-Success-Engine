@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { CreateRegistry, Harness } from "./Harness";
 import { SceneRegistry } from "../Source/Engine/Scenes/SceneRegistry";
+import { Vec3 } from "../Source/Engine/Math/Vec3";
+import { TRANSFORM_STRIDE } from "../Source/Workers/Protocol/TransformProtocol";
 import { Component } from "../Source/Engine/Core/Component";
 import { Comp, Ent } from "../Source/Engine/Core/EntityManifest";
 import {
@@ -184,6 +186,39 @@ describe( "GameLogicRuntime", () => {
 		expect( frame.entityCount ).toBe( 2 );
 		expect( frame.camera ).not.toBeNull();
 	} );
+
+	it(
+		"sends only poses that changed since the last frame (a still entity "
+			+ "costs nothing)",
+		async () => {
+			await harness.BootToScene();
+			harness.ClearSent();
+			const frame = ( id: number ) => {
+				harness.render.Receive(
+					{ type: RenderMsg.FrameRequest, frameId: id },
+				);
+				const sent = harness.render.sent.at( -1 ) as {
+					entityCount: number;
+					buffer: ArrayBuffer;
+				};
+
+				return {
+					count: sent.entityCount,
+					ids: [...new Float64Array( sent.buffer )].filter(
+						( _, i ) => i % TRANSFORM_STRIDE === 0,
+					),
+				};
+			};
+			expect( frame( 1 ).count ).toBe( 2 ); // the first: every entity
+			expect( frame( 2 ).count ).toBe( 0 ); // nothing moved
+			const one = [
+				...harness.runtime.Context.World.Renderables.values(),
+			][0]!;
+			one.Transform.Teleport( new Vec3( 3, 4, 5 ) );
+			expect( frame( 3 ) ).toEqual( { count: 1, ids: [one.Id] } );
+			expect( frame( 4 ).count ).toBe( 0 );
+		},
+	);
 
 	it(
 		"switches scenes: wipes both worlds, destroys old entities, builds the "

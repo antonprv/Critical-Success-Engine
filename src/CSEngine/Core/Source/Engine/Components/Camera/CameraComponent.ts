@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import type {
 	CameraPose,
 } from "../../../Workers/Protocol/RenderGameLogicProtocol";
@@ -150,7 +151,7 @@ export class CameraComponent extends Component implements ICameraSource {
 			.then( ( result ) => {
 				this._armQueryInFlight = false;
 				this._armLength = result.hit
-					? Math.max( 0, result.distance - this.ArmMargin )
+					? FMath.Max( 0, result.distance - this.ArmMargin )
 					: this.ArmLength;
 			} );
 	}
@@ -219,13 +220,21 @@ export class FixedCamera extends Component implements ICameraSource {
 	}
 
 	public GetPose( _alpha: number ): CameraPose {
-		const rotation = Quat.LookAt(
-			this.Transform.Position,
-			Vec3.FromTuple( this.LookAt ),
-		);
 		const p = this.Transform.Position;
+		const look = this.LookAt;
+		const last = this._pose;
 
-		return {
+		// asked every frame, and a fixed camera rarely moves: the last pose
+		// while nothing it is made of changed
+		if ( last && this._from[0] === p.X && this._from[1] === p.Y
+			&& this._from[2] === p.Z && this._from[3] === look[0]
+			&& this._from[4] === look[1] && this._from[5] === look[2]
+			&& last.fov === this.FovDegrees * DegToRad ) {
+			return last;
+		}
+		const rotation = Quat.LookAt( p, Vec3.FromTuple( look ) );
+		this._from = [p.X, p.Y, p.Z, look[0], look[1], look[2]];
+		this._pose = {
 			transform: [
 				p.X,
 				p.Y,
@@ -237,5 +246,11 @@ export class FixedCamera extends Component implements ICameraSource {
 			],
 			fov: this.FovDegrees * DegToRad,
 		};
+		return this._pose;
 	}
+
+	/** The last pose, and the position and target it was made from. */
+	private _pose: CameraPose | null = null;
+
+	private _from: number[] = [];
 }

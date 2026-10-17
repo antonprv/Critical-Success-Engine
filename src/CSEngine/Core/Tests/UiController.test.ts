@@ -9,6 +9,7 @@ import type {
 	UiToMainMessage,
 } from "../Source/Workers/Protocol/UiProtocol";
 import { MenuMode, UiMsg } from "../Source/Workers/Common/CommonEnums";
+import { Encode } from "@cse/datastream";
 
 const scenes = [
 	{ id: "a", name: "A", description: "" },
@@ -238,38 +239,14 @@ describe( "UiController: plugin channels", () => {
 			( m ) => toMain.push( m ),
 			( m ) => toGame.push( m ),
 		);
-		ui.OnGameLogicMessage(
-			{
-				type: UiMsg.Channel,
-				channel: "ui",
-				payload: { op: "show", id: "Hud" },
-			},
-		);
-		ui.OnMainMessage(
-			{
-				type: UiMsg.Channel,
-				channel: "ui",
-				payload: { op: "event", id: "Hud" },
-			},
-		);
+		// batches of plugin messages pass through as they are
+		const fromGame = Encode( [["ui", { op: "show", id: "Hud" }]] );
+		const fromPage = Encode( [["ui", { op: "event", id: "Hud" }]] );
+		ui.OnGameLogicMessage( { type: UiMsg.Channel, batch: fromGame } );
+		ui.OnMainMessage( { type: UiMsg.Channel, batch: fromPage } );
 		expect( toMain )
-			.toContainEqual(
-				{
-					type: UiMsg.Channel,
-					channel: "ui",
-					payload: { op: "show", id: "Hud" },
-				},
-			);
-		expect( toGame )
-			.toEqual(
-				[
-					{
-						type: UiMsg.Channel,
-						channel: "ui",
-						payload: { op: "event", id: "Hud" },
-					},
-				],
-			);
+			.toContainEqual( { type: UiMsg.Channel, batch: fromGame } );
+		expect( toGame ).toEqual( [{ type: UiMsg.Channel, batch: fromPage }] );
 	} );
 } );
 

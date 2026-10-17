@@ -3,7 +3,8 @@
 
 import type { MessageBoxButtons, MessageBoxIcon, MessageBoxResult } from "../Controls/MessageBoxController";
 import type { DialogResult } from "./DialogResult";
-import { Actions } from "./Graph";
+import { watch } from "vue";
+import { Actions, Coerce, Interpolate, Test, type Compare, type GraphValue, type VariableKind } from "./Graph";
 import type { DialogService } from "./Dialogs";
 import type { UiLayout } from "./Layout";
 import type { FormClosingEvent, UiDocument, UiDocumentOptions, ValidationContext, Validator } from "./UiDocument";
@@ -62,6 +63,25 @@ export abstract class UiScript {
 	protected Focus(name: string): void { Actions.Focus(this.Document, name); }
 	/** Closes the form with a result (WinForms: setting DialogResult). */
 	protected Close(result: DialogResult): void { this.Document.Close(result); }
+
+	/** A variable of the document (its graph declares them; the game sets them through GameUi.SetVariable). */
+	protected Variable(name: string): GraphValue | undefined { return this.Document.Variables[name]; }
+	protected SetVariable(name: string, value: GraphValue): void { Actions.SetVariable(this.Document, name, value); }
+	protected AddToVariable(name: string, amount: GraphValue): void { Actions.AddToVariable(this.Document, name, amount); }
+	/** Declares a variable of the document (kept as it is when its graph declared it already). */
+	protected DeclareVariable(name: string, kind: `${VariableKind}`, initial: GraphValue, widget?: string): void {
+		this.Document.DeclareVariable({ Name: name, Kind: kind as VariableKind, Default: initial, ...(widget ? { Widget: widget } : {}) });
+	}
+	/** Text read as a variable's kind, with {Name} put in first: what a graph compares the variable with. */
+	protected Read(name: string, text: string): GraphValue { return Coerce(this.Document.KindOf(name), this.Format(text)); }
+	/** A graph's variable test: ==, !=, >, <, >=, <= (or any). */
+	protected Test(value: GraphValue, compare: `${Compare}`, other: GraphValue): boolean { return Test(value, compare as Compare, other); }
+	/** Text with {Name} replaced by each variable's value. */
+	protected Format(text: string): string { return Interpolate(text, this.Document.Variables); }
+	/** Calls the handler with the variable's value now and on every change (until the document ends). */
+	protected OnVariable(name: string, handler: (value: GraphValue) => void): void {
+		this._subscriptions.push(watch(() => this.Document.Variables[name], (value) => { if (value !== undefined) handler(value); }, { immediate: true, flush: "sync" }));
+	}
 
 	/** Shows another layout as a modal dialog; resolves with its DialogResult. */
 	protected ShowDialog(layout: UiLayout, options: UiDocumentOptions = {}): Promise<DialogResult> {

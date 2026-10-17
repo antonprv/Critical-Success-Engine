@@ -1,0 +1,16 @@
+// Shared types: the other file uses them.
+namespace Sample.Shared;
+
+/// A side of the game.
+enum Team {
+    Red,
+    /// The other side.
+    Blue = 5,
+}
+
+/// Where something is.
+struct Place {
+    At: vec3;
+    Facing: quat;
+    Name: string?;
+}

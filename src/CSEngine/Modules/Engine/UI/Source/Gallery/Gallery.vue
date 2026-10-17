@@ -1,5 +1,6 @@
 <!-- Created by Anton Piruev in 2026. Any direct commercial use of derivative work is strictly prohibited. -->
 <script setup lang="ts">
+import { FMath } from "@cse/fastmath";
 import { reactive, ref, shallowRef } from "vue";
 import { ButtonController } from "../Controls/ButtonController";
 import { CheckBoxController, CheckState } from "../Controls/CheckBoxController";
@@ -98,7 +99,7 @@ const push = UseControl(new ButtonController({ Label: "Push me", IsDefault: true
 push.Events.On("click", () => Log("Button", "click"));
 
 const progress = UseControl(new ProgressBarController());
-progress.Events.On("change", () => Log("Progress", `${Math.round(progress.Percent)}%`));
+progress.Events.On("change", () => Log("Progress", `${FMath.Round(progress.Percent)}%`));
 progress.Events.On("marquee-change", (on) => Log("Progress", `marquee ${["off", "on"][Number(on)]}`));
 const step = UseControl(new ButtonController({ Label: "Step" }));
 step.Events.On("click", () => progress.Step());

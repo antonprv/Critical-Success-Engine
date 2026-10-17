@@ -34,6 +34,11 @@ declare module "virtual:cse/project" {
 	/** The project's data assets by Id: data/<Id>.csedata, next to the game. */
 	export const DataAssetUrls: Record<string, string>;
 	/**
+	 * The project's C# scripts project (the .csproj at its root), or null: its
+	 * components run in the browser, built by BuildTools/ScriptsWasmPlugin.ts.
+	 */
+	export const CSharpScripts: string | null;
+	/**
 	 * The engine plugins installed: a .cseplugin in each folder of
 	 * Modules/Engine.
 	 */

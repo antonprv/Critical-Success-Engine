@@ -5,6 +5,41 @@
 			"Id": "ThirdPersonHud",
 			"Path": "ThirdPersonHud.ui.json",
 			"Script": ""
+		},
+		{
+			"Id": "EnginePauseMenu",
+			"Path": "EnginePauseMenu.ui.json",
+			"Script": ""
+		},
+		{
+			"Id": "EngineLoading",
+			"Path": "EngineLoading.ui.json",
+			"Script": ""
+		},
+		{
+			"Id": "EngineSettings",
+			"Path": "EngineSettings.ui.json",
+			"Script": ""
+		},
+		{
+			"Id": "EngineControls",
+			"Path": "EngineControls.ui.json",
+			"Script": ""
+		},
+		{
+			"Id": "EngineHints",
+			"Path": "EngineHints.ui.json",
+			"Script": ""
+		},
+		{
+			"Id": "EngineToasts",
+			"Path": "EngineToasts.ui.json",
+			"Script": ""
+		},
+		{
+			"Id": "EngineTouch",
+			"Path": "EngineTouch.ui.json",
+			"Script": ""
 		}
 	]
 }

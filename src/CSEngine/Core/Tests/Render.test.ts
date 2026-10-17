@@ -16,7 +16,7 @@ import {
 } from "../Source/Engine/Assets/AssetLoader";
 import { RendMesh } from "../Source/Workers/Common/CommonEnums";
 import {
-	EntityMeshRegistry,
+	EntityMeshRegistry, SphereSegments,
 } from "../Source/Workers/Render/EntityMeshRegistry";
 import { RenderScene } from "../Source/Workers/Render/RenderScene";
 import { TRANSFORM_STRIDE } from "../Source/Workers/Protocol/TransformProtocol";
@@ -72,15 +72,23 @@ const meshOf = ( scene: Scene, id: number ): AbstractMesh
 	| null => scene.getMeshByName( `entity-${ id }` );
 
 describe( "EntityMeshRegistry", () => {
-	it(
-		"builds each primitive with its size, at its pose, with a lit material",
-		() => {
-			const scene = MakeScene();
-			const registry = new EntityMeshRegistry(
-				scene,
-				FakeLoader().loader,
-			);
+	const Registry = () => {
+		const scene = MakeScene();
 
+		return {
+			scene,
+			registry: new EntityMeshRegistry( scene, FakeLoader().loader ),
+		};
+	};
+	const batches = ( scene: Scene ) => scene.meshes.filter(
+		( m ) => m.name.startsWith( "batch-" ),
+	) as Mesh[];
+
+	it(
+		"draws primitives of one shape and size as one mesh of instances, each "
+			+ "at its pose in its colour",
+		() => {
+			const { scene, registry } = Registry();
 			registry.Spawn(
 				1,
 				{ shape: RendMesh.Sphere, diameter: 2 },
@@ -102,59 +110,55 @@ describe( "EntityMeshRegistry", () => {
 				{ shape: RendMesh.Cylinder, diameter: 1, height: 3 },
 				Identity,
 			);
+			registry.Spawn(
+				5,
+				{ shape: RendMesh.Box, size: [2, 4, 6] },
+				[9, 0, 0, 0, 0, 0, 1],
+				[0, 0, 1],
+			);
 
-			for ( const id of [1, 2, 3, 4] ) {
-				expect( meshOf( scene, id ), `entity ${ id }` ).not.toBeNull();
-			}
-			const sphere = meshOf( scene, 1 )!;
-			expect( sphere.position.asArray() ).toEqual( [1, 2, 3] );
-			expect( sphere.rotationQuaternion!.asArray() )
-				.toEqual( [0, 0, 0, 1] );
-			expect(
-				( sphere.material as StandardMaterial ).diffuseColor.asArray(),
-			)
-				.toEqual( [1, 0, 0] );
-
-			const box = meshOf( scene, 2 )!;
-			box.computeWorldMatrix( true );
+			expect( registry.Describe( 1 ) )
+				.toEqual(
+					{
+						Position: [1, 2, 3],
+						Rotation: [0, 0, 0, 1],
+						Color: [1, 0, 0],
+						Visible: true,
+						Batched: true,
+					},
+				);
+			// default grey
+			expect( registry.Describe( 2 )!.Color )
+				.toEqual( [0.75, 0.78, 0.82] );
+			// one mesh per shape and size: the two boxes share theirs
+			expect( batches( scene ) ).toHaveLength( 4 );
+			// right before drawing, the batches hand their changes to the GPU
+			scene.onBeforeRenderObservable.notifyObservers( scene );
+			const box = batches( scene )
+				.find( ( m ) => m.name.includes( "\"size\"" ) )!;
+			expect( box.thinInstanceCount ).toBe( 2 );
+			box.refreshBoundingInfo();
 			const extent = box.getBoundingInfo().boundingBox.extendSize;
 			// full extents 2 x 4 x 6
 			expect( [extent.x, extent.y, extent.z] ).toEqual( [1, 2, 3] );
-			// default grey
+			// the colour is per instance: the batch's material is white, lit,
+			// culled
+			const material = box.material as StandardMaterial;
 			expect(
-				( box.material as StandardMaterial ).diffuseColor.asArray()
-					.map( ( v ) => Number( v.toFixed( 2 ) ) ),
-			).toEqual( [0.75, 0.78, 0.82] );
-			expect( ( box.material as StandardMaterial ).backFaceCulling )
-				.toBe( true );
+				[material.diffuseColor.asArray(), material.backFaceCulling],
+			).toEqual( [[1, 1, 1], true] );
 		},
 	);
 
-	it( "shares one material per colour", () => {
-		const scene = MakeScene();
-		const registry = new EntityMeshRegistry( scene, FakeLoader().loader );
-		registry.Spawn(
-			1,
-			{ shape: RendMesh.Box, size: [1, 1, 1] },
-			Identity,
-			[0, 1, 0],
-		);
-		registry.Spawn(
-			2,
-			{ shape: RendMesh.Box, size: [1, 1, 1] },
-			Identity,
-			[0, 1, 0],
-		);
-		registry.Spawn(
-			3,
-			{ shape: RendMesh.Box, size: [1, 1, 1] },
-			Identity,
-			[0, 0, 1],
-		);
-		expect( meshOf( scene, 1 )!.material )
-			.toBe( meshOf( scene, 2 )!.material );
-		expect( meshOf( scene, 1 )!.material ).not
-			.toBe( meshOf( scene, 3 )!.material );
+	it( "a small sphere is cut into fewer pieces than a big one", () => {
+		expect(
+			[
+				SphereSegments( 0.2 ),
+				SphereSegments( 0.6 ),
+				SphereSegments( 1 ),
+				SphereSegments( 5 ),
+			],
+		).toEqual( [8, 8, 12, 24] );
 	} );
 
 	it(
@@ -190,26 +194,30 @@ describe( "EntityMeshRegistry", () => {
 		},
 	);
 
-	it( "re-spawning an id replaces the old mesh", () => {
-		const scene = MakeScene();
-		const registry = new EntityMeshRegistry( scene, FakeLoader().loader );
+	it( "re-spawning an id replaces what drew it", () => {
+		const { scene, registry } = Registry();
 		registry.Spawn( 1, { shape: RendMesh.Box, size: [1, 1, 1] }, Identity );
-		const first = meshOf( scene, 1 )!;
+		registry.Spawn(
+			1,
+			{
+				shape: RendMesh.Triangles,
+				vertices: [0, 0, 0, 1, 0, 0, 0, 0, 1],
+			},
+			Identity,
+		);
+		expect( registry.Describe( 1 )!.Batched ).toBe( false );
 		registry.Spawn( 1, { shape: RendMesh.Sphere, diameter: 1 }, Identity );
-		expect( first.isDisposed() ).toBe( true );
 		expect( scene.meshes.filter( ( m ) => m.name === "entity-1" ) )
-			.toHaveLength( 1 );
+			.toHaveLength( 0 );
+		expect( registry.Describe( 1 )!.Batched ).toBe( true );
 	} );
 
 	it(
 		"SetVisible, SetColor, Remove and Clear act on known ids and ignore "
 			+ "unknown ones",
 		() => {
-			const scene = MakeScene();
-			const registry = new EntityMeshRegistry(
-				scene,
-				FakeLoader().loader,
-			);
+			const { scene, registry } = Registry();
+			const triangle = [0, 0, 0, 1, 0, 0, 0, 0, 1];
 			registry.Spawn(
 				1,
 				{ shape: RendMesh.Box, size: [1, 1, 1] },
@@ -218,55 +226,86 @@ describe( "EntityMeshRegistry", () => {
 			registry.Spawn(
 				2,
 				{ shape: RendMesh.Box, size: [1, 1, 1] },
+				[2, 0, 0, 0, 0, 0, 1],
+			);
+			registry.Spawn(
+				3,
+				{ shape: RendMesh.Triangles, vertices: triangle },
 				Identity,
 			);
-			const one = meshOf( scene, 1 )!;
 
 			registry.SetVisible( 1, false );
-			expect( one.isEnabled() ).toBe( false );
 			registry.SetColor( 1, [0.5, 0.5, 0.5] );
-			expect(
-				( one.material as StandardMaterial ).diffuseColor.asArray(),
-			)
-				.toEqual( [0.5, 0.5, 0.5] );
+			expect( registry.Describe( 1 ) )
+				.toMatchObject( { Visible: false, Color: [0.5, 0.5, 0.5] } );
+			registry.SetVisible( 3, false );
+			registry.SetColor( 3, [0, 1, 0] );
+			expect( registry.Describe( 3 ) )
+				.toMatchObject(
+					{ Visible: false, Color: [0, 1, 0], Batched: false },
+				);
 			expect( () => {
 				registry.SetVisible( 99, true );
 				registry.SetColor( 99, [1, 1, 1] );
 				registry.Remove( 99 );
 			} ).not.toThrow();
+			expect( registry.Describe( 99 ) ).toBeNull();
 
+			// removing the first instance moves the last one into its place: it
+			// keeps its pose
 			registry.Remove( 1 );
-			expect( one.isDisposed() ).toBe( true );
+			expect( registry.Describe( 1 ) ).toBeNull();
+			expect( registry.Describe( 2 )!.Position ).toEqual( [2, 0, 0] );
+			registry.SetColor( 2, [1, 0, 0] );
+			expect( registry.Describe( 2 )!.Color ).toEqual( [1, 0, 0] );
+			const triangleMesh = meshOf( scene, 3 )!;
 			registry.Clear();
-			expect( meshOf( scene, 2 ) ).toBeNull();
+			expect(
+				[
+					registry.Describe( 2 ),
+					registry.Describe( 3 ),
+					triangleMesh.isDisposed(),
+				],
+			).toEqual( [null, null, true] );
+			expect(
+				scene.meshes.filter( ( m ) => m.name.startsWith( "batch-" ) ),
+			).toHaveLength( 0 );
 		},
 	);
 
 	it(
-		"applies a frame's transform batch to the meshes it knows, skipping "
-			+ "the rest",
+		"applies a frame's transform batch to what it knows, skipping the rest",
 		() => {
-			const scene = MakeScene();
-			const registry = new EntityMeshRegistry(
-				scene,
-				FakeLoader().loader,
-			);
+			const { registry } = Registry();
 			registry.Spawn(
 				5,
 				{ shape: RendMesh.Box, size: [1, 1, 1] },
 				Identity,
 			);
+			registry.Spawn(
+				6,
+				{
+					shape: RendMesh.Triangles,
+					vertices: [0, 0, 0, 1, 0, 0, 0, 0, 1],
+				},
+				Identity,
+			);
 
-			const batch = new Float64Array( 2 * TRANSFORM_STRIDE );
+			const batch = new Float64Array( 3 * TRANSFORM_STRIDE );
 			batch.set( [5, 1, 2, 3, 0, 1, 0, 0], 0 );
+			batch.set( [6, 4, 5, 6, 0, 0, 1, 0], TRANSFORM_STRIDE );
 			// an id the renderer never heard of
-			batch.set( [77, 9, 9, 9, 0, 0, 0, 1], TRANSFORM_STRIDE );
-			registry.ApplyTransformBatch( batch.buffer, 2 );
+			batch.set( [77, 9, 9, 9, 0, 0, 0, 1], 2 * TRANSFORM_STRIDE );
+			registry.ApplyTransformBatch( batch.buffer, 3 );
 
-			const mesh = meshOf( scene, 5 )!;
-			expect( mesh.position.asArray() ).toEqual( [1, 2, 3] );
-			expect( mesh.rotationQuaternion!.asArray() )
-				.toEqual( [0, 1, 0, 0] );
+			expect( registry.Describe( 5 ) )
+				.toMatchObject(
+					{ Position: [1, 2, 3], Rotation: [0, 1, 0, 0] },
+				);
+			expect( registry.Describe( 6 ) )
+				.toMatchObject(
+					{ Position: [4, 5, 6], Rotation: [0, 0, 1, 0] },
+				);
 		},
 	);
 
@@ -329,6 +368,117 @@ describe( "EntityMeshRegistry", () => {
 	} );
 } );
 
+describe( "RenderScene: frames without the display's limit", () => {
+	// long enough for the loop's message to come through, however busy the run
+	const tick = () => new Promise<void>( ( done ) => setTimeout( done, 10 ) );
+
+	function Uncapped( gl: Partial<WebGL2RenderingContext> | null = null ) {
+		const engine = new NullEngine();
+		engines.push( engine );
+		( engine as unknown as { _gl: unknown; } )._gl = gl;
+		const scene = new RenderScene(
+			{ width: 0, height: 0 } as OffscreenCanvas,
+			10,
+			10,
+			1,
+			() => engine,
+		);
+		const render = vi.spyOn( scene.Scene, "render" )
+			.mockImplementation( () => undefined );
+		let fresh = false;
+		scene.Uncap();
+		scene.RunRenderLoop( () => {
+			const was = fresh;
+			fresh = false;
+			return was;
+		} );
+		return { scene, engine, render, arrive: () => {
+			fresh = true;
+			scene.Wake();
+		} };
+	}
+
+	it(
+		"draws when a new game state arrives, then sleeps (no spinning) until "
+			+ "the next one",
+		async () => {
+			const { render, arrive, engine } = Uncapped();
+			await tick();
+			expect( render ).toHaveBeenCalledTimes( 1 ); // the first frame
+			await tick();
+			await tick();
+			expect( render ).toHaveBeenCalledTimes( 1 ); // nothing new: asleep
+			arrive();
+			await tick();
+			expect( render ).toHaveBeenCalledTimes( 2 );
+			arrive();
+			arrive(); // two arrivals before it ran: one frame
+			await tick();
+			await tick();
+			expect( render ).toHaveBeenCalledTimes( 3 );
+			engine.stopRenderLoop();
+		},
+	);
+
+	it(
+		"a wake while the loop isn't waiting only marks something to draw; "
+			+ "without a canvas the GPU facts say 0 x 0",
+		() => {
+			const engine = new NullEngine();
+			engines.push( engine );
+			const scene = new RenderScene(
+				{ width: 0, height: 0 } as OffscreenCanvas,
+				10,
+				10,
+				1,
+				() => engine,
+			);
+			scene.Uncap();
+			expect( () => scene.Wake() ).not.toThrow();
+			vi.spyOn( engine, "getRenderingCanvas" ).mockReturnValue( null );
+			expect( scene.GpuInfo ).toMatchObject( { width: 0, height: 0 } );
+		},
+	);
+
+	it(
+		"keeps at most four frames in flight on the GPU: while they run, a new "
+			+ "state waits",
+		async () => {
+			let done = false;
+			const gl = {
+				SYNC_GPU_COMMANDS_COMPLETE: 1, SYNC_STATUS: 2, SIGNALED: 3,
+				UNSIGNALED: 4,
+				fenceSync: () => ( {} as WebGLSync ),
+				getSyncParameter: () => ( done ? 3 : 4 ),
+				deleteSync: vi.fn(),
+				flush: vi.fn(),
+			} as unknown as Partial<WebGL2RenderingContext>;
+			const { render, arrive, engine, scene } = Uncapped( gl );
+			await tick();
+			for ( let i = 0; i < 3; i++ ) {
+				arrive();
+				await tick();
+			}
+			expect( render ).toHaveBeenCalledTimes( 4 );
+			arrive(); // four frames still on the GPU
+			await tick();
+			await tick();
+			expect( render ).toHaveBeenCalledTimes( 4 );
+			// a newer state while the GPU is busy: the older one is never drawn
+			arrive();
+			done = true; // the GPU caught up: the waiting state is drawn
+			await tick();
+			await tick();
+			expect( render ).toHaveBeenCalledTimes( 5 );
+			expect( gl.deleteSync ).toHaveBeenCalledTimes( 4 );
+			// fps counts frames drawn with a new state: four were (three
+			// intervals), not the five that arrived
+			expect( scene.Perf.Take()["fresh"] ).toHaveLength( 3 );
+			engine.stopRenderLoop();
+		},
+	);
+} );
+
 describe( "RenderScene", () => {
 	function Make( width = 400, height = 300, dpr = 2 ) {
 		const canvas = { width: 0, height: 0 } as OffscreenCanvas;
@@ -343,6 +493,14 @@ describe( "RenderScene", () => {
 
 		return { scene, canvas, engine: engine! };
 	}
+
+	it( "UseFxaa adds an FXAA pass to the camera", () => {
+		const { scene } = Make();
+		scene.UseFxaa();
+		expect(
+			scene.Scene.activeCamera!._postProcesses.map( ( p ) => p?.name ),
+		).toEqual( ["fxaa"] );
+	} );
 
 	it(
 		"sizes the canvas in device pixels and sets up a right-handed scene "
@@ -404,9 +562,44 @@ describe( "RenderScene", () => {
 				order.push( "render" );
 			} );
 
-			scene.RunRenderLoop( () => order.push( "before" ) );
+			scene.RunRenderLoop( () => {
+				order.push( "before" );
+			} );
 			loop!();
 			expect( order ).toEqual( ["before", "render"] );
+			// the perf probe: every frame's CPU time, draw calls and triangles;
+			// the time between frames from the second one on
+			loop!();
+			const taken = scene.Perf.Take();
+			expect( Object.keys( taken ).sort() )
+				.toEqual( ["draws", "frame", "render", "triangles"] );
+			expect(
+				[
+					taken["frame"]!.length,
+					taken["render"]!.length,
+					taken["draws"],
+					taken["triangles"],
+				],
+			)
+				.toEqual( [1, 2, [0, 0], [0, 0]] );
+			// draw calls: what each frame added to Babylon's growing counter
+			const counter = ( engine as unknown as {
+				_drawCalls: { current: number; };
+			} )._drawCalls;
+			vi.spyOn( counter, "current", "get" ).mockReturnValueOnce( 5 )
+				.mockReturnValueOnce( 12 )
+				.mockReturnValueOnce( 3 );
+			loop!();
+			loop!();
+			loop!();
+			expect( scene.Perf.Take()["draws"] ).toEqual( [5, 7, 3] );
+			expect( scene.GpuInfo )
+				.toMatchObject(
+					{
+						width: expect.any( Number ),
+						height: expect.any( Number ),
+					},
+				);
 		},
 	);
 

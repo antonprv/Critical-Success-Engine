@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--
+		Components in C#: the engine side of C# scripting (Component, Entity, Transform, the engine context) and the host
+		the TypeScript runtime drives, one call per phase. A game's scripts project imports Sdk/CSEngine.Game.targets,
+		which references this and builds the game for the browser. C# and TypeScript talk through the DataStream.
+	-->
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<ImplicitUsings>disable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<IsTrimmable>true</IsTrimmable>
+		<RootNamespace>CSEngine</RootNamespace>
+		<AssemblyName>CSEngine.Scripting</AssemblyName>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<NoWarn>$(NoWarn);CS1591</NoWarn>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\Common\DataStream\DotNet\DataStream.csproj" />
+		<ProjectReference Include="..\..\Common\DI\DotNet\DI.csproj" />
+		<ProjectReference Include="..\..\Common\Math\FastMath.csproj" />
+		<InternalsVisibleTo Include="CSEngine.Scripting.Tests" />
+	</ItemGroup>
+
+</Project>

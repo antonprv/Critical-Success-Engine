@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--
+		DataStream for C#: tagged reactive messages and the MessagePack codec they cross to TypeScript with (the twin of
+		../Source). Runs in the browser (.NET WebAssembly, AOT, trimmed) and on the desktop (tests).
+	-->
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<ImplicitUsings>disable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<IsTrimmable>true</IsTrimmable>
+		<IsAotCompatible>true</IsAotCompatible>
+		<RootNamespace>CSEngine.Messaging</RootNamespace>
+		<AssemblyName>CSEngine.DataStream</AssemblyName>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<NoWarn>$(NoWarn);CS1591</NoWarn>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<InternalsVisibleTo Include="DataStream.Tests" />
+	</ItemGroup>
+
+</Project>

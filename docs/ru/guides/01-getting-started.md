@@ -25,7 +25,7 @@ pnpm dev            # http://127.0.0.1:5173
 
 ## Сборка физики (wasm)
 
-Подробно - в `src/CSEngine/Physics/Bridge/BUILD.md`. Коротко:
+Подробно - в `src/CSEngine/Modules/Physics/Bridge/BUILD.md`. Коротко:
 
 ```bash
 cd devops
@@ -98,7 +98,7 @@ src/
     Programs/Desktop/           десктопная программа (Electron), гайд 16
     Physics/
       Bridge/PhysicsBridge.cs     C#-мост: единственное, что написано на C#
-      Vendor/                     BEPU и обвязка Integration
+      Vendor/                     CSPhysics и обвязка Integration
   Templates/                    ← ТВОЯ ИГРА начинается здесь: шаблоны проектов
     CoinHunt/
       TemplateProject.cseproject          дескриптор проекта

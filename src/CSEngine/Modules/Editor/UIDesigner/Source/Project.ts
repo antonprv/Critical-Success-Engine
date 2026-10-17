@@ -3,11 +3,11 @@
 
 import type { CodeHost } from "./Code/CodeSession";
 import { reactive } from "vue";
-import type { UiManifestEntry } from "@cse/ui";
+import type { ToolTheme, UiManifestEntry } from "@cse/ui";
 import type { DesignerController } from "./DesignerController";
 import { GenerateGraphScript, GraphClassName } from "./GraphCodegen";
 
-export interface DesignerProject { Name: string; File: string; Documents: UiManifestEntry[]; }
+export interface DesignerProject { Name: string; File: string; Documents: UiManifestEntry[]; /** What the game draws its documents in (none: the engine's). */ Theme?: ToolTheme; }
 
 /** What the designer asks of the desktop app about a project (its main process keeps the files). */
 export interface DesignerApi {
@@ -19,6 +19,8 @@ export interface DesignerApi {
 	CodeFiles(file: string): Promise<string[]>;
 	ReadCode(file: string, path: string): Promise<string>;
 	WriteCode(file: string, path: string, text: string): Promise<void>;
+	/** Writes the theme the game draws its documents in into the project (its .cseproject). */
+	SetTheme(file: string, theme: ToolTheme): Promise<void>;
 }
 
 /** The projects the tools know (the project browser's list), for choosing one. */
@@ -36,7 +38,7 @@ declare global {
  * add one. Saving writes the layout into the project and, when it has node scripting, the class generated from it.
  */
 export class ProjectSession {
-	public readonly State = reactive({ Name: "", File: "", Documents: [] as UiManifestEntry[], Current: null as string | null });
+	public readonly State = reactive({ Name: "", File: "", Documents: [] as UiManifestEntry[], Current: null as string | null, Theme: null as ToolTheme | null });
 
 	private constructor(private readonly _api: DesignerApi) {}
 
@@ -44,7 +46,7 @@ export class ProjectSession {
 	public static async Start(api: DesignerApi, file: string, designer: DesignerController): Promise<ProjectSession> {
 		const session = new ProjectSession(api);
 		const project = await api.Open(file);
-		Object.assign(session.State, { Name: project.Name, File: project.File, Documents: project.Documents });
+		Object.assign(session.State, { Name: project.Name, File: project.File, Documents: project.Documents, Theme: project.Theme ?? null });
 		const first = project.Documents[0];
 		if (first) await session.OpenDocument(first.Id, designer);
 		return session;
@@ -79,6 +81,17 @@ export class ProjectSession {
 		try {
 			this.State.Documents = await this._api.Save(this.State.File, { Id: this.State.Current, Layout: designer.Export(), ...(script ? { Script: script } : {}) });
 			return `Saved ${this.State.Current} to ${this.State.Name}`;
+		} catch (error) {
+			return (error as Error).message;
+		}
+	}
+
+	/** Makes `theme` the one the game draws its documents in; returns what happened. */
+	public async SetTheme(theme: ToolTheme): Promise<string> {
+		try {
+			await this._api.SetTheme(this.State.File, theme);
+			this.State.Theme = theme;
+			return `${this.State.Name} now uses this theme in the game`;
 		} catch (error) {
 			return (error as Error).message;
 		}

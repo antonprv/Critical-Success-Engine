@@ -4,7 +4,11 @@
 import {
 	CameraComponent,
 } from "@cse/core/Engine/Components/Camera/CameraComponent";
+import { Inject } from "@cse/di";
 import { Component } from "@cse/core/Engine/Core/Component";
+import {
+	IDataAssets, ISettingsSubsystem,
+} from "@cse/core/Engine/DI/Contracts";
 import { ThirdPersonCamera } from "../Data/ThirdPersonCamera";
 
 /**
@@ -12,12 +16,18 @@ import { ThirdPersonCamera } from "../Data/ThirdPersonCamera";
  * sits (its numbers: ThirdPersonCamera).
  */
 export class CameraDistance extends Component {
+	@Inject( IDataAssets ) private readonly _data!: IDataAssets;
+
+	@Inject(
+		ISettingsSubsystem,
+	) private readonly _settings!: ISettingsSubsystem;
+
 	public override Awake(): void {
-		const camera = this.Engine.Data.GetOrDefault(
+		const camera = this._data.GetOrDefault(
 			ThirdPersonCamera,
 			"ThirdPersonCamera",
 		);
-		this.Engine.Settings.Declare(
+		this._settings.Declare(
 			{
 				Key: "CameraDistance",
 				Label: "Camera distance",
@@ -35,7 +45,7 @@ export class CameraDistance extends Component {
 		const camera = this.Entity.GetComponent( CameraComponent );
 
 		if ( camera ) {
-			camera.ArmLength = this.Engine.Settings.Number( "CameraDistance" );
+			camera.ArmLength = this._settings.Number( "CameraDistance" );
 		}
 	}
 }

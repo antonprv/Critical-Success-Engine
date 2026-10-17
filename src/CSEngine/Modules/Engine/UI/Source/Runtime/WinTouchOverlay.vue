@@ -1,5 +1,6 @@
 <!-- Created by Anton Piruev in 2026. Any direct commercial use of derivative work is strictly prohibited. -->
 <script setup lang="ts">
+import { FMath } from "@cse/fastmath";
 import { computed, ref } from "vue";
 import WinButton from "../Components/WinButton.vue";
 import WinGameButton from "../Components/WinGameButton.vue";
@@ -23,7 +24,7 @@ const items = computed<Item[]>(() => {
 	];
 });
 
-const Percent = (share: number): string => `${Math.round(share * 1000) / 10}%`;
+const Percent = (share: number): string => `${FMath.Round(share * 1000) / 10}%`;
 
 const root = ref<HTMLElement>();
 let grab: { Finger: number; Key: string; Dx: number; Dy: number; } | null = null;

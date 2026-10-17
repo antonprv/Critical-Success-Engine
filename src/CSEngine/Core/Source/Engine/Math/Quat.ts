@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import { Vec3 } from "./Vec3";
 
 export type QuatTuple = [number, number, number, number];
@@ -45,9 +46,14 @@ export class Quat {
 	public static FromAxisAngle( axis: Vec3, angleRadians: number ): Quat {
 		const unit = axis.Normalized();
 		const half = angleRadians * 0.5;
-		const s = Math.sin( half );
+		const s = FMath.FastSin( half );
 
-		return new Quat( unit.X * s, unit.Y * s, unit.Z * s, Math.cos( half ) );
+		return new Quat(
+			unit.X * s,
+			unit.Y * s,
+			unit.Z * s,
+			FMath.FastCos( half ),
+		);
 	}
 
 	/**
@@ -100,7 +106,7 @@ export class Quat {
 		let result: Quat;
 
 		if ( trace > 0 ) {
-			const s = Math.sqrt( trace + 1 ) * 2;
+			const s = FMath.Sqrt( trace + 1 ) * 2;
 			result = new Quat(
 				( m21 - m12 ) / s,
 				( m02 - m20 ) / s,
@@ -108,7 +114,7 @@ export class Quat {
 				0.25 * s,
 			);
 		} else if ( m00 > m11 && m00 > m22 ) {
-			const s = Math.sqrt( 1 + m00 - m11 - m22 ) * 2;
+			const s = FMath.Sqrt( 1 + m00 - m11 - m22 ) * 2;
 			result = new Quat(
 				0.25 * s,
 				( m01 + m10 ) / s,
@@ -116,7 +122,7 @@ export class Quat {
 				( m21 - m12 ) / s,
 			);
 		} else if ( m11 > m22 ) {
-			const s = Math.sqrt( 1 + m11 - m00 - m22 ) * 2;
+			const s = FMath.Sqrt( 1 + m11 - m00 - m22 ) * 2;
 			result = new Quat(
 				( m01 + m10 ) / s,
 				0.25 * s,
@@ -124,7 +130,7 @@ export class Quat {
 				( m02 - m20 ) / s,
 			);
 		} else {
-			const s = Math.sqrt( 1 + m22 - m00 - m11 ) * 2;
+			const s = FMath.Sqrt( 1 + m22 - m00 - m11 ) * 2;
 			result = new Quat(
 				( m02 + m20 ) / s,
 				( m12 + m21 ) / s,
@@ -195,7 +201,7 @@ export class Quat {
 	}
 
 	public Normalized(): Quat {
-		const length = Math.sqrt(
+		const length = FMath.Sqrt(
 			this.X * this.X
 				+ this.Y * this.Y
 				+ this.Z * this.Z
@@ -252,10 +258,10 @@ export class Quat {
 			).Normalized();
 		}
 
-		const halfTheta = Math.acos( cosHalfTheta );
-		const sinHalfTheta = Math.sqrt( 1 - cosHalfTheta * cosHalfTheta );
-		const ratioA = Math.sin( ( 1 - t ) * halfTheta ) / sinHalfTheta;
-		const ratioB = Math.sin( t * halfTheta ) / sinHalfTheta;
+		const halfTheta = FMath.FastAcos( cosHalfTheta );
+		const sinHalfTheta = FMath.Sqrt( 1 - cosHalfTheta * cosHalfTheta );
+		const ratioA = FMath.FastSin( ( 1 - t ) * halfTheta ) / sinHalfTheta;
+		const ratioB = FMath.FastSin( t * halfTheta ) / sinHalfTheta;
 
 		return new Quat(
 			from.X * ratioA + target.X * ratioB,

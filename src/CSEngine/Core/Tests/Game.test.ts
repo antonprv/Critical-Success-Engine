@@ -319,6 +319,13 @@ describe( "sample scripts", () => {
 	} );
 } );
 
+
+/**
+ * GameRules' field the C# StreakTracker fills (@FromCSharp), for tests to play
+ * C#.
+ */
+type WithStreaks = { _streaks: { Best(): number; }; };
+
 describe( "Coin Hunt scripts", () => {
 	function Game( limit = 60 ) {
 		const t = MakeEngine();
@@ -378,6 +385,42 @@ describe( "Coin Hunt scripts", () => {
 
 			rules.Collect();
 			expect( rules.Collected ).toBe( 2 );
+		},
+	);
+
+	it(
+		"answers C# (IRound: coins and seconds left) and, on a win, tells the "
+			+ "best streak C# counted (IStreaks); quiet without C# or a streak",
+		() => {
+			const { t, rules } = Game();
+			rules.TimeLeft = 42;
+			rules.Collect();
+			expect( [rules.CoinsLeft(), rules.SecondsLeft()] )
+				.toEqual( [1, 42] );
+			const toasts = (): unknown[] => t.uiMessages( UiMsg.Toast )
+				.map( ( m ) => m["message"] );
+			// no C# scripts here: asking fails, nothing is said
+			rules.Collect();
+			expect( toasts().at( -1 ) )
+				.toBe(
+					"All coins collected in 18.0 s! Press R to play again.",
+				);
+			const again = Game();
+			( again.rules as unknown as WithStreaks )._streaks = {
+				Best: () => 1,
+			};
+			again.rules.Collect();
+			again.rules.Collect();
+			expect( again.t.uiMessages( UiMsg.Toast ).at( -1 )!["message"] )
+				.toContain( "All coins collected" );
+			const third = Game();
+			( third.rules as unknown as WithStreaks )._streaks = {
+				Best: () => 3,
+			};
+			third.rules.Collect();
+			third.rules.Collect();
+			expect( third.t.uiMessages( UiMsg.Toast ).at( -1 )!["message"] )
+				.toBe( "Best streak: x3" );
 		},
 	);
 
@@ -474,9 +517,16 @@ describe( "Coin Hunt scripts", () => {
 		expect( rules.Collected ).toBe( 0 );
 		expect( coin.IsDestroyed ).toBe( false );
 
+		const collected: unknown[] = [];
+		t.engine.Stream.Subscribe(
+			"Coin.Collected",
+			( c ) => collected.push( c ),
+		);
 		coin.GetComponent( Coin )!.OnTriggerEnter( player );
 		expect( rules.Collected ).toBe( 1 );
 		expect( coin.IsDestroyed ).toBe( true );
+		// on the DataStream too (the C# StreakTracker follows it)
+		expect( collected ).toEqual( [{ Coin: coin.Name }] );
 	} );
 
 	it( "a coin without a Game entity is simply removed", () => {
@@ -945,8 +995,12 @@ describe( "scene helpers", () => {
 				[1, 1, 1],
 				{ rotationX: 0.5 },
 			);
-			expect( tilted.rotation )
-				.toEqual( Quat.FromAxisAngle( Vec3.Right(), 0.5 ).ToTuple() );
+			// composed rotations agree to the last bit or so, not exactly
+			Quat.FromAxisAngle( Vec3.Right(), 0.5 ).ToTuple()
+				.forEach(
+					( v, i ) => expect( tilted.rotation![i] )
+						.toBeCloseTo( v, 12 ),
+				);
 			const yawed = StaticBox(
 				"Wall",
 				[1, 1, 1],
@@ -954,8 +1008,12 @@ describe( "scene helpers", () => {
 				[1, 1, 1],
 				{ rotationY: 0.5 },
 			);
-			expect( yawed.rotation )
-				.toEqual( Quat.FromAxisAngle( Vec3.Up(), 0.5 ).ToTuple() );
+			// composed rotations agree to the last bit or so, not exactly
+			Quat.FromAxisAngle( Vec3.Up(), 0.5 ).ToTuple()
+				.forEach(
+					( v, i ) => expect( yawed.rotation![i] )
+						.toBeCloseTo( v, 12 ),
+				);
 		},
 	);
 

@@ -5,7 +5,7 @@ import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "./support/game";
 
 const screen = ( page: Page, id: string ) => page.locator(
-	`.cse-ui-host [data-ui="${ id }"]`,
+	`.cse-ui-host [data-ui="${ id }"]:not([inert])`,
 );
 const overlay = ( page: Page ) => page.locator( ".cse-ui-host .cse-touch" );
 

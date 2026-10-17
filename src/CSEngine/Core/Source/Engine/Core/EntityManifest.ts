@@ -1,7 +1,9 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import type { Installer } from "@cse/di";
 import type { Component, ComponentConstructor } from "./Component";
+import type { EngineContext } from "./EngineContext";
 import type { QuatTuple } from "../Math/Quat";
 import type { Vec3Tuple } from "../Math/Vec3";
 
@@ -56,6 +58,11 @@ export interface SceneManifest {
 	 * omitted: the project's default.
 	 */
 	input?: string;
+	/**
+	 * The scene's own DI bindings: a child container of the game's, for as
+	 * long as the scene is loaded.
+	 */
+	installer?: Installer<EngineContext>;
 	entities: EntityManifest[];
 }
 

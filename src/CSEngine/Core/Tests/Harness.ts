@@ -12,11 +12,30 @@ import { GamesSampleData, HarnessInput } from "./InputFixture";
 // the scenes' games use the UI plugin (Coin Hunt's HUD)
 import "./GameUiFixture";
 import type { ChannelHub } from "../Source/Engine/Core/Channels";
-import { GameLogicRuntime } from "../Source/Engine/Runtime/GameLogicRuntime";
+import type { Installer } from "@cse/di";
+import type { EngineContext } from "../Source/Engine/Core/EngineContext";
+import {
+	GameLogicRuntime, type ScriptsLoader,
+} from "../Source/Engine/Runtime/GameLogicRuntime";
 import { SceneRegistry } from "../Source/Engine/Scenes/SceneRegistry";
 import {
 	BouncingBallScene,
 } from "../../../Templates/Blank/Source/Scenes/BouncingBallScene";
+import {
+	GameInstaller as BlankInstaller,
+} from "../../../Templates/Blank/Source/GameInstaller";
+import {
+	GameInstaller as CoinHuntInstaller,
+} from "../../../Templates/CoinHunt/Source/GameInstaller";
+import {
+	GameInstaller as FirstPersonInstaller,
+} from "../../../Templates/FirstPerson/Source/GameInstaller";
+import {
+	GameInstaller as ThirdPersonInstaller,
+} from "../../../Templates/ThirdPerson/Source/GameInstaller";
+import {
+	GameInstaller as TopDownInstaller,
+} from "../../../Templates/TopDown/Source/GameInstaller";
 import {
 	CoinHuntScene,
 } from "../../../Templates/CoinHunt/Source/Scenes/CoinHuntScene";
@@ -87,6 +106,8 @@ export class Harness {
 		input: ProjectInput = HarnessInput(),
 		storage?: SettingsStorage,
 		data: DataAssets = GamesSampleData(),
+		scripts: ScriptsLoader | null = null,
+		installers: readonly Installer<EngineContext>[] = TemplateInstallers(),
 	) {
 		this.runtime = new GameLogicRuntime(
 			{
@@ -100,6 +121,8 @@ export class Harness {
 			input,
 			storage,
 			data,
+			scripts,
+			installers,
 		);
 	}
 
@@ -224,6 +247,17 @@ export class Harness {
 			overlaps: overlaps ? new Int32Array( overlaps ) : null,
 		} );
 	}
+}
+
+/** The templates' DI entry points, as Games Sample's modules install them. */
+export function TemplateInstallers(): Installer<EngineContext>[] {
+	return [
+		new BlankInstaller(),
+		new FirstPersonInstaller(),
+		new CoinHuntInstaller(),
+		new ThirdPersonInstaller(),
+		new TopDownInstaller(),
+	];
 }
 
 export function CreateRegistry(): SceneRegistry {

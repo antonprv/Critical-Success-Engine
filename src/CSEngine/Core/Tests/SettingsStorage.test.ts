@@ -9,6 +9,7 @@ import {
 	SettingsStorage,
 	type StorageBackend,
 } from "../Source/Engine/Storage/SettingsStorage";
+import { Decode } from "@cse/datastream";
 
 let databases = 0;
 const Fresh = () => `test-${ ++databases }`;
@@ -56,6 +57,59 @@ describe(
 					.push( 4 );
 				expect( storage.Get( "Thing", null ) )
 					.toEqual( { List: [1, 2] } );
+			},
+		);
+
+		it(
+			"IndexedDB keeps each value as MessagePack bytes; values an older "
+				+ "engine stored as objects still read",
+			async () => {
+				const name = Fresh();
+				const storage = new SettingsStorage(
+					new IndexedDbBackend( name ),
+				);
+				await storage.Open();
+				storage.Set( "Settings", { FieldOfView: 90, Names: ["a"] } );
+				await storage.Flush();
+				// what is in the database: bytes
+				const database = await new Promise<IDBDatabase>(
+					( resolve ) => {
+						const open = indexedDB.open( name, 1 );
+						open.onsuccess = () => resolve( open.result );
+					},
+				);
+				const read = ( key: string ) => new Promise<unknown>(
+					( resolve ) => {
+						const request = database.transaction(
+							"entries",
+							"readonly",
+						).objectStore( "entries" )
+							.get( key );
+						request.onsuccess = () => resolve( request.result );
+					},
+				);
+				const stored = await read( "Settings" );
+				expect( stored ).toBeInstanceOf( Uint8Array );
+				expect( Decode( stored as Uint8Array ) )
+					.toEqual( { FieldOfView: 90, Names: ["a"] } );
+				// an object written the old way
+				await new Promise<void>( ( resolve ) => {
+					const transaction = database.transaction(
+						"entries",
+						"readwrite",
+					);
+					transaction.objectStore( "entries" )
+						.put( { Old: true }, "Legacy" );
+					transaction.oncomplete = () => resolve();
+				} );
+				database.close();
+				const again = new SettingsStorage(
+					new IndexedDbBackend( name ),
+				);
+				await again.Open();
+				expect( again.Get( "Legacy", {} ) ).toEqual( { Old: true } );
+				expect( again.Get( "Settings", {} ) )
+					.toEqual( { FieldOfView: 90, Names: ["a"] } );
 			},
 		);
 

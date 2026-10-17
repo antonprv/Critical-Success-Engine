@@ -1,0 +1,132 @@
+{
+	"date": "2026-10-16T20:06:49.925Z",
+	"machine": {
+		"cpu": "12th Gen Intel(R) Core(TM) i3-1215U",
+		"threads": 8,
+		"memoryGb": 7.5,
+		"gpu": "Intel Corporation Alder Lake-UP3 GT1 [UHD Graphics] (rev 0c)",
+		"acPower": true,
+		"os": "Linux 7.0.11-76070011-generic"
+	},
+	"browser": "155.0.8059.79",
+	"gpu": {
+		"vendor": "Google Inc. (Intel)",
+		"renderer": "ANGLE (Intel, Mesa Intel(R) Graphics (ADL GT2), OpenGL ES 3.2)",
+		"version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+		"width": 1280,
+		"height": 720
+	},
+	"flags": [
+		"--disable-frame-rate-limit",
+		"--disable-gpu-vsync",
+		"--disable-background-timer-throttling",
+		"--disable-renderer-backgrounding",
+		"--disable-backgrounding-occluded-windows",
+		"--ignore-gpu-blocklist",
+		"--enable-gpu-rasterization"
+	],
+	"viewport": {
+		"width": 1280,
+		"height": 720
+	},
+	"method": {
+		"warmupSeconds": 3,
+		"runs": 3,
+		"seconds": 10
+	},
+	"targetFps": 600,
+	"scenarios": {
+		"interop": {
+			"frames": 9857,
+			"fps": 942.3,
+			"drawFps": 935,
+			"low1": 332.6,
+			"low01": 172.4,
+			"frameP50": 1,
+			"frameP95": 1.4,
+			"frameP99": 2.4,
+			"renderP50": 0,
+			"renderP95": 0.1,
+			"draws": 0,
+			"triangles": 0,
+			"logicP50": 1,
+			"logicP95": 1.3,
+			"csharpP50": 0,
+			"stepP50": 0,
+			"physicsP50": 0.2,
+			"physicsP95": 0.3,
+			"bodies": 0,
+			"fpsMin": 937.8,
+			"fpsMax": 964.6,
+			"pageHeapMb": 3.6,
+			"physicsWasmMb": 32,
+			"scriptsWasmMb": 32,
+			"windows": [
+				{
+					"frames": 9612,
+					"fps": 937.8,
+					"drawFps": 929.5,
+					"low1": 332.6,
+					"low01": 172.4,
+					"frameP50": 1,
+					"frameP95": 1.6,
+					"frameP99": 2.5,
+					"renderP50": 0,
+					"renderP95": 0.1,
+					"draws": 0,
+					"triangles": 0,
+					"logicP50": 1,
+					"logicP95": 1.4,
+					"csharpP50": 0,
+					"stepP50": 0,
+					"physicsP50": 0.2,
+					"physicsP95": 0.3,
+					"bodies": 0
+				},
+				{
+					"frames": 9857,
+					"fps": 942.3,
+					"drawFps": 935,
+					"low1": 324,
+					"low01": 129.9,
+					"frameP50": 1,
+					"frameP95": 1.4,
+					"frameP99": 2.4,
+					"renderP50": 0,
+					"renderP95": 0.1,
+					"draws": 0,
+					"triangles": 0,
+					"logicP50": 1,
+					"logicP95": 1.3,
+					"csharpP50": 0,
+					"stepP50": 0,
+					"physicsP50": 0.2,
+					"physicsP95": 0.3,
+					"bodies": 0
+				},
+				{
+					"frames": 9966,
+					"fps": 964.6,
+					"drawFps": 957.4,
+					"low1": 414.4,
+					"low01": 194.2,
+					"frameP50": 1,
+					"frameP95": 1.3,
+					"frameP99": 1.7,
+					"renderP50": 0,
+					"renderP95": 0.1,
+					"draws": 0,
+					"triangles": 0,
+					"logicP50": 1,
+					"logicP95": 1.2,
+					"csharpP50": 0,
+					"stepP50": 0,
+					"physicsP50": 0.2,
+					"physicsP95": 0.3,
+					"bodies": 0
+				}
+			],
+			"issues": []
+		}
+	}
+}

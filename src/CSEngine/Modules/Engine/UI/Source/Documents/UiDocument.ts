@@ -1,14 +1,14 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-import { reactive } from "vue";
+import { reactive, watch } from "vue";
 import { Logger } from "../../../../../Core/Source/Logging/Logger";
 import type { ButtonController } from "../Controls/ButtonController";
 import type { WindowController } from "../Controls/WindowController";
 import { CancelableEvent, EventHub } from "../Core/EventHub";
 import { DialogResult } from "./DialogResult";
 import type { DialogService } from "./Dialogs";
-import { GraphRunner } from "./Graph";
+import { Coerce, GraphRunner, type GraphValue, type GraphVariable, type VariableKind } from "./Graph";
 import type { LayoutNode, UiLayout } from "./Layout";
 import type { UiScript, UiScriptRegistry } from "./UiScript";
 import { BuiltInWidgets, WidgetType, type WidgetRegistry } from "./Widgets";
@@ -20,6 +20,8 @@ export interface UiDocumentOptions {
 	Widgets?: WidgetRegistry;
 	/** Where ShowDialog / MessageBox calls of this UI's script put their modals. */
 	Dialogs?: DialogService;
+	/** Values of its variables to start with instead of their defaults (what the game set before it showed). */
+	Variables?: Readonly<Record<string, GraphValue>>;
 }
 
 export interface UiWidget {
@@ -96,7 +98,13 @@ export class UiDocument {
 	public readonly Widgets: WidgetRegistry;
 	public readonly Scripts: UiScriptRegistry | null;
 	public readonly Dialogs: DialogService | null;
+	/**
+	 * The document's variables (its graph declares them): reactive, so the graph, scripts and views follow them at once.
+	 * Write them with SetVariable, which reads a value as the variable's kind.
+	 */
+	public readonly Variables: Record<string, GraphValue>;
 
+	private readonly _kinds = new Map<string, GraphVariable["Kind"]>();
 	private readonly _widgets = new Map<string, UiWidget>();
 	private readonly _parents = new Map<string, string>();
 	private readonly _subscriptions: (() => void)[] = [];
@@ -113,6 +121,8 @@ export class UiDocument {
 		this.Scripts = options.Scripts ?? null;
 		this.Dialogs = options.Dialogs ?? null;
 		this.Build(Layout.Root, null);
+		this.Variables = reactive({});
+		this.DeclareVariables(Layout.Graph?.Variables ?? [], options.Variables ?? {});
 
 		if (Layout.Script) {
 			this._script = options.Scripts?.Create(Layout.Script) ?? null;
@@ -128,6 +138,33 @@ export class UiDocument {
 	public get Closed(): boolean { return this._result !== null; }
 	/** How the form was closed; null while it is open. */
 	public get Result(): DialogResult | null { return this._result; }
+
+	/** Sets a variable, read as its kind (an undeclared one keeps the value as it is). */
+	public SetVariable(name: string, value: GraphValue): void {
+		this.Variables[name] = Coerce(this._kinds.get(name), value);
+	}
+
+	/** The kind of a declared variable. */
+	public KindOf(name: string): VariableKind | undefined {
+		return this._kinds.get(name);
+	}
+
+	/**
+	 * Declares a variable (a generated script does, for the graph it came from): its kind, its start value (the given
+	 * one, else its default), the widget it follows. A variable declared already is left as it is.
+	 */
+	public DeclareVariable(variable: GraphVariable, start?: GraphValue): void {
+		if (this._kinds.has(variable.Name)) return;
+		this._kinds.set(variable.Name, variable.Kind);
+		this.SetVariable(variable.Name, start ?? this.Variables[variable.Name] ?? variable.Default);
+		const controller = variable.Widget ? this._widgets.get(variable.Widget)?.Controller : undefined;
+		if (controller) this._subscriptions.push(watch(() => WidgetValue(controller), (value) => this.SetVariable(variable.Name, value), { immediate: true, flush: "sync" }));
+	}
+
+	private DeclareVariables(variables: readonly GraphVariable[], initial: Readonly<Record<string, GraphValue>>): void {
+		for (const [name, value] of Object.entries(initial)) this.Variables[name] = value;
+		for (const variable of variables) this.DeclareVariable(variable);
+	}
 
 	public Find(name: string): UiWidget | undefined {
 		return this._widgets.get(name);
@@ -351,4 +388,13 @@ export class UiDocument {
 		}
 		for (const child of node.Children ?? []) this.WireDialogResults(child);
 	}
+}
+
+/** What a variable following a widget reads: a check box's checked, a value (text box, slider, combo box's index), else its text. */
+function WidgetValue(controller: object): GraphValue {
+	const control = controller as { Checked?: boolean; Value?: unknown; SelectedIndex?: number; Label?: string; };
+	if (typeof control.Checked === "boolean") return control.Checked;
+	if (typeof control.Value === "string" || typeof control.Value === "number") return control.Value;
+	if (typeof control.SelectedIndex === "number") return control.SelectedIndex;
+	return control.Label ?? "";
 }

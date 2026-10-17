@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import { GameLogicMsg, InputEvtType, RenderMsg } from "../Common/CommonEnums";
 import type {
 	InputEvent,
@@ -138,7 +139,7 @@ export class DomInputBridge {
 			const pad = [...( navigator.getGamepads?.() ?? [] )].find(
 				( candidate ) => candidate?.connected,
 			);
-			const round = ( value: number ): number => Math.round(
+			const round = ( value: number ): number => FMath.Round(
 				value * 100,
 			) / 100;
 			const buttons = pad

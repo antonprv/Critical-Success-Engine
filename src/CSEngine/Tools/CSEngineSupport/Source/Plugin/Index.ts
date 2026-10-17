@@ -46,7 +46,7 @@ const ExtensionOf = ( file: string ): string => {
 	const match = /\.(d\.ts|tsx|ts|mjs|js)$/.exec( file );
 
 	return match
-		? `.${match[1]}`
+		? `.${ match[1] }`
 		: ".ts";
 };
 
@@ -81,7 +81,7 @@ function Initialize(
 			return known;
 		}
 
-		const file = `${engine.Root}/Core/tsconfig.json`;
+		const file = `${ engine.Root }/Core/tsconfig.json`;
 		const config = typescript.readConfigFile(
 			file,
 			typescript.sys.readFile,
@@ -89,7 +89,7 @@ function Initialize(
 			{ compilerOptions?: Record<string, unknown>; } | undefined;
 		const { options } = typescript.convertCompilerOptionsFromJson(
 			config?.compilerOptions ?? {},
-			`${engine.Root}/Core`,
+			`${ engine.Root }/Core`,
 		);
 
 		for ( const key of ProjectSpecific ) {
@@ -216,7 +216,7 @@ function Initialize(
 
 				const engine = configured ?? ( () => {
 					const around = LocateEngineAround(
-						`${info.project.getCurrentDirectory()}/_`,
+						`${ info.project.getCurrentDirectory() }/_`,
 					);
 
 					return around === undefined

@@ -3,6 +3,7 @@
 
 import { vi, type MockInstance } from "vitest";
 import { Component } from "../Source/Engine/Core/Component";
+import { DataStream } from "@cse/datastream";
 import type { EngineContext } from "../Source/Engine/Core/EngineContext";
 import type { Entity } from "../Source/Engine/Core/Entity";
 import { EntityWorld } from "../Source/Engine/Core/EntityWorld";
@@ -15,8 +16,12 @@ export function MakeWorld( extra: Partial<EngineContext> = {} ): {
 	engine: EngineContext;
 	world: EntityWorld;
 } {
-	const engine = { ...extra } as { World?: EntityWorld; }
-		& Partial<EngineContext>;
+	// every world has a DataStream and no C# scripts, unless the test says
+	const engine = {
+		Stream: new DataStream(), Scripts: null, Container: null, ...extra,
+	} as {
+		World?: EntityWorld;
+	} & Partial<EngineContext>;
 	const world = new EntityWorld( engine as EngineContext );
 	engine.World = world;
 	return { engine: engine as EngineContext, world };
@@ -103,5 +108,21 @@ export function SilenceConsole(): {
 		log: vi.spyOn( console, "log" ).mockImplementation( () => undefined ),
 		debug: vi.spyOn( console, "debug" )
 			.mockImplementation( () => undefined ),
+	};
+}
+
+/**
+ * A stand-in for the physics bridge's MemoryView results (Step, the overlap
+ * events): `slice` copies the numbers out, `dispose` is recorded.
+ */
+export function BridgeView<
+	T extends Float64Array<ArrayBuffer> | Int32Array<ArrayBuffer>,
+>(
+	values: T,
+): { length: number; slice: () => T; dispose: () => void; } {
+	return {
+		length: values.length,
+		slice: () => values.slice() as T,
+		dispose: () => undefined,
 	};
 }

@@ -83,3 +83,5 @@ try {
 | Писать в лог из компонента | `Logger.LogInfo/LogWarning/LogError/LogException` |
 | Получить логи в файл | sidecar (`Core/Tools/LogServer.mjs`) или свой приёмник на порту 4790 |
 | Понять, почему упал скрипт | строка консоли `[Script] ClassName.Hook threw on entity "..."` (гайд 03) |
+
+Дальше → [18. Компоненты на C#](18-csharp-scripting.md)

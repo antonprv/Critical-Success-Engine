@@ -20,8 +20,8 @@ export type PhysicsShapeDescriptor =
 	| { shape: PhysShape.Capsule; radius: number; cylinderLength: number; }
 	| { shape: PhysShape.Cylinder; radius: number; height: number; }
 	/**
-	 * Convex hull of a point cloud, flat [x0,y0,z0,x1,...]. Bepu re-centres it;
-	 * PhysicsWorld compensates (see ShapeEntry.CentroidOffset).
+	 * Convex hull of a point cloud, flat [x0,y0,z0,x1,...]. CSPhysics
+	 * re-centres it; PhysicsWorld compensates (see ShapeEntry.CentroidOffset).
 	 */
 	| { shape: PhysShape.ConvexHull; points: number[]; }
 	/**

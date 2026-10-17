@@ -4,7 +4,11 @@
 import {
 	CameraComponent,
 } from "@cse/core/Engine/Components/Camera/CameraComponent";
+import { Inject } from "@cse/di";
 import { Component } from "@cse/core/Engine/Core/Component";
+import {
+	IDataAssets, ISettingsSubsystem,
+} from "@cse/core/Engine/DI/Contracts";
 import { FirstPersonView } from "../Data/FirstPersonView";
 
 /**
@@ -12,12 +16,18 @@ import { FirstPersonView } from "../Data/FirstPersonView";
  * on (its numbers: FirstPersonView).
  */
 export class ViewSettings extends Component {
+	@Inject( IDataAssets ) private readonly _data!: IDataAssets;
+
+	@Inject(
+		ISettingsSubsystem,
+	) private readonly _settings!: ISettingsSubsystem;
+
 	public override Awake(): void {
-		const view = this.Engine.Data.GetOrDefault(
+		const view = this._data.GetOrDefault(
 			FirstPersonView,
 			"FirstPersonView",
 		);
-		this.Engine.Settings.Declare(
+		this._settings.Declare(
 			{
 				Key: "FieldOfView",
 				Label: "Field of view",
@@ -35,7 +45,7 @@ export class ViewSettings extends Component {
 		const camera = this.Entity.GetComponent( CameraComponent );
 
 		if ( camera ) {
-			camera.FovDegrees = this.Engine.Settings.Number( "FieldOfView" );
+			camera.FovDegrees = this._settings.Number( "FieldOfView" );
 		}
 	}
 }

@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import { ControlBase, type ControlOptions } from "../Core/ControlBase";
 
 export interface ScrollBarOptions extends ControlOptions {
@@ -37,9 +38,9 @@ export class ScrollBarController extends ControlBase<ScrollBarEvents> {
 
 	public get Value(): number { return this._value; }
 	/** The largest value: the last page is fully visible there. */
-	public get MaxValue(): number { return Math.max(this.Min, this.Max - this.PageSize); }
+	public get MaxValue(): number { return FMath.Max(this.Min, this.Max - this.PageSize); }
 	/** Thumb length as a fraction of the track. */
-	public get ThumbSize(): number { return Math.min(1, this.PageSize / (this.Max - this.Min)); }
+	public get ThumbSize(): number { return FMath.Min(1, this.PageSize / (this.Max - this.Min)); }
 	/** Where the thumb starts, as a fraction of the track. */
 	public get ThumbPosition(): number { return (this._value - this.Min) / (this.Max - this.Min); }
 
@@ -78,6 +79,6 @@ export class ScrollBarController extends ControlBase<ScrollBarEvents> {
 	}
 
 	private Clamp(value: number): number {
-		return Math.min(this.MaxValue, Math.max(this.Min, value));
+		return FMath.Min(this.MaxValue, FMath.Max(this.Min, value));
 	}
 }

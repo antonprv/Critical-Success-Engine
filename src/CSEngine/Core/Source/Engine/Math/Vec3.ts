@@ -1,6 +1,8 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
+
 export type Vec3Tuple = [number, number, number];
 
 /**
@@ -119,7 +121,7 @@ export class Vec3 {
 	}
 
 	public Length(): number {
-		return Math.sqrt( this.LengthSq() );
+		return FMath.Sqrt( this.LengthSq() );
 	}
 
 	/**
@@ -154,9 +156,9 @@ export class Vec3 {
 	}
 
 	public IsNearlyZero( epsilon: number = KindaSmallNumber ): boolean {
-		return Math.abs( this.X ) < epsilon
-			&& Math.abs( this.Y ) < epsilon
-			&& Math.abs( this.Z ) < epsilon;
+		return FMath.Abs( this.X ) < epsilon
+			&& FMath.Abs( this.Y ) < epsilon
+			&& FMath.Abs( this.Z ) < epsilon;
 	}
 
 	public DistanceTo( other: Vec3 ): number {

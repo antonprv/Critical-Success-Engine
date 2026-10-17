@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import {
 	CameraComponent,
 } from "@cse/core/Engine/Components/Camera/CameraComponent";
@@ -36,6 +37,7 @@ import {
 } from "@cse/core/Engine/Scenes/SceneHelpers";
 import { FpsHud } from "../Scripts/FpsHud";
 import { ViewSettings } from "../Scripts/ViewSettings";
+import { CSharp } from "@cse/core/Engine/Components/CSharp";
 
 const Grey: [number, number, number] = [0.45, 0.47, 0.5];
 const Wall: [number, number, number] = [0.3, 0.33, 0.38];
@@ -112,7 +114,7 @@ export const CharacterTestScene: SceneManifest = {
 			[4, 0.4, 8],
 			[-6, 1.2, -3],
 			Grey,
-			{ rotationX: ( 20 * Math.PI ) / 180 },
+			{ rotationX: ( 20 * FMath.PI ) / 180 },
 		),
 		StaticBox( "Deck", [4, 0.4, 4], [-6, 2.55, -8.8], Grey ),
 		// Two hop walls: a 1 m and a 1.5 m block to jump onto.
@@ -207,6 +209,8 @@ export const CharacterTestScene: SceneManifest = {
 				{ Mesh: Meshes.Box( 3, 0.05, 3 ), Color: [0.2, 0.6, 0.9] },
 			),
 			Comp( TriggerZone, { Shape: Shapes.Box( 3, 2, 3 ) } ),
+			// written in C#: Source/Scripts/TriggerTally.cs
+			CSharp( "TriggerTally", { HudKey: "pad.tally" } ),
 		], { position: [-6, 0.03, 8] } ),
 		//#endregion
 

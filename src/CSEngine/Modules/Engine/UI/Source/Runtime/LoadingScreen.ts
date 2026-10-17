@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import type { GameUi } from "./GameUi";
 
 /** Which widgets of the document show the progress and the status (Progress and Status unless named otherwise). */
@@ -41,7 +42,7 @@ export class LoadingScreen {
 	/** The share done, 0..1 (kept within): the bar shows it as a percentage, sent only when the percentage changes. */
 	public SetProgress(fraction: number): void {
 		this._progress = fraction;
-		const percent = Math.round(Math.min(1, Math.max(0, fraction)) * 100);
+		const percent = FMath.Round(FMath.Min(1, FMath.Max(0, fraction)) * 100);
 		if (percent === this._shownPercent) return;
 		this._shownPercent = percent;
 		this._ui.SetValue(this._id, this._bar, percent);

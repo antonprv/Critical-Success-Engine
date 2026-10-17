@@ -30,6 +30,7 @@ import type {
 } from "../Source/Workers/OrchestratorUtils/GameWorkers";
 import { UiBridge } from "../Source/Workers/OrchestratorUtils/UiBridge";
 import { SilenceConsole } from "./helpers";
+import { Decode, Encode } from "@cse/datastream";
 
 const settle = async (): Promise<void> => {
 	await nextTick();
@@ -642,22 +643,17 @@ describe( "UiBridge", () => {
 				channels,
 			);
 			channels.Post( "ui", { op: "event" } );
-			expect( ui.sent.map( ( s ) => s.message ) )
-				.toContainEqual(
-					{
-						type: UiMsg.Channel,
-						channel: "ui",
-						payload: { op: "event" },
-					},
-				);
+			await Promise.resolve(); // a batch goes at the end of the run
+			const batch = ( ui.sent.map( ( s ) => s.message ) as { type: UiMsg; batch?: Uint8Array; }[] )
+				.find( ( m ) => m.type === UiMsg.Channel )!.batch!;
+			expect( Decode( batch ) ).toEqual( [["ui", { op: "event" }]] );
 			const handler = vi.fn();
 			channels.On( "ui", handler );
 			ui.onmessage!(
 				{
 					data: {
 						type: UiMsg.Channel,
-						channel: "ui",
-						payload: { op: "show" },
+						batch: Encode( [["ui", { op: "show" }]] ),
 					},
 				},
 			);
@@ -739,6 +735,19 @@ describe( "UiBridge", () => {
 			expect( document.exitPointerLock ).toHaveBeenCalled();
 		},
 	);
+
+	it( "with documents drawing the screens, a toast goes into the page's state for them, gone after four seconds", () => {
+		vi.useFakeTimers();
+		const { fromUi, store } = Make();
+		store.State.documentScreens = true;
+		for ( const text of ["one", "two", "three", "four", "five"] ) {
+			fromUi( { type: UiMsg.Toast, message: text } );
+		}
+		expect( store.State.toasts ).toEqual( ["two", "three", "four", "five"] );
+		vi.advanceTimersByTime( 4000 );
+		expect( store.State.toasts ).toEqual( [] );
+		vi.useRealTimers();
+	} );
 
 	it( "shows toasts with Quasar's Notify", () => {
 		// Notify.create only exists once the Quasar plugin is installed
@@ -1153,6 +1162,15 @@ describe( "AudioPlayer", () => {
 	);
 } );
 
+describe( "Antialias", () => {
+	it( "reads the page's ?aa=: msaa, off, else FXAA (the default)", async () => {
+		const { Antialias } = await import( "../Source/Workers/OrchestratorUtils/GameWorkers" );
+		expect( [Antialias( "fxaa" ), Antialias( "off" ), Antialias( null ), Antialias( "x" )] )
+			.toEqual( ["fxaa", "off", "fxaa", "fxaa"] );
+		expect( Antialias( "msaa" ) ).toBe( "msaa" );
+	} );
+} );
+
 describe( "GameWorkers and Orchestrator", () => {
 	function Canvas(): HTMLCanvasElement {
 		const canvas = document.createElement( "canvas" );
@@ -1206,6 +1224,9 @@ describe( "GameWorkers and Orchestrator", () => {
 						type: RenderMsg.Init,
 						canvas: { offscreen: true },
 						devMode: true,
+						// no ?uncapped: the display's frame rate
+						uncapped: false,
+						antialias: "fxaa",
 					},
 				);
 			expect( physics.message )
@@ -1263,6 +1284,8 @@ describe( "GameWorkers and Orchestrator", () => {
 			// where the game's files (data/*.csedata) are
 			expect( logicInit["baseUrl"] )
 				.toBe( new URL( ".", document.baseURI ).href );
+			// the scene to start in: the page's ?scene= (none here)
+			expect( logicInit["startScene"] ).toBeNull();
 
 			// (a fresh module instance: compare by name)
 			expect( workers.AudioPlayer.constructor.name )

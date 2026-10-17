@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import type { UiDocument } from "../Documents/UiDocument";
 import type { UiManager } from "../Documents/UiManager";
 import { EngineSettingsId } from "./EngineScreens";
@@ -85,11 +86,11 @@ export class SettingsScreen {
 				return !value;
 			case "Choice": {
 				const choices = setting.Choices ?? [];
-				const index = Math.min(choices.length - 1, Math.max(0, choices.indexOf(String(value)) + direction));
+				const index = FMath.Min(choices.length - 1, FMath.Max(0, choices.indexOf(String(value)) + direction));
 				return choices[index]!;
 			}
 			case "Number": {
-				const next = Math.min(setting.Max ?? Infinity, Math.max(setting.Min ?? -Infinity, Number(value) + direction * (setting.Step ?? 1)));
+				const next = FMath.Min(setting.Max ?? Infinity, FMath.Max(setting.Min ?? -Infinity, Number(value) + direction * (setting.Step ?? 1)));
 				return Number(next.toFixed(Decimals(setting.Step)));
 			}
 		}

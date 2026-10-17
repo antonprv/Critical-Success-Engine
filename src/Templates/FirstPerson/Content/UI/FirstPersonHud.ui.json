@@ -63,5 +63,45 @@
 				]
 			}
 		]
+	},
+	"Graph": {
+		"Variables": [
+			{
+				"Name": "Shots",
+				"Kind": "number",
+				"Default": 0
+			}
+		],
+		"Nodes": [
+			{
+				"Id": "n1",
+				"Kind": "event",
+				"Type": "variable",
+				"X": 24,
+				"Y": 24,
+				"Params": {
+					"Variable": "Shots",
+					"Compare": "any",
+					"Value": ""
+				}
+			},
+			{
+				"Id": "n2",
+				"Kind": "action",
+				"Type": "set-text",
+				"X": 288,
+				"Y": 24,
+				"Params": {
+					"Widget": "Shots",
+					"Text": "Shots: {Shots}"
+				}
+			}
+		],
+		"Links": [
+			{
+				"From": "n1",
+				"To": "n2"
+			}
+		]
 	}
 }

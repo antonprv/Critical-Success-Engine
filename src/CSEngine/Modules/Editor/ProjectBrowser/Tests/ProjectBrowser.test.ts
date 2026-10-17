@@ -173,7 +173,8 @@ describe("the in-memory host (a plain browser, tests)", () => {
 });
 
 describe("the page", () => {
-	it("starts on the desktop app's API when the preload put one there, else on projects in memory; it wears the chosen theme", async () => {
+	it("starts on the desktop app's API when the preload put one there, else on projects in memory; it wears the chosen theme, and starts in it next time", async () => {
+		localStorage.clear();
 		document.body.innerHTML = '<div id="projects"></div>';
 		const { StartProjectBrowser } = await import("../Source/Main");
 		await settle();
@@ -192,8 +193,13 @@ describe("the page", () => {
 		delete window.cse;
 		window.cse = {}; // a preload without projects: the memory
 		const other = document.createElement("div");
-		StartProjectBrowser(other);
+		document.body.appendChild(other);
+		const again = StartProjectBrowser(other);
+		await settle();
+		expect(other.querySelector(".win-kit--tailwind")).not.toBeNull(); // the theme it was left in
+		expect(again.Manager.Get(BrowserId)!.Controller<ComboBoxController<number>>("Theme").SelectedIndex).toBe(13);
 		delete window.cse;
+		localStorage.clear();
 	});
 
 	it("a page without the #projects element starts nothing by itself", async () => {
@@ -213,10 +219,10 @@ describe("the project browser's pages", () => {
 		expect(page).toMatchObject({ Type: "window", AnchorX: "stretch", AnchorY: "stretch", Right: 0, Bottom: 0, Props: { Frameless: true } });
 	});
 
-	// The theme list sits at the bottom edge of the page: its list must not be clipped by the window body.
-	it("the theme list may leave the window; the genre list keeps the default", () => {
+	// The theme, run and build lists sit at the bottom edge of the page: their lists must not be clipped by the window body.
+	it("the bottom row's lists (theme, run, build) may leave the window; the genre list keeps the default", () => {
 		const combos = (text: string) => Object.fromEntries((ParseLayout(text).Root.Children![0]!.Children ?? []).filter((node) => node.Type === WidgetType.ComboBox).map((node) => [node.Name, IsEmbeddedInWindow(node)]));
-		expect(combos(BrowserText)).toEqual({ Theme: false });
+		expect(combos(BrowserText)).toEqual({ Theme: false, RunMode: false, BuildMode: false });
 		expect(combos(NewProjectText)).toEqual({ Genre: true });
 	});
 });
@@ -254,6 +260,38 @@ describe("the project browser: run and build", () => {
 		builds(made).Choose(0);
 		await made.press(BrowserId, "BuildButton");
 		expect(modes(made).Options.map((o) => o.Disabled)).toEqual([false, false, true, false, true]);
+	});
+
+	it("runs a build it has; a run or a build that fails says why", async () => {
+		const made = await Make();
+		made.pick(BrowserId, "Projects", 0);
+		await settle();
+		builds(made).Choose(2);
+		await made.press(BrowserId, "BuildButton");
+		modes(made).Choose(3);
+		await made.press(BrowserId, "RunButton");
+		expect(made.api.Ran).toEqual([{ File: "/games/Starfall/Starfall.cseproject", Mode: "desktop:dev" }]);
+		expect(made.label(BrowserId, "Status")).toBe("Starfall runs in the browser (Desktop - Dev).");
+		vi.spyOn(made.api, "Run").mockRejectedValueOnce(new Error("the browser is gone"));
+		await made.press(BrowserId, "RunButton");
+		expect(made.label(BrowserId, "Status")).toBe("Starfall did not run: the browser is gone");
+		vi.spyOn(made.api, "Build").mockRejectedValueOnce(new Error("disk full"));
+		await made.press(BrowserId, "BuildButton");
+		expect(made.label(BrowserId, "Status")).toBe("The build of Starfall failed: disk full");
+		expect(made.enabled(BrowserId, "BuildButton")).toBe(true);
+	});
+
+	it("the in-memory API refuses to run a build that isn't there", async () => {
+		const api = new MemoryProjectsApi([Project("Starfall")], Templates, "/games");
+		await expect(api.Run("/games/Starfall/Starfall.cseproject", "web:prod")).rejects.toThrow("There is no build for web:prod");
+	});
+
+	it("picking another project while the first one's modes are read keeps the second one's", async () => {
+		const made = await Make();
+		made.pick(BrowserId, "Projects", 0);
+		made.pick(BrowserId, "Projects", 1);
+		await settle();
+		expect(modes(made).Options.every((o) => o.Disabled)).toBe(true);
 	});
 
 	it("a missing project can be neither run nor built", async () => {

@@ -1,0 +1,18 @@
+// The contracts of the test game: C# and TypeScript call each other through them (../../Integration.test.ts).
+namespace TestGame;
+
+/// Counts on a C# component; TypeScript calls it on the component's entity.
+contract ICounter {
+    Add( amount: int ): int;
+    Label(): string;
+}
+
+/// Greets in TypeScript; a C# component calls it.
+contract IGreeter {
+    Greet( name: string, at: vec3 ): string;
+}
+
+/// A service of the C# container (bound by the game's C# installer).
+contract IClock {
+    Ticks(): int;
+}

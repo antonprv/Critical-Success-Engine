@@ -1,5 +1,6 @@
 <!-- Created by Anton Piruev in 2026. Any direct commercial use of derivative work is strictly prohibited. -->
 <script setup lang="ts">
+import { FMath } from "@cse/fastmath";
 import { computed, ref } from "vue";
 import type { ScrollBarController } from "../Controls/ScrollBarController";
 import { UsePointerTracking } from "../Core/PointerTracking";
@@ -36,8 +37,8 @@ function OnThumbPointerDown(event: PointerEvent): void {
 	event.preventDefault();
 	const { Position, Length } = Measure(event);
 	const grab = Position - c.ThumbPosition * Length;
-	const free = Math.max(1, Length * (1 - c.ThumbSize));
-	follow((move) => c.SetThumbPosition(Math.min(1, Math.max(0, (Measure(move).Position - grab) / free))), () => undefined);
+	const free = FMath.Max(1, Length * (1 - c.ThumbSize));
+	follow((move) => c.SetThumbPosition(FMath.Min(1, FMath.Max(0, (Measure(move).Position - grab) / free))), () => undefined);
 }
 </script>
 

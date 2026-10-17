@@ -24,6 +24,12 @@ export class Transform {
 	 */
 	public IsPhysicsDriven = false;
 
+	/**
+	 * The pose the renderer was last sent (x, y, z, qx, qy, qz, qw), or null
+	 * before the first: a frame sends only poses that differ from it.
+	 */
+	public SentPose: Float64Array | null = null;
+
 	public PushPhysicsPose( position: Vec3, rotation: Quat ): void {
 		this.PreviousPosition.CopyFrom( this.Position );
 		this.PreviousRotation.CopyFrom( this.Rotation );

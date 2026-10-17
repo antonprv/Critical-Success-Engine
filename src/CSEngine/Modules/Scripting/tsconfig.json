@@ -1,0 +1,26 @@
+{
+	"compilerOptions": {
+		"target": "ES2022",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"lib": [ "ES2022" ],
+		"types": [ "node" ],
+		"noEmit": true,
+		"strict": true,
+		"noUncheckedIndexedAccess": true,
+		"exactOptionalPropertyTypes": true,
+		"noImplicitOverride": true,
+		"noImplicitReturns": true,
+		"verbatimModuleSyntax": true,
+		"isolatedModules": true,
+		"allowImportingTsExtensions": true,
+		"skipLibCheck": true,
+		"experimentalDecorators": true,
+		"paths": {
+			"@cse/core/Engine/*": [ "../../Core/Source/Engine/*" ],
+			"@cse/scripting": [ "./Source/Index.ts" ],
+			"@cse/fastmath": [ "../Common/FastMath/Source/Index.ts" ]
+		}
+	},
+	"include": [ "Source", "Tests" ]
+}

@@ -71,7 +71,7 @@ pwsh devops/build-all.ps1 -SkipInstall -Web
 cd devops && bash build-physics.sh      # Windows: build-physics.bat
 ```
 
-Публикует `Physics/Bridge` в wasm (`dotnet publish`, Release) и пишет лог в `publish.log`. Запускать нужно из папки `devops`:
+Публикует `Modules/Physics/Bridge` в wasm (`dotnet publish`, Release) и пишет лог в `publish.log`. Запускать нужно из папки `devops`:
 пути в скрипте относительные. То же делает CI. Подробности - в [ручной сборке](manual-build.md).
 
 ## Служебные скрипты

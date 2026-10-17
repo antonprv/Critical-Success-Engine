@@ -23,10 +23,13 @@ test.describe( "Bouncing ball scene", () => {
 		"draws the scene: ground, sky colour and an orange ball",
 		async ( { game } ) => {
 			await expect.poll(
-				async () => Game.find( await game.pixels(), isOrange ).count,
+				async () => Game.find(
+					await game.scenePixels(),
+					isOrange,
+				).count,
 				{ timeout: 30_000, message: "orange ball pixels" },
 			).toBeGreaterThan( 150 );
-			expect( Game.colourVariety( await game.pixels() ) )
+			expect( Game.colourVariety( await game.scenePixels() ) )
 				.toBeGreaterThan( 5 );
 		},
 	);
@@ -36,14 +39,17 @@ test.describe( "Bouncing ball scene", () => {
 		async ( { game } ) => {
 		// Let it land, then check it is not moving any more.
 			await expect.poll(
-				async () => Game.find( await game.pixels(), isOrange ).count,
+				async () => Game.find(
+					await game.scenePixels(),
+					isOrange,
+				).count,
 				{ timeout: 30_000 },
 			).toBeGreaterThan( 150 );
 			await game.page.waitForTimeout( 3000 );
 
-			const first = Game.find( await game.pixels(), isOrange );
+			const first = Game.find( await game.scenePixels(), isOrange );
 			await game.page.waitForTimeout( 1500 );
-			const second = Game.find( await game.pixels(), isOrange );
+			const second = Game.find( await game.scenePixels(), isOrange );
 
 			expect( first.count ).toBeGreaterThan( 150 );
 			expect( Math.abs( second.centerY - first.centerY ) )
@@ -57,11 +63,14 @@ test.describe( "Bouncing ball scene", () => {
 		"Space kicks the ball up; it comes back down to the same spot",
 		async ( { game, page } ) => {
 			await expect.poll(
-				async () => Game.find( await game.pixels(), isOrange ).count,
+				async () => Game.find(
+					await game.scenePixels(),
+					isOrange,
+				).count,
 				{ timeout: 30_000 },
 			).toBeGreaterThan( 150 );
 			await page.waitForTimeout( 3000 );
-			const resting = Game.find( await game.pixels(), isOrange );
+			const resting = Game.find( await game.scenePixels(), isOrange );
 
 			// Every press adds an impulse, so a few quick presses send it well
 			// above the camera's view of the ground.
@@ -71,7 +80,7 @@ test.describe( "Bouncing ball scene", () => {
 			}
 			await expect.poll(
 				async () => {
-					const now = Game.find( await game.pixels(), isOrange );
+					const now = Game.find( await game.scenePixels(), isOrange );
 
 					return now.count < 60 || now.centerY < resting.centerY - 40;
 				},
@@ -84,7 +93,7 @@ test.describe( "Bouncing ball scene", () => {
 
 			await expect.poll(
 				async () => {
-					const now = Game.find( await game.pixels(), isOrange );
+					const now = Game.find( await game.scenePixels(), isOrange );
 
 					return now.count > 150
 				&& Math.abs( now.centerY - resting.centerY ) < 6
@@ -96,6 +105,16 @@ test.describe( "Bouncing ball scene", () => {
 					message: "ball is back where it started",
 				},
 			).toBe( true );
+		},
+	);
+
+	test(
+		"the ball's C# component runs in the browser: BallWatcher keeps its "
+			+ "height on the HUD",
+		async ( { game } ) => {
+			// Templates/Blank/Source/Scripts/BallWatcher.cs, built by the site
+			// build into scripts-wasm and run by the game logic worker
+			await game.expectHud( /^Ball height: -?\d+\.\d m$/, 45_000 );
 		},
 	);
 } );

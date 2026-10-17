@@ -5,6 +5,7 @@
 // default - the guide shows how.
 
 // <<imports
+import { FMath } from "@cse/fastmath";
 import { CollisionLayer } from "../Engine/Core/CollisionLayer";
 import {
 	Comp,
@@ -26,9 +27,9 @@ const BallShape = Shapes.Sphere( 0.5 );
 function Ball( index: number ): EntityManifest {
 	// Colours are 0..1 rgb; this just walks round the colour wheel.
 	const color: [number, number, number] = [
-		( Math.sin( index * 1.7 ) + 1 ) / 2,
-		( Math.sin( index * 1.7 + 2 ) + 1 ) / 2,
-		( Math.sin( index * 1.7 + 4 ) + 1 ) / 2,
+		( FMath.FastSin( index * 1.7 ) + 1 ) / 2,
+		( FMath.FastSin( index * 1.7 + 2 ) + 1 ) / 2,
+		( FMath.FastSin( index * 1.7 + 4 ) + 1 ) / 2,
 	];
 
 	return Ent(
@@ -47,7 +48,7 @@ function Ball( index: number ): EntityManifest {
 			position: [
 				( index % 4 ) - 1.5,
 				3 + index * 1.2,
-				Math.floor( index / 4 ) - 1,
+				FMath.Floor( index / 4 ) - 1,
 			],
 		},
 	);

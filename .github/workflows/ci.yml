@@ -36,14 +36,48 @@ jobs:
       # in either direction, so it's the one C# project the publish step below
       # won't touch - build it explicitly to still cover it.
       - name: Build FastMath
-        run: dotnet build src/CSEngine/Common/Math/FastMath.csproj -c Release
+        run: dotnet build src/CSEngine/Modules/Common/Math/FastMath.csproj -c Release
 
-      # BepuUtilities, BepuPhysics and Integration are project references of
+      # The C# style is the TypeScript one (src/CSEngine/.editorconfig): the build reports it, and the files must already
+      # be formatted. Then the physics stack's own tests (FastMath, CSPhysics, Integration) on the desktop runtime.
+      - name: "C#: style check, physics, DI, DataStream and scripting tests"
+        working-directory: src/CSEngine/Modules
+        run: |
+          for project in Common/Math/FastMath.csproj Common/DI/DotNet/DI.csproj Common/DI/DotNet.Tests/DI.Tests.csproj \
+                         Physics/CSPhysics.Utilities/CSPhysics.Utilities.csproj \
+                         Physics/CSPhysics/CSPhysics.csproj Physics/Integration/Integration.csproj \
+                         Physics/Bridge/Bridge.csproj Physics/Tests/Physics.Tests.csproj \
+                         Common/DataStream/DotNet/DataStream.csproj Common/DataStream/DotNet.Tests/DataStream.Tests.csproj \
+                         Scripting/CSharp/CSEngine.Scripting.csproj Scripting/CSharp.Tests/CSEngine.Scripting.Tests.csproj \
+                         Scripting/Tests/TestGame/TestGame.csproj; do
+            dotnet format whitespace "$project" --verify-no-changes
+            dotnet format style "$project" --verify-no-changes --severity warn
+          done
+          # the templates' C# scripts follow the same style (their .editorconfig is the engine's, see Projects.ts)
+          for project in ../../Templates/*/TemplateProject.csproj; do
+            dotnet format whitespace "$project" --verify-no-changes
+            dotnet format style "$project" --verify-no-changes --severity warn
+          done
+          dotnet test Physics/Tests/Physics.Tests.csproj -c Release
+          # the same tests on the fallback for hosts without WebAssembly SIMD (FastMath lanes)
+          dotnet test Physics/Tests/Physics.Tests.csproj -c Release -p:CseNoSimd=true
+          # DI for C# ([Inject], installers, containers; the C# side of DI across languages)
+          dotnet test Common/DI/DotNet.Tests/DI.Tests.csproj -c Release
+          # DataStream and MessagePack for C# (the same MessagePack vectors as the TypeScript tests)
+          dotnet test Common/DataStream/DotNet.Tests/DataStream.Tests.csproj -c Release
+          # C# scripting: the host the TypeScript runtime drives, and the templates' C# components
+          dotnet test Scripting/CSharp.Tests/CSEngine.Scripting.Tests.csproj -c Release
+          # the C# game the TypeScript scripting tests load in Node (Modules/Scripting/Tests/Integration.test.ts)
+          dotnet build Scripting/Tests/TestGame/TestGame.csproj
+
+      # CSPhysics.Utilities, CSPhysics and Integration are project references of
       # Bridge, so this one step already builds and AOT-publishes all four -
       # and leaves .../AppBundle/_framework on disk, which is where the Vite
       # build (BuildTools/PhysicsWasmPlugin.ts) copies the physics runtime from.
       # Relative paths inside the script ("../src/...") are resolved against
       # this working directory.
+      # Both runtimes: the main one (WebAssembly SIMD) and the fallback for
+      # hosts without SIMD (Binaries/PhysicsNoSimd, served as physics-wasm-nosimd).
       - name: Publish physics (wasm)
         working-directory: devops
         run: bash build-physics.sh
@@ -114,7 +148,7 @@ jobs:
 
       # Real-browser tests that play the built site like a user does (menu,
       # keyboard, mouse, scenes, pixels on screen). E2E_REAL_PHYSICS=1 adds a
-      # run against the real BEPU wasm runtime published above; the rest use
+      # run against the real CSPhysics wasm runtime published above; the rest use
       # the stand-in runtime from E2E/fixtures so they don't depend on it.
       - name: End-to-end tests
         working-directory: src/CSEngine/Core
@@ -130,6 +164,43 @@ jobs:
             if [ -f "$template/Template.json" ]; then CSE_PROJECT="$template" pnpm build; fi
           done
           pnpm build
+
+      # FastMath for TypeScript: the math the engine's TypeScript runs on.
+      - name: "FastMath (TypeScript): type check, lint, unit tests (100% coverage)"
+        working-directory: src/CSEngine/Modules/Common/FastMath
+        run: |
+          pnpm typecheck
+          pnpm lint
+          pnpm test
+
+      - name: "Task: type check, lint, unit tests (100% coverage)"
+        working-directory: src/CSEngine/Modules/Common/Task
+        run: |
+          pnpm typecheck
+          pnpm lint
+          pnpm test
+
+      - name: "DI: type check, lint, unit tests (100% coverage)"
+        working-directory: src/CSEngine/Modules/Common/DI
+        run: |
+          pnpm typecheck
+          pnpm lint
+          pnpm test
+
+      - name: "DataStream (TypeScript): type check, lint, unit tests (100% coverage)"
+        working-directory: src/CSEngine/Modules/Common/DataStream
+        run: |
+          pnpm typecheck
+          pnpm lint
+          pnpm test
+
+      # C# scripting, the TypeScript side; its integration tests run C# components on the real .NET runtime.
+      - name: "Scripting (TypeScript): type check, lint, unit and integration tests (100% coverage)"
+        working-directory: src/CSEngine/Modules/Scripting
+        run: |
+          pnpm typecheck
+          pnpm lint
+          pnpm test
 
       # The engine's UI module (toolkit, UI document runtime, gallery).
       - name: "UI module: type check, lint, unit tests (100% coverage), build, end-to-end"

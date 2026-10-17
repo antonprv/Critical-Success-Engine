@@ -148,6 +148,82 @@ describe("the generated code does what the graph does", () => {
 		expect(State(codeDocument, byCode)).toEqual(State(graphDocument, byGraph));
 		expect(State(codeDocument, byCode)).toEqual([false, false, true, true, false, "Options", true, "Hi", "Retry"]);
 	});
+
+	it("variables: the script declares them, follows them with OnVariable and its tests, sets and adds to them, formats texts", async () => {
+		const { Compare, VariableEvent, VariableKind } = await import("@cse/ui");
+		const When = (Id: string, Variable: string, compare: string, Value: string) => ({ Id, Kind: GraphNodeKind.Event, Type: VariableEvent, X: 0, Y: 0, Params: { Variable, Compare: compare, Value } });
+		const graph: UiGraph = {
+			Variables: [
+				{ Name: "Score", Kind: VariableKind.Number, Default: 1 }, { Name: "Best", Kind: VariableKind.Number, Default: 0 },
+				{ Name: "Mode", Kind: VariableKind.Text, Default: "" }, { Name: "Offline", Kind: VariableKind.Boolean, Default: false, Widget: "Offline" },
+			],
+			Nodes: [
+				When("e1", "Score", Compare.Greater, "{Best}"), Action("a1", ActionType.SetVariable, { Variable: "Best", Value: "{Score}" }),
+				Action("a2", ActionType.SetText, { Widget: "Status", Text: "Best: {Best}" }),
+				When("e2", "Mode", Compare.Equal, "hard"), Action("a3", ActionType.AddToVariable, { Variable: "Score", Amount: "10" }),
+				When("e3", "Offline", Compare.Equal, "true"), Action("a4", ActionType.SetVariable, { Variable: "Mode", Value: "hard" }),
+				When("e4", "Score", Compare.Any, ""), Action("a5", ActionType.AddToVariable, { Variable: "Best", Amount: "{Score}" }),
+				Event("e5", "OpenSettings", "click"), Action("a6", ActionType.SetVariable, { Variable: "Score", Value: "5" }),
+			],
+			Links: [
+				{ From: "e1", To: "a1" }, { From: "a1", To: "a2" }, { From: "e2", To: "a3" }, { From: "e3", To: "a4" }, { From: "e4", To: "a5" }, { From: "e5", To: "a6" },
+			],
+		};
+		const code = GenerateGraphScript(Screen(graph));
+		expect(code).toContain('this.DeclareVariable("Score", "number", 1);');
+		expect(code).toContain('this.DeclareVariable("Offline", "boolean", false, "Offline");');
+		expect(code).toContain('this.OnVariable("Score", (value) => {');
+		expect(code).toContain('if (this.Test(value, ">", this.Read("Score", "{Best}"))) {');
+		expect(code).toContain('if (this.Test(value, "==", "hard")) {');
+		expect(code).toContain('if (this.Test(value, "==", true)) {');
+		expect(code).toContain('this.SetVariable("Best", "{Score}");');
+		expect(code).toContain('this.SetVariable("Score", 5);');
+		expect(code).toContain('this.AddToVariable("Score", 10);');
+		expect(code).toContain('this.SetText("Status", this.Format("Best: {Best}"));');
+		expect(code.indexOf("DeclareVariable")).toBeLessThan(code.indexOf("OnVariable"));
+
+		const State = (document: UiDocument) => [{ ...document.Variables }, document.Controller<StatusBarController>("Status").Panels[0]!.Text];
+		const Play = (document: UiDocument) => {
+			const states = [State(document)];
+			document.Controller<CheckBoxController>("Offline").Toggle();
+			states.push(State(document));
+			document.Controller<ButtonController>("OpenSettings").PerformClick();
+			states.push(State(document));
+			return states;
+		};
+		const byGraph = Play(new UiDocument(Screen(graph)));
+		const layout = Screen(graph);
+		const Script = await Compile(code);
+		delete layout.Graph;
+		layout.Script = "Generated";
+		const byCode = Play(new UiDocument(layout, { Scripts: new UiScriptRegistry().Register("Generated", Script) }));
+		expect(byCode).toEqual(byGraph);
+		expect(byGraph[1]![0]).toMatchObject({ Offline: true, Mode: "hard" });
+		// with the graph still in the layout, the script's declarations leave its variables alone
+		const both = Screen(graph);
+		both.Script = "Generated";
+		const document = new UiDocument(both, { Scripts: new UiScriptRegistry().Register("Generated", Script), Variables: { Score: 3 } });
+		expect(document.Variables["Score"]).toBe(3);
+	});
+
+	it("a variable event without a test, and variables with no graph to declare them", async () => {
+		const { VariableEvent } = await import("@cse/ui");
+		expect(GenerateGraphScript(Screen({ Nodes: [], Links: [] }))).not.toContain("DeclareVariable");
+		// params missing (an older file): any change; an empty value; an amount that isn't a number adds 0
+		const code = GenerateGraphScript(Screen({
+			Nodes: [
+				{ Id: "e", Kind: GraphNodeKind.Event, Type: VariableEvent, X: 0, Y: 0, Params: { Variable: "Lives" } },
+				Action("a1", ActionType.SetVariable, { Variable: "Lives" }), Action("a2", ActionType.AddToVariable, { Variable: "Lives" }),
+				Action("a3", ActionType.AddToVariable, { Variable: "Lives", Amount: "lots" }),
+			],
+			Links: [{ From: "e", To: "a1" }, { From: "a1", To: "a2" }, { From: "a2", To: "a3" }],
+		}));
+		expect(code).toContain('this.OnVariable("Lives", () => {');
+		expect(code).toContain('this.SetVariable("Lives", "");');
+		expect(code).toContain('this.AddToVariable("Lives", 0);');
+		const tested = GenerateGraphScript(Screen({ Nodes: [{ Id: "e", Kind: GraphNodeKind.Event, Type: VariableEvent, X: 0, Y: 0, Params: { Variable: "Lives", Compare: "==" } }], Links: [] }));
+		expect(tested).toContain('if (this.Test(value, "==", "")) {');
+	});
 });
 
 describe("code generation of option conditions", () => {

@@ -4,6 +4,7 @@
 // Code of guide 03 (docs/en/guides/03-components.md).
 
 // <<imports
+import { FMath } from "@cse/fastmath";
 import { Component } from "../Engine/Core/Component";
 import { CollisionLayer } from "../Engine/Core/CollisionLayer";
 import { Comp, Ent } from "../Engine/Core/EntityManifest";
@@ -34,7 +35,7 @@ export class Hover extends Component {
 	}
 
 	public override Update( _dt: number ): void {
-		this.Transform.Position.Y = this._baseY + Math.sin(
+		this.Transform.Position.Y = this._baseY + FMath.FastSin(
 			this.Engine.Time.Elapsed * this.Speed,
 		) * this.Amplitude;
 	}

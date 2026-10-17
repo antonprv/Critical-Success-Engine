@@ -1,6 +1,8 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
+import type { InputSnapshot } from "@cse/scripting";
 import { InputEvtType } from "../../Workers/Common/CommonEnums";
 import type { InputEvent } from "../../Workers/Protocol/GameLogicProtocol";
 import {
@@ -16,6 +18,16 @@ import {
  * `JustPressed` lasts one rendered frame; `JustPressedPhysics` lasts until the
  * next physics step.
  */
+/**
+ * Empties a set that is usually empty already: V8's clear() makes the set a new
+ * table even then, and these are cleared every frame.
+ */
+function Empty( set: Set<string> ): void {
+	if ( set.size > 0 ) {
+		set.clear();
+	}
+}
+
 /**
  * How far a stick must move before it counts; past it, the value is rescaled to
  * start at 0.
@@ -130,9 +142,9 @@ export class InputService {
 		);
 		for ( let stick = 0; stick < 4; stick++ ) {
 			const v = axes[stick] ?? 0;
-			const beyond = Math.max(
+			const beyond = FMath.Max(
 				0,
-				( Math.abs( v ) - DeadZone ) / ( 1 - DeadZone ),
+				( FMath.Abs( v ) - DeadZone ) / ( 1 - DeadZone ),
 			);
 			values.set( PadAxes[stick * 2]!, v < 0 ? beyond : 0 );
 			values.set( PadAxes[stick * 2 + 1]!, v > 0 ? beyond : 0 );
@@ -186,18 +198,39 @@ export class InputService {
 	//#region actions
 
 	public IsActionDown( name: string ): boolean {
-		return this._touchDown.has( name ) || this.Map.Codes( name )
-			.some( ( code ) => this.IsKeyDown( code ) );
+		if ( this._touchDown.has( name ) ) {
+			return true;
+		}
+		for ( const code of this.Map.Codes( name ) ) {
+			if ( this.IsKeyDown( code ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public ActionJustPressed( name: string ): boolean {
-		return this._touchJustFrame.has( name ) || this.Map.Codes( name )
-			.some( ( code ) => this.JustPressed( code ) );
+		if ( this._touchJustFrame.has( name ) ) {
+			return true;
+		}
+		for ( const code of this.Map.Codes( name ) ) {
+			if ( this.JustPressed( code ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public ActionJustPressedPhysics( name: string ): boolean {
-		return this._touchJustPhysics.has( name ) || this.Map.Codes( name )
-			.some( ( code ) => this.JustPressedPhysics( code ) );
+		if ( this._touchJustPhysics.has( name ) ) {
+			return true;
+		}
+		for ( const code of this.Map.Codes( name ) ) {
+			if ( this.JustPressedPhysics( code ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -229,16 +262,18 @@ export class InputService {
 		if ( !this._capture ) {
 			return 0;
 		}
-		return Math.max(
-			this._touch.get( name ) ?? 0,
-			...this.Map.Codes( name )
-				.map(
-					( code ) => this._pad.get( code )
-						?? ( this._down.has( code )
-							? 1
-							: 0 ),
-				),
-		);
+		// asked for every action every frame: no arrays made on the way
+		let value = this._touch.get( name ) ?? 0;
+
+		for ( const code of this.Map.Codes( name ) ) {
+			const pressed = this._pad.get( code )
+				?? ( this._down.has( code ) ? 1 : 0 );
+
+			if ( pressed > value ) {
+				value = pressed;
+			}
+		}
+		return value;
 	}
 
 	/**
@@ -253,9 +288,34 @@ export class InputService {
 		const y = this.ActionValue( "MoveBack" ) - this.ActionValue(
 			"MoveForward",
 		);
-		const length = Math.hypot( x, y );
+		const length = FMath.Length2( x, y );
 
 		return length > 1 ? [x / length, y / length] : [x, y];
+	}
+
+	/**
+	 * Every action's state at once: what C# components see in OnInputUpdate
+	 * (pressed, just pressed, values above 0, the move vector).
+	 */
+	public Snapshot(): InputSnapshot {
+		const snapshot: InputSnapshot = {
+			Down: [], JustPressed: [], Values: {}, Move: this.GetMoveVector(),
+		};
+
+		for ( const { Name } of this.Map.Actions ) {
+			if ( this.IsActionDown( Name ) ) {
+				snapshot.Down.push( Name );
+			}
+			if ( this.ActionJustPressed( Name ) ) {
+				snapshot.JustPressed.push( Name );
+			}
+			const value = this.ActionValue( Name );
+
+			if ( value > 0 ) {
+				snapshot.Values[Name] = value;
+			}
+		}
+		return snapshot;
 	}
 
 	/** The move vector's old name. */
@@ -296,13 +356,13 @@ export class InputService {
 
 	/** Called by the runtime at the end of each rendered frame. */
 	public EndFrame(): void {
-		this._justPressedFrame.clear();
-		this._touchJustFrame.clear();
+		Empty( this._justPressedFrame );
+		Empty( this._touchJustFrame );
 	}
 
 	/** Called by the runtime after each physics step's scripts ran. */
 	public EndPhysicsStep(): void {
-		this._justPressedPhysics.clear();
-		this._touchJustPhysics.clear();
+		Empty( this._justPressedPhysics );
+		Empty( this._touchJustPhysics );
 	}
 }

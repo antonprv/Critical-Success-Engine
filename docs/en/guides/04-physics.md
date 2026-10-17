@@ -2,7 +2,7 @@
 
 # 04. Physics
 
-The physics is the real BEPU (in wasm); it lives in a separate worker and steps at a fixed **60 Hz**. Your scripts
+The physics is the real CSPhysics (in wasm); it lives in a separate worker and steps at a fixed **60 Hz**. Your scripts
 in `GameLogic` talk to it through the body components and through `this.Engine.Physics`.
 
 ## How it works (so you understand the delays)
@@ -80,6 +80,16 @@ export class Bumper extends Component {
 	}
 }
 ```
+
+### How triggers work (and why they are cheap)
+
+Triggers are handled the way Box3D handles sensors, outside the contact solver: a trigger never makes contact
+constraints. After each step the engine takes the bodies whose bounds touch a trigger's (the broad phase it already
+has), runs one exact overlap test per candidate pair (no contact manifold), and compares the sorted list of what is
+inside with the previous step's: what is new is an `OnTriggerEnter`, what is gone an `OnTriggerExit`. A body that falls
+asleep inside a trigger stays inside (no false exit), a body destroyed inside it exits, and a fast body that crosses a
+trigger within one step still enters (the continuous sweep reports it). Contact events of solid bodies work the same
+way: sorted lists merged once per step, nothing allocated.
 
 ## Pushing, accelerating, teleporting
 
@@ -169,5 +179,14 @@ or once `MaxLifetimeSeconds` runs out, the projectile calls `Despawn`: a bullet 
 | The platform "drifts" relative to the player | Component order: the movement script **before** `KinematicBody` |
 | An object flew off strangely after a teleport | `Teleport` doesn't zero the velocity - `SetLinearVelocity(new Vec3())` |
 | No physics at all | The wasm isn't built: see 01; in that case a toast about it appears at startup |
+| Physics much slower on one browser | It has no WebAssembly SIMD: it runs the fallback build (below) |
+
+## Browsers without WebAssembly SIMD
+
+The physics is built with WebAssembly SIMD: its wide math runs as SIMD instructions. A host without SIMD (an old
+browser, some embedded webviews) can't load such a module at all, so the engine has a second physics build without
+SIMD, whose wide math runs on the engine's FastMath per lane (full float precision) instead of .NET's generic fallback.
+The loader checks SIMD the way the .NET runtime does and loads `physics-wasm-nosimd` when it is missing; everyone else
+gets the fast build. `devops/build-physics.sh` builds both; see `Modules/Physics/Bridge/BUILD.md`.
 
 Next → [05. Player and camera](05-player-and-camera.md)

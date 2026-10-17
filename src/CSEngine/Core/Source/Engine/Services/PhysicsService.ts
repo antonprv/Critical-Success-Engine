@@ -1,6 +1,8 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { Task, TaskCompletionSource } from "@cse/task";
+
 import {
 	PhysBodyType,
 	PhysObjectKind,
@@ -87,7 +89,7 @@ export class PhysicsService {
 
 	private readonly _queries = new Map<
 		number,
-		( result: PhysicsQueryResult ) => void
+		TaskCompletionSource<PhysicsQueryResult>
 	>();
 
 	private readonly _sync = new SyncTracker();
@@ -291,18 +293,14 @@ export class PhysicsService {
 
 	//#region Queries
 
-	private Query<T extends PhysicsQueryResult>( query: PhysicsQuery ): Promise<
+	private Query<T extends PhysicsQueryResult>( query: PhysicsQuery ): Task<
 		T
 	> {
 		const queryId = this._nextQueryId++;
-
-		return new Promise<T>( ( resolve ) => {
-			this._queries.set(
-				queryId,
-				resolve as ( result: PhysicsQueryResult ) => void,
-			);
-			this.Enqueue( { operation: PhysOpType.Query, queryId, query } );
-		} );
+		const source = new TaskCompletionSource<PhysicsQueryResult>();
+		this._queries.set( queryId, source );
+		this.Enqueue( { operation: PhysOpType.Query, queryId, query } );
+		return source.Task as unknown as Task<T>;
 	}
 
 	/**
@@ -312,7 +310,7 @@ export class PhysicsService {
 	public SweepSphere(
 		origin: Vec3, direction: Vec3, maxDistance: number, radius: number,
 		layer: number, mask: number, excludeEntityId?: number,
-	): Promise<ShapeCastResult> {
+	): Task<ShapeCastResult> {
 		return this.Query<ShapeCastResult>( {
 			type: PhysQueryType.SweepSphere,
 			origin: origin.ToTuple(),
@@ -332,7 +330,7 @@ export class PhysicsService {
 	public SweepProjectile(
 		entityId: number, position: Vec3, velocity: Vec3, dt: number,
 		radius: number, layer: number, mask: number,
-	): Promise<ProjectileSweepResult> {
+	): Task<ProjectileSweepResult> {
 		return this.Query<ProjectileSweepResult>( {
 			type: PhysQueryType.SweepProjectile,
 			entityId,
@@ -345,12 +343,10 @@ export class PhysicsService {
 		} );
 	}
 
-	public async IsAwake( entityId: number ): Promise<boolean> {
-		const result = await this.Query<{ awake: boolean; }>(
+	public IsAwake( entityId: number ): Task<boolean> {
+		return this.Query<{ awake: boolean; }>(
 			{ type: PhysQueryType.AwakeState, entityId },
-		);
-
-		return result.awake;
+		).then( ( result ) => result.awake );
 	}
 
 	//#endregion
@@ -420,9 +416,9 @@ export class PhysicsService {
 	 * Resolves once every command queued so far has been applied by
 	 * PhysicsWorker.
 	 */
-	public Sync(): Promise<void> {
+	public Sync(): Task {
 		if ( this.Failed ) {
-			return Promise.resolve();
+			return Task.CompletedTask;
 		}
 		const acknowledged = this._sync.Begin(
 			( token ) => this.Enqueue( { operation: PhysOpType.Sync, token } ),
@@ -454,9 +450,9 @@ export class PhysicsService {
 				break;
 
 			case PhysState.QueryResult: {
-				const resolve = this._queries.get( message.queryId );
+				const query = this._queries.get( message.queryId );
 				this._queries.delete( message.queryId );
-				resolve?.( message.result );
+				query?.TrySetResult( message.result );
 				break;
 			}
 

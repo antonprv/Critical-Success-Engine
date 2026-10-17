@@ -59,8 +59,11 @@ export interface CseProject {
 	Genre: Genre;
 	Modules: ProjectModule[];
 	Plugins: PluginReference[];
-	/** Where the project's UI documents are listed. */
-	Ui: { Manifest: string; };
+	/**
+	 * Where the project's UI documents are listed, and the theme the game
+	 * draws them in (none: the engine's, Windows XP).
+	 */
+	Ui: { Manifest: string; Theme?: ProjectTheme; };
 	/**
 	 * The project's input manifests (its actions and bindings), by Id, and the
 	 * one in use at start.
@@ -71,6 +74,21 @@ export interface CseProject {
 	 * editable without a rebuild.
 	 */
 	Data: { Id: string; Path: string; }[];
+}
+
+/**
+ * A UI theme: the toolkit's kit ("classic": a Windows theme, "tailwind": a
+ * Tailwind palette), the Windows theme's id, and the palette.
+ */
+export interface ProjectTheme {
+	Kit: string;
+	Theme: string;
+	Tailwind?: {
+		Accent: string;
+		Neutral: string;
+		Dark: boolean;
+		Radius: string;
+	};
 }
 
 class ProjectError extends Error {
@@ -166,6 +184,18 @@ function ReadPlugin( raw: unknown ): PluginReference {
 	return { Name: raw["Name"], Enabled: raw["Enabled"] !== false };
 }
 
+/**
+ * A project or plugin name (an identifier) as words for the UI: "GamesSample"
+ * is "Games Sample", "MyRPGGame" "My RPG Game".
+ */
+export function ToFriendlyName( name: string ): string {
+	return name
+		.replace( /_/g, " " )
+		.replace( /([a-z])([A-Z0-9])/g, "$1 $2" )
+		.replace( /([0-9])([A-Za-z])/g, "$1 $2" )
+		.replace( /([A-Z]+)([A-Z][a-z])/g, "$1 $2" );
+}
+
 /** Reads a .cseproject; throws "Not a project file: ..." with what is wrong. */
 export function ParseProject( text: string ): CseProject {
 	let raw: unknown;
@@ -218,6 +248,9 @@ export function ParseProject( text: string ): CseProject {
 	if ( ui["Manifest"] !== undefined && typeof ui["Manifest"] !== "string" ) {
 		throw new ProjectError( "Ui.Manifest must be a path" );
 	}
+	const theme = ui["Theme"] === undefined
+		? undefined
+		: ReadTheme( ui["Theme"] );
 
 	return {
 		FileVersion: version,
@@ -236,9 +269,42 @@ export function ParseProject( text: string ): CseProject {
 		Ui: {
 			Manifest: ( ui["Manifest"] as string | undefined )
 				?? "Content/UI/Ui.manifest.json",
+			...( theme ? { Theme: theme } : {} ),
 		},
 		Input: input,
 		Data: data,
+	};
+}
+
+function ReadTheme( raw: unknown ): ProjectTheme {
+	if ( !IsObject( raw )
+		|| typeof raw["Kit"] !== "string"
+		|| typeof raw["Theme"] !== "string" ) {
+		throw new ProjectError( "Ui.Theme must be { Kit, Theme, Tailwind? }" );
+	}
+	const tailwind = raw["Tailwind"];
+
+	if ( tailwind === undefined ) {
+		return { Kit: raw["Kit"], Theme: raw["Theme"] };
+	}
+	if ( !IsObject( tailwind )
+		|| typeof tailwind["Accent"] !== "string"
+		|| typeof tailwind["Neutral"] !== "string"
+		|| typeof tailwind["Dark"] !== "boolean"
+		|| typeof tailwind["Radius"] !== "string" ) {
+		throw new ProjectError(
+			"Ui.Theme.Tailwind must be { Accent, Neutral, Dark, Radius }",
+		);
+	}
+	return {
+		Kit: raw["Kit"],
+		Theme: raw["Theme"],
+		Tailwind: {
+			Accent: tailwind["Accent"],
+			Neutral: tailwind["Neutral"],
+			Dark: tailwind["Dark"],
+			Radius: tailwind["Radius"],
+		},
 	};
 }
 

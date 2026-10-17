@@ -43,9 +43,10 @@ export class UiBridge implements UiActions {
 		// Plugins on the page (the UI host) talk to their game-side halves
 		// through the UI worker.
 		this._channels = channels;
-		channels.Connect(
-			( channel, payload ) => workers.UiWorker.postMessage(
-				{ type: UiMsg.Channel, channel, payload },
+		channels.ConnectBatched(
+			( batch ) => workers.UiWorker.postMessage(
+				{ type: UiMsg.Channel, batch },
+				[batch.buffer],
 			),
 		);
 
@@ -92,18 +93,39 @@ export class UiBridge implements UiActions {
 				document.exitPointerLock();
 				break;
 			case UiMsg.Channel:
-				this._channels.Deliver( message.channel, message.payload );
+				this._channels.Receive( message.batch );
 				break;
 			case UiMsg.Toast:
-				Notify.create(
-					{
-						message: message.message,
-						color: "grey-9",
-						textColor: "grey-3",
-					},
-				);
+				if ( this._store.State.documentScreens ) {
+					this.ShowToast( message.message );
+				}
+				else {
+					Notify.create(
+						{
+							message: message.message,
+							color: "grey-9",
+							textColor: "grey-3",
+						},
+					);
+				}
 				break;
 		}
+	}
+
+	/**
+	 * A toast for the document that draws them (the page's state): at most four
+	 * at a time, each gone after four seconds.
+	 */
+	private ShowToast( text: string ): void {
+		const state = this._store.State;
+		state.toasts = [...( state.toasts ?? [] ), text].slice( -4 );
+		setTimeout( () => {
+			const index = state.toasts!.indexOf( text );
+
+			if ( index >= 0 ) {
+				state.toasts = state.toasts!.filter( ( _, i ) => i !== index );
+			}
+		}, 4000 );
 	}
 
 	/**

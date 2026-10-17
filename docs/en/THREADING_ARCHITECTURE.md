@@ -12,7 +12,7 @@ what to keep in mind when relying on it. The code is in `src/CSEngine/Core/Sourc
 |---|---|---|
 | main thread (`App.ts`, `Orchestrator.ts`) | DOM listeners (keyboard, pointer, pointer lock, window size), the `AudioContext` playback, drawing the UI state (Vue/Quasar) | game state, physics, rendering |
 | `RenderWorker.ts` | the OffscreenCanvas, Babylon `Engine`/`Scene`, meshes, `AssetLoader` | game state, physics |
-| `PhysicsWorker.ts` | the BEPU simulation (through the wasm bridge), fixed-step stepping | mesh objects, gameplay rules |
+| `PhysicsWorker.ts` | the CSPhysics simulation (through the wasm bridge), fixed-step stepping | mesh objects, gameplay rules |
 | `GameLogicWorker.ts` | entities, components, scenes, input state, the frame and physics ticks | rendering, physics internals |
 | `AudioWorker.ts` | sound decoding | playback (that is on the main thread) |
 | `UiWorker.ts` | the state and logic of the menu / loading screen (`Workers/Ui/UiController.ts`) | drawing (Vue on the main thread draws the state) |
@@ -34,12 +34,12 @@ The engine uses `postMessage` / structured clone, not `SharedArrayBuffer` + Atom
   first step is `Transferable` objects (send the underlying `ArrayBuffer` of a `Float64Array` with `postMessage(msg, [buffer])` - no copy, still no
   SharedArrayBuffer, no COOP/COEP), before reaching for shared memory.
 
-## Why the physics is real BEPU through WASM
+## Why the physics is real CSPhysics through WASM
 
-The physics is the real BEPU Physics, not a JS library: `Physics/Bridge` compiles the engine's `Physics.Integration` (with the vendored `BepuPhysics` /
-`BepuUtilities` and `FastMath`) to a browser wasm module with the .NET `wasm-tools` workload, and `Workers/Physics/PhysicsWorld.ts` is the only place that
+The physics is the real CSPhysics, not a JS library: `Modules/Physics/Bridge` compiles the engine's `Physics.Integration` (with the vendored `CSPhysics` /
+`CSPhysics.Utilities` and `FastMath`) to a browser wasm module with the .NET `wasm-tools` workload, and `Workers/Physics/PhysicsWorld.ts` is the only place that
 calls it (`[JSExport]` methods of `PhysicsBridge.cs`). How to build it: `devops/build-physics.sh` (or `build-all` without `--skip-physics`), details in
-`Physics/Bridge/BUILD.md`.
+`Modules/Physics/Bridge/BUILD.md`.
 
 `PhysicsWorker.ts` degrades gracefully if the wasm module fails to load: it reports the error, the game shows a toast and carries on without a simulation, and
 the other workers keep working. That is handy for working on rendering and gameplay without a physics build.

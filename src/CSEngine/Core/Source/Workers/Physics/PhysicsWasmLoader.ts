@@ -8,6 +8,24 @@ import type {
 } from "./PhysicsBridgeContract";
 
 /**
+ * The module dotnet.js validates to decide whether the host has WebAssembly
+ * SIMD (an i32x4.splat): the same bytes, so the choice of build and the
+ * runtime's own check never disagree.
+ */
+const SimdProbe = new Uint8Array( [
+	0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 15, 1,
+	13, 0, 65, 1, 253, 15, 65, 2, 253, 15, 253, 128, 2, 11,
+] );
+
+/** Whether this host runs WebAssembly SIMD (the main physics build needs). */
+export function SupportsWasmSimd(
+	wasm: Pick<typeof WebAssembly, "validate"> | undefined
+		= globalThis.WebAssembly,
+): boolean {
+	return wasm?.validate( SimdProbe ) ?? false;
+}
+
+/**
  * Boots the .NET wasm runtime in the worker and returns the PhysicsBridge
  * exports.
  */
@@ -22,17 +40,21 @@ export class PhysicsWasmLoader {
 	 * Where the runtime is: the dev server serves it at the root; in a built
 	 * site the worker is <site>/assets/<name>.js and the runtime
 	 * <site>/physics-wasm, so the site can sit under any path (a relative
-	 * base).
+	 * base). A host without WebAssembly SIMD gets the fallback build
+	 * (physics-wasm-nosimd): the main one is SIMD-only and would not start.
 	 */
 	private static DefaultUrl(): string {
 		const dev = typeof __DEV__ !== "undefined" && __DEV__;
+		const folder = SupportsWasmSimd()
+			? "physics-wasm"
+			: "physics-wasm-nosimd";
 
 		return dev
 			|| typeof self === "undefined"
 			|| !self.location?.href.includes( "/assets/" )
-			? "/physics-wasm/_framework/dotnet.js"
+			? `/${ folder }/_framework/dotnet.js`
 			: new URL(
-				"../physics-wasm/_framework/dotnet.js",
+				`../${ folder }/_framework/dotnet.js`,
 				self.location.href,
 			).href;
 	}

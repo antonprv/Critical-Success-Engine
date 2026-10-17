@@ -95,6 +95,11 @@ export class InitialVelocity extends Component {
 | `this.Engine.Scenes` | загрузка сцен |
 | `this.Engine.Time` | `Delta`, `FixedDelta`, `Elapsed`, `FrameCount` |
 | `this.Engine.Audio`, `this.Engine.Render` | звук; низкоуровневый рендер |
+| `this.Engine.Stream` | DataStream: сообщения по тегам (руководство 19) |
+
+Те же подсистемы можно получить и по контракту — так их получают шаблоны: поле вроде
+`@Inject( IInputSubsystem ) private readonly _input!: IInputSubsystem;` заполняется до `Awake` (руководство 20). А ещё
+компонент можно написать на C# (руководство 18).
 
 ## Время
 

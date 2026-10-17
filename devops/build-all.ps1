@@ -70,7 +70,7 @@ if ($SkipPhysics) {
 }
 else {
     Step 'Publishing physics (wasm)'
-    $bridge = Join-Path $Engine 'Physics/Bridge/Bridge.csproj'
+    $bridge = Join-Path $Engine 'Modules/Physics/Bridge/Bridge.csproj'
     $log    = Join-Path $PSScriptRoot 'publish.log'
     if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
         Warn 'dotnet not found - physics skipped (the game runs without a simulation).'
@@ -83,6 +83,10 @@ else {
             Warn 'Workload wasm-tools looks missing (dotnet workload install wasm-tools); trying anyway.'
         }
         dotnet publish $bridge -c Release -p:TrimmerSingleWarn=false -v:normal | Out-File -FilePath $log -Encoding utf8
+        # The fallback for hosts without WebAssembly SIMD (FastMath, Binaries/PhysicsNoSimd).
+        if ($LASTEXITCODE -eq 0) {
+            dotnet publish $bridge -c Release -p:TrimmerSingleWarn=false -p:CseNoSimd=true -v:normal | Out-File -FilePath $log -Encoding utf8 -Append
+        }
         if ($LASTEXITCODE -eq 0) {
             Write-Host 'Physics published. Log: devops/publish.log'
         }

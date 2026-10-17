@@ -25,11 +25,17 @@ tests (`pnpm test`), so when the engine API changes the guides don't silently go
 | 15 | [Data files](15-data-assets.md) | `.csedata`: typed project parameters in JSON, editable without a rebuild |
 | 16 | [Desktop app](16-desktop.md) | Electron, the Project Manager (templates by genre, themes), the designer on a project: documents, Save into the project |
 | 17 | [Logging](17-logging.md) | The Logger: levels, what stays in a production build, the log sidecar, logs in tests |
+| 18 | [Components in C#](18-csharp-scripting.md) | Writing a component in C#, next to TypeScript ones; building, the editor, how it runs |
+| 19 | [DataStream](19-datastream.md) | Tagged messages between parts that don't know each other: TypeScript, C#, workers; R3-style operators, MessagePack |
+| 20 | [Dependency injection](20-dependency-injection.md) | `@Inject` fields, contracts, installers (Zenjex-style bindings), the game's and a scene's containers |
+| 21 | [Tasks](21-tasks.md) | Promise-compatible tasks: synchronous continuations, waiting in frames and game time, cancellation |
+| 22 | [Contracts](22-contracts.md) | `.contract` files: C# and TypeScript calling each other through DI (`@FromCSharp`, `[FromTypeScript]`), DI in C# |
+| 23 | [Performance](23-performance.md) | `pnpm perf`: the perf harness, its metrics and scenarios, `?scene=` and `?uncapped` |
 
 ## The model in one paragraph
 
 A game is **scenes**. A scene is **data**: a list of entities, each entity with a list of components
-(`Ent("Name", [Comp(Component, { field: value }), …])`). Behaviour is written in **components** - ordinary TypeScript classes
+(`Ent("Name", [Comp(Component, { field: value }), …])`). Behaviour is written in **components** - ordinary TypeScript (or C#, guide 18) classes
 with hooks (`Awake`, `Start`, `Update`, `OnPhysicsUpdate`, `OnCollisionEnter`, …). Everything else (rendering, physics, menus)
 is services that a component reaches through `this.Engine`.
 
@@ -49,3 +55,8 @@ is services that a component reaches through `this.Engine`.
 - …move the game's parameters into files that can be edited without a rebuild → 15
 - …create a project in the Project Manager, run the tools as a desktop app → 16
 - …find out what the game logs and where it goes → 17
+- …write a component in C# → 18
+- …let parts of the game (TypeScript and C#) talk without knowing each other → 19
+- …get the engine's subsystems and your own services by interface → 20
+- …call C# from TypeScript and TypeScript from C#, or register services across languages → 22
+- …measure how fast the game runs, find what slows it down → 23

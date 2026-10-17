@@ -71,7 +71,7 @@ The `CSE_PROJECT_BROWSER_URL` and `CSE_UI_DESIGNER_URL` environment variables re
 cd devops && bash build-physics.sh      # Windows: build-physics.bat
 ```
 
-Publishes `Physics/Bridge` to wasm (`dotnet publish`, Release) and writes the log to `publish.log`. It must be run from the `devops` folder:
+Publishes `Modules/Physics/Bridge` to wasm (`dotnet publish`, Release) and writes the log to `publish.log`. It must be run from the `devops` folder:
 the paths in the script are relative. CI does the same. Details are in the [manual build](manual-build.md).
 
 ## Utility scripts

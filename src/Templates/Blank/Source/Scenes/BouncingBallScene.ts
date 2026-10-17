@@ -15,6 +15,8 @@ import { MeshRenderer } from "@cse/core/Engine/Components/MeshRenderer";
 import { RigidBody } from "@cse/core/Engine/Components/Physics/PhysicsBodies";
 import { StaticBox } from "@cse/core/Engine/Scenes/SceneHelpers";
 import { HudText, JumpOnSpace } from "@cse/core/Engine/Gameplay/Scripts";
+import { CSharp } from "@cse/core/Engine/Components/CSharp";
+import { LandingToast } from "../Scripts/LandingToast";
 
 const BallShape = Shapes.Sphere( 0.5 );
 
@@ -46,6 +48,8 @@ export const BouncingBallScene: SceneManifest = {
 				{ Shape: BallShape, Mass: 1, Layer: CollisionLayer.Prop },
 			),
 			Comp( JumpOnSpace, { Impulse: 6 } ),
+			// written in C#: Source/Scripts/BallWatcher.cs
+			CSharp( "BallWatcher", { HudKey: "ball.height" } ),
 		], { position: [0, 5, 0] } ),
 
 		Ent(
@@ -66,6 +70,8 @@ export const BouncingBallScene: SceneManifest = {
 						],
 					},
 				),
+				// TypeScript, listening to the C# BallWatcher
+				Comp( LandingToast ),
 			],
 		),
 	],

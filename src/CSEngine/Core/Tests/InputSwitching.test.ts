@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { SceneRegistry } from "../Source/Engine/Scenes/SceneRegistry";
 import { UiMsg } from "../Source/Workers/Common/CommonEnums";
 import { Harness } from "./Harness";
+import { Decode, Encode } from "@cse/datastream";
 
 /**
  * Three scenes of one project: one plays with the First Person controls, one
@@ -149,21 +150,26 @@ describe( "the controls screen's channel in the runtime", () => {
 			harness.ui.Receive(
 				{
 					type: UiMsg.Channel,
-					channel: "input",
-					payload: { op: "request" },
+					batch: Encode( [["input", { op: "request" }]] ),
 				},
 			);
-			const answer = harness.ui.sent.filter(
-				( m ) => ( m as { channel?: string; } ).channel === "input",
-			)
-				.at( -1 ) as {
-				payload: {
-					manifest: string;
-					maps: { Actions: { Name: string; }[]; }[];
-				};
+			await Promise.resolve(); // the answer goes at the end of the run
+			const answer = harness.ui.sent
+				.filter(
+					( m ) => ( m as { type: UiMsg; } ).type === UiMsg.Channel,
+				)
+				.flatMap(
+					( m ) => Decode(
+						( m as { batch: Uint8Array; } ).batch,
+					) as [string, unknown][],
+				)
+				.filter( ( [channel] ) => channel === "input" )
+				.at( -1 )![1] as {
+				manifest: string;
+				maps: { Actions: { Name: string; }[]; }[];
 			};
-			expect( answer.payload.manifest ).toBe( "CoinHunt" );
-			expect( answer.payload.maps[0]!.Actions.map( ( a ) => a.Name ) )
+			expect( answer.manifest ).toBe( "CoinHunt" );
+			expect( answer.maps[0]!.Actions.map( ( a ) => a.Name ) )
 				.toContain( "Restart" );
 		},
 	);

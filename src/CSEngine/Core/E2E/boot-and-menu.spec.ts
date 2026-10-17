@@ -104,7 +104,8 @@ test.describe( "a visitor opens the site", () => {
 				} ).__sawLoading = false;
 				new MutationObserver( () => {
 					if ( document.querySelector(
-						".cse-ui-host [data-ui=\"EngineLoading\"]",
+						".cse-ui-host [data-ui=\"EngineLoading\"]"
+							+ ":not([inert])",
 					) ) {
 						( window as unknown as {
 							__sawLoading: boolean;

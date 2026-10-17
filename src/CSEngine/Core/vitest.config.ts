@@ -3,7 +3,7 @@ import vue from "@vitejs/plugin-vue";
 import { resolve } from "node:path";
 import { defineConfig } from "vitest/config";
 import { ProjectPlugin } from "./BuildTools/ProjectPlugin.ts";
-import { ProjectOptions } from "./vite.config.ts";
+import { EngineAliases, ProjectOptions } from "./vite.config.ts";
 
 // Unit and integration tests (Node; the UI and main-thread tests switch to
 // jsdom per file). `pnpm test` runs them with coverage, and fails if any file
@@ -16,6 +16,11 @@ export default defineConfig( {
 		quasar(),
 		ProjectPlugin( ProjectOptions ),
 	],
+
+	resolve: { alias: EngineAliases },
+
+	// @Inject( IContract ) fields: TypeScript's own (legacy) decorators.
+	oxc: { decorator: { legacy: true } },
 
 	test: {
 		include: ["Tests/**/*.test.ts"],
@@ -41,7 +46,8 @@ export default defineConfig( {
 				}/*/Source/**/*.ts`,
 			],
 			allowExternal: true,
-			exclude: ["**/*.d.ts"],
+			// generated from .contract files (the contract compiler is tested)
+			exclude: ["**/*.d.ts", "**/*.contract.ts"],
 			reporter: ["text-summary", "html", "lcov", "json-summary"],
 			reportsDirectory: "coverage",
 			thresholds: { 100: true, perFile: true },

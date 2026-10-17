@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import { ControlBase, type ControlOptions } from "../Core/ControlBase";
 
 export interface JoystickOptions extends ControlOptions {
@@ -48,7 +49,7 @@ export class JoystickController extends ControlBase<JoystickEvents> {
 
 	/** The travel follows the widget's size. */
 	public SetRadius(radius: number): void {
-		this._radius = Math.max(1, radius);
+		this._radius = FMath.Max(1, radius);
 	}
 
 	/** A finger went down at this offset from the middle. */
@@ -62,11 +63,11 @@ export class JoystickController extends ControlBase<JoystickEvents> {
 	/** The finger moved: the knob follows, held at the radius. */
 	public MoveTo(dx: number, dy: number): void {
 		if (!this._active) return;
-		const length = Math.hypot(dx, dy);
+		const length = FMath.Length2(dx, dy);
 		const scale = length > this._radius ? this._radius / length : 1;
 		this._knobX = dx * scale;
 		this._knobY = dy * scale;
-		const travel = Math.min(1, length / this._radius);
+		const travel = FMath.Min(1, length / this._radius);
 		const past = travel <= this.DeadZone ? 0 : (travel - this.DeadZone) / (1 - this.DeadZone);
 		const along = length === 0 ? 0 : past / length;
 		this.Set(dx * along, dy * along);

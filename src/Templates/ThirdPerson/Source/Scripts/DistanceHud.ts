@@ -1,8 +1,11 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { Inject } from "@cse/di";
+import { FMath } from "@cse/fastmath";
 import { Component } from "@cse/core/Engine/Core/Component";
-import { GetGameUi, type GameUi } from "@cse/ui/game";
+import { IWorld } from "@cse/core/Engine/DI/Contracts";
+import { IGameUi } from "@cse/ui/game";
 
 /** The HUD's UI document, by its Id in the project's UI manifest. */
 const HudId = "ThirdPersonHud";
@@ -17,14 +20,18 @@ export class DistanceHud extends Component {
 	/** Metres covered on the ground (height changes, jumps, don't count). */
 	public Walked = 0;
 
-	private _ui: GameUi | null = null;
+	@Inject( IGameUi ) private readonly _ui!: IGameUi;
+
+	@Inject( IWorld ) private readonly _world!: IWorld;
+
+	private _showing = false;
 
 	private _last: { X: number; Z: number; } | null = null;
 
 	private _shown = -1;
 
 	public override Update(): void {
-		const player = this.Engine.World.FindByName( this.PlayerName );
+		const player = this._world.FindByName( this.PlayerName );
 
 		if ( !player ) {
 			return;
@@ -32,17 +39,17 @@ export class DistanceHud extends Component {
 		const { X, Z } = player.Transform.Position;
 
 		if ( this._last ) {
-			this.Walked += Math.hypot( X - this._last.X, Z - this._last.Z );
+			this.Walked += FMath.Length2( X - this._last.X, Z - this._last.Z );
 		}
 		this._last = { X, Z };
 	}
 
 	public override OnUIUpdate(): void {
-		if ( !this._ui ) {
-			this._ui = GetGameUi();
+		if ( !this._showing ) {
+			this._showing = true;
 			this._ui.Show( HudId );
 		}
-		const metres = Math.floor( this.Walked );
+		const metres = FMath.Floor( this.Walked );
 
 		if ( metres === this._shown ) {
 			return;
@@ -52,6 +59,8 @@ export class DistanceHud extends Component {
 	}
 
 	public override OnDestroy(): void {
-		this._ui?.Hide( HudId );
+		if ( this._showing ) {
+			this._ui.Hide( HudId );
+		}
 	}
 }

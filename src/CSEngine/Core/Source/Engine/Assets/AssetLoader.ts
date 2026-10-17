@@ -1,6 +1,8 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { Task, TaskCompletionSource } from "@cse/task";
+
 import { AssetsManager } from "@babylonjs/core/Misc/assetsManager";
 import type { Scene } from "@babylonjs/core/scene";
 
@@ -101,14 +103,14 @@ export class AssetLoader {
 	}
 
 	/** Awaited before the loading screen is hidden - keep this list short. */
-	public LoadCriticalAsync(): Promise<void> {
-		return new Promise( ( resolve, reject ) => {
-			this._critical.onFinish = () => resolve();
-			this._critical.onTaskError = ( task ) => reject(
-				new Error( `Critical asset failed: ${ task.name }` ),
-			);
-			this._critical.load();
-		} );
+	public LoadCriticalAsync(): Task {
+		const source = new TaskCompletionSource();
+		this._critical.onFinish = () => source.TrySetResult();
+		this._critical.onTaskError = ( task ) => source.TrySetError(
+			new Error( `Critical asset failed: ${ task.name }` ),
+		);
+		this._critical.load();
+		return source.Task;
 	}
 
 	/** Fire-and-forget - call once the game is already playable. */

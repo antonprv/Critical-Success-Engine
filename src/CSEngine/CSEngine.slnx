@@ -6,14 +6,11 @@
       <Deploy />
     </Project>
   </Folder>
-  <Folder Name="/Engine/Physics/" />
-  <Folder Name="/Engine/Physics/Bridge/">
-    <Project Path="Physics/Bridge/Bridge.csproj" />
-  </Folder>
-  <Folder Name="/Engine/Physics/Vendor/">
-    <Project Path="Physics/Vendor/BepuPhysics/BepuPhysics.csproj" />
-    <Project Path="Physics/Vendor/BepuUtilities/BepuUtilities.csproj" />
-    <Project Path="Physics/Vendor/Integration/Integration.csproj" />
+  <Folder Name="/Engine/Physics/">
+    <Project Path="Modules/Physics/Bridge/Bridge.csproj" />
+    <Project Path="Modules/Physics/CSPhysics/CSPhysics.csproj" />
+    <Project Path="Modules/Physics/CSPhysics.Utilities/CSPhysics.Utilities.csproj" />
+    <Project Path="Modules/Physics/Integration/Integration.csproj" />
   </Folder>
   <Folder Name="/Modules/" />
   <Folder Name="/Modules/Engine/">
@@ -24,6 +21,14 @@
   </Folder>
   <Folder Name="/Engine/Common/" />
   <Folder Name="/Engine/Common/Math/">
-    <Project Path="Common/Math/FastMath.csproj" />
+    <Project Path="Modules/Common/Math/FastMath.csproj" />
+  </Folder>
+  <Folder Name="/Engine/Common/DI/">
+    <Project Path="Modules/Common/DI/DotNet/DI.csproj" />
+    <Project Path="Modules/Common/DI/DotNet.Tests/DI.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Engine/Common/DataStream/">
+    <Project Path="Modules/Common/DataStream/DotNet/DataStream.csproj" />
+    <Project Path="Modules/Common/DataStream/DotNet.Tests/DataStream.Tests.csproj" />
   </Folder>
 </Solution>

@@ -37,6 +37,26 @@ describe(
 					.toMatch( /export declare class Vec3/ );
 				expect( at( "@cse/ui/Runtime/GameUi.d.ts" ) )
 					.toMatch( /export declare class GameUi/ );
+				// the common modules a game imports; their entry is "Index.ts":
+				// its declarations take the name an import looks for (the
+				// editor's TypeScript ignores case, so "Index.d.ts" next to
+				// "index.d.ts" would be one file twice)
+				for ( const name of [
+					"di",
+					"datastream",
+					"fastmath",
+					"task",
+					"scripting",
+				] ) {
+					expect( at( `@cse/${ name }/index.d.ts` ) )
+						.toMatch( /export/ );
+					expect( at( `@cse/${ name }/Index.d.ts` ) ).toBeUndefined();
+				}
+				expect(
+					at( "@cse/scripting/Contracts/Decorators.d.ts" )
+						?? at( "@cse/scripting/Bridge.d.ts" ),
+				)
+					.toMatch( /FromCSharp/ );
 				// the sources only
 				expect(
 					Object.keys( types )

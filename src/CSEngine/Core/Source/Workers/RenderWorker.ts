@@ -1,10 +1,12 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import { Logger } from "../Logging/Logger";
 import { RenderMsg, RendOpType as RendOp } from "./Common/CommonEnums";
 import { EntityMeshRegistry } from "./Render/EntityMeshRegistry";
 import { RenderScene } from "./Render/RenderScene";
+import { ExposePerf } from "../Engine/Diagnostics/PerfProbe";
 import type {
 	CameraPose,
 	GameLogicToRenderMessage,
@@ -63,7 +65,16 @@ function Init(
 		message.width,
 		message.height,
 		message.devicePixelRatio,
+		RenderScene.WebGl( message.antialias === "msaa" ),
 	);
+
+	if ( ( message.antialias ?? "fxaa" ) === "fxaa" ) {
+		scene.UseFxaa();
+	}
+
+	if ( message.uncapped ) {
+		scene.Uncap();
+	}
 	const registry = new EntityMeshRegistry( scene.Scene, scene.AssetLoader );
 	renderScene = scene;
 	const gameLogicPort = message.gameLogicPort;
@@ -74,19 +85,27 @@ function Init(
 	registry.OnGltfLoaded = ( entityId ) => Post(
 		{ type: RenderMsg.AssetLoaded, entityId },
 	);
-	gameLogicPort.onmessage = ( e: MessageEvent<GameLogicToRenderMessage> ) => (
-		HandleGameLogicMessage( e.data, scene, registry, Post )
-	);
+	gameLogicPort.onmessage = ( e: MessageEvent<GameLogicToRenderMessage> ) => {
+		HandleGameLogicMessage( e.data, scene, registry, Post );
+		// something new to draw (uncapped, the loop sleeps until then)
+		scene.Wake();
+	};
 
 	scene.RunRenderLoop( () => BeforeRender( scene, registry, Post ) );
+	ExposePerf( "Render", scene.Perf, () => scene.GpuInfo );
 	Post( { type: RenderMsg.Ready } );
 }
 
+/**
+ * Applies the newest game state (true when there was one) and asks for more.
+ */
 function BeforeRender(
 	scene: RenderScene,
 	registry: EntityMeshRegistry,
 	Post: ( message: RenderToGameLogicMessage ) => void,
-): void {
+): boolean {
+	const fresh = pendingFrame !== null;
+
 	if ( pendingFrame ) {
 		registry.ApplyTransformBatch(
 			pendingFrame.buffer,
@@ -108,6 +127,7 @@ function BeforeRender(
 			},
 		);
 	}
+	return fresh;
 }
 
 function HandleGameLogicMessage(
@@ -143,7 +163,7 @@ function HandleGameLogicMessage(
 			pendingFrame = null;
 			break;
 		case RendOp.Frame:
-			outstanding = Math.max( 0, outstanding - 1 );
+			outstanding = FMath.Max( 0, outstanding - 1 );
 			// Latest frame wins: an older one that was never drawn is simply
 			// superseded.
 			pendingFrame = {

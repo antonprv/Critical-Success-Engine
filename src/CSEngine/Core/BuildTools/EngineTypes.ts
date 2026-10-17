@@ -25,11 +25,21 @@ export interface TypesPackage {
 
 const Here = dirname( fileURLToPath( import.meta.url ) );
 
-/** The engine's packages: the core, and the UI toolkit (with its game runtime). */
+/**
+ * The engine's packages: the core, the UI toolkit (with its game runtime), and the common modules a game's code
+ * imports (DI, DataStream, FastMath, tasks, the C# scripting bridge and its contracts).
+ */
 export function DefaultTypesPackages(): TypesPackage[] {
+	const modules = resolve( Here, "../../Modules" );
+
 	return [
 		{ Name: "@cse/core", Root: resolve( Here, ".." ), Sources: "Source" },
-		{ Name: "@cse/ui", Root: resolve( Here, "../../Modules/Engine/UI" ), Sources: "Source" },
+		{ Name: "@cse/ui", Root: join( modules, "Engine/UI" ), Sources: "Source" },
+		{ Name: "@cse/di", Root: join( modules, "Common/DI" ), Sources: "Source" },
+		{ Name: "@cse/datastream", Root: join( modules, "Common/DataStream" ), Sources: "Source" },
+		{ Name: "@cse/fastmath", Root: join( modules, "Common/FastMath" ), Sources: "Source" },
+		{ Name: "@cse/task", Root: join( modules, "Common/Task" ), Sources: "Source" },
+		{ Name: "@cse/scripting", Root: join( modules, "Scripting" ), Sources: "Source" },
 	];
 }
 
@@ -100,6 +110,16 @@ function ShortNames( pack: TypesPackage, types: Record<string, string> ): void {
 
 		// it would lead to itself (a package's own index): the mirrored file is it
 		if ( into === `./${ name }` ) {
+			continue;
+		}
+
+		// the same name but for its case ("Index.ts"): the editor's TypeScript ignores case, so the file itself takes
+		// the name an import of the package looks for
+		if ( into.toLowerCase() === `./${ name }` ) {
+			const from = `file:///node_modules/${ pack.Name }/${ into.slice( 2 ) }.d.ts`;
+
+			types[`file:///node_modules/${ pack.Name }/${ name }.d.ts`] = types[from]!;
+			delete types[from];
 			continue;
 		}
 

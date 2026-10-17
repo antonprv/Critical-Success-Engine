@@ -569,6 +569,22 @@ describe( "ProjectPlugin: one build per thread", () => {
 			expect( rejected ).toBe( "UIHost runs on the Main thread" );
 		},
 	);
+
+	it( "the dev server ignores the Thread: workers share the page's pipeline there; a build filters", () => {
+		const directory = MakeProject( "Starfall" );
+		const engine = join( sandbox, "Engine" );
+		Write( join( engine, "UI", "UI.cseplugin" ), JSON.stringify( { Name: "UI", Modules: [{ Name: "UIHost", Thread: "Main", Entry: "Source/Host.ts" }, { Name: "UIGame", Entry: "Source/Game.ts" }] } ) );
+		const plugin = ProjectPlugin( { Request: directory, Registry: join( sandbox, "r.json" ), Default: "", PluginsDirectories: [engine], Thread: "Main" } ) as Plugin & {
+			load: ( id: string ) => string;
+			configResolved: ( config: { command: string; } ) => void;
+		};
+		const game = JSON.stringify( join( engine, "UI", "Source/Game.ts" ) );
+
+		plugin.configResolved( { command: "build" } );
+		expect( plugin.load( `\0${ ProjectVirtualId }` ) ).not.toContain( game );
+		plugin.configResolved( { command: "serve" } );
+		expect( plugin.load( `\0${ ProjectVirtualId }` ) ).toContain( game );
+	} );
 } );
 
 describe( "ProjectPlugin: the project's input manifests", () => {

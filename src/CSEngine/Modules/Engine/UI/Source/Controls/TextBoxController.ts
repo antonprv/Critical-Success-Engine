@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import { ControlBase, type ControlOptions } from "../Core/ControlBase";
 import type { KeyModifiers } from "./TabsController";
 
@@ -61,8 +62,8 @@ export class TextBoxController extends ControlBase<TextBoxEvents> {
 
 	public Select(start: number, end: number): void {
 		const length = this._value.length;
-		const from = Math.min(length, Math.max(0, start));
-		const to = Math.min(length, Math.max(from, end));
+		const from = FMath.Min(length, FMath.Max(0, start));
+		const to = FMath.Min(length, FMath.Max(from, end));
 		if (from === this._selectionStart && to === this._selectionEnd) return;
 		this._selectionStart = from;
 		this._selectionEnd = to;

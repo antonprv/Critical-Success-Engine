@@ -2,6 +2,7 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { reactive } from "vue";
+import { Task } from "@cse/task";
 
 /** Where the code editor's files live: the project's Source folder (the desktop app), or memory (a browser, tests). */
 export interface CodeHost {
@@ -61,7 +62,7 @@ export class CodeSession {
 
 	/** Every code file's text, for the editor's language service to see the whole project (one that can't be read is left out). */
 	public async ReadAll(): Promise<Record<string, string>> {
-		const texts = await Promise.all(this.State.Files.map(async (path) => [path, await this._host.Read(path).catch(() => null)] as const));
+		const texts = await Task.WhenAll(this.State.Files.map(async (path) => [path, await this._host.Read(path).catch(() => null)] as const));
 		return Object.fromEntries(texts.filter(([, text]) => text !== null)) as Record<string, string>;
 	}
 

@@ -127,6 +127,11 @@ describe( "Top-Down template: visit every pad", () => {
 						visited( "Visited: 0 / 2" ),
 					],
 				);
+			const visits: unknown[] = [];
+			t.engine.Stream.Subscribe(
+				"Pad.Visited",
+				( v ) => visits.push( v ),
+			);
 			pads[0]!.OnTriggerEnter( crate );
 			t.frame();
 			expect( pads[0]!.Visited ).toBe( false );
@@ -140,6 +145,11 @@ describe( "Top-Down template: visit every pad", () => {
 			t.frame();
 			expect( UiCommands.at( -1 ) )
 				.toEqual( visited( "All pads visited!" ) );
+			// each first visit on the DataStream (the C# VisitTimer follows it)
+			expect( visits ).toEqual( [
+				{ Pad: pads[0]!.Entity.Name, Visited: 1, Total: 2 },
+				{ Pad: pads[1]!.Entity.Name, Visited: 2, Total: 2 },
+			] );
 		},
 	);
 

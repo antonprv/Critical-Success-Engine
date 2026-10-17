@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import type { CursorMode } from "../Core/EntityManifest";
 import type {
 	GameLogicToUiMessage,
@@ -91,7 +92,7 @@ export class UiService {
 			}
 			return;
 		}
-		const clamped = Math.min( 1, Math.max( 0, value ) );
+		const clamped = FMath.Min( 1, FMath.Max( 0, value ) );
 		const old = this._bars.get( id );
 
 		if ( !old || old.label !== label || old.value !== clamped ) {

@@ -23,6 +23,21 @@ importers:
       '@babylonjs/loaders':
         specifier: ^9.29.0
         version: 9.29.0(@babylonjs/core@9.29.0)(babylonjs-gltf2interface@9.29.0)
+      '@cse/datastream':
+        specifier: workspace:*
+        version: link:../Modules/Common/DataStream
+      '@cse/di':
+        specifier: workspace:*
+        version: link:../Modules/Common/DI
+      '@cse/fastmath':
+        specifier: workspace:*
+        version: link:../Modules/Common/FastMath
+      '@cse/scripting':
+        specifier: workspace:*
+        version: link:../Modules/Scripting
+      '@cse/task':
+        specifier: workspace:*
+        version: link:../Modules/Common/Task
       quasar:
         specifier: ^2.34.0
         version: 2.34.0
@@ -91,8 +106,95 @@ importers:
         specifier: ^3.3.11
         version: 3.3.12(typescript@6.0.3)
 
+  Modules/Common/DI:
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.6.4
+      '@vitest/coverage-v8':
+        specifier: ^5.0.3
+        version: 5.0.3(vitest@5.0.3)
+      eslint:
+        specifier: ^10.11.0
+        version: 10.12.0(jiti@2.7.0)(supports-color@7.2.0)
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+      typescript-eslint:
+        specifier: ^8.71.0
+        version: 8.71.0(eslint@10.12.0(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@6.0.3)
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@26.6.4)(@vitest/coverage-v8@5.0.3)(jsdom@30.1.2)(vite@8.3.2(@types/node@26.6.4)(jiti@2.7.0))
+
+  Modules/Common/DataStream:
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.6.4
+      '@vitest/coverage-v8':
+        specifier: ^5.0.3
+        version: 5.0.3(vitest@5.0.3)
+      eslint:
+        specifier: ^10.11.0
+        version: 10.12.0(jiti@2.7.0)(supports-color@7.2.0)
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+      typescript-eslint:
+        specifier: ^8.71.0
+        version: 8.71.0(eslint@10.12.0(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@6.0.3)
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@26.6.4)(@vitest/coverage-v8@5.0.3)(jsdom@30.1.2)(vite@8.3.2(@types/node@26.6.4)(jiti@2.7.0))
+
+  Modules/Common/FastMath:
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.6.4
+      '@vitest/coverage-v8':
+        specifier: ^5.0.3
+        version: 5.0.3(vitest@5.0.3)
+      eslint:
+        specifier: ^10.11.0
+        version: 10.12.0(jiti@2.7.0)(supports-color@7.2.0)
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+      typescript-eslint:
+        specifier: ^8.71.0
+        version: 8.71.0(eslint@10.12.0(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@6.0.3)
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@26.6.4)(@vitest/coverage-v8@5.0.3)(jsdom@30.1.2)(vite@8.3.2(@types/node@26.6.4)(jiti@2.7.0))
+
+  Modules/Common/Task:
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.6.4
+      '@vitest/coverage-v8':
+        specifier: ^5.0.3
+        version: 5.0.3(vitest@5.0.3)
+      eslint:
+        specifier: ^10.11.0
+        version: 10.12.0(jiti@2.7.0)(supports-color@7.2.0)
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+      typescript-eslint:
+        specifier: ^8.71.0
+        version: 8.71.0(eslint@10.12.0(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@6.0.3)
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@26.6.4)(@vitest/coverage-v8@5.0.3)(jsdom@30.1.2)(vite@8.3.2(@types/node@26.6.4)(jiti@2.7.0))
+
   Modules/Editor/ProjectBrowser:
     dependencies:
+      '@cse/fastmath':
+        specifier: workspace:*
+        version: link:../../Common/FastMath
       '@cse/ui':
         specifier: workspace:*
         version: link:../../Engine/UI
@@ -142,6 +244,12 @@ importers:
 
   Modules/Editor/UIDesigner:
     dependencies:
+      '@cse/fastmath':
+        specifier: workspace:*
+        version: link:../../Common/FastMath
+      '@cse/task':
+        specifier: workspace:*
+        version: link:../../Common/Task
       '@cse/ui':
         specifier: workspace:*
         version: link:../../Engine/UI
@@ -200,6 +308,15 @@ importers:
       '@cse/core':
         specifier: workspace:*
         version: link:../../../Core
+      '@cse/di':
+        specifier: workspace:*
+        version: link:../../Common/DI
+      '@cse/fastmath':
+        specifier: workspace:*
+        version: link:../../Common/FastMath
+      '@cse/task':
+        specifier: workspace:*
+        version: link:../../Common/Task
       vue:
         specifier: ^3.5.43
         version: 3.5.43(typescript@6.0.3)
@@ -247,7 +364,39 @@ importers:
         specifier: ^3.3.11
         version: 3.3.12(typescript@6.0.3)
 
+  Modules/Scripting:
+    dependencies:
+      '@cse/datastream':
+        specifier: workspace:*
+        version: link:../Common/DataStream
+      '@cse/di':
+        specifier: workspace:*
+        version: link:../Common/DI
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.6.4
+      '@vitest/coverage-v8':
+        specifier: ^5.0.3
+        version: 5.0.3(vitest@5.0.3)
+      eslint:
+        specifier: ^10.11.0
+        version: 10.12.0(jiti@2.7.0)(supports-color@7.2.0)
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+      typescript-eslint:
+        specifier: ^8.71.0
+        version: 8.71.0(eslint@10.12.0(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@6.0.3)
+      vitest:
+        specifier: ^5.0.3
+        version: 5.0.3(@types/node@26.6.4)(@vitest/coverage-v8@5.0.3)(jsdom@30.1.2)(vite@8.3.2(@types/node@26.6.4)(jiti@2.7.0))
+
   Programs/Desktop:
+    dependencies:
+      '@cse/task':
+        specifier: workspace:*
+        version: link:../../Modules/Common/Task
     devDependencies:
       '@playwright/test':
         specifier: ^1.63.0

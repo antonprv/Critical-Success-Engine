@@ -5,8 +5,9 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { createServer, get, type Server } from "node:http";
-import { createServer as createSocketServer } from "node:net";
+import { createServer as createSocketServer, type AddressInfo } from "node:net";
 import { basename, dirname, extname, join, resolve, sep } from "node:path";
+import { Task, TaskCompletionSource } from "@cse/task";
 
 export type BuildConfiguration = "Dev" | "Prod";
 /** Web: the static site. Desktop: the same site plus an Electron shell that opens it in a window (run with `electron .` in the folder). */
@@ -31,6 +32,9 @@ export interface ProjectRunnerOptions {
 	ElectronPath?: string;
 	/** Tests replace the process spawner. */
 	Spawn?: typeof spawn;
+	/** How often and how many times to ask the dev server whether it is up (500 ms, 120 times: a minute). */
+	DevPollMs?: number;
+	DevPollAttempts?: number;
 }
 
 const MimeTypes: Record<string, string> = {
@@ -53,7 +57,7 @@ export async function ServeDirectory(root: string): Promise<{ Url: string; Serve
 	const server = createServer((request, response) => {
 		void (async () => {
 			try {
-				const path = decodeURIComponent((request.url ?? "/").split("?")[0]!);
+				const path = decodeURIComponent(request.url!.split("?")[0]!); // a server request always has its url
 				const file = resolve(base, `.${path.endsWith("/") ? `${path}index.html` : path}`);
 				if (file !== base && !file.startsWith(base + sep)) { response.writeHead(403).end(); return; }
 				const body = await readFile(file);
@@ -63,9 +67,10 @@ export async function ServeDirectory(root: string): Promise<{ Url: string; Serve
 			}
 		})();
 	});
-	await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
-	const address = server.address();
-	return { Url: `http://127.0.0.1:${typeof address === "object" && address ? address.port : 0}/`, Server: server };
+	const listening = new TaskCompletionSource();
+	server.listen(0, "127.0.0.1", () => listening.TrySetResult());
+	await listening.Task;
+	return { Url: `http://127.0.0.1:${(server.address() as AddressInfo).port}/`, Server: server };
 }
 
 //#endregion
@@ -178,18 +183,25 @@ export class ProjectRunner {
 		let failure: string | null = null;
 		child.once("error", (error) => { failure = error.message; });
 		child.once("exit", (code) => { failure ??= `the dev server exited with code ${code}`; this._dev.delete(file); });
-		for (let attempt = 0; attempt < 120; attempt++) {
+		const attempts = this._options.DevPollAttempts ?? 120;
+		const interval = this._options.DevPollMs ?? 500;
+		for (let attempt = 0; attempt < attempts; attempt++) {
 			if (failure !== null) throw new Error(`The dev server did not start: ${failure}`);
 			if (await Responds(url)) return url;
-			await new Promise((done) => setTimeout(done, 500));
+			const waited = new TaskCompletionSource();
+			setTimeout(() => waited.TrySetResult(), interval);
+			await waited.Task;
 		}
 		child.kill();
-		throw new Error("The dev server did not answer in 60 seconds");
+		throw new Error(`The dev server did not answer in ${(attempts * interval) / 1000} seconds`);
 	}
 
 	/** Runs `pnpm <args>` in the Core; fails with the end of its output. */
-	private Exec(args: string[], env: Record<string, string>): Promise<void> {
-		return new Promise((done, fail) => {
+	private Exec(args: string[], env: Record<string, string>): Task {
+		const exited = new TaskCompletionSource();
+		const done = (): boolean => exited.TrySetResult();
+		const fail = (error: Error): boolean => exited.TrySetError(error);
+		{
 			const child = this._spawn(Pnpm, args, { cwd: this._options.CoreDirectory, env: { ...process.env, ...env }, stdio: ["ignore", "pipe", "pipe"], shell: process.platform === "win32" });
 			let tail = "";
 			const keep = (chunk: Buffer): void => { tail = (tail + chunk.toString()).slice(-2000); };
@@ -197,25 +209,26 @@ export class ProjectRunner {
 			child.stderr?.on("data", keep);
 			child.once("error", (error) => fail(new Error(`Could not start pnpm: ${error.message}`)));
 			child.once("exit", (code) => (code === 0 ? done() : fail(new Error(`The build failed (exit code ${code}):\n${tail.trim()}`))));
-		});
+		}
+		return exited.Task;
 	}
 }
 
-function FreePort(): Promise<number> {
-	return new Promise((done, fail) => {
-		const probe = createSocketServer();
-		probe.once("error", fail);
-		probe.listen(0, "127.0.0.1", () => {
-			const address = probe.address();
-			probe.close(() => done(typeof address === "object" && address ? address.port : 0));
-		});
+function FreePort(): Task<number> {
+	const found = new TaskCompletionSource<number>();
+	const probe = createSocketServer();
+	probe.once("error", found.TrySetError.bind(found));
+	probe.listen(0, "127.0.0.1", () => {
+		const { port } = probe.address() as AddressInfo;
+		probe.close(() => found.TrySetResult(port));
 	});
+	return found.Task;
 }
 
-function Responds(url: string): Promise<boolean> {
-	return new Promise((done) => {
-		const request = get(url, (response) => { response.resume(); done((response.statusCode ?? 500) < 500); });
-		request.once("error", () => done(false));
-		request.setTimeout(1000, () => { request.destroy(); done(false); });
-	});
+function Responds(url: string): Task<boolean> {
+	const answered = new TaskCompletionSource<boolean>();
+	const request = get(url, (response) => { response.resume(); answered.TrySetResult(response.statusCode! < 500); }); // a client response always has its status
+	request.once("error", () => answered.TrySetResult(false));
+	request.setTimeout(1000, () => { request.destroy(); answered.TrySetResult(false); });
+	return answered.Task;
 }

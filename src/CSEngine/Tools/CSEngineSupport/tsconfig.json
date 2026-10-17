@@ -13,7 +13,8 @@
 		"noImplicitReturns": true,
 		"verbatimModuleSyntax": true,
 		"isolatedModules": true,
-		"skipLibCheck": true
+		"skipLibCheck": true,
+		"allowImportingTsExtensions": true
 	},
 	"include": [ "Source" ]
 }

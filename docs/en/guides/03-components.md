@@ -95,6 +95,11 @@ export class InitialVelocity extends Component {
 | `this.Engine.Scenes` | loading scenes |
 | `this.Engine.Time` | `Delta`, `FixedDelta`, `Elapsed`, `FrameCount` |
 | `this.Engine.Audio`, `this.Engine.Render` | sound; low-level rendering |
+| `this.Engine.Stream` | the DataStream: messages by tag (guide 19) |
+
+The same subsystems come by contract too, which is how the templates get them: a field such as
+`@Inject( IInputSubsystem ) private readonly _input!: IInputSubsystem;` is filled before `Awake` (guide 20). And a
+component can be written in C# (guide 18).
 
 ## Time
 

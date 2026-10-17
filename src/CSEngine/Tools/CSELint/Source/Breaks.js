@@ -213,7 +213,7 @@ export class LineBreaker {
 				return [ {
 					range: [ split, split ],
 					text:
-						`${Quote}${this.#eol}${indent}${deeper ? unit : ""}+ ${Quote}`,
+						`${ Quote }${ this.#eol }${ indent }${ deeper ? unit : "" }+ ${ Quote }`,
 				} ];
 			}
 		}
@@ -252,10 +252,10 @@ export class LineBreaker {
 			edits.push(
 				{
 					range: [ gap.Left.range[1], gap.Right.range[0] ],
-					text: ` (${eol}${indent}${unit}`,
+					text: ` (${ eol }${ indent }${ unit }`,
 				},
 			);
-			edits.push( { range: [ end, end ], text: `${eol}${indent})` } );
+			edits.push( { range: [ end, end ], text: `${ eol }${ indent })` } );
 			return edits;
 		}
 

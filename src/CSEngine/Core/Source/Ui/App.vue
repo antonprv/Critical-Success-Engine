@@ -13,7 +13,7 @@ const state = store.State;
 <template>
 	<div class="ui-root">
 		<Hud
-			v-if="state.hud.visible && !state.menu.visible && !state.loading.visible"
+			v-if="state.hud.visible && !state.menu.visible && !state.loading.visible && !state.documentScreens"
 			:lines="state.hud.lines"
 			:bars="state.hud.bars"
 		/>

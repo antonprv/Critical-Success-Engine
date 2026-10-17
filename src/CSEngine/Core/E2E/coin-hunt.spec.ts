@@ -1,7 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-import { expect, test } from "./support/game";
+import { expect, test, UiLayer } from "./support/game";
 
 test.describe( "Coin Hunt (sample game)", () => {
 	test.beforeEach( async ( { game } ) => {
@@ -109,12 +109,12 @@ test.describe( "Coin Hunt (sample game)", () => {
 				.toBeVisible();
 			await expect(
 				game.page.locator(
-					".cse-ui-host [data-ui=\"CoinHuntHud\"] .win-window__title",
+					`${ UiLayer( "CoinHuntHud" ) } .win-window__title`,
 				),
 			).toHaveText( "Coin Hunt" );
 			await game.switchScene( /Bouncing/ );
 			await expect(
-				game.page.locator( ".cse-ui-host [data-ui=\"CoinHuntHud\"]" ),
+				game.page.locator( UiLayer( "CoinHuntHud" ) ),
 			).toHaveCount( 0 );
 		},
 	);

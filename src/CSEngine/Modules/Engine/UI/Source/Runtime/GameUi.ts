@@ -2,6 +2,7 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { EventHub } from "../Core/EventHub";
+import type { GraphValue } from "../Documents/Graph";
 
 /**
  * The UI plugin's game-thread side: what game scripts call to show the project's UI documents and to hear from them.
@@ -17,6 +18,7 @@ export type UiCommand =
 	| { op: "set-enabled"; id: string; widget: string; enabled: boolean; }
 	| { op: "set-value"; id: string; widget: string; value: number; }
 	| { op: "set-items"; id: string; widget: string; items: string[]; }
+	| { op: "set-variable"; id: string; name: string; value: GraphValue; }
 	| { op: "listen"; id: string; widget: string; event: string; };
 
 export type UiReport =
@@ -35,6 +37,7 @@ export class GameUi {
 	/** "error": what the page could not do (an unknown document or widget). */
 	public readonly Events = new EventHub<{ error: [message: string]; }>();
 	private readonly _handlers = new Map<string, Set<(...args: unknown[]) => void>>();
+	private readonly _variables = new Map<string, GraphValue>();
 
 	public constructor(private readonly _channels: UiChannels) {
 		_channels.On(UiChannel, (payload) => this.Receive(payload as UiReport));
@@ -52,6 +55,17 @@ export class GameUi {
 	public SetValue(id: string, widget: string, value: number): void { this.Post({ op: "set-value", id, widget, value }); }
 	/** A list box's items. */
 	public SetItems(id: string, widget: string, items: string[]): void { this.Post({ op: "set-items", id, widget, items }); }
+
+	/**
+	 * A variable of a document (its node graph reads and tests it): how a component hands its parameters to the UI.
+	 * Sent only when the value changes, so a component may set it every frame; kept by the page while the document is hidden.
+	 */
+	public SetVariable(id: string, name: string, value: GraphValue): void {
+		const key = Key(id, name, "");
+		if (this._variables.get(key) === value) return;
+		this._variables.set(key, value);
+		this.Post({ op: "set-variable", id, name, value });
+	}
 
 	/** Hears a widget's event (click, change...) whenever the document is on screen; returns the unsubscribe function. */
 	public On(id: string, widget: string, event: string, handler: (...args: unknown[]) => void): () => void {

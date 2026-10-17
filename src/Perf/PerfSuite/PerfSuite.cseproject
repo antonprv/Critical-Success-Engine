@@ -1,0 +1,35 @@
+{
+  "FileVersion": 1,
+  "Name": "PerfSuite",
+  "Description": "The perf harness's test project (src/CSEngine/Core/Perf): one scene per kind of load - empty, many entities, dense geometry, physics, C# and TypeScript calling each other, a busy UI.",
+  "Modules": [
+    {
+      "Name": "PerfSuite",
+      "Type": "Runtime",
+      "LoadingPhase": "Default",
+      "Primary": true,
+      "Dependencies": [
+        "Engine"
+      ],
+      "Entry": "Source/PerfSuiteModule.ts"
+    }
+  ],
+  "Plugins": [
+    {
+      "Name": "UI",
+      "Enabled": true
+    }
+  ],
+  "Ui": {
+    "Manifest": "Content/UI/Ui.manifest.json"
+  },
+  "Input": {
+    "Manifests": [
+      {
+        "Id": "PerfSuite",
+        "Path": "Content/Input/PerfSuite.input.json"
+      }
+    ],
+    "Default": "PerfSuite"
+  }
+}

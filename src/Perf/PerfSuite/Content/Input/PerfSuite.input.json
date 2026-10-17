@@ -1,0 +1,24 @@
+{
+	"FileVersion": 1,
+	"Name": "PerfSuite",
+	"DefaultMap": "OnFoot",
+	"ActionMaps": [
+		{
+			"Name": "OnFoot",
+			"Actions": [
+				{
+					"Name": "Jump",
+					"Label": "Jump",
+					"Category": "Actions",
+					"Default": {
+						"Keyboard": [
+							"Space",
+							""
+						],
+						"Gamepad": "Pad:A"
+					}
+				}
+			]
+		}
+	]
+}

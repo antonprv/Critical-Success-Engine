@@ -2,6 +2,7 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import type { IpcMain } from "electron";
+import type { ProjectTheme } from "../../../../Core/Source/Engine/Projects/ProjectDescriptor.ts";
 import type { DesignerService, DocumentToSave } from "./DesignerService";
 import type { ProjectsService } from "./ProjectsService";
 import type { BuildConfiguration, BuildPlatform, ProjectRunner, RunMode } from "./ProjectRunner";
@@ -45,6 +46,7 @@ export const DesignerChannels = {
 	CodeFiles: "designer:code-files",
 	CodeRead: "designer:code-read",
 	CodeWrite: "designer:code-write",
+	SetTheme: "designer:set-theme",
 } as const;
 
 /** The UI designer's calls on a project, answered by the main process. */
@@ -56,6 +58,7 @@ export function RegisterDesignerIpc(ipc: Pick<IpcMain, "handle">, service: Desig
 	ipc.handle(DesignerChannels.CodeFiles, (_event, file: string) => Answer(() => service.CodeFiles(file)));
 	ipc.handle(DesignerChannels.CodeRead, (_event, file: string, path: string) => Answer(() => service.ReadCode(file, path)));
 	ipc.handle(DesignerChannels.CodeWrite, (_event, file: string, path: string, text: string) => Answer(() => service.WriteCode(file, path, text)));
+	ipc.handle(DesignerChannels.SetTheme, (_event, file: string, theme: ProjectTheme) => Answer(() => service.SetTheme(file, theme)));
 }
 
 /** The project browser's calls, answered by the main process. */

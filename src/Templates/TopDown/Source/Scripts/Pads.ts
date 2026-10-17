@@ -1,11 +1,13 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { Inject } from "@cse/di";
 import { Component } from "@cse/core/Engine/Core/Component";
 import type { Entity } from "@cse/core/Engine/Core/Entity";
 import { MeshRenderer } from "@cse/core/Engine/Components/MeshRenderer";
 import { TriggerArea } from "@cse/core/Engine/Components/Physics/TriggerAreas";
-import { GetGameUi, type GameUi } from "@cse/ui/game";
+import { IDataStream, IWorld } from "@cse/core/Engine/DI/Contracts";
+import { IGameUi } from "@cse/ui/game";
 
 /** The HUD's UI document, by its Id in the project's UI manifest. */
 const HudId = "TopDownHud";
@@ -15,6 +17,10 @@ const HudId = "TopDownHud";
  * green. Give it the tag "pad".
  */
 export class VisitPad extends TriggerArea {
+	@Inject( IWorld ) private readonly _world!: IWorld;
+
+	@Inject( IDataStream ) private readonly _stream!: IDataStream;
+
 	public Visited = false;
 
 	protected override OnBodyEntered( body: Entity ): void {
@@ -24,6 +30,14 @@ export class VisitPad extends TriggerArea {
 		this.Visited = true;
 		this.Entity.GetComponent( MeshRenderer )
 			?.SetColor( [0.25, 0.85, 0.35] );
+		// for whoever follows the tour (the C# VisitTimer does)
+		const pads = this._world.FindByTag( "pad" )
+			.map( ( pad ) => pad.GetComponent( VisitPad )! );
+		this._stream.Publish( "Pad.Visited", {
+			Pad: this.Entity.Name,
+			Visited: pads.filter( ( pad ) => pad.Visited ).length,
+			Total: pads.length,
+		} );
 	}
 }
 
@@ -32,16 +46,20 @@ export class VisitPad extends TriggerArea {
  * them.
  */
 export class PadCounter extends Component {
-	private _ui: GameUi | null = null;
+	@Inject( IGameUi ) private readonly _ui!: IGameUi;
+
+	@Inject( IWorld ) private readonly _world!: IWorld;
+
+	private _showing = false;
 
 	private _shown = "";
 
 	public override OnUIUpdate(): void {
-		if ( !this._ui ) {
-			this._ui = GetGameUi();
+		if ( !this._showing ) {
+			this._showing = true;
 			this._ui.Show( HudId );
 		}
-		const pads = this.Engine.World.FindByTag( "pad" )
+		const pads = this._world.FindByTag( "pad" )
 			.map( ( pad ) => pad.GetComponent( VisitPad )! );
 		const visited = pads.filter( ( pad ) => pad.Visited ).length;
 		const text = visited === pads.length
@@ -56,6 +74,8 @@ export class PadCounter extends Component {
 	}
 
 	public override OnDestroy(): void {
-		this._ui?.Hide( HudId );
+		if ( this._showing ) {
+			this._ui.Hide( HudId );
+		}
 	}
 }

@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import { ControlBase, type ControlOptions } from "../Core/ControlBase";
 import type { KeyModifiers } from "./TabsController";
 
@@ -112,14 +113,14 @@ export class ListViewController<T> extends ControlBase<ListViewEvents<T>> {
 
 	private NavigationTarget(code: string): number | null {
 		const last = this._items.length - 1;
-		const from = Math.max(0, this._focusedIndex);
+		const from = FMath.Max(0, this._focusedIndex);
 		switch (code) {
-			case "ArrowDown": return this._focusedIndex < 0 ? 0 : Math.min(last, from + 1);
-			case "ArrowUp": return Math.max(0, from - 1);
+			case "ArrowDown": return this._focusedIndex < 0 ? 0 : FMath.Min(last, from + 1);
+			case "ArrowUp": return FMath.Max(0, from - 1);
 			case "Home": return 0;
 			case "End": return last;
-			case "PageDown": return Math.min(last, from + this.PageSize);
-			case "PageUp": return Math.max(0, from - this.PageSize);
+			case "PageDown": return FMath.Min(last, from + this.PageSize);
+			case "PageUp": return FMath.Max(0, from - this.PageSize);
 			default: return null;
 		}
 	}
@@ -164,7 +165,7 @@ export class ListViewController<T> extends ControlBase<ListViewEvents<T>> {
 
 	private SelectRangeTo(index: number, add: boolean): void {
 		if (this._anchor < 0) this._anchor = index;
-		const [from, to] = [Math.min(this._anchor, index), Math.max(this._anchor, index)];
+		const [from, to] = [FMath.Min(this._anchor, index), FMath.Max(this._anchor, index)];
 		const next = add ? new Set(this._selected) : new Set<number>();
 		for (let i = from; i <= to; i++) next.add(i);
 		this.SetSelection(next);

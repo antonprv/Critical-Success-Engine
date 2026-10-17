@@ -3,6 +3,8 @@ packages:
   - Core
   - Modules/Engine/*
   - Modules/Editor/*
+  - Modules/Common/*
+  - Modules/Scripting
   - Programs/*
   - Tools/*
 allowBuilds:

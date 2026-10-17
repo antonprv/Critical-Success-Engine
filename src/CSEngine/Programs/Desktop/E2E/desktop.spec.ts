@@ -112,7 +112,10 @@ test("the UI designer on a project: its documents, Ctrl+S saves into the project
 	await expect(designer.locator(".win-designer__document--current")).toHaveText("PauseMenu");
 	expect(existsSync(join(sandbox, "CSE Projects/Moonrise/Content/UI/PauseMenu.ui.json"))).toBe(true);
 	const manifest = JSON.parse(readFileSync(join(sandbox, "CSE Projects/Moonrise/Content/UI/Ui.manifest.json"), "utf8"));
-	expect(manifest.Documents.map((d: { Id: string; }) => d.Id)).toEqual(["CoinHuntHud", "PauseMenu"]);
+	// the template's documents (its own and the engine's screens it may restyle), then the new one
+	const template = JSON.parse(readFileSync(new URL("../../../../Templates/CoinHunt/Content/UI/Ui.manifest.json", import.meta.url), "utf8"));
+	expect(manifest.Documents.map((d: { Id: string; }) => d.Id))
+		.toEqual([...template.Documents.map((d: { Id: string; }) => d.Id), "PauseMenu"]);
 	await designer.screenshot({ path: "/tmp/shots/desktop-designer-project.png" });
 	// The left column fits its width: nothing in it (the project panel, the palette) pushes it sideways.
 	expect(await designer.evaluate(() => { const side = document.querySelector(".win-designer__side")!; return side.scrollWidth - side.clientWidth; })).toBeLessThanOrEqual(0);
@@ -122,7 +125,7 @@ test("the UI designer on a project: its documents, Ctrl+S saves into the project
 	await expect(designer.locator(".win-code__file", { hasText: "MoonriseModule.ts" })).toBeVisible();
 	await designer.locator(".win-code__file", { hasText: "CoinHunt.ts" }).click();
 	const lines = designer.locator(".win-code__editor .monaco-editor .view-lines");
-	await expect(lines).toContainText("class GameRules");
+	await expect(lines).toContainText("The scripts of the \"Coin Hunt\" sample game");
 	// The project's real script, with its engine imports (@cse/core, @cse/ui/game): the editor knows them, no errors.
 	await designer.waitForTimeout(4_000);
 	await expect(designer.locator(".win-code__editor .squiggly-error")).toHaveCount(0);

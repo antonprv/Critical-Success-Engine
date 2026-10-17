@@ -1,0 +1,137 @@
+{
+	"Format": 1,
+	"Name": "Engine controls",
+	"Script": "",
+	"ClickThrough": false,
+	"Root": {
+		"Name": "Root",
+		"Type": "canvas",
+		"X": 0,
+		"Y": 0,
+		"Width": 800,
+		"Height": 500,
+		"Props": {},
+		"Children": [
+			{
+				"Name": "ControlsWindow",
+				"Type": "window",
+				"X": 0,
+				"Y": 0,
+				"Width": 700,
+				"Height": 440,
+				"AnchorX": "center",
+				"AnchorY": "center",
+				"Props": {
+					"Title": "Controls",
+					"Closable": false,
+					"Minimizable": false,
+					"Maximizable": false,
+					"Resizable": false
+				},
+				"Children": [
+					{
+						"Name": "Bindings",
+						"Type": "listbox",
+						"X": 0,
+						"Y": 12,
+						"Width": 668,
+						"Height": 300,
+						"Props": {
+							"Items": ""
+						},
+						"AnchorX": "center"
+					},
+					{
+						"Name": "Hint",
+						"Type": "label",
+						"X": 0,
+						"Y": 318,
+						"Width": 668,
+						"Height": 34,
+						"Props": {
+							"Text": "Pick an action, then the binding to change.",
+							"FontSize": 11,
+							"Bold": false,
+							"Wrap": true,
+							"Align": "center"
+						},
+						"AnchorX": "center"
+					},
+					{
+						"Name": "MainButton",
+						"Type": "button",
+						"X": -280.0,
+						"Y": 358,
+						"Width": 100,
+						"Height": 26,
+						"Props": {
+							"Text": "Main key"
+						},
+						"AnchorX": "center"
+					},
+					{
+						"Name": "SpareButton",
+						"Type": "button",
+						"X": -172.0,
+						"Y": 358,
+						"Width": 100,
+						"Height": 26,
+						"Props": {
+							"Text": "Spare key"
+						},
+						"AnchorX": "center"
+					},
+					{
+						"Name": "PadButton",
+						"Type": "button",
+						"X": -64.0,
+						"Y": 358,
+						"Width": 100,
+						"Height": 26,
+						"Props": {
+							"Text": "Gamepad"
+						},
+						"AnchorX": "center"
+					},
+					{
+						"Name": "ResetButton",
+						"Type": "button",
+						"X": 44.0,
+						"Y": 358,
+						"Width": 100,
+						"Height": 26,
+						"Props": {
+							"Text": "Reset all"
+						},
+						"AnchorX": "center"
+					},
+					{
+						"Name": "ArrangeButton",
+						"Type": "button",
+						"X": 162.0,
+						"Y": 358,
+						"Width": 120,
+						"Height": 26,
+						"Props": {
+							"Text": "Arrange touch"
+						},
+						"AnchorX": "center"
+					},
+					{
+						"Name": "BackButton",
+						"Type": "button",
+						"X": 280.0,
+						"Y": 358,
+						"Width": 100,
+						"Height": 26,
+						"Props": {
+							"Text": "Back",
+							"Default": true
+						},
+						"AnchorX": "center"
+					}
+				]
+			}
+		]
+	}
+}

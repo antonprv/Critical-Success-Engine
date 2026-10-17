@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import {
 	PhysBodyType,
 	PhysObjectKind,
@@ -163,9 +164,9 @@ export class SimpleTriggerArea extends Component {
 					shape.size[2] * 0.5,
 				];
 
-				return Math.abs( local.X ) <= half[0]!
-					&& Math.abs( local.Y ) <= half[1]!
-					&& Math.abs( local.Z ) <= half[2]!;
+				return FMath.Abs( local.X ) <= half[0]!
+					&& FMath.Abs( local.Y ) <= half[1]!
+					&& FMath.Abs( local.Z ) <= half[2]!;
 			}
 			case PhysShape.Sphere:
 				return local.LengthSq() <= shape.radius * shape.radius;
@@ -255,7 +256,7 @@ export class SimpleTriggerArea extends Component {
 		halfExtent: number,
 		range: { enter: number; exit: number; },
 	): boolean {
-		if ( Math.abs( direction ) < 1e-8 ) {
+		if ( FMath.Abs( direction ) < 1e-8 ) {
 			return origin >= -halfExtent && origin <= halfExtent;
 		}
 
@@ -267,8 +268,8 @@ export class SimpleTriggerArea extends Component {
 			[t1, t2] = [t2, t1];
 		}
 
-		range.enter = Math.max( range.enter, t1 );
-		range.exit = Math.min( range.exit, t2 );
+		range.enter = FMath.Max( range.enter, t1 );
+		range.exit = FMath.Min( range.exit, t2 );
 		return range.enter <= range.exit;
 	}
 
@@ -298,7 +299,7 @@ export class SimpleTriggerArea extends Component {
 			return false;
 		}
 
-		const root = Math.sqrt( discriminant );
+		const root = FMath.Sqrt( discriminant );
 		const t0 = ( -b - root ) / ( 2 * a );
 		const t1 = ( -b + root ) / ( 2 * a );
 

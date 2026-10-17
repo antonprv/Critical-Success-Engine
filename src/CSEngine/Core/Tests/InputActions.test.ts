@@ -249,6 +249,39 @@ describe( "InputMap: one action map and what presses its actions", () => {
 	);
 
 	it(
+		"Codes is asked again after every change of a binding (it is kept "
+			+ "between them)",
+		() => {
+			const map = new InputMap( City.ActionMaps[0]!.Actions );
+			const before = map.Codes( "Jump" );
+			expect( map.Codes( "Jump" ) ).toBe( before );
+			map.Rebind( "Jump", "KeyboardPrimary", "KeyJ" );
+			expect( map.Codes( "Jump" ) ).toEqual( ["KeyJ", "Pad:A"] );
+			map.Load( { Jump: { Keyboard: ["KeyK", ""], Gamepad: "" } } );
+			expect( map.Codes( "Jump" ) ).toEqual( ["KeyK"] );
+			map.Reset( "Jump" );
+			expect( map.Codes( "Jump" ) ).toEqual( before );
+		},
+	);
+
+	it(
+		"the map in force follows the manifest and the action map in use",
+		() => {
+			const system = new InputSystem();
+			system.Register( "City", City );
+			system.UseManifest( "City" );
+			const onFoot = system.Map;
+			expect( system.Map ).toBe( onFoot );
+			system.UseActionMap( "Vehicle" );
+			expect( system.Map ).toBe( system.MapOf( "City", "Vehicle" ) );
+			system.UseManifest( "City" );
+			expect( system.Map ).toBe( onFoot );
+			system.Register( "City", City ); // replaced: its maps are made anew
+			expect( system.Map ).not.toBe( onFoot );
+		},
+	);
+
+	it(
 		"rebinds main, spare and gamepad; resets one or all; saves and loads "
 			+ "(skipping what doesn't fit)",
 		() => {

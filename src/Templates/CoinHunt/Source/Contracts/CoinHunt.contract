@@ -1,0 +1,19 @@
+// What Coin Hunt's TypeScript and C# ask each other. Both live on the "Game"
+// entity: GameRules (TypeScript, Source/Scripts/CoinHunt.ts) and
+// StreakTracker (C#, Source/Scripts/StreakTracker.cs). The engine writes
+// CoinHunt.contract.ts and CoinHunt.contract.cs from this file.
+namespace TemplateProject;
+
+/// The round, kept by GameRules (TypeScript). StreakTracker reaches it with [FromTypeScript].
+contract IRound {
+    /// Coins still to find.
+    CoinsLeft(): int;
+    /// Seconds before time runs out.
+    SecondsLeft(): double;
+}
+
+/// The streaks, counted by StreakTracker (C#). GameRules reaches them with @FromCSharp.
+contract IStreaks {
+    /// The longest streak of this round.
+    Best(): int;
+}

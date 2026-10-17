@@ -12,9 +12,9 @@ import { Vec3 } from "../../Math/Vec3";
 import { PhysicsBody } from "./PhysicsBodies";
 
 /**
- * Kinematic capsule character (port of BepuCharacterBody3D): set `Velocity`,
- * call `MoveAndSlide(dt)`, read `IsOnFloor`. The sweep runs in the physics
- * worker and its result arrives with the next snapshot, applied in
+ * Kinematic capsule character (port of Godot CharacterBody3D wrapper): set
+ * `Velocity`, call `MoveAndSlide(dt)`, read `IsOnFloor`. The sweep runs in the
+ * physics worker and its result arrives with the next snapshot, applied in
  * OnPhysicsSync, so scripts see the same sequence of values as with Godot's
  * synchronous call, one step later.
  */

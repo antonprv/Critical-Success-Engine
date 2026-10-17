@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import { PhysShape, RendMesh } from "../../Workers/Common/CommonEnums";
 import type {
 	PhysicsShapeDescriptor,
@@ -38,7 +39,7 @@ export const Shapes = {
 	Capsule: ( radius: number, height: number ): PhysicsShapeDescriptor => ( {
 		shape: PhysShape.Capsule,
 		radius,
-		cylinderLength: Math.max( 0.01, height - 2 * radius ),
+		cylinderLength: FMath.Max( 0.01, height - 2 * radius ),
 	} ),
 
 	Cylinder: ( radius: number, height: number ): PhysicsShapeDescriptor => ( {
@@ -122,7 +123,7 @@ export function MeshForShape( shape: PhysicsShapeDescriptor ): MeshDescriptor
  * coplanar points are fanned into extra triangles.
  */
 function ConvexHullTriangles( points: number[] ): number[] {
-	const count = Math.floor( points.length / 3 );
+	const count = FMath.Floor( points.length / 3 );
 	const p = ( i: number ): Tuple3 => (
 		[points[i * 3]!, points[i * 3 + 1]!, points[i * 3 + 2]!]
 	);
@@ -154,7 +155,7 @@ function ConvexHullTriangles( points: number[] ): number[] {
 				let nx = uy * vz - uz * vy,
 					ny = uz * vx - ux * vz,
 					nz = ux * vy - uy * vx;
-				const length = Math.hypot( nx, ny, nz );
+				const length = FMath.Length3( nx, ny, nz );
 
 				if ( length < 1e-9 ) {
 					continue;

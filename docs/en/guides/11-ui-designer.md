@@ -101,6 +101,33 @@ are available in your own scripts: `this.Show("Settings")`, `this.EnabledFollows
 
 The generated file imports `@cse/ui` - the public entry of the engine's UI module.
 
+## Variables: the game's values in the graph
+
+A document has **variables** (the panel above the node canvas, **+ Variable**): a name, a kind (`number`, `text`,
+`boolean`), a default, and optionally a widget the variable **follows** (a checkbox's tick, a text box's or slider's
+value, a combo box's index, otherwise the widget's text). They are Vue-reactive: a change reaches the graph at once,
+with no frame to wait.
+
+- The game sets them: a component hands over its parameters with `SetVariable`, which sends only changes, so it can be
+  called every frame. The page keeps the values while the document is hidden, and a document that shows later starts
+  from them.
+
+  ```ts
+  @Inject( IGameUi ) private readonly _ui!: IGameUi;
+  public override OnUIUpdate(): void {
+  	this._ui.SetVariable( "FirstPersonHud", "Shots", this._shooter.ShotsFired );
+  }
+  ```
+- **+ When variable** - an event that runs at the start and whenever the variable changes, when its test holds: any
+  change, `==`, `!=`, `>`, `<`, `>=`, `<=` against a value (`10`, or another variable: `{Best}`).
+- **Set variable** and **Add to variable** - actions; the value is read as the variable's kind.
+- Any text param shows variables: `Shots: {Shots}`.
+
+The First Person template does exactly this: `FpsHud` sets `Shots`, and the graph of `FirstPersonHud.ui.json` writes
+`Shots: {Shots}` into the label. In scripts: `this.Variable("Shots")`, `this.SetVariable(...)`, `this.OnVariable("Shots",
+(value) => ...)`, `this.Format("Shots: {Shots}")`; from the page's side, `document.Variables` (reactive) and
+`document.SetVariable(...)`.
+
 ## Animations
 
 In the spirit of Windows 11 and for both kits: windows open with scaling and fading in and leave shrinking, maximise

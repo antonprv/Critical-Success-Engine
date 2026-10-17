@@ -9,7 +9,7 @@ We'll make the **Ball pit** scene: a box and twelve balls falling into it.
 
 ## The coordinate system
 
-- Right-handed, **Y up**, "forward" = **−Z** (like Godot and BEPU - which is why poses from the physics go into the renderer as is).
+- Right-handed, **Y up**, "forward" = **−Z** (like Godot and CSPhysics - which is why poses from the physics go into the renderer as is).
 - Units are **metres**. Angles are radians. Colours are `[r, g, b]` in the range 0…1.
 - A rotation is a quaternion `[x, y, z, w]`; it's easier to get one from `Quat.FromAxisAngle(axis, angle).ToTuple()`.
 

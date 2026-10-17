@@ -21,7 +21,12 @@ const Layout = (name: string) => JSON.stringify({ Format: 1, Name: name, Script:
 
 describe("DesignerService: the UI designer works on a project's UI documents", () => {
 	it("opens a project: its name and the documents of its UI manifest", () => {
-		expect(new DesignerService().Open(project)).toEqual({ Name: "Moonrise", File: project, Documents: [{ Id: "CoinHuntHud", Path: "CoinHuntHud.ui.json", Script: "" }] });
+		// the game's HUD, and the engine's screens as the project's own documents (the template's copies)
+		const screens = ["EnginePauseMenu", "EngineLoading", "EngineSettings", "EngineControls", "EngineHints", "EngineToasts", "EngineTouch"];
+		expect(new DesignerService().Open(project)).toEqual({
+			Name: "Moonrise", File: project,
+			Documents: ["CoinHuntHud", ...screens].map((Id) => ({ Id, Path: `${Id}.ui.json`, Script: "" })),
+		});
 	});
 
 	it("reads a document; saves it back in its place; a new one goes beside the manifest and into it; generated code into Source/UI", () => {
@@ -29,9 +34,9 @@ describe("DesignerService: the UI designer works on a project's UI documents", (
 		expect(JSON.parse(service.Read(project, "CoinHuntHud")).Name).toBe("Coin Hunt HUD");
 		const documents = service.Save(project, { Id: "CoinHuntHud", Layout: Layout("Changed HUD") });
 		expect(JSON.parse(readFileSync(join(sandbox, "Moonrise/Content/UI/CoinHuntHud.ui.json"), "utf8")).Name).toBe("Changed HUD");
-		expect(documents).toHaveLength(1);
+		expect(documents).toHaveLength(8);
 		const after = service.Save(project, { Id: "PauseMenu", Layout: Layout("Pause menu"), Script: { ClassName: "PauseMenuNodes", Text: "export class PauseMenuNodes {}\n" } });
-		expect(after.map((d) => d.Id)).toEqual(["CoinHuntHud", "PauseMenu"]);
+		expect(after.map((d) => d.Id).at(-1)).toBe("PauseMenu");
 		expect(JSON.parse(readFileSync(join(sandbox, "Moonrise/Content/UI/Ui.manifest.json"), "utf8")).Documents.at(-1)).toEqual({ Id: "PauseMenu", Path: "PauseMenu.ui.json", Script: "" });
 		expect(existsSync(join(sandbox, "Moonrise/Content/UI/PauseMenu.ui.json"))).toBe(true);
 		expect(readFileSync(join(sandbox, "Moonrise/Source/UI/PauseMenuNodes.ts"), "utf8")).toBe("export class PauseMenuNodes {}\n");
@@ -70,6 +75,19 @@ describe("DesignerService: the UI designer works on a project's UI documents", (
 		descriptor.Ui.Manifest = "../../elsewhere/Ui.manifest.json"; // a project whose manifest points out of it
 		writeFileSync(project, JSON.stringify(descriptor));
 		expect(() => service.Open(project)).toThrow(/is outside the project/);
+	});
+});
+
+describe("DesignerService: the theme the game draws its documents in", () => {
+	it("is the project's (none at first); SetTheme writes it into the .cseproject, refusing one that isn't a theme", () => {
+		const service = new DesignerService();
+		expect(service.Open(project).Theme).toBeUndefined();
+		const theme = { Kit: "tailwind", Theme: "xp-blue", Tailwind: { Accent: "rose", Neutral: "stone", Dark: true, Radius: "lg" } };
+		service.SetTheme(project, theme);
+		expect(service.Open(project).Theme).toEqual(theme);
+		expect(JSON.parse(readFileSync(project, "utf8")).Ui.Theme).toEqual(theme);
+		expect(() => service.SetTheme(project, { Kit: 1 } as never)).toThrow("Ui.Theme must be { Kit, Theme, Tailwind? }");
+		expect(service.Open(project).Theme).toEqual(theme); // the refused one wrote nothing
 	});
 });
 

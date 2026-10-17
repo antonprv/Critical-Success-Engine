@@ -1,7 +1,7 @@
 {
 	"name": "csengine-support",
 	"displayName": "Critical Success Engine",
-	"description": "Projects made on Critical Success Engine: @cse/* imports resolve to the engine's sources, with types, completion and go to definition.",
+	"description": "Projects made on Critical Success Engine: @cse/* imports resolve to the engine's sources (types, completion, go to definition), and the project's C# scripts build against the engine.",
 	"version": "1.0.0",
 	"publisher": "csengine",
 	"license": "SEE LICENSE IN LICENSE.md",
@@ -19,7 +19,8 @@
 		"onLanguage:typescript",
 		"onLanguage:typescriptreact",
 		"onLanguage:javascript",
-		"workspaceContains:**/*.cseproject"
+		"workspaceContains:**/*.cseproject",
+		"workspaceContains:*.csproj"
 	],
 	"main": "./out/Extension.js",
 	"dependencies": {
@@ -33,7 +34,7 @@
 					"type": "string",
 					"default": "",
 					"scope": "machine-overridable",
-					"markdownDescription": "The engine's repository (the folder that holds `src/CSEngine`). Imports of `@cse/core`, `@cse/ui` and the like in your projects then resolve to the engine's sources. Leave empty inside the repository itself: the engine around the file is used."
+					"markdownDescription": "The engine's repository (the folder that holds `src/CSEngine`). Imports of `@cse/core`, `@cse/ui` and the like in your projects then resolve to the engine's sources, and a project's C# scripts build against it (`.cse/Engine.props`). Leave empty inside the repository itself: the engine around the file is used."
 				}
 			}
 		},
@@ -50,6 +51,24 @@
 					".cseproject",
 					".csedata"
 				]
+			},
+			{
+				"id": "cse-contract",
+				"aliases": [
+					"CSE Contract",
+					"contract"
+				],
+				"extensions": [
+					".contract"
+				],
+				"configuration": "./Contract.language-configuration.json"
+			}
+		],
+		"grammars": [
+			{
+				"language": "cse-contract",
+				"scopeName": "source.cse-contract",
+				"path": "./Syntaxes/Contract.tmLanguage.json"
 			}
 		]
 	}

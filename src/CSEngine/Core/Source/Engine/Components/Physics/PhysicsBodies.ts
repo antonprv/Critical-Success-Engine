@@ -16,9 +16,9 @@ import { Vec3 } from "../../Math/Vec3";
 import type { BodyState } from "../../Services/PhysicsService";
 
 /**
- * Common plumbing of every body component (BepuBody3D in the Godot project):
- * collision layer/mask fields and registering/removing the body with the
- * physics world under this entity's id.
+ * Common plumbing of every body component (Godot Body3D wrapper in the Godot
+ * project): collision layer/mask fields and registering/removing the body with
+ * the physics world under this entity's id.
  */
 export abstract class PhysicsBody extends Component {
 	public Shape: PhysicsShapeDescriptor = Shapes.Box( 1, 1, 1 );
@@ -73,7 +73,7 @@ export abstract class PhysicsBody extends Component {
 }
 
 /**
- * Immobile level geometry (BepuStaticBody3D). Any shape, including
+ * Immobile level geometry (Godot StaticBody3D wrapper). Any shape, including
  * Shapes.TriangleMesh. Baked into the broadphase - never moves.
  */
 export class StaticBody extends PhysicsBody {
@@ -81,8 +81,8 @@ export class StaticBody extends PhysicsBody {
 }
 
 /**
- * Regular dynamic object (BepuRigidBody3D): the simulation owns its pose, this
- * component copies it onto the Transform.
+ * Regular dynamic object (Godot RigidBody3D wrapper): the simulation owns its
+ * pose, this component copies it onto the Transform.
  */
 export class RigidBody extends PhysicsBody {
 	public Mass = 1;
@@ -156,10 +156,10 @@ export class RigidBody extends PhysicsBody {
 
 /**
  * Kinematic body driven by whatever moves this entity's Transform - an Update
- * script, a tween, anything (BepuAnimatableBody3D). It never reacts to forces,
- * but everything else collides with it and gets carried along: each physics
- * step the pose is pushed to the simulation, which derives velocity from the
- * movement since last time.
+ * script, a tween, anything (Godot AnimatableBody3D wrapper). It never reacts
+ * to forces, but everything else collides with it and gets carried along: each
+ * physics step the pose is pushed to the simulation, which derives velocity
+ * from the movement since last time.
  */
 export class KinematicBody extends PhysicsBody {
 	protected readonly BodyType = PhysBodyType.Kinematic;

@@ -134,6 +134,11 @@ describe(
 				t.frame();
 				// it stays where the player put it
 				expect( view.Focus.X ).toBe( moved.X );
+				// drawing between ticks doesn't pull it back to the player
+				// either
+				const pose = view.GetPose( 0.5 ).transform;
+				const back = view.GetForwardDirection().Mul( -10 );
+				expect( near( pose[0] - back.X, moved.X ) ).toBe( true );
 			},
 		);
 

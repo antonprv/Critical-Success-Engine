@@ -175,7 +175,7 @@ export default {
 							{
 								range: [ start, comment.range[1] ],
 								text:
-									`${indent}//${comment.value}${eol}${code}`,
+									`${ indent }//${ comment.value }${ eol }${ code }`,
 							},
 						];
 					}

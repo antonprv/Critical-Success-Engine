@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--
+		Dependency injection for C#: the twin of ../Source (@cse/di) - contracts bound in installers, a container per game,
+		[Inject] fields filled before a component's Awake. Runs in the browser (.NET WebAssembly, AOT, trimmed) and on the
+		desktop (tests).
+	-->
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<ImplicitUsings>disable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<IsTrimmable>true</IsTrimmable>
+		<IsAotCompatible>true</IsAotCompatible>
+		<RootNamespace>CSEngine.DI</RootNamespace>
+		<AssemblyName>CSEngine.DI</AssemblyName>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<NoWarn>$(NoWarn);CS1591</NoWarn>
+	</PropertyGroup>
+
+</Project>

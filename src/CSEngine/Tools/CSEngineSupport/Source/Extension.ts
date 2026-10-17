@@ -2,6 +2,7 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import * as vscode from "vscode";
+import { SyncCSharpProjects } from "./CSharpProjects";
 import { LocateEngine } from "./Plugin/EnginePackages";
 
 const PluginId = "cse-ts-plugin";
@@ -27,6 +28,31 @@ function ConfiguredEnginePath(): string {
 	return setting.replaceAll( "${workspaceFolder}", folder );
 }
 
+/**
+ * The open projects' C# scripts build against the configured engine
+ * (.cse/Engine.props); when that changes, the C# language server has to
+ * reload the project to see it.
+ */
+function PointCSharpAtEngine( enginePath: string ): void {
+	const engine = enginePath === "" ? undefined : LocateEngine( enginePath );
+
+	if ( !engine ) {
+		return;
+	}
+	const folders = ( vscode.workspace.workspaceFolders ?? [] )
+		.map( ( folder ) => folder.uri.fsPath );
+	const changed = SyncCSharpProjects( folders, engine );
+
+	if ( changed.length > 0 ) {
+		void vscode.window.showInformationMessage(
+			"Critical Success Engine: the C# scripts of "
+				+ `${ changed.join( ", " ) } now build against the engine at `
+				+ `${ engine }. Restart the C# language server (or reload the `
+				+ "window) to pick it up.",
+		);
+	}
+}
+
 export async function activate( context: vscode.ExtensionContext ): Promise<
 	void
 > {
@@ -44,11 +70,14 @@ export async function activate( context: vscode.ExtensionContext ): Promise<
 
 		if ( enginePath !== "" && LocateEngine( enginePath ) === undefined ) {
 			void vscode.window.showWarningMessage(
-				`Critical Success Engine: there is no engine at "${enginePath}" (the folder with src/CSEngine/Core). Set cse.enginePath to the repository.`,
+				"Critical Success Engine: there is no engine at "
+					+ `"${ enginePath }" (the folder with src/CSEngine/Core). `
+					+ "Set cse.enginePath to the repository.",
 			);
 		}
 
 		api.configurePlugin( PluginId, { enginePath } );
+		PointCSharpAtEngine( enginePath );
 
 		if ( restart ) {
 			void vscode.commands.executeCommand( "typescript.restartTsServer" );
@@ -58,8 +87,11 @@ export async function activate( context: vscode.ExtensionContext ): Promise<
 	Configure( false );
 
 	context.subscriptions.push(
+		vscode.workspace.onDidChangeWorkspaceFolders(
+			() => PointCSharpAtEngine( ConfiguredEnginePath() ),
+		),
 		vscode.workspace.onDidChangeConfiguration( ( event ) => {
-			if ( event.affectsConfiguration( `cse.${EnginePathSetting}` ) ) {
+			if ( event.affectsConfiguration( `cse.${ EnginePathSetting }` ) ) {
 				Configure( true );
 			}
 		} ),

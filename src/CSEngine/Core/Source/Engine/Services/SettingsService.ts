@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import type { JsonValue, SettingsStorage } from "../Storage/SettingsStorage";
 
 /**
@@ -96,15 +97,15 @@ function Fit( definition: SettingDefinition, value: unknown ): SettingValue
 			if ( typeof value !== "number" || !Number.isFinite( value ) ) {
 				return undefined;
 			}
-			let fitted = Math.min(
+			let fitted = FMath.Min(
 				definition.Max ?? Infinity,
-				Math.max( definition.Min ?? -Infinity, value ),
+				FMath.Max( definition.Min ?? -Infinity, value ),
 			);
 
 			if ( definition.Step ) {
 				const from = definition.Min ?? 0;
-				fitted = Math.round(
-					Math.round( ( fitted - from ) / definition.Step )
+				fitted = FMath.Round(
+					FMath.Round( ( fitted - from ) / definition.Step )
 						* definition.Step
 						* 1e6,
 				) / 1e6 + from;

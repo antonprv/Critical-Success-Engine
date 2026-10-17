@@ -34,5 +34,6 @@ contextBridge.exposeInMainWorld("cse", {
 		CodeFiles: (file: string) => Call(DesignerChannels.CodeFiles, file),
 		ReadCode: (file: string, path: string) => Call(DesignerChannels.CodeRead, file, path),
 		WriteCode: (file: string, path: string, text: string) => Call(DesignerChannels.CodeWrite, file, path, text),
+		SetTheme: (file: string, theme: unknown) => Call(DesignerChannels.SetTheme, file, theme),
 	},
 });

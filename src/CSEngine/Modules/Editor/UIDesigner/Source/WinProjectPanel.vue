@@ -1,12 +1,15 @@
 <!-- Created by Anton Piruev in 2026. Any direct commercial use of derivative work is strictly prohibited. -->
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { WinSelectList } from "@cse/ui";
+import { DefaultToolTheme, ThemeLabel, WinSelectList } from "@cse/ui";
 import type { DesignerController } from "./DesignerController";
 import type { ProjectSession } from "./Project";
 
 const props = defineProps<{ session: ProjectSession; designer: DesignerController; }>();
-const emit = defineEmits<{ message: [text: string]; }>();
+const emit = defineEmits<{ message: [text: string]; "use-theme": []; }>();
+
+/** The theme the game draws its documents in: the project's, or the engine's. */
+const projectTheme = computed(() => (props.session.State.Theme ? ThemeLabel(props.session.State.Theme) : `the engine's (${ThemeLabel(DefaultToolTheme)})`));
 
 const documents = computed(() => props.session.State.Documents.map((document) => ({ Id: document.Id, Label: document.Id })));
 const newId = ref("");
@@ -34,6 +37,8 @@ async function Add(): Promise<void> {
 			<button type="button" class="win-button win-designer__add-document" @click="Add">Add</button>
 		</div>
 		<div v-if="problem" class="win-designer__project-problem">{{ problem }}</div>
+		<div class="win-designer__project-theme">Theme in the game: {{ projectTheme }}</div>
+		<button type="button" class="win-button win-designer__use-theme" @click="emit('use-theme')">Use the designer's theme in the game</button>
 	</fieldset>
 </template>
 

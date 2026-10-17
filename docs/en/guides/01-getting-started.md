@@ -25,7 +25,7 @@ the engine doesn't wait for it, and scenes, menus, scripts and rendering all wor
 
 ## Building the physics (wasm)
 
-Details are in `src/CSEngine/Physics/Bridge/BUILD.md`. In short:
+Details are in `src/CSEngine/Modules/Physics/Bridge/BUILD.md`. In short:
 
 ```bash
 cd devops
@@ -98,7 +98,7 @@ src/
     Programs/Desktop/           the desktop app (Electron), guide 16
     Physics/
       Bridge/PhysicsBridge.cs     the C# bridge: the only thing written in C#
-      Vendor/                     BEPU and the Integration glue
+      Vendor/                     CSPhysics and the Integration glue
   Templates/                    <- YOUR GAME starts here: project templates
     CoinHunt/
       TemplateProject.cseproject          the project descriptor

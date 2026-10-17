@@ -17,6 +17,8 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@cse/task": "workspace:*",
+    "@cse/fastmath": "workspace:*",
     "@cse/ui": "workspace:*",
     "monaco-editor": "0.56.0",
     "vue": "^3.5.43"

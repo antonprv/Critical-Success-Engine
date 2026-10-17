@@ -31,6 +31,8 @@ export type MainToGameLogicMessage =
 		 * folder.
 		 */
 		baseUrl?: string;
+		/** The scene to start in (the page's `?scene=`); null: the first. */
+		startScene?: string | null;
 		renderPort: MessagePort;
 		physicsPort: MessagePort;
 		audioPort: MessagePort;

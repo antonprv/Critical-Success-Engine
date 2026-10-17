@@ -1,0 +1,30 @@
+{
+	"Format": 1,
+	"Name": "Engine hints",
+	"Script": "",
+	"ClickThrough": true,
+	"Root": {
+		"Name": "Root",
+		"Type": "canvas",
+		"X": 0,
+		"Y": 0,
+		"Width": 800,
+		"Height": 500,
+		"Props": {},
+		"Children": [
+			{
+				"Name": "Lines",
+				"Type": "listbox",
+				"X": 8,
+				"Y": 8,
+				"Width": 280,
+				"Height": 140,
+				"Props": {
+					"Header": "Hints",
+					"Items": [],
+					"Enabled": true
+				}
+			}
+		]
+	}
+}

@@ -10,8 +10,14 @@ import {
 	SettingsStorage,
 } from "../Engine/Storage/SettingsStorage";
 import { GameLogicRuntime } from "../Engine/Runtime/GameLogicRuntime";
+import { ExposePerf } from "../Engine/Diagnostics/PerfProbe";
 import { Logger } from "../Logging/Logger";
-import { EngineModules, GameProject, InstalledPlugins } from "../Project";
+import { LoadScriptsWasm } from "@cse/scripting";
+import { Task } from "@cse/task";
+import { ScriptsWasmUrl } from "./Common/ScriptsWasmUrl";
+import {
+	EngineModules, GameProject, HasCSharpScripts, InstalledPlugins,
+} from "../Project";
 import type { MainToGameLogicMessage } from "./Protocol/GameLogicProtocol";
 import { GameLogicMsg } from "./Common/CommonEnums";
 
@@ -35,7 +41,7 @@ for ( const module of EngineModules ) {
 const storage = new SettingsStorage(
 	new IndexedDbBackend( `cse:${ GameProject.Name }` ),
 );
-const started = Promise.all(
+const started = Task.WhenAll(
 	[InitEngine( GameProject, InstalledPlugins, modules ), storage.Open()],
 ).then( ( [{ Errors, Failures }] ) => {
 	for ( const error of Errors ) {
@@ -63,65 +69,80 @@ let runtime: GameLogicRuntime | null = null;
  */
 let waiting: MainToGameLogicMessage[] | null = null;
 
-self.onmessage = ( event: MessageEvent<MainToGameLogicMessage> ) => {
-	const message = event.data;
+// IMPORTANT: addEventListener, NOT `self.onmessage = ...`: dotnet.js (the
+// project's C# scripts load in this worker) takes a worker that already has an
+// onmessage handler for a plain one, and its `create()` then never settles (see
+// PhysicsWorker.ts).
+self.addEventListener(
+	"message",
+	( event: MessageEvent<MainToGameLogicMessage> ) => {
+		const message = event.data;
 
-	if ( message.type === GameLogicMsg.Init ) {
-		waiting = [];
-		void started.then( async ( engine ) => {
+		if ( message.type === GameLogicMsg.Init ) {
+			waiting = [];
+			void started.then( async ( engine ) => {
 			// The project's data assets sit next to the page: fetch them all
 			// before the game starts. One that can't be read is logged by name
 			// (and names itself again when the game asks for it).
-			const base = message.baseUrl;
-			const urls = Object.fromEntries(
-				Object.entries( engine.ProjectData )
-					.map(
-						( [id, url] ) => (
-							[id, base ? new URL( url, base ).href : url]
+				const base = message.baseUrl;
+				const urls = Object.fromEntries(
+					Object.entries( engine.ProjectData )
+						.map(
+							( [id, url] ) => (
+								[id, base ? new URL( url, base ).href : url]
+							),
 						),
-					),
-			);
-			const data = new DataAssets( urls, async ( url ) => {
-				const response = await fetch( url );
+				);
+				const data = new DataAssets( urls, async ( url ) => {
+					const response = await fetch( url );
 
-				if ( !response.ok ) {
-					throw new Error( `HTTP ${ response.status }` );
+					if ( !response.ok ) {
+						throw new Error( `HTTP ${ response.status }` );
+					}
+					return response.text();
+				} );
+				await data.Preload()
+					.catch(
+						( error: Error ) => Logger.LogError(
+							`[GameLogicWorker] ${ error.message }`,
+						),
+					);
+				runtime = new GameLogicRuntime(
+					{
+						render: message.renderPort,
+						physics: message.physicsPort,
+						audio: message.audioPort,
+						ui: message.uiPort,
+					},
+					engine.Scenes,
+					engine.Channels,
+					engine.ProjectInput,
+					storage,
+					data,
+					HasCSharpScripts
+						? () => LoadScriptsWasm(
+							ScriptsWasmUrl( self.location?.href, __DEV__ ),
+						)
+						: null,
+					engine.Installers,
+				);
+				runtime.StartScene = message.startScene ?? null;
+				ExposePerf( "GameLogic", runtime.Perf );
+				for ( const queued of waiting!.splice( 0 ) ) {
+					runtime.HandleMainMessage( queued );
 				}
-				return response.text();
-			} );
-			await data.Preload()
+				return runtime.Boot();
+			} )
 				.catch(
-					( error: Error ) => Logger.LogError(
-						`[GameLogicWorker] ${ error.message }`,
+					( error ) => Logger.LogException(
+						error,
+						"[GameLogicWorker] boot failed:",
 					),
 				);
-			runtime = new GameLogicRuntime(
-				{
-					render: message.renderPort,
-					physics: message.physicsPort,
-					audio: message.audioPort,
-					ui: message.uiPort,
-				},
-				engine.Scenes,
-				engine.Channels,
-				engine.ProjectInput,
-				storage,
-				data,
-			);
-			for ( const queued of waiting!.splice( 0 ) ) {
-				runtime.HandleMainMessage( queued );
-			}
-			return runtime.Boot();
-		} )
-			.catch(
-				( error ) => Logger.LogException(
-					error,
-					"[GameLogicWorker] boot failed:",
-				),
-			);
-	} else if ( runtime ) {
-		runtime.HandleMainMessage( message );
-	} else {
-		waiting?.push( message );
-	}
-};
+		} else if ( runtime ) {
+			runtime.HandleMainMessage( message );
+		} else {
+			waiting?.push( message );
+		}
+	},
+);

@@ -15,6 +15,7 @@ import { UiDocument, ValidationContext } from "../../Source/Documents/UiDocument
 import { UiScript, UiScriptRegistry } from "../../Source/Documents/UiScript";
 import WinDialogHost from "../../Source/Documents/WinDialogHost.vue";
 import WinLayoutView from "../../Source/Documents/WinLayoutView.vue";
+import { Task } from "@cse/task";
 
 const Props = (node: LayoutNode, props: Record<string, unknown>): LayoutNode => ({ ...node, Props: { ...node.Props, ...props } as LayoutNode["Props"] });
 
@@ -265,7 +266,8 @@ describe("modal dialogs (WinForms: ShowDialog, MessageBox.Show)", () => {
 		dialogs.Open[0]!.Document!.Close(DialogResult.Abort);
 		await asking;
 		expect([(main.Script as Asker).Answer, (main.Script as Asker).Inner]).toEqual([MessageBoxResult.No, DialogResult.Abort]);
-		expect(dialogs.MessageBox("Done")).toBeInstanceOf(Promise);
+		// a Task: awaitable like a Promise, and its state readable at once
+		expect(dialogs.MessageBox("Done")).toBeInstanceOf(Task);
 		host.unmount();
 	});
 

@@ -8,7 +8,7 @@ import type { ButtonController } from "../Source/Controls/ButtonController";
 import type { LabelController } from "../Source/Controls/LabelController";
 import type { WindowController } from "../Source/Controls/WindowController";
 import { UiManager } from "../Source/Documents/UiManager";
-import { EngineDocuments, EngineLoadingId, EngineMenuId, EngineScreens, WithEngineDocuments } from "../Source/Runtime/EngineScreens";
+import { EngineDocuments, LoadDocument, EngineHintsId, EngineLoadingId, EngineMenuId, EngineScreens, EngineToastsId, WithEngineDocuments } from "../Source/Runtime/EngineScreens";
 
 const settle = async () => { for (let i = 0; i < 6; i++) await new Promise((resolve) => setTimeout(resolve, 0)); await nextTick(); };
 
@@ -18,7 +18,8 @@ function Page() {
 	const state = reactive({
 		loading: { visible: true, label: "Starting…", fraction: 0.1 },
 		menu: { visible: false, mode: 0, scenes: [] as typeof scenes, currentSceneId: null as string | null },
-		hud: { visible: true, lines: [], bars: [] },
+		hud: { visible: true, lines: [] as string[], bars: [] as { id: string; label: string; value: number; }[] },
+		toasts: [] as string[],
 	});
 	return {
 		State: state, Title: "Games Sample",
@@ -35,6 +36,48 @@ function Make(project: { Id: string; Path: string; Script: string; }[] = [], pro
 	const screens = new EngineScreens(manager, page);
 	return { page, manager, screens };
 }
+
+describe("LoadDocument", () => {
+	it("reads and parses a document by its Id; an Id the manifest hasn't is null", async () => {
+		const documents = WithEngineDocuments({ Manifest: { FileVersion: 1, Documents: [] }, Load: async () => "" });
+		expect((await LoadDocument(documents, "EngineTouch"))!.Name).toBe("Engine touch controls");
+		expect(await LoadDocument(documents, "Nothing")).toBeNull();
+	});
+});
+
+describe("EngineScreens: the hints (top left) and the toasts (bottom right) as UI documents", () => {
+	type Items = { Items: { text: string; }[]; };
+	it("hints show the HUD's lines and bars while the game plays, and go when there are none or the menu is up", async () => {
+		const { page, manager } = Make();
+		page.State.loading.visible = false;
+		await settle();
+		expect(manager.IsShown(EngineHintsId)).toBe(false); // nothing to say
+		page.State.hud.lines.push("Space - jump");
+		page.State.hud.bars.push({ id: "hp", label: "Health", value: 0.4 });
+		await settle();
+		expect(manager.Get(EngineHintsId)!.Controller<Items>("Lines").Items.map((i) => i.text)).toEqual(["Space - jump", "Health: 40%"]);
+		page.State.menu.visible = true;
+		await settle();
+		expect(manager.IsShown(EngineHintsId)).toBe(false);
+		page.State.menu.visible = false;
+		page.State.hud.visible = false;
+		await settle();
+		expect(manager.IsShown(EngineHintsId)).toBe(false);
+	});
+
+	it("toasts show what the page holds, and go with the last one", async () => {
+		const { page, manager } = Make();
+		page.State.toasts.push("Saved", "Coin!");
+		await settle();
+		expect(manager.Get(EngineToastsId)!.Controller<Items>("Toasts").Items.map((i) => i.text)).toEqual(["Saved", "Coin!"]);
+		page.State.toasts.splice(0);
+		await settle();
+		expect(manager.IsShown(EngineToastsId)).toBe(false);
+		delete (page.State as { toasts?: string[]; }).toasts; // a page that never had one
+		await settle();
+		expect(manager.IsShown(EngineToastsId)).toBe(false);
+	});
+});
 
 describe("EngineScreens: the engine's menu and loading screen as UI documents", () => {
 	it("take over from the page's own screens; the loading screen follows the loading state", async () => {
@@ -117,7 +160,7 @@ describe("EngineScreens: the engine's menu and loading screen as UI documents", 
 		const { page, manager, screens } = Make([{ Id: EngineLoadingId, Path: "MyLoading.ui.json", Script: "" }], async () => own);
 		await settle();
 		expect(manager.Get(EngineLoadingId)!.Layout.Name).toBe("Mine");
-		expect(Object.keys(EngineDocuments)).toEqual([EngineMenuId, EngineLoadingId, "EngineSettings", "EngineControls"]);
+		expect(Object.keys(EngineDocuments)).toEqual([EngineMenuId, EngineLoadingId, "EngineSettings", "EngineControls", EngineHintsId, EngineToastsId, "EngineTouch"]);
 		screens.Dispose();
 		page.State.loading.visible = false;
 		await settle();

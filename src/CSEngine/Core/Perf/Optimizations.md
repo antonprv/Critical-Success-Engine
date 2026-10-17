@@ -1,0 +1,40 @@
+## Applied optimizations
+
+What was found on the target laptop (Core i3-1215U, Intel UHD Graphics, 7.5 GB) and done about it. Numbers are frames
+per second drawn with a new game state.
+
+A correction first: the early "after" numbers of this work (11 000 fps for an empty scene, 8 000 for 100 000
+triangles) were wrong. Frames were counted when a new game state **arrived** at the renderer, not when it was **drawn**;
+while the GPU was busy, states arrived and were replaced without ever being shown. Since then `fresh` is counted in
+`RenderScene` when a frame with a new state is drawn, and every number below is measured that way.
+
+| # | Problem (how it was found) | Done | Where | Gain | Quality |
+|---|---|---|---|---|---|
+| 1 | Every scenario ran at 61 fps with 0.1 ms of work a frame: the render worker's requestAnimationFrame follows the display, Chromium's flags don't lift it (a plain page with the same flags drew 4 000+ fps) | `?uncapped`: the render loop is scheduled by a message to itself instead of requestAnimationFrame | `RenderScene.Uncap` | 61 -> over 600 | none |
+| 2 | Uncapped, the loop redrew the same game state up to 14 000 times a second and the GPU process stalled for 100-130 ms every ~130 ms (a Chromium trace: `CrGpuMain` tasks of 130 ms, the worker waiting on them): commands piled up faster than the GPU ran them | the loop draws only when there is a new game state and sleeps otherwise (no spinning core); at most four frames in flight on the GPU (`fenceSync`, polled without blocking). Two were measured, three and four: the fence's status reaches a worker only between tasks, so two in flight left the GPU idle | `RenderScene.RunRenderLoop`, `Wake`, `GpuBusy`, `MaxFramesInFlight` | empty, 2 -> 4 in flight: 868 -> 1 690; 1 % low ~50 -> ~200 | at most 4 frames of input latency (~2.5 ms at 1 600 fps) |
+| 3 | The perf counters themselves (see above) | `fresh` = frames drawn with a new game state; the draw loop's rate is reported apart | `RenderScene`, `Perf/Metrics.mjs` | honest numbers | - |
+| 4 | Every frame the game logic sent every entity's pose (640 KB a frame for 10 000 entities, a new buffer each time) and the renderer moved every mesh | only poses that changed since the last frame are sent; the frame buffer is reused | `GameLogicRuntime.PostFrame`, `Transform.SentPose` | entities-10k logic 1.8 -> 0.8 ms | none |
+| 5 | A mesh per entity: 10 000 boxes were ~9 000 draw calls and 39 ms of CPU a frame; 2 000 balls 12.5 ms | spheres, boxes, capsules and cylinders of one shape and size are one mesh of thin instances (per-instance matrix and colour, one draw call) | `PrimitiveBatch`, `EntityMeshRegistry` | entities-10k 25 -> 877; physics-2000 70 -> ~500 | none (white material x instance colour; e2e pixel tests unchanged) |
+| 6 | 2 000 balls of 0.6 m were 5.4 million triangles: every sphere had 24 rings | a sphere's rings follow its size (8 at the least, 24 from 2.2 m) | `SphereSegments` | physics-2000: 5.4 M -> 0.8 M triangles, 315 -> 454 fps | small balls are less round up close |
+| 7 | A busy UI (120 labels changed every frame) froze the page: hundreds of game frames a second each redid the DOM | changes of widgets are applied once per display frame on the page, the last one winning | `UiHostBridge` | ui-heavy: hang -> ~5 000 | none (the screen shows the newest text each frame) |
+| 8 | C# and TypeScript calling each other: 1.7 ms a frame for 1 000 calls, pauses of 230 ms (garbage of every call on both sides) | requests and answers through pinned memory both runtimes share (one slot per depth; only a length crosses), reused writers on the TypeScript side, the contract's header written once, numbers read without boxing in C#, the implementation found once per entity | `SharedSlots`, `SlotCalls`, `ScriptBridge`, `MessagePackReader` | interop 70 -> ~800; a call 2.09 -> 1.38 us | none |
+| 9 | The C# scripts never loaded in the browser: the game logic worker's `self.onmessage` made dotnet.js take it for a plain worker, and `create()` never settled | the worker listens with addEventListener (as the physics worker does) | `GameLogicWorker` | the C# components run | - |
+| 10 | physics-2000 stayed GPU-bound with multisampling (MSAA 4x fills four samples a pixel of 2 000 overlapping balls) | FXAA (one pass over the finished frame) is the default; `?aa=msaa` and `?aa=off` remain | `RenderScene.UseFxaa`, `Antialias` | physics-2000: MSAA ~490, FXAA ~690, off ~780 | FXAA: slightly softer edges |
+| 11 | The physics scene's paddle went through the balls (seen on screen, not in the numbers): a kinematic body that had stood still fell asleep, and the velocity and pose the engine gave it every step went into the sleeping island's data - it never woke, and its bounds in the broad phase stayed where it fell asleep. Bodies asleep under it were never touched | a velocity other than zero, or a pose that differs, given to a sleeping body wakes it (a body told the same pose every step still sleeps); the paddle is taller than the heap and the balls start a little off the grid (dropped exactly onto each other they stood in columns) | `PhysicsWorld.SetBodyPose`, `SetLinearVelocity`, `SetAngularVelocity` (C#), `PerfScenes` | the scene is a real load: ~980 balls awake | - |
+| 12 | Chromium's `--disable-frame-rate-limit` / `--disable-gpu-vsync` made its compositor spin a whole core (870 000 tasks in 3 s); `?uncapped` doesn't need them (it doesn't draw on the display's clock) | the harness runs without them | `Perf/Run.mjs` | physics step under load 11.0 -> 8.1 ms (the CPU it was losing) | - |
+| 13 | The game logic made 115 MB of garbage in 3 s of an empty scene (sampled with V8's heap profiler over CDP): minor GCs of 5-6 ms. The input snapshot for C# built every frame even without C# components; the action map looked up through a new string key, the codes of an action made anew (two arrays) and closures, several times per action per frame; `Set.clear()` of empty sets (V8 makes a new table); a fixed camera's look-at quaternion; a buffer copy of an empty frame | the map in force and the codes of an action are kept until they change; plain loops; the input snapshot is taken only if C# components will get it; the phase object is reused; sets are cleared only if not empty; a fixed camera keeps its pose while it stays put; an empty frame is one shared buffer | `InputSystem.Map`, `InputMap.Codes`, `InputService`, `GameLogicRuntime.RunScripts`, `FixedCamera`, `EmptyFrame` | logic garbage 115 -> 21 MB / 3 s; minor GCs in 3 s: 4 -> 2 | none |
+| - | Tried and dropped: sending the camera only when it moves. Measured slower (entities-10k 983 -> 770 fps, six runs against two; why Babylon draws faster with the camera set every frame is not known) | - | - | - | - |
+| 14 | The render loop: the time stamps of a closure's number variables were boxed at every frame; Babylon's own frame time monitor; the loop asked the GPU again and again while it was busy | stamps in a Float64Array; the monitor off; after 0.3 ms of asking, the loop sleeps 1 ms at a time | `RenderScene.RunRenderLoop`, `Uncap` | less garbage and CPU in the render worker | - |
+
+What is left, measured and understood:
+
+- **The physics step** (~980 awake balls in contact, 8 solver iterations): 4.7 ms on a performance core, 8.1 ms on an
+  efficiency core (Node, the same bundle), 6 ms in the browser at 60 fps and 8 ms uncapped (the GPU and the other
+  workers share the CPU's power budget). A profile with function names (`--profiling-funcs`) shows solver 44 %, collision
+  detection 38 %, the interpreter 1.4 % (the AOT profile covers the hot path); the same scene on desktop .NET with AVX2
+  takes 2.5 ms for 2 000 awake bodies. `-O3` instead of `-Oz` for the native code gave nothing (4.6 vs 4.7 ms). Four
+  solver iterations instead of eight would save 22 % and cost stiffness in every game, so it is not done silently.
+- **1 % low** (~220 fps, a frame of ~4.5 ms in 100): what remains are worker tasks of ~5 ms with no script in them (V8's
+  own work, or the thread moved by the OS) and the rarer minor GCs. Every scenario's 1 % low is still above 120 fps.
+
+Upscaling was not needed.

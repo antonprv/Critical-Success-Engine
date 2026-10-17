@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { Task } from "@cse/task";
 /**
  * Data assets, as Unity's ScriptableObjects but in JSON files with the .csedata
  * extension: a class in code says the type, its fields and their defaults; a
@@ -171,7 +172,7 @@ export class DataAssets {
 	 * it.
 	 */
 	public async Preload(): Promise<void> {
-		await Promise.all(
+		await Task.WhenAll(
 			Object.entries( this._urls ).map( async ( [id, url] ) => {
 				try {
 					this._texts.set( id, await this._fetchText( url ) );

@@ -2,7 +2,7 @@
 
 # Critical Success Engine
 
-Браузерный игровой движок: TypeScript + [Babylon.js](https://www.babylonjs.com/) для рендера, BEPU Physics (C#, собранный в WebAssembly) для физики, Vue 3 + Quasar для интерфейса. Каждая подсистема работает в своём воркере. Сборка - [Vite](https://vite.dev/), тесты - Vitest (юнит/интеграционные) и Playwright (в настоящем браузере).
+Браузерный игровой движок: TypeScript + [Babylon.js](https://www.babylonjs.com/) для рендера, CSPhysics (C#, собранный в WebAssembly) для физики, Vue 3 + Quasar для интерфейса. Каждая подсистема работает в своём воркере. Сборка - [Vite](https://vite.dev/), тесты - Vitest (юнит/интеграционные) и Playwright (в настоящем браузере).
 
 Подробные руководства: [`docs/ru/guides/00-index.md`](docs/ru/guides/00-index.md).
 
@@ -97,9 +97,15 @@ src/
       Engine/UI/              @cse/ui - UI-модуль движка: тулкит, рантайм UI-документов, галерея
       Editor/ProjectBrowser/  @cse/project-browser - Project Manager (модуль редактора)
       Editor/UIDesigner/      @cse/ui-designer - редактор интерфейсов (тулинг, не часть игры)
+      Physics/                C#: CSPhysics, интеграция и мост в JS (Bridge)
+      Scripting/              компоненты на C#: библиотека C# и SDK игры, @cse/scripting (сторона TypeScript),
+                              файлы .contract: компилятор контрактов и мост между C# и TypeScript
+      Common/Math/            C#: FastMath
+      Common/FastMath/        @cse/fastmath - FastMath для TypeScript
+      Common/DataStream/      @cse/datastream - сообщения с тегами между TypeScript и C# (+ C#: DotNet/), MessagePack
+      Common/DI/              @cse/di - внедрение зависимостей: контракты, инсталлеры, @Inject (+ C#: DotNet/)
+      Common/Task/            @cse/task - задачи, совместимые с Promise: синхронные продолжения, ожидание кадров, отмена
     Programs/Desktop/         @cse/desktop - десктопная программа (Electron) для инструментов редактора
-    Physics/                  C#: BEPU Physics, интеграция и мост в JS (Bridge)
-    Common/Math/              C#: FastMath
     Tools/                    вспомогательные утилиты (RetroTexturizer)
     Binaries/                 результаты сборок (не хранится в git)
   Templates/                  шаблоны проектов (Blank, FirstPerson, ThirdPerson, TopDown, CoinHunt)

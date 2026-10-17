@@ -1,0 +1,32 @@
+{
+  "Format": 1,
+  "Name": "Engine toasts",
+  "Script": "",
+  "ClickThrough": true,
+  "Root": {
+    "Name": "Root",
+    "Type": "canvas",
+    "X": 0,
+    "Y": 0,
+    "Width": 800,
+    "Height": 500,
+    "Props": {},
+    "Children": [
+      {
+        "Name": "Toasts",
+        "Type": "listbox",
+        "X": 8,
+        "Y": 8,
+        "Width": 320,
+        "Height": 110,
+        "AnchorX": "end",
+        "AnchorY": "end",
+        "Props": {
+          "Header": "Messages",
+          "Items": [],
+          "Enabled": true
+        }
+      }
+    ]
+  }
+}

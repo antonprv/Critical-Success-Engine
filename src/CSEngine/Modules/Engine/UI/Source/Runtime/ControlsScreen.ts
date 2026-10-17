@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import type { UiDocument } from "../Documents/UiDocument";
 import type { UiManager } from "../Documents/UiManager";
 import { BindingName } from "./BindingNames";
@@ -147,7 +148,7 @@ export class ControlsScreen {
 		for (const pad of this._input.Gamepads()) {
 			if (!pad?.connected) continue;
 			pad.buttons.forEach((button, i) => { if (button.value > 0.5 && PadButtons[i]) codes.add(PadButtons[i]); });
-			pad.axes.slice(0, 4).forEach((value, axis) => { if (Math.abs(value) > 0.5) codes.add(Sticks[axis * 2 + (value > 0 ? 1 : 0)]!); });
+			pad.axes.slice(0, 4).forEach((value, axis) => { if (FMath.Abs(value) > 0.5) codes.add(Sticks[axis * 2 + (value > 0 ? 1 : 0)]!); });
 		}
 		return codes;
 	}

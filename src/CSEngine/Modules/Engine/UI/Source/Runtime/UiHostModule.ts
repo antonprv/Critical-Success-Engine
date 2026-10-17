@@ -4,11 +4,11 @@
 import { ModuleInterface, ModuleManager } from "@cse/core/modules";
 import { createApp, h, type App } from "vue";
 import WinThemeProvider from "../Components/WinThemeProvider.vue";
-import { WinTheme } from "../Core/Themes";
+import { ThemeOfProject } from "../Core/ThemeMemory";
 import { UiManager, type UiManagerOptions } from "../Documents/UiManager";
 import WinUiHost from "../Documents/WinUiHost.vue";
 import type { UiChannels } from "./GameUi";
-import { EngineScreens, WithEngineDocuments, type EnginePage } from "./EngineScreens";
+import { EngineScreens, EngineTouchId, LoadDocument, WithEngineDocuments, type EnginePage } from "./EngineScreens";
 import { ControlsScreen, EngineControlsId } from "./ControlsScreen";
 import { SettingsScreen } from "./SettingsScreen";
 import { TouchControls } from "./TouchControls";
@@ -16,7 +16,11 @@ import WinTouchOverlay from "./WinTouchOverlay.vue";
 import { UiHostBridge } from "./UiHostBridge";
 
 /** What the page's Engine module offers this module: its channels and the project's UI documents. */
-type PageEngine = ModuleInterface & { Channels: UiChannels; ProjectUi: Pick<UiManagerOptions, "Manifest" | "Load">; PageUi?: EnginePage | null; };
+type PageEngine = ModuleInterface & {
+	Channels: UiChannels;
+	ProjectUi: Pick<UiManagerOptions, "Manifest" | "Load"> & { Theme?: Parameters<typeof ThemeOfProject>[0]; };
+	PageUi?: EnginePage | null;
+};
 
 /** The UI plugin's page module: draws the project's UI documents over the game and runs the game's commands on them. */
 export default class UiHostModule extends ModuleInterface {
@@ -32,7 +36,8 @@ export default class UiHostModule extends ModuleInterface {
 	public override StartupModule(): void {
 		const engine = ModuleManager.Get().GetModuleChecked<PageEngine>("Engine");
 		// The project's documents, and the engine's own screens it doesn't replace.
-		this.Manager = new UiManager(WithEngineDocuments(engine.ProjectUi));
+		const documents = WithEngineDocuments(engine.ProjectUi);
+		this.Manager = new UiManager(documents);
 		this._bridge = new UiHostBridge(this.Manager, engine.Channels);
 		// The engine's menu and loading screen, drawn as documents (on a page that offers them).
 		// Arrange touch: the controls screen steps aside while the touch controls are arranged, and comes back on Done.
@@ -44,6 +49,9 @@ export default class UiHostModule extends ModuleInterface {
 		this._screens = engine.PageUi ? new EngineScreens(this.Manager, engine.PageUi, () => this._settings.Open()) : null;
 		// The touch scheme over the game (on a page that offers its menu and pause).
 		this._touch = engine.PageUi ? new TouchControls(engine.Channels, engine.PageUi) : null;
+		// its places: the EngineTouch document (the project's copy, else the engine's)
+		const placing = this._touch;
+		if (placing) void LoadDocument(documents, EngineTouchId).then((layout) => placing.UseDocument(layout!));
 
 		// A layer over the game canvas, under the engine's own menus and HUD (#ui) when they are there.
 		this._element = document.createElement("div");
@@ -53,8 +61,10 @@ export default class UiHostModule extends ModuleInterface {
 		if (engineUi) document.body.insertBefore(this._element, engineUi);
 		else document.body.appendChild(this._element);
 		const touch = this._touch;
+		// the project's theme (its .cseproject's Ui.Theme), else the engine's
+		const look = ThemeOfProject(engine.ProjectUi.Theme);
 		this._app = createApp({
-			render: () => h(WinThemeProvider, { theme: WinTheme.XpBlue }, () => [h(WinUiHost, { manager: this.Manager }), touch ? h(WinTouchOverlay, { touch }) : null]),
+			render: () => h(WinThemeProvider, { theme: look.Theme, kit: look.Kit, tailwind: look.Tailwind }, () => [h(WinUiHost, { manager: this.Manager }), touch ? h(WinTouchOverlay, { touch }) : null]),
 		});
 		this._app.mount(this._element);
 	}

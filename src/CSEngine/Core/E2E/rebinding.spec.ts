@@ -5,7 +5,7 @@ import type { Page } from "@playwright/test";
 import { expect, test, type Game } from "./support/game";
 
 const screen = ( page: Page, id: string ) => page.locator(
-	`.cse-ui-host [data-ui="${ id }"]`,
+	`.cse-ui-host [data-ui="${ id }"]:not([inert])`,
 );
 const jumpRow = ( page: Page ) => screen( page, "EngineControls" )
 	.locator(

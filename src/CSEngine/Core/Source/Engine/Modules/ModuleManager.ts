@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+
 import { EventHub } from "../Core/EventHub.ts";
 
 /**
@@ -413,6 +414,8 @@ export class ModuleManager {
 		);
 	}
 
+	// (Promises here, not Tasks: the Vite config loads this file, and loads no
+	// TypeScript packages)
 	private Load( name: string, stack: string[] ): Promise<ModuleLoadOutcome> {
 		const loaded = this._loaded.get( name );
 

@@ -30,6 +30,11 @@ monaco.typescript.typescriptDefaults.setCompilerOptions({
 	strict: true,
 	allowNonTsExtensions: true,
 	noUnusedLocals: true,
+	// as the engine's tsconfig: @Inject / @FromCSharp fields, imports of generated "X.contract.ts", override checks
+	experimentalDecorators: true,
+	allowImportingTsExtensions: true,
+	noEmit: true,
+	noImplicitOverride: true,
 });
 
 // Every model goes to the TypeScript worker, not only the shown ones: the project's other files are what its imports need.

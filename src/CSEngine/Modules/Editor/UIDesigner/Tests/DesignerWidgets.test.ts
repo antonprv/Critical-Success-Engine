@@ -104,4 +104,48 @@ describe("the items of combo boxes and radio buttons", () => {
 		expect(Options(radio.designer, radio.name)).toEqual(["Low", "Option 2"]);
 		radio.wrapper.unmount();
 	});
+
+	it("a count that isn't a number yet is ignored; new items skip names already taken", async () => {
+		const { wrapper, designer, name } = await Open("combobox");
+		await wrapper.get('[data-items-count="Options"]').setValue("");
+		expect(Options(designer, name)).toEqual(["Item 1", "Item 2"]);
+		await wrapper.get('[data-item="Options1"]').setValue("Item 3");
+		await wrapper.get('[data-items-count="Options"]').setValue("3");
+		expect(Options(designer, name)).toEqual(["Item 1", "Item 3", "Item 4"]);
+		wrapper.unmount();
+	});
+
+	it("a radio group whose chosen option is cut chooses the first; leaving a refused name puts the old one back", async () => {
+		const { wrapper, designer, name } = await Open("radiogroup");
+		designer.SetProp(name, "Selected", "Option 2");
+		await wrapper.get('[data-items-count="Options"]').setValue("3");
+		expect(designer.Find(name)!.Props["Selected"]).toBe("Option 2");
+		await wrapper.get('[data-items-count="Options"]').setValue("1");
+		expect(designer.Find(name)!.Props["Selected"]).toBe("Option 1");
+		const field = wrapper.get('[data-item="Options0"]');
+		await field.trigger("focus");
+		await field.setValue("");
+		await field.trigger("blur");
+		expect((field.element as HTMLInputElement).value).toBe("Option 1");
+		const count = wrapper.get('[data-items-count="Options"]');
+		await count.trigger("focus");
+		await count.trigger("blur");
+		wrapper.unmount();
+	});
+
+	it("a widget of the user's with items but no chosen option, and no default items, still gets numbered items", async () => {
+		const registry = BuiltInWidgets.Extend().Register({
+			Type: "tags", Label: "Tags", Container: false, Size: [100, 20], Events: [],
+			Props: [{ Key: "Tags", Label: "Tags", Kind: PropKind.Items, Default: [] }],
+			Component: Panel,
+		});
+		const wrapper = mount(WinDesigner, { props: { widgets: registry }, attachTo: document.body });
+		const designer = (wrapper.vm as unknown as { designer: DesignerController; }).designer;
+		const name = designer.Add("tags").Name;
+		designer.Select(name);
+		await wrapper.vm.$nextTick();
+		await wrapper.get('[data-items-count="Tags"]').setValue("2");
+		expect(designer.Find(name)!.Props["Tags"]).toEqual(["Item 1", "Item 2"]);
+		wrapper.unmount();
+	});
 });

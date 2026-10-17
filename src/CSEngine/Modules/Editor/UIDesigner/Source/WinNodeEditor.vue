@@ -4,7 +4,7 @@ import { computed, ref } from "vue";
 import { UsePointerTracking } from "@cse/ui";
 import { DialogResult, DialogResults } from "@cse/ui";
 import type { DesignerController } from "./DesignerController";
-import { ActionInfos, ActionTypes, CheckCondition, ChoiceCondition, ChoiceIndex, GraphNodeKind, type ActionType, type GraphNode, type GraphParam } from "@cse/ui";
+import { ActionInfos, ActionTypes, CheckCondition, ChoiceCondition, ChoiceIndex, Compare, Compares, GraphNodeKind, VariableEvent, VariableKind, VariableKinds, type ActionType, type GraphNode, type GraphParam, type GraphVariable } from "@cse/ui";
 import { WidgetType, type WidgetRegistry } from "@cse/ui";
 /** The node scripting canvas: events and actions as cards, linked output to input. */
 const props = defineProps<{ designer: DesignerController; widgets: WidgetRegistry; }>();
@@ -24,7 +24,15 @@ const EventsOf = (name: GraphParam | undefined): string[] => {
 	return type ? [...props.widgets.Get(type)!.Events, "enter", "leave"] : ["click"];
 };
 
+const variables = computed(() => graph.value.Variables ?? []);
+const IsVariableEvent = (node: GraphNode): boolean => node.Kind === GraphNodeKind.Event && node.Type === VariableEvent;
+const CompareOf = (node: GraphNode): Compare => (node.Params["Compare"] as Compare | undefined) ?? Compare.Any;
+
 function Title(node: GraphNode): string {
+	if (IsVariableEvent(node)) {
+		const compare = CompareOf(node);
+		return `When ${node.Params["Variable"]} ${compare === Compare.Any ? "changes" : `${compare} ${node.Params["Value"]}`}`;
+	}
 	return node.Kind === GraphNodeKind.Event ? `When ${node.Params["Widget"]} ${node.Type}` : ActionInfos[node.Type as ActionType].Label;
 }
 
@@ -38,6 +46,11 @@ function AddEvent(): void {
 	props.designer.AddGraphNode(GraphNodeKind.Event, EventsOf(widget)[0]!, Offset(), Offset(), { Widget: widget });
 }
 
+/** A variable event: runs at the start and on every change of the variable, when its test holds. */
+function AddVariableEvent(): void {
+	props.designer.AddGraphNode(GraphNodeKind.Event, VariableEvent, Offset(), Offset(), { Variable: variables.value[0]?.Name ?? "", Compare: Compare.Any, Value: "" });
+}
+
 function AddAction(event: Event): void {
 	const select = event.target as HTMLSelectElement;
 	const type = select.value as ActionType;
@@ -46,9 +59,24 @@ function AddAction(event: Event): void {
 	const firstCheck = live.value.find((n) => n.Type === WidgetType.CheckBox)?.Name ?? firstWidget;
 	const params: Record<string, GraphParam> = {};
 	for (const param of ActionInfos[type].Params) {
-		params[param.Key] = { widget: param.Key === "Check" ? firstCheck : firstWidget, text: "", boolean: false, result: DialogResult.OK }[param.Kind];
+		params[param.Key] = { widget: param.Key === "Check" ? firstCheck : firstWidget, text: "", boolean: false, result: DialogResult.OK, variable: variables.value[0]?.Name ?? "" }[param.Kind];
 	}
 	props.designer.AddGraphNode(GraphNodeKind.Action, type, Offset() + 260, Offset(), params);
+}
+
+//#endregion
+
+//#region variables
+
+/** A rename that is refused (a bad or taken name) puts the old name back in the field. */
+function OnVariableName(variable: GraphVariable, event: Event): void {
+	const input = event.target as HTMLInputElement;
+	if (!props.designer.RenameGraphVariable(variable.Name, input.value)) input.value = variable.Name;
+}
+
+function OnVariableDefault(variable: GraphVariable, event: Event): void {
+	const input = event.target as HTMLInputElement;
+	props.designer.SetGraphVariable(variable.Name, { Default: variable.Kind === VariableKind.Boolean ? input.checked : input.value });
 }
 
 //#endregion
@@ -59,9 +87,11 @@ const Value = (event: Event): string => (event.target as HTMLInputElement).value
 
 function OnEventWidget(node: GraphNode, event: Event): void {
 	const widget = Value(event);
+	// A choice condition names an option of the widget it was set for; checked/unchecked means the same on any check box.
+	const keepsCondition = TypeOf(node.Params["Widget"]) === WidgetType.CheckBox && TypeOf(widget) === WidgetType.CheckBox;
 	props.designer.SetGraphParam(node.Id, "Widget", widget);
 	if (!EventsOf(widget).includes(node.Type)) props.designer.SetGraphNodeType(node.Id, EventsOf(widget)[0]!);
-	props.designer.SetGraphParam(node.Id, "When", undefined); // a condition belongs to the widget it was set for
+	if (!keepsCondition) props.designer.SetGraphParam(node.Id, "When", undefined);
 }
 
 /** A condition names a state of the widget, so it only makes sense for the change event. */
@@ -75,7 +105,8 @@ const HasCondition = (node: GraphNode): boolean => TypeOf(node.Params["Widget"])
 const IsChoice = (type: string | undefined): boolean => type === WidgetType.ComboBox || type === WidgetType.RadioGroup;
 /** Combo boxes and radio buttons: a different branch can run for each option that becomes the active one. */
 const HasChoiceCondition = (node: GraphNode): boolean => IsChoice(TypeOf(node.Params["Widget"])) && node.Type === "change";
-const OptionsOf = (name: GraphParam | undefined): string[] => (live.value.find((n) => n.Name === name)?.Props["Options"] as string[] | undefined) ?? [];
+// Only asked under HasChoiceCondition: the widget exists and is a combo box or a radio group, which always have Options.
+const OptionsOf = (name: GraphParam | undefined): string[] => live.value.find((n) => n.Name === name)!.Props["Options"] as string[];
 /** The option the node's condition names, when the widget no longer has it (its items were removed). */
 const MissingOption = (node: GraphNode): number | null => {
 	const index = ChoiceIndex(node.Params["When"]);
@@ -131,10 +162,27 @@ function OnHeaderPointerDown(node: GraphNode, event: PointerEvent): void {
 	<div class="win-nodes">
 		<div class="win-nodes__toolbar">
 			<button type="button" class="win-button" data-add="event" @click="AddEvent">+ Event</button>
+			<button type="button" class="win-button" data-add="variable-event" @click="AddVariableEvent">+ When variable</button>
 			<select class="win-textbox" data-add="action" value="" @change="AddAction">
 				<option value="">+ Action...</option>
 				<option v-for="type in ActionTypes" :key="type" :value="type">{{ ActionInfos[type].Label }}</option>
 			</select>
+		</div>
+		<div class="win-nodes__variables">
+			<div v-for="variable in variables" :key="variable.Name" class="win-nodes__variable">
+				<input class="win-textbox" data-variable="Name" :value="variable.Name" aria-label="Name" @change="OnVariableName(variable, $event)">
+				<select class="win-textbox" data-variable="Kind" :value="variable.Kind" aria-label="Kind" @change="designer.SetGraphVariable(variable.Name, { Kind: Value($event) as VariableKind })">
+					<option v-for="kind in VariableKinds" :key="kind" :value="kind">{{ kind }}</option>
+				</select>
+				<input v-if="variable.Kind === VariableKind.Boolean" type="checkbox" data-variable="Default" :checked="variable.Default === true" aria-label="Default" @change="OnVariableDefault(variable, $event)">
+				<input v-else class="win-textbox" data-variable="Default" :type="variable.Kind === VariableKind.Number ? 'number' : 'text'" :value="variable.Default" aria-label="Default" @input="OnVariableDefault(variable, $event)">
+				<select class="win-textbox" data-variable="Widget" :value="variable.Widget ?? ''" aria-label="Follows widget" @change="designer.SetGraphVariable(variable.Name, { Widget: Value($event) })">
+					<option value="">(none)</option>
+					<option v-for="widget in live" :key="widget.Name" :value="widget.Name">{{ widget.Name }}</option>
+				</select>
+				<button type="button" class="win-nodes__delete" data-variable="Delete" aria-label="Delete variable" @click="designer.DeleteGraphVariable(variable.Name)">×</button>
+			</div>
+			<button type="button" class="win-button" data-add="variable" @click="designer.AddGraphVariable()">+ Variable</button>
 		</div>
 		<div ref="canvas" class="win-nodes__canvas">
 			<svg class="win-nodes__links">
@@ -167,7 +215,22 @@ function OnHeaderPointerDown(node: GraphNode, event: PointerEvent): void {
 				<span class="win-nodes__port win-nodes__port--out" @pointerdown="OnPortOut(node, $event)" />
 
 				<div class="win-nodes__body">
-					<template v-if="node.Kind === GraphNodeKind.Event">
+					<template v-if="IsVariableEvent(node)">
+						<label>Variable
+							<select class="win-textbox" data-param="Variable" :value="node.Params['Variable']" @change="designer.SetGraphParam(node.Id, 'Variable', Value($event))">
+								<option v-for="variable in variables" :key="variable.Name" :value="variable.Name">{{ variable.Name }}</option>
+							</select>
+						</label>
+						<label>When
+							<select class="win-textbox" data-param="Compare" :value="CompareOf(node)" @change="designer.SetGraphParam(node.Id, 'Compare', Value($event))">
+								<option v-for="compare in Compares" :key="compare" :value="compare">{{ compare === Compare.Any ? "changes" : compare }}</option>
+							</select>
+						</label>
+						<label>Value
+							<input class="win-textbox" data-param="Value" :value="node.Params['Value']" :disabled="CompareOf(node) === Compare.Any" placeholder="10, or {Variable}" @input="designer.SetGraphParam(node.Id, 'Value', Value($event))">
+						</label>
+					</template>
+					<template v-else-if="node.Kind === GraphNodeKind.Event">
 						<label>Widget
 							<select class="win-textbox" data-param="Widget" :value="node.Params['Widget']" @change="OnEventWidget(node, $event)">
 								<option v-for="widget in live" :key="widget.Name" :value="widget.Name">{{ widget.Name }}</option>
@@ -198,6 +261,9 @@ function OnHeaderPointerDown(node: GraphNode, event: PointerEvent): void {
 							<select v-if="param.Kind === 'widget'" class="win-textbox" :data-param="param.Key" :value="node.Params[param.Key]" @change="designer.SetGraphParam(node.Id, param.Key, Value($event))">
 								<option v-for="widget in live" :key="widget.Name" :value="widget.Name">{{ widget.Name }}</option>
 							</select>
+							<select v-else-if="param.Kind === 'variable'" class="win-textbox" :data-param="param.Key" :value="node.Params[param.Key]" @change="designer.SetGraphParam(node.Id, param.Key, Value($event))">
+								<option v-for="variable in variables" :key="variable.Name" :value="variable.Name">{{ variable.Name }}</option>
+							</select>
 							<select v-else-if="param.Kind === 'result'" class="win-textbox" :data-param="param.Key" :value="node.Params[param.Key]" @change="designer.SetGraphParam(node.Id, param.Key, Value($event))">
 								<option v-for="result in Results" :key="result" :value="result">{{ result }}</option>
 							</select>
@@ -215,6 +281,10 @@ function OnHeaderPointerDown(node: GraphNode, event: PointerEvent): void {
 .win-nodes { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .win-nodes__toolbar { display: flex; gap: 8px; padding: 6px; border-bottom: 1px solid var(--d-line); }
 .win-nodes__toolbar .win-textbox { width: auto; }
+.win-nodes__variables { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px; border-bottom: 1px solid var(--d-line); font-size: 12px; }
+.win-nodes__variable { display: flex; align-items: center; gap: 4px; padding: 2px 4px; border: 1px solid var(--d-line); border-radius: 6px; background: var(--d-panel); }
+.win-nodes__variable .win-textbox { width: 88px; }
+.win-nodes__variable .win-nodes__delete { color: var(--d-muted); }
 .win-nodes__canvas {
 	position: relative;
 	flex: 1;

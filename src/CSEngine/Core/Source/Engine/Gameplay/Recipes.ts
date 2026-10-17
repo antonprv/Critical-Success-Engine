@@ -5,6 +5,7 @@
 // Each one is a normal component - copy the ones you need into your own
 // scripts.
 
+import { FMath } from "@cse/fastmath";
 import { CollisionLayer } from "../Core/CollisionLayer";
 import { Component } from "../Core/Component";
 import { Comp, Ent } from "../Core/EntityManifest";
@@ -63,9 +64,9 @@ export class Door extends Component {
 		const target = this._closedY + ( near ? this.OpenHeight : 0 );
 
 		const maxStep = this.Speed * dt;
-		const y = position.Y + Math.max(
+		const y = position.Y + FMath.Max(
 			-maxStep,
-			Math.min( maxStep, target - position.Y ),
+			FMath.Min( maxStep, target - position.Y ),
 		);
 		this.Transform.PushPhysicsPose(
 			new Vec3( position.X, y, position.Z ),
@@ -178,8 +179,8 @@ export class DoubleJumpTrait extends MovementTrait {
 		}
 
 		this._airJumpsLeft--;
-		velocity.Y = Math.sqrt(
-			2 * Math.max( 0.0001, -ctx.Gravity.Y ) * ctx.Profile.JumpHeight,
+		velocity.Y = FMath.Sqrt(
+			2 * FMath.Max( 0.0001, -ctx.Gravity.Y ) * ctx.Profile.JumpHeight,
 		);
 		ctx.JumpConsumed = true;
 	}

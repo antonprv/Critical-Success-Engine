@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--
+		The game's C# scripts (Source/**/*.cs): components the engine runs next to the TypeScript ones. Where the engine
+		is: .cse/Engine.props (written when the project is created), else the CSE_ENGINE_PATH environment variable, else
+		the repository around a template.
+	-->
+	<Import Project=".cse/Engine.props" Condition="Exists('.cse/Engine.props')" />
+	<PropertyGroup>
+		<CSEnginePath Condition="'$(CSEnginePath)' == ''">$(CSE_ENGINE_PATH)</CSEnginePath>
+		<CSEnginePath Condition="'$(CSEnginePath)' == '' and Exists('$(MSBuildProjectDirectory)/../../CSEngine/CSEngine.slnx')">$(MSBuildProjectDirectory)/../../..</CSEnginePath>
+	</PropertyGroup>
+	<Import Project="$(CSEnginePath)/src/CSEngine/Modules/Scripting/Sdk/CSEngine.Game.targets" />
+
+</Project>

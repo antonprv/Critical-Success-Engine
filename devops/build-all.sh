@@ -54,7 +54,7 @@ if [ "$SKIP_PHYSICS" -eq 1 ]; then
   step "Physics: skipped (--skip-physics)"
 else
   step "Publishing physics (wasm)"
-  BRIDGE="$ENGINE/Physics/Bridge/Bridge.csproj"
+  BRIDGE="$ENGINE/Modules/Physics/Bridge/Bridge.csproj"
   if ! command -v dotnet >/dev/null 2>&1; then
     warn "dotnet not found - physics skipped (the game runs without a simulation)."
   elif [ ! -f "$BRIDGE" ]; then
@@ -63,7 +63,9 @@ else
     if ! dotnet workload list 2>/dev/null | grep -q 'wasm-tools'; then
       warn "Workload wasm-tools looks missing (dotnet workload install wasm-tools); trying anyway."
     fi
-    if dotnet publish "$BRIDGE" -c Release -p:TrimmerSingleWarn=false -v:normal > "$SCRIPT_DIR/publish.log"; then
+    # The main runtime (WebAssembly SIMD) and the fallback for hosts without SIMD (FastMath, Binaries/PhysicsNoSimd).
+    if dotnet publish "$BRIDGE" -c Release -p:TrimmerSingleWarn=false -v:normal > "$SCRIPT_DIR/publish.log" \
+      && dotnet publish "$BRIDGE" -c Release -p:TrimmerSingleWarn=false -p:CseNoSimd=true -v:normal >> "$SCRIPT_DIR/publish.log"; then
       echo "Physics published. Log: devops/publish.log"
     else
       tail -n 30 "$SCRIPT_DIR/publish.log" || true

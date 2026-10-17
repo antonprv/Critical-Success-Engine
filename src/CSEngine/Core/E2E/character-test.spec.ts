@@ -181,7 +181,7 @@ test.describe( "Character test room", () => {
 			// yourself.
 			await expect.poll(
 				async () => Game.find(
-					await game.pixels(),
+					await game.scenePixels(),
 					isWhite,
 					HudBottom,
 				).count,
@@ -191,7 +191,7 @@ test.describe( "Character test room", () => {
 			await page.keyboard.press( "KeyV" );
 			await expect.poll(
 				async () => Game.find(
-					await game.pixels(),
+					await game.scenePixels(),
 					isWhite,
 					HudBottom,
 				).count,
@@ -201,7 +201,7 @@ test.describe( "Character test room", () => {
 			await page.keyboard.press( "KeyV" ); // and back
 			await expect.poll(
 				async () => Game.find(
-					await game.pixels(),
+					await game.scenePixels(),
 					isWhite,
 					HudBottom,
 				).count,

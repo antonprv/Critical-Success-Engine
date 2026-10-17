@@ -27,6 +27,64 @@ async function pointer(target: Element | Window, type: string, init: MouseEventI
 
 const nodes = (wrapper: VueWrapper) => wrapper.findAll(".win-nodes__node");
 
+describe("WinNodeEditor: variables", () => {
+	const field = (wrapper: VueWrapper, node: number, key: string) => nodes(wrapper)[node]!.get(`[data-param="${key}"]`);
+	const row = (wrapper: VueWrapper, index: number) => wrapper.findAll(".win-nodes__variable")[index]!;
+
+	it("the variables panel adds, renames, retypes, sets the default and the followed widget, and deletes", async () => {
+		const { wrapper, designer } = Mount();
+		designer.Add(WidgetType.Slider);
+		designer.Add(WidgetType.Image, { Parent: "Root" }); // no behaviour: can't be followed
+		await wrapper.get('[data-add="variable"]').trigger("click");
+		await wrapper.get('[data-add="variable"]').trigger("click");
+		expect(wrapper.findAll(".win-nodes__variable")).toHaveLength(2);
+		await row(wrapper, 0).get('[data-variable="Name"]').setValue("Score");
+		await row(wrapper, 0).get('[data-variable="Name"]').trigger("change");
+		await row(wrapper, 1).get('[data-variable="Name"]').setValue("Score"); // taken: refused, the field shows the name again
+		await row(wrapper, 1).get('[data-variable="Name"]').trigger("change");
+		expect((row(wrapper, 1).get('[data-variable="Name"]').element as HTMLInputElement).value).toBe("Variable2");
+		await row(wrapper, 1).get('[data-variable="Kind"]').setValue("text");
+		await row(wrapper, 1).get('[data-variable="Default"]').setValue("hi");
+		await row(wrapper, 0).get('[data-variable="Default"]').setValue("7");
+		expect(row(wrapper, 0).get('[data-variable="Widget"]').findAll("option").map((o) => o.text())).toEqual(["(none)", "Slider1"]);
+		await row(wrapper, 0).get('[data-variable="Widget"]').setValue("Slider1");
+		await row(wrapper, 1).get('[data-variable="Kind"]').setValue("boolean");
+		await row(wrapper, 1).get('[data-variable="Default"]').setValue(true);
+		expect(designer.Layout.Graph!.Variables).toEqual([
+			{ Name: "Score", Kind: "number", Default: 7, Widget: "Slider1" }, { Name: "Variable2", Kind: "boolean", Default: true },
+		]);
+		await row(wrapper, 1).get('[data-variable="Delete"]').trigger("click");
+		expect(designer.Layout.Graph!.Variables!.map((v) => v.Name)).toEqual(["Score"]);
+	});
+
+	it("+ When variable adds a variable event; its fields pick the variable, the test and the value; actions pick variables", async () => {
+		const { wrapper, designer } = Mount();
+		await wrapper.get('[data-add="variable-event"]').trigger("click");
+		expect(designer.Layout.Graph!.Nodes[0]).toMatchObject({ Kind: GraphNodeKind.Event, Type: "variable", Params: { Variable: "", Compare: "any", Value: "" } });
+		designer.AddGraphVariable();
+		designer.AddGraphVariable();
+		await wrapper.get('[data-add="variable-event"]').trigger("click");
+		await wrapper.get('[data-add="action"]').setValue(ActionType.SetVariable);
+		await wrapper.get('[data-add="action"]').setValue(ActionType.AddToVariable);
+		expect(designer.Layout.Graph!.Nodes.slice(1).map((n) => n.Params)).toEqual([
+			{ Variable: "Variable1", Compare: "any", Value: "" }, { Variable: "Variable1", Value: "" }, { Variable: "Variable1", Amount: "" },
+		]);
+		expect(nodes(wrapper)[1]!.get(".win-nodes__title").text()).toBe("When Variable1 changes");
+		expect(nodes(wrapper)[1]!.find('[data-param="Value"]').attributes("disabled")).toBeDefined(); // any change: nothing to compare with
+		await field(wrapper, 1, "Variable").setValue("Variable2");
+		await field(wrapper, 1, "Compare").setValue(">=");
+		await field(wrapper, 1, "Value").setValue("10");
+		await field(wrapper, 2, "Variable").setValue("Variable2");
+		expect(designer.Layout.Graph!.Nodes[1]!.Params).toEqual({ Variable: "Variable2", Compare: ">=", Value: "10" });
+		expect(designer.Layout.Graph!.Nodes[2]!.Params["Variable"]).toBe("Variable2");
+		expect(field(wrapper, 1, "Compare").findAll("option").map((o) => o.text())).toEqual(["changes", "==", "!=", ">", "<", ">=", "<="]);
+		expect(nodes(wrapper)[1]!.get(".win-nodes__title").text()).toBe("When Variable2 >= 10");
+		designer.AddGraphNode(GraphNodeKind.Event, "variable", 0, 0, { Variable: "Variable1" }); // no test stored: any change
+		await nextTick();
+		expect(nodes(wrapper).at(-1)!.get(".win-nodes__title").text()).toBe("When Variable1 changes");
+	});
+});
+
 describe("WinNodeEditor", () => {
 	it("+ Event adds an event for the selected widget (else the first one with behaviour); + Action adds the chosen action", async () => {
 		const { wrapper, designer } = Mount();
@@ -55,6 +113,23 @@ describe("WinNodeEditor", () => {
 		await wrapper.get('[data-add="event"]').trigger("click");
 		await wrapper.get('[data-add="action"]').setValue(ActionType.Show);
 		expect(designer.Layout.Graph!.Nodes.map((n) => [n.Type, n.Params])).toEqual([["click", { Widget: "" }], [ActionType.Show, { Widget: "" }]]);
+	});
+
+	it("a combo box's change node can wait for one option; an option that was removed is still shown, marked", async () => {
+		const { wrapper, designer } = Mount();
+		const combo = designer.Add(WidgetType.ComboBox).Name;
+		const e = designer.AddGraphNode(GraphNodeKind.Event, "change", 0, 0, { Widget: combo });
+		await nextTick();
+		const when = () => nodes(wrapper)[0]!.get('[data-param="When"]');
+		expect(when().findAll("option").map((o) => o.text())).toEqual(["any option", "1. Item 1", "2. Item 2"]);
+		await when().setValue("option:1");
+		expect(e.Params["When"]).toBe("option:1");
+		designer.SetProp(combo, "Options", ["Only"]);
+		await nextTick();
+		expect(when().findAll("option").map((o) => o.text())).toEqual(["any option", "1. Only", "2. (removed)"]);
+		designer.SetGraphParam(e.Id, "When", undefined);
+		await nextTick();
+		expect(when().findAll("option").map((o) => o.text())).toEqual(["any option", "1. Only"]);
 	});
 
 	it("node fields edit the params: widget, event, check condition, text, inverted, result", async () => {

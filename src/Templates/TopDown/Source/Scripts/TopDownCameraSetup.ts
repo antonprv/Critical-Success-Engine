@@ -4,7 +4,9 @@
 import {
 	StrategyCamera,
 } from "@cse/core/Engine/Components/Camera/StrategyCamera";
+import { Inject } from "@cse/di";
 import { Component } from "@cse/core/Engine/Core/Component";
+import { IDataAssets } from "@cse/core/Engine/DI/Contracts";
 import { TopDownCamera } from "../Data/TopDownCamera";
 
 /**
@@ -14,13 +16,15 @@ import { TopDownCamera } from "../Data/TopDownCamera";
 export class TopDownCameraSetup extends Component {
 	public DataId = "TopDownCamera";
 
+	@Inject( IDataAssets ) private readonly _data!: IDataAssets;
+
 	public override Awake(): void {
 		const camera = this.Entity.GetComponent( StrategyCamera );
 
 		if ( !camera ) {
 			return;
 		}
-		const data = this.Engine.Data.GetOrDefault(
+		const data = this._data.GetOrDefault(
 			TopDownCamera,
 			this.DataId,
 		);

@@ -2,7 +2,7 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { mount } from "@vue/test-utils";
-import { CreateNode, GraphNodeKind, NewLayout, SerializeLayout, WidgetType, type UiManifestEntry } from "@cse/ui";
+import { CreateNode, DefaultTailwindTheme, DefaultToolTheme, GraphNodeKind, NewLayout, SerializeLayout, WidgetType, WinKit, WinTheme, type ToolTheme, type UiManifestEntry } from "@cse/ui";
 import { nextTick } from "vue";
 import { describe, expect, it, vi } from "vitest";
 import { DesignerController } from "../Source/DesignerController";
@@ -19,8 +19,10 @@ function MemoryProject() {
 	const files = new Map<string, string>([["CoinHuntHud", SerializeLayout(hud)]]);
 	let documents: UiManifestEntry[] = [{ Id: "CoinHuntHud", Path: "CoinHuntHud.ui.json", Script: "" }];
 	const saved: { Id: string; Layout: string; Script?: { ClassName: string; Text: string; }; }[] = [];
+	const themes: unknown[] = [];
 	const api: DesignerApi = {
 		Open: async (file) => ({ Name: "Moonrise", File: file, Documents: documents }),
+		SetTheme: async (_file, theme) => { themes.push(theme); },
 		Read: async (_file, id) => { if (!files.has(id)) throw new Error(`The project has no UI document "${id}"`); return files.get(id)!; },
 		IdProblem: async (_file, id) => (documents.some((d) => d.Id === id) ? `There is a document called "${id}" already` : /^[A-Za-z_]\w*$/.test(id) ? null : `"${id}" must start with a letter`),
 		Save: async (_file, document) => {
@@ -33,7 +35,7 @@ function MemoryProject() {
 		ReadCode: async (_file, path) => `// ${path}\n`,
 		WriteCode: vi.fn(async () => undefined),
 	};
-	return { api, saved, files };
+	return { api, saved, files, themes };
 }
 
 describe("ProjectSession: the designer on a project's UI documents", () => {
@@ -71,11 +73,42 @@ describe("ProjectSession: the designer on a project's UI documents", () => {
 	});
 
 	it("a project with no documents yet starts on a blank layout, ready to be saved as a document", async () => {
-		const api: DesignerApi = { Open: async (file) => ({ Name: "Empty", File: file, Documents: [] }), Read: vi.fn(), IdProblem: async () => null, Save: async () => [], CodeFiles: vi.fn(), ReadCode: vi.fn(), WriteCode: vi.fn() };
+		const api: DesignerApi = { Open: async (file) => ({ Name: "Empty", File: file, Documents: [] }), Read: vi.fn(), IdProblem: async () => null, Save: async () => [], CodeFiles: vi.fn(), ReadCode: vi.fn(), WriteCode: vi.fn(), SetTheme: vi.fn() };
 		const designer = new DesignerController();
 		const session = await ProjectSession.Start(api, "/e.cseproject", designer);
 		expect([session.State.Current, designer.Hierarchy.length]).toEqual([null, 1]);
 		expect(await session.Save(designer)).toBe("Name a new document first (Project panel).");
+	});
+});
+
+describe("the project's theme (what the game draws its documents in)", () => {
+	it("is read with the project; SetTheme writes it into the project, and says so", async () => {
+		const { api, themes } = MemoryProject();
+		const tailwind: ToolTheme = { Kit: WinKit.Tailwind, Theme: WinTheme.XpBlue, Tailwind: { ...DefaultTailwindTheme, Dark: true } };
+		const themed = { ...api, Open: async (file: string) => ({ Name: "Moonrise", File: file, Documents: [], Theme: tailwind }) };
+		const session = await ProjectSession.Start(themed, "/p.cseproject", new DesignerController());
+		expect(session.State.Theme).toEqual(tailwind);
+		expect(await session.SetTheme(DefaultToolTheme)).toBe("Moonrise now uses this theme in the game");
+		expect(themes).toEqual([DefaultToolTheme]);
+		expect(session.State.Theme).toEqual(DefaultToolTheme);
+		const failing = await ProjectSession.Start({ ...api, SetTheme: () => Promise.reject(new Error("read-only")) }, "/p.cseproject", new DesignerController());
+		expect(failing.State.Theme).toBeNull();
+		expect(await failing.SetTheme(DefaultToolTheme)).toBe("read-only");
+	});
+
+	it("the panel names it and offers the designer's current theme for the project", async () => {
+		const { api } = MemoryProject();
+		const session = await ProjectSession.Start(api, "/p.cseproject", new DesignerController());
+		const view = mount(WinProjectPanel, { props: { session, designer: new DesignerController() } });
+		expect(view.get(".win-designer__project-theme").text()).toBe("Theme in the game: the engine's (Windows XP (Blue))");
+		await view.get(".win-designer__use-theme").trigger("click");
+		expect(view.emitted("use-theme")).toHaveLength(1);
+		session.State.Theme = { Kit: WinKit.Tailwind, Theme: WinTheme.XpBlue, Tailwind: { ...DefaultTailwindTheme, Accent: "rose", Dark: true } };
+		await nextTick();
+		expect(view.get(".win-designer__project-theme").text()).toBe("Theme in the game: Tailwind rose, dark");
+		session.State.Theme = { ...DefaultToolTheme, Theme: WinTheme.Win98 };
+		await nextTick();
+		expect(view.get(".win-designer__project-theme").text()).toBe("Theme in the game: Windows 98");
 	});
 });
 

@@ -2,7 +2,7 @@
 	"name": "@cse/core",
 	"version": "1.0.0",
 	"private": true,
-	"description": "Critical Success Engine - a browser game engine: TypeScript workers, BEPU physics in wasm, Vue + Quasar UI",
+	"description": "Critical Success Engine - a browser game engine: TypeScript workers, CSPhysics in wasm, Vue + Quasar UI",
 	"type": "module",
 	"engines": {
 		"node": ">=22.12"
@@ -19,16 +19,22 @@
 		"build:dev": "vite build --mode development",
 		"preview": "vite preview",
 		"typecheck": "vue-tsc --noEmit && tsc --project tsconfig.node.json && tsc --project tsconfig.test.json",
-		"lint": "eslint . && cd ../../Templates && eslint .",
-		"lint:fix": "eslint . --fix && cd ../../Templates && eslint . --fix",
+		"lint": "eslint . && cd ../../Templates && eslint . && cd ../Perf && eslint .",
+		"lint:fix": "eslint . --fix && cd ../../Templates && eslint . --fix && cd ../Perf && eslint . --fix",
 		"test": "vitest run --coverage",
 		"test:watch": "vitest",
 		"test:e2e": "playwright test",
 		"verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e",
 		"clean": "rimraf ../Binaries/Core coverage .e2e test-results playwright-report",
-		"rebuild": "pnpm clean && pnpm build"
+		"rebuild": "pnpm clean && pnpm build",
+		"perf": "node Perf/Run.mjs"
 	},
 	"dependencies": {
+		"@cse/datastream": "workspace:*",
+		"@cse/di": "workspace:*",
+		"@cse/fastmath": "workspace:*",
+		"@cse/scripting": "workspace:*",
+		"@cse/task": "workspace:*",
 		"@babylonjs/core": "^9.29.0",
 		"@babylonjs/loaders": "^9.29.0",
 		"quasar": "^2.34.0",

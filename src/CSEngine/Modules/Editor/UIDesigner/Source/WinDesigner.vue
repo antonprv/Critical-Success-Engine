@@ -1,17 +1,19 @@
 <!-- Created by Anton Piruev in 2026. Any direct commercial use of derivative work is strictly prohibited. -->
 <script setup lang="ts">
+import { TaskCompletionSource, type Task } from "@cse/task";
+import { FMath } from "@cse/fastmath";
 import type { CodeSession } from "./Code/CodeSession";
 import WinCodeEditor from "./Code/WinCodeEditor.vue";
 import { IsClickThrough } from "@cse/ui";
-import { computed, onUnmounted, reactive, ref, shallowRef, watchEffect } from "vue";
-import { CheckBoxController } from "@cse/ui";
+import { computed, onUnmounted, reactive, ref, shallowRef, watch, watchEffect } from "vue";
+import { CheckBoxController, CheckState } from "@cse/ui";
 import { ComboBoxController } from "@cse/ui";
 import { MenuController } from "@cse/ui";
 import { SplitterController } from "@cse/ui";
 import { StatusBarController } from "@cse/ui";
 import { ToolbarController } from "@cse/ui";
 import { UsePointerTracking } from "@cse/ui";
-import { DefaultTailwindTheme, TailwindAccents, TailwindNeutrals, WinKit, type TailwindTheme } from "@cse/ui";
+import { DefaultTailwindTheme, DefaultToolTheme, RememberedTheme, RememberTheme, TailwindAccents, TailwindNeutrals, WinKit, type TailwindTheme, type ToolTheme } from "@cse/ui";
 import { AllThemes, WinTheme } from "@cse/ui";
 import { UseControl } from "@cse/ui";
 import { WinComboBox } from "@cse/ui";
@@ -158,24 +160,55 @@ watchEffect(() => {
 	status.SetText(2, designer.Dirty ? "Modified" : "");
 });
 
-const theme = ref(WinTheme.XpBlue);
-const themes = UseControl(new ComboBoxController({ Options: AllThemes.map((t) => ({ Value: t.Id, Label: t.Name })), SelectedIndex: AllThemes.findIndex((t) => t.Id === WinTheme.XpBlue) }));
-themes.Events.On("change", (_index, value) => { theme.value = value; });
+// The designer's look: the one it was left in last time (each change is remembered), or a project's when one opens.
+const initial = RememberedTheme("UIDesigner") ?? DefaultToolTheme;
+let wearing = false;
+const Remember = (): void => { if (!wearing) RememberTheme("UIDesigner", Look()); };
+
+const theme = ref(initial.Theme);
+const themes = UseControl(new ComboBoxController({ Options: AllThemes.map((t) => ({ Value: t.Id, Label: t.Name })), SelectedIndex: AllThemes.findIndex((t) => t.Id === initial.Theme) }));
+themes.Events.On("change", (_index, value) => { theme.value = value; Remember(); });
 
 // The kit the designer (and the layout on its canvas) is drawn with.
-const kit = ref(WinKit.Classic);
-const kits = UseControl(new ComboBoxController({ Options: [{ Value: WinKit.Classic, Label: "Windows (Classic)" }, { Value: WinKit.Tailwind, Label: "Tailwind" }], SelectedIndex: 0 }));
-kits.Events.On("change", (_index, value) => { kit.value = value; });
-const tailwind = reactive<TailwindTheme>({ ...DefaultTailwindTheme });
+const kit = ref(initial.Kit);
+const kitValues = [WinKit.Classic, WinKit.Tailwind];
+const kits = UseControl(new ComboBoxController({ Options: [{ Value: WinKit.Classic, Label: "Windows (Classic)" }, { Value: WinKit.Tailwind, Label: "Tailwind" }], SelectedIndex: kitValues.indexOf(initial.Kit) }));
+kits.Events.On("change", (_index, value) => { kit.value = value; Remember(); });
+const tailwind = reactive<TailwindTheme>({ ...DefaultTailwindTheme, ...initial.Tailwind });
 function TailwindChoice(values: readonly string[], field: "Accent" | "Neutral"): ComboBoxController<string> {
 	const combo = UseControl(new ComboBoxController({ Options: values.map((v) => ({ Value: v, Label: v })), SelectedIndex: values.indexOf(tailwind[field]) }));
-	combo.Events.On("change", (_index, value) => { tailwind[field] = value; });
+	combo.Events.On("change", (_index, value) => { tailwind[field] = value; Remember(); });
 	return combo;
 }
 const accents = TailwindChoice(TailwindAccents, "Accent");
 const neutrals = TailwindChoice(TailwindNeutrals, "Neutral");
-const dark = UseControl(new CheckBoxController({ Label: "Dark mode" }));
-dark.Events.On("change", () => { tailwind.Dark = dark.Checked; });
+const dark = UseControl(new CheckBoxController({ Label: "Dark mode", State: tailwind.Dark ? CheckState.Checked : CheckState.Unchecked }));
+dark.Events.On("change", () => { tailwind.Dark = dark.Checked; Remember(); });
+
+function Look(): ToolTheme {
+	return { Kit: kit.value, Theme: theme.value, Tailwind: { ...tailwind } };
+}
+
+/** Puts on a look (a project's), without remembering it as the designer's own. */
+function Wear(look: ToolTheme): void {
+	wearing = true;
+	themes.Choose(AllThemes.findIndex((t) => t.Id === look.Theme));
+	kits.Choose(kitValues.indexOf(look.Kit));
+	accents.Choose(TailwindAccents.indexOf(look.Tailwind.Accent));
+	neutrals.Choose(TailwindNeutrals.indexOf(look.Tailwind.Neutral));
+	dark.Checked = look.Tailwind.Dark;
+	Object.assign(tailwind, look.Tailwind);
+	theme.value = look.Theme;
+	kit.value = look.Kit;
+	wearing = false;
+}
+
+// A project opens in the theme its game uses, so its documents look as they will.
+watch(() => props.project?.State.Theme, (look) => { if (look) Wear(look); }, { immediate: true });
+
+async function UseThemeInGame(): Promise<void> {
+	message.value = await props.project!.SetTheme(Look());
+}
 
 //#endregion
 
@@ -348,21 +381,22 @@ function FixSelection(items: string[]): void {
 	const chosen = widgets.Get(node.Type)!.Props.find((prop) => prop.Key === "Selected");
 	if (!chosen) return;
 	const current = node.Props["Selected"];
-	if (chosen.Kind === PropKind.Number) designer.SetProp(node.Name, "Selected", Math.min(Math.max(Number(current), 0), items.length - 1));
+	if (chosen.Kind === PropKind.Number) designer.SetProp(node.Name, "Selected", FMath.Min(FMath.Max(Number(current), 0), items.length - 1));
 	else if (!items.includes(current as string)) designer.SetProp(node.Name, "Selected", items[0]!);
 }
 
 function OnItemCount(prop: PropDefinition, event: Event): void {
-	const wanted = Math.round(parseFloat(InputValue(event)));
+	const wanted = FMath.Round(parseFloat(InputValue(event)));
 	if (Number.isNaN(wanted)) return; // still typing
-	const count = Math.min(Math.max(wanted, 1), MaxItems);
+	const count = FMath.Min(FMath.Max(wanted, 1), MaxItems);
 	const items = ItemsOf(prop.Key).slice(0, count);
 	// New items continue the numbering of the widget's default names ("Option 3"), skipping names already taken.
 	const prefix = String((prop.Default as string[])[0] ?? "Item 1").replace(/\d+$/, "");
 	for (let n = items.length + 1; items.length < count; n++) {
 		if (!items.includes(`${prefix}${n}`)) items.push(`${prefix}${n}`);
 	}
-	if (designer.SetProp(selected.value!.Name, prop.Key, items)) FixSelection(items);
+	designer.SetProp(selected.value!.Name, prop.Key, items); // a list of names is always a valid Items value
+	FixSelection(items);
 }
 
 /** Names are kept non-empty and unique (radio buttons are told apart by name); a bad name is not applied and the field is restored on leaving it. */
@@ -454,11 +488,13 @@ function OnBorder(event: Event): void {
 	SetStyle("Sprite", next);
 }
 
-const ReadDataUrl = (file: File): Promise<string> => new Promise((resolve) => {
+function ReadDataUrl(file: File): Task<string> {
+	const read = new TaskCompletionSource<string>();
 	const reader = new FileReader();
-	reader.onload = () => resolve(reader.result as string);
+	reader.onload = () => read.TrySetResult(reader.result as string);
 	reader.readAsDataURL(file);
-});
+	return read.Task;
+}
 
 /** An uploaded image becomes the sprite of the chosen part and state; a new image keeps the slicing set up before. */
 async function OnSpriteFile(event: Event): Promise<void> {
@@ -535,7 +571,7 @@ const Checked = (event: Event): boolean => (event.target as HTMLInputElement).ch
 			<!-- On the Code tab the layout's details step aside: the code gets the room. -->
 			<div class="win-designer__main" :style="{ gridTemplateColumns: centerView === 'code' ? `${leftPanel.Size}px 4px 1fr` : `${leftPanel.Size}px 4px 1fr 4px ${rightPanel.Size}px` }">
 				<aside class="win-designer__side">
-					<WinProjectPanel v-if="project" :session="project" :designer="designer" @message="(text: string) => message = text" />
+					<WinProjectPanel v-if="project" :session="project" :designer="designer" @message="(text: string) => message = text" @use-theme="UseThemeInGame" />
 					<fieldset class="win-groupbox win-designer__palette">
 						<legend class="win-groupbox__title">Palette</legend>
 						<button

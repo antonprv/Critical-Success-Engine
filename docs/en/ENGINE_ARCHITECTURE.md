@@ -8,12 +8,12 @@ Five workers, one extension point.
 main thread   DOM events, Vue + Quasar rendering of UiStore, pointer lock, AudioContext
 UiWorker      UI state + logic (menu / loading / pause state machine)           Workers/Ui/UiController.ts
 GameLogic     entities, components, scenes, input state, frame + physics clocks  Engine/Runtime/GameLogicRuntime.ts
-PhysicsWorker BEPU via wasm: fixed-step loop, command execution, snapshots       Workers/Physics/PhysicsWorld.ts
+PhysicsWorker CSPhysics via wasm: fixed-step loop, command execution, snapshots       Workers/Physics/PhysicsWorld.ts
 RenderWorker  Babylon on an OffscreenCanvas, frame-request/frame protocol         Workers/RenderWorker.ts
 AudioWorker   sound decoding; playback happens on the main thread (AudioPlayer)
 ```
 
-C# exists only for the physics engine and its bridge (`Physics/Bridge/PhysicsBridge.cs`). Everything else is TypeScript.
+C# exists only for the physics engine and its bridge (`Modules/Physics/Bridge/PhysicsBridge.cs`). Everything else is TypeScript.
 
 ## Scripting: entities, components, manifests
 
@@ -54,6 +54,20 @@ A script that throws is logged and skipped; it does not take the frame down.
 Built-in components: `MeshRenderer`, `StaticBody`, `RigidBody`, `KinematicBody`, `TriggerArea`, `SimpleTriggerArea`,
 `Projectile`, `CharacterBody`, `MoverComponent` (+ all movement presets/traits), `CameraComponent` (first/third person with
 spring arm), `FixedCamera`, `Follower`.
+
+### C# components and the DataStream
+
+A component can also be C# (`CSharp( "Class", fields )`, guide 18). Its TypeScript side, `CSharpComponent`, queues the
+entity's lifecycle and events; after each phase's TypeScript components (input, update, UI, physics step),
+`ScriptRuntime` sends them, with the transforms of the entities that have C# components and the DataStream's messages
+for C#, to the .NET runtime of the project's scripts (loaded in the GameLogic worker) in **one** MessagePack call, and
+applies the results. C# and TypeScript components meet in two ways: on DataStream tags (`EngineContext.Stream`,
+guide 19; a link carries a message only to tags the other side subscribes to), and through **contracts** (guide 22):
+interfaces declared once in `.contract` files, compiled into both languages (`Modules/Scripting/Source/Contracts`,
+`Core/BuildTools/ContractsPlugin.ts`), implemented on either side and called synchronously from the other
+(`ScriptBridge`: `[JSExport] Call` one way, a `[JSImport]` the other). Each side has a DI container; `@FromCSharp` /
+`[FromTypeScript]` and the bindings `FromCSharp()` / `FromTypeScript()` reach the other side's implementation - a
+component of the same entity first, then the other container.
 
 ## Physics boundary
 

@@ -55,6 +55,11 @@ export interface UiState {
 	 * documents), so the page's own ones step aside.
 	 */
 	documentScreens?: boolean;
+	/**
+	 * The page only, with documentScreens: the toasts showing now, oldest
+	 * first (the UI plugin draws them as a document).
+	 */
+	toasts?: string[];
 }
 
 export function CreateInitialUiState(): UiState {
@@ -89,13 +94,13 @@ export type GameLogicToUiMessage =
 	| ChannelMessage;
 
 /**
- * A plugin's message on a named channel; the UI worker passes it on between the
- * game logic worker and the page.
+ * Plugins' messages on named channels, a batch of them as MessagePack (see
+ * Engine/Core/Channels.ts); the UI worker passes it on between the game logic
+ * worker and the page.
  */
 export type ChannelMessage = {
 	type: UiMsg.Channel;
-	channel: string;
-	payload: unknown;
+	batch: Uint8Array;
 };
 
 export type UiToGameLogicMessage =

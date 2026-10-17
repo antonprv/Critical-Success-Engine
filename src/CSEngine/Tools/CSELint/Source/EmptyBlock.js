@@ -48,7 +48,7 @@ export default {
 
 						return fixer.replaceText(
 							node,
-							`{${eol}${indent}${IndentUnit( indent )}${inner}${eol}${indent}}`,
+							`{${ eol }${ indent }${ IndentUnit( indent ) }${ inner }${ eol }${ indent }}`,
 						);
 					},
 				} );

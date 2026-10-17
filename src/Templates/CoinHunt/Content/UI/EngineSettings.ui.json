@@ -1,0 +1,112 @@
+{
+	"Format": 1,
+	"Name": "Engine settings",
+	"Script": "",
+	"ClickThrough": false,
+	"Root": {
+		"Name": "Root",
+		"Type": "canvas",
+		"X": 0,
+		"Y": 0,
+		"Width": 800,
+		"Height": 500,
+		"Props": {},
+		"Children": [
+			{
+				"Name": "SettingsWindow",
+				"Type": "window",
+				"X": 0,
+				"Y": 0,
+				"Width": 560,
+				"Height": 360,
+				"AnchorX": "center",
+				"AnchorY": "center",
+				"Props": {
+					"Title": "Settings",
+					"Closable": false,
+					"Minimizable": false,
+					"Maximizable": false,
+					"Resizable": false
+				},
+				"Children": [
+					{
+						"Name": "Settings",
+						"Type": "listbox",
+						"X": 0,
+						"Y": 12,
+						"Width": 530,
+						"Height": 250,
+						"Props": {
+							"Items": ""
+						},
+						"AnchorX": "center"
+					},
+					{
+						"Name": "Hint",
+						"Type": "label",
+						"X": 0,
+						"Y": 270,
+						"Width": 530,
+						"Height": 18,
+						"Props": {
+							"Text": "Pick a setting, then change it with Less or More.",
+							"FontSize": 11,
+							"Bold": false,
+							"Align": "center"
+						},
+						"AnchorX": "center"
+					},
+					{
+						"Name": "LessButton",
+						"Type": "button",
+						"X": -157.0,
+						"Y": 294,
+						"Width": 90,
+						"Height": 26,
+						"Props": {
+							"Text": "Less"
+						},
+						"AnchorX": "center"
+					},
+					{
+						"Name": "MoreButton",
+						"Type": "button",
+						"X": -59.0,
+						"Y": 294,
+						"Width": 90,
+						"Height": 26,
+						"Props": {
+							"Text": "More"
+						},
+						"AnchorX": "center"
+					},
+					{
+						"Name": "ControlsButton",
+						"Type": "button",
+						"X": 49.0,
+						"Y": 294,
+						"Width": 110,
+						"Height": 26,
+						"Props": {
+							"Text": "Controls"
+						},
+						"AnchorX": "center"
+					},
+					{
+						"Name": "BackButton",
+						"Type": "button",
+						"X": 157.0,
+						"Y": 294,
+						"Width": 90,
+						"Height": 26,
+						"Props": {
+							"Text": "Back",
+							"Default": true
+						},
+						"AnchorX": "center"
+					}
+				]
+			}
+		]
+	}
+}

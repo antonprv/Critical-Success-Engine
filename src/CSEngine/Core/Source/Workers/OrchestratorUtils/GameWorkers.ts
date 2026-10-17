@@ -5,7 +5,9 @@ import { AudioPlayer } from "../../Audio/AudioPlayer";
 import type { MainToAudioMessage } from "../Protocol/AudioProtocol";
 import type { MainToGameLogicMessage } from "../Protocol/GameLogicProtocol";
 import type { MainToPhysicsMessage } from "../Protocol/PhysicsProtocol";
-import type { MainToRenderMessage } from "../Protocol/RenderProtocol";
+import type {
+	Antialiasing, MainToRenderMessage,
+} from "../Protocol/RenderProtocol";
 import type { MainToUiMessage } from "../Protocol/UiProtocol";
 import {
 	DefaultGravity,
@@ -18,6 +20,14 @@ import {
 	GameLogicMsg,
 	AudioMsg,
 } from "../Common/CommonEnums";
+
+/**
+ * The page's ?aa=: "msaa" or "off"; anything else FXAA, the default (on a weak
+ * GPU multisampling costs most in heavy scenes).
+ */
+export function Antialias( value: string | null ): Antialiasing {
+	return value === "msaa" || value === "off" ? value : "fxaa";
+}
 
 /**
  * The five workers and their MessageChannel wiring. The main thread talks to
@@ -110,6 +120,12 @@ export class GameWorkers {
 			width: canvas.clientWidth,
 			height: canvas.clientHeight,
 			devicePixelRatio: window.devicePixelRatio,
+			// ?uncapped: no frame rate limit (the perf harness measures so)
+			uncapped: new URLSearchParams( location.search ).has( "uncapped" ),
+			// ?aa=msaa / ?aa=off: multisampled edges, or none
+			antialias: Antialias(
+				new URLSearchParams( location.search ).get( "aa" ),
+			),
 		};
 		this.RenderWorker.postMessage(
 			message,
@@ -142,6 +158,8 @@ export class GameWorkers {
 			audioPort,
 			uiPort,
 			baseUrl,
+			// ?scene=<id>: start in that scene (tests, the perf harness)
+			startScene: new URLSearchParams( location.search ).get( "scene" ),
 		};
 		this.GameLogicWorker.postMessage(
 			message,

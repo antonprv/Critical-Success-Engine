@@ -45,7 +45,7 @@ test.describe( "site without a physics build", () => {
 			await expect.poll(
 				async () => (
 					( await import( "./support/game" ) ).Game.colourVariety(
-						await game.pixels(),
+						await game.scenePixels(),
 					)
 				),
 				{ timeout: 30_000 },

@@ -218,7 +218,7 @@ function FindFile( path: string ): string | undefined {
 		path,
 		...SourceExtensions.map( ( extension ) => path + extension ),
 		...SourceExtensions.map(
-			( extension ) => join( path, `index${extension}` ),
+			( extension ) => join( path, `index${ extension }` ),
 		),
 	];
 
@@ -243,7 +243,7 @@ export function ResolveEngineModule( engine: Engine, specifier: string ): string
 
 	const subpath = match[2] === undefined
 		? "."
-		: `./${match[2]}`;
+		: `./${ match[2] }`;
 	const target = ResolveExports( pack.Exports, subpath );
 	const path = target === undefined
 		? join( pack.Root, subpath )

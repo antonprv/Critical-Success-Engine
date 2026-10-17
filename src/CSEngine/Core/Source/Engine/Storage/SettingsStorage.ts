@@ -1,6 +1,8 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { Decode, Encode } from "@cse/datastream";
+import { Task, TaskCompletionSource } from "@cse/task";
 /**
  * Where a project keeps what the player chose (settings, rebound controls), as
  * Unity's PlayerPrefs: JSON values by key, over the platform's storage. After
@@ -51,7 +53,7 @@ const Store = "entries";
 export class IndexedDbBackend implements StorageBackend {
 	public readonly Name = "IndexedDB";
 
-	private _database: Promise<IDBDatabase> | null = null;
+	private _database: Task<IDBDatabase> | null = null;
 
 	/** factory: the platform's indexedDB (null where there is none). */
 	public constructor(
@@ -64,20 +66,31 @@ export class IndexedDbBackend implements StorageBackend {
 	public async Load(): Promise<Record<string, JsonValue>> {
 		const database = await this.Database();
 		const transaction = database.transaction( Store, "readonly" );
-		const [keys, values] = await Promise.all(
+		const [keys, values] = await Task.WhenAll(
 			[
 				Request( transaction.objectStore( Store ).getAllKeys() ),
 				Request( transaction.objectStore( Store ).getAll() ),
 			],
 		);
 
+		// values are MessagePack (one written by an older engine is the object
+		// itself)
 		return Object.fromEntries(
-			keys.map( ( key, i ) => [String( key ), values[i] as JsonValue] ),
+			keys.map( ( key, i ) => {
+				const value = values[i];
+
+				return [
+					String( key ),
+					( value instanceof Uint8Array
+						? Decode( value )
+						: value ) as JsonValue,
+				];
+			} ),
 		);
 	}
 
 	public async Write( key: string, value: JsonValue ): Promise<void> {
-		await this.Change( ( store ) => store.put( value, key ) );
+		await this.Change( ( store ) => store.put( Encode( value ), key ) );
 	}
 
 	public async Remove( key: string ): Promise<void> {
@@ -92,31 +105,35 @@ export class IndexedDbBackend implements StorageBackend {
 			"readwrite",
 		);
 		change( transaction.objectStore( Store ) );
-		await new Promise<void>( ( resolve, reject ) => {
-			transaction.oncomplete = () => resolve();
-			transaction.onerror = () => reject( transaction.error );
-		} );
+		const done = new TaskCompletionSource();
+		transaction.oncomplete = () => done.TrySetResult();
+		transaction.onerror = () => done.TrySetError( transaction.error );
+		await done.Task;
 	}
 
-	private Database(): Promise<IDBDatabase> {
-		return this._database ??= new Promise( ( resolve, reject ) => {
-			if ( !this._factory ) {
-				reject( new Error( "not available here" ) );
-				return;
-			}
-			const open = this._factory.open( this._databaseName, 1 );
-			open.onupgradeneeded = () => open.result.createObjectStore( Store );
-			open.onsuccess = () => resolve( open.result );
-			open.onerror = () => reject( open.error );
-		} );
+	private Database(): Task<IDBDatabase> {
+		if ( this._database ) {
+			return this._database;
+		}
+		if ( !this._factory ) {
+			return this._database = Task.FromError(
+				new Error( "not available here" ),
+			);
+		}
+		const opened = new TaskCompletionSource<IDBDatabase>();
+		const open = this._factory.open( this._databaseName, 1 );
+		open.onupgradeneeded = () => open.result.createObjectStore( Store );
+		open.onsuccess = () => opened.TrySetResult( open.result );
+		open.onerror = () => opened.TrySetError( open.error );
+		return this._database = opened.Task;
 	}
 }
 
-function Request<T>( request: IDBRequest<T> ): Promise<T> {
-	return new Promise( ( resolve, reject ) => {
-		request.onsuccess = () => resolve( request.result );
-		request.onerror = () => reject( request.error );
-	} );
+function Request<T>( request: IDBRequest<T> ): Task<T> {
+	const done = new TaskCompletionSource<T>();
+	request.onsuccess = () => done.TrySetResult( request.result );
+	request.onerror = () => done.TrySetError( request.error );
+	return done.Task;
 }
 
 const Copy = <T extends JsonValue>( value: T ): T => JSON.parse(
@@ -128,7 +145,7 @@ export class SettingsStorage {
 
 	private _backend: StorageBackend;
 
-	private _writes: Promise<void> = Promise.resolve();
+	private _writes: Task = Task.CompletedTask;
 
 	private _problem: string | null = null;
 
@@ -196,7 +213,7 @@ export class SettingsStorage {
 	}
 
 	/** Waits until every write so far has reached the platform's storage. */
-	public Flush(): Promise<void> {
+	public Flush(): Task {
 		return this._writes;
 	}
 

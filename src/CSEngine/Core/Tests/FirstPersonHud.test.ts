@@ -12,11 +12,13 @@ import { FpsHud } from "../../../Templates/FirstPerson/Source/Scripts/FpsHud";
 import { MakeEngine } from "./engine";
 import { UiCommands } from "./GameUiFixture";
 
+// the component hands its count to the document as a variable; the
+// document's node graph writes "Shots: n" into the label
 const shots = ( n: number ) => ( {
-	op: "set-text",
+	op: "set-variable",
 	id: "FirstPersonHud",
-	widget: "Shots",
-	text: `Shots: ${ n }`,
+	name: "Shots",
+	value: n,
 } );
 
 describe(

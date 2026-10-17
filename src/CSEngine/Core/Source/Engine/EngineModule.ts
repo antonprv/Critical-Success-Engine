@@ -6,9 +6,12 @@ import {
 	DefaultInputManifest,
 	InputManifests,
 	LoadUiDocument,
+	Project,
 	UiManifest,
 } from "virtual:cse/project";
+import type { Installer } from "@cse/di";
 import { ChannelHub } from "./Core/Channels";
+import type { EngineContext } from "./Core/EngineContext";
 import type { ProjectInput } from "./Input/InputActions";
 import { GetPageUi, type PageUi } from "./Core/PageUi";
 import { ModuleInterface } from "./Modules/ModuleManager";
@@ -32,10 +35,21 @@ export default class EngineModule extends ModuleInterface {
 	public readonly Channels = new ChannelHub();
 
 	/**
+	 * The game's DI installers (its GameInstaller, from the primary module's
+	 * StartupModule): installed into the root container, after the engine's.
+	 */
+	public readonly Installers: Installer<EngineContext>[] = [];
+
+	/**
 	 * The project's UI documents: its manifest and how to read a document (the
 	 * UI plugin shows them).
 	 */
-	public readonly ProjectUi = { Manifest: UiManifest, Load: LoadUiDocument };
+	public readonly ProjectUi = {
+		Manifest: UiManifest,
+		Load: LoadUiDocument,
+		/** The theme the game draws its documents in (none: the engine's). */
+		Theme: Project.Ui.Theme,
+	};
 
 	/**
 	 * The project's input manifests (its actions and bindings) and the one in

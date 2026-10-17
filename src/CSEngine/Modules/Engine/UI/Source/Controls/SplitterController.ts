@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import { ControlBase, type ControlOptions } from "../Core/ControlBase";
 
 export interface SplitterOptions extends ControlOptions {
@@ -41,7 +42,7 @@ export class SplitterController extends ControlBase<SplitterEvents> {
 	public get Dragging(): boolean { return this._drag !== null; }
 
 	public SetSize(size: number): void {
-		const next = Math.min(this.Max, Math.max(this.Min, size));
+		const next = FMath.Min(this.Max, FMath.Max(this.Min, size));
 		if (next === this._size) return;
 		this._size = next;
 		this.Emit("resize", next);

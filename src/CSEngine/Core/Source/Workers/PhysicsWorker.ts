@@ -1,10 +1,12 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import { Logger } from "../Logging/Logger";
 import { PhysicsMsg, PhysState } from "./Common/CommonEnums";
 import { PhysicsWasmLoader } from "./Physics/PhysicsWasmLoader";
 import { PhysicsWorld } from "./Physics/PhysicsWorld";
+import { ExposePerf, PerfSamples } from "../Engine/Diagnostics/PerfProbe";
 import type {
 	GameLogicToPhysicsMessage,
 	PhysicsToGameLogicMessage,
@@ -65,9 +67,16 @@ function Tick(): void {
 	} // drop the backlog instead of chasing it
 }
 
+/** For the perf harness: "physics" (ms of each step), "bodies" (per step). */
+const perf = new PerfSamples();
+ExposePerf( "Physics", perf );
+
 function StepOnce( simulation: PhysicsWorld ): void {
 	try {
+		const begin = perf.Begin();
 		const result = simulation.Step( fixedTimestepMs / 1000 );
+		perf.End( "physics", begin );
+		perf.Add( "bodies", result.bodyCount );
 		const message: PhysicsToGameLogicMessage = {
 			state: PhysState.Step,
 			step: result.step,
@@ -103,7 +112,7 @@ function SetRunning( next: boolean ): void {
 		accumulator = 0;
 		// Wake up a bit more often than the step rate so a late timer doesn't
 		// cost a whole step.
-		loopHandle = setInterval( Tick, Math.max( 4, fixedTimestepMs / 2 ) );
+		loopHandle = setInterval( Tick, FMath.Max( 4, fixedTimestepMs / 2 ) );
 	}
 }
 

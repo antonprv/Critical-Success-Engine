@@ -2,7 +2,7 @@
 
 # Critical Success Engine
 
-A browser game engine: TypeScript + [Babylon.js](https://www.babylonjs.com/) for rendering, BEPU Physics (C#, compiled to WebAssembly) for physics, Vue 3 + Quasar for the interface. Every subsystem runs in its own worker. The build is [Vite](https://vite.dev/), the tests are Vitest (unit/integration) and Playwright (in a real browser).
+A browser game engine: TypeScript + [Babylon.js](https://www.babylonjs.com/) for rendering, CSPhysics (C#, compiled to WebAssembly) for physics, Vue 3 + Quasar for the interface. Every subsystem runs in its own worker. The build is [Vite](https://vite.dev/), the tests are Vitest (unit/integration) and Playwright (in a real browser).
 
 Detailed guides: [`docs/en/guides/00-index.md`](docs/en/guides/00-index.md).
 
@@ -97,9 +97,15 @@ src/
       Engine/UI/              @cse/ui - the engine's UI module: toolkit, UI document runtime, gallery
       Editor/ProjectBrowser/  @cse/project-browser - the Project Manager (an editor module)
       Editor/UIDesigner/      @cse/ui-designer - the UI designer (tooling, not a part of the game)
+      Physics/                C#: CSPhysics, the integration and the bridge to JS (Bridge)
+      Scripting/              components in C#: the C# library and game SDK, @cse/scripting (the TypeScript side),
+                              .contract files: the contract compiler and the bridge between C# and TypeScript
+      Common/Math/            C#: FastMath
+      Common/FastMath/        @cse/fastmath - FastMath for TypeScript
+      Common/DataStream/      @cse/datastream - tagged messages between TypeScript and C# (+ C#: DotNet/), MessagePack
+      Common/DI/              @cse/di - dependency injection: contracts, installers, @Inject (+ C#: DotNet/)
+      Common/Task/            @cse/task - Promise-compatible tasks: synchronous continuations, frame waits, cancellation
     Programs/Desktop/         @cse/desktop - the desktop app (Electron) for the editor's tools
-    Physics/                  C#: BEPU Physics, the integration and the bridge to JS (Bridge)
-    Common/Math/              C#: FastMath
     Tools/                    auxiliary tools (RetroTexturizer)
     Binaries/                 build results (not kept in git)
   Templates/                  project templates (Blank, FirstPerson, ThirdPerson, TopDown, CoinHunt)

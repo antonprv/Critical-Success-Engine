@@ -83,3 +83,5 @@ Anything that listens on `127.0.0.1:4790` will do: accept `POST /log`, split the
 | To log from a component | `Logger.LogInfo/LogWarning/LogError/LogException` |
 | To get logs into a file | the sidecar (`Core/Tools/LogServer.mjs`), or your own receiver on port 4790 |
 | To find out why a script failed | the console line `[Script] ClassName.Hook threw on entity "..."` (guide 03) |
+
+Next → [18. Components in C#](18-csharp-scripting.md)

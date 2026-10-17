@@ -1,11 +1,15 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import { EventHub } from "@cse/ui";
 import { EmptySkin, PartInfo, type PartStyle, type Skin, type SkinPart, type SkinState } from "@cse/ui";
 import type { KeyModifiers } from "@cse/ui";
 import { AnchorMode, Reanchor } from "@cse/ui";
-import { GraphNodeKind, type GraphNode, type GraphParam, type UiGraph } from "@cse/ui";
+import { Coerce, GraphNodeKind, VariableKind, type GraphNode, type GraphParam, type GraphValue, type GraphVariable, type UiGraph } from "@cse/ui";
+
+/** The params of graph nodes that name a widget. */
+const WidgetParams = ["Widget", "Check"];
 import { CreateNode, NewLayout, ParseLayout, SerializeLayout, type LayoutNode, type PropValue, type UiLayout } from "@cse/ui";
 import { BuiltInWidgets, IsValidProp, type WidgetRegistry } from "@cse/ui";
 export const enum DesignerMode {
@@ -203,8 +207,8 @@ export class DesignerController {
 		const node = this.Find(name);
 		if (!node || node === this._layout.Root) return;
 		this.Mutate(() => {
-			node.X = Math.max(0, this.SnapValue(x));
-			node.Y = Math.max(0, this.SnapValue(y));
+			node.X = FMath.Max(0, this.SnapValue(x));
+			node.Y = FMath.Max(0, this.SnapValue(y));
 		});
 	}
 
@@ -212,8 +216,8 @@ export class DesignerController {
 		const node = this.Find(name);
 		if (!node) return;
 		this.Mutate(() => {
-			node.Width = Math.max(this.Grid, this.SnapValue(width));
-			node.Height = Math.max(this.Grid, this.SnapValue(height));
+			node.Width = FMath.Max(this.Grid, this.SnapValue(width));
+			node.Height = FMath.Max(this.Grid, this.SnapValue(height));
 		});
 	}
 
@@ -233,8 +237,8 @@ export class DesignerController {
 		this.Mutate(() => {
 			node.X = snap(x.offset, start.X);
 			node.Y = snap(y.offset, start.Y);
-			node.Width = Math.max(this.Grid, snap(x.size, start.Width));
-			node.Height = Math.max(this.Grid, snap(y.size, start.Height));
+			node.Width = FMath.Max(this.Grid, snap(x.size, start.Width));
+			node.Height = FMath.Max(this.Grid, snap(y.size, start.Height));
 			if (x.far !== undefined) node.Right = snap(x.far, start.Right);
 			if (y.far !== undefined) node.Bottom = snap(y.far, start.Bottom);
 		});
@@ -312,6 +316,57 @@ export class DesignerController {
 		});
 	}
 
+	//#region graph variables
+
+	private Variable(name: string): GraphVariable | undefined {
+		return this._layout.Graph?.Variables?.find((variable) => variable.Name === name);
+	}
+
+	/** Adds a variable at a free name (Variable1, Variable2...), starting at its kind's empty value. */
+	public AddGraphVariable(kind: VariableKind = VariableKind.Number): GraphVariable {
+		let n = 1;
+		while (this.Variable(`Variable${n}`)) n++;
+		const variable: GraphVariable = { Name: `Variable${n}`, Kind: kind, Default: Coerce(kind, "") };
+		this.Mutate(() => (this.Graph.Variables ??= []).push(variable));
+		return variable;
+	}
+
+	/** Changes a variable's kind (its default is read as the new kind), default, or the widget it follows (empty: none). */
+	public SetGraphVariable(name: string, change: { Kind?: VariableKind; Default?: GraphValue; Widget?: string; }): void {
+		const variable = this.Variable(name);
+		if (!variable) return;
+		this.Mutate(() => {
+			if (change.Kind !== undefined) variable.Kind = change.Kind;
+			variable.Default = Coerce(variable.Kind, change.Default ?? variable.Default);
+			if (change.Widget === "") delete variable.Widget;
+			else if (change.Widget !== undefined) variable.Widget = change.Widget;
+		});
+	}
+
+	/** Renames a variable, and every use of it in the graph: variable params and {Name} in texts. */
+	public RenameGraphVariable(name: string, newName: string): boolean {
+		const variable = this.Variable(name);
+		if (!variable || !Identifier.test(newName) || (newName !== name && this.Variable(newName))) return false;
+		const mention = new RegExp(`\\{${name}\\}`, "g");
+		this.Mutate(() => {
+			variable.Name = newName;
+			for (const node of this.Graph.Nodes) {
+				for (const [key, value] of Object.entries(node.Params)) {
+					if (key === "Variable" && value === name) node.Params[key] = newName;
+					else if (typeof value === "string") node.Params[key] = value.replace(mention, `{${newName}}`);
+				}
+			}
+		});
+		return true;
+	}
+
+	public DeleteGraphVariable(name: string): void {
+		const variables = this._layout.Graph?.Variables ?? [];
+		const index = variables.findIndex((variable) => variable.Name === name);
+		if (index < 0) return;
+		this.Mutate(() => variables.splice(index, 1));
+	}
+
 	//#endregion
 
 	/** The far margin (Right or Bottom) of a stretched widget. */
@@ -359,10 +414,11 @@ export class DesignerController {
 		if (!node || !Identifier.test(newName) || (newName !== name && this.Find(newName))) return false;
 		this.Mutate(() => {
 			node.Name = newName;
-			// The graph refers to widgets by name: keep it pointing at this one.
+			// The graph refers to widgets by name (its widget params, the widgets variables follow): keep it pointing at this one.
 			for (const graphNode of this._layout.Graph?.Nodes ?? []) {
-				for (const [key, value] of Object.entries(graphNode.Params)) if (value === name) graphNode.Params[key] = newName;
+				for (const key of WidgetParams) if (graphNode.Params[key] === name) graphNode.Params[key] = newName;
 			}
+			for (const variable of this._layout.Graph?.Variables ?? []) if (variable.Widget === name) variable.Widget = newName;
 		});
 		if (this._selected === name) this._selected = newName;
 		return true;
@@ -486,8 +542,8 @@ export class DesignerController {
 
 	private Nudge(node: LayoutNode, [dx, dy]: [number, number], step: number): void {
 		this.Mutate(() => {
-			node.X = Math.max(0, node.X + dx * step);
-			node.Y = Math.max(0, node.Y + dy * step);
+			node.X = FMath.Max(0, node.X + dx * step);
+			node.Y = FMath.Max(0, node.Y + dy * step);
 		});
 	}
 
@@ -530,7 +586,7 @@ export class DesignerController {
 	}
 
 	private SnapValue(value: number): number {
-		return this.Snap ? Math.round(value / this.Grid) * this.Grid : Math.round(value);
+		return this.Snap ? FMath.Round(value / this.Grid) * this.Grid : FMath.Round(value);
 	}
 
 	private Mutate(change: () => void): void {

@@ -85,6 +85,23 @@ function DescriptorIn( directory: string ): string {
 }
 
 /**
+ * The project's C# scripts: the .csproj at its root (a name), or null when it
+ * has none.
+ */
+export function CSharpProjectIn( directory: string ): string | null {
+	const files = readdirSync( directory )
+		.filter( ( f ) => f.endsWith( ".csproj" ) )
+		.sort();
+
+	if ( files.length > 1 ) {
+		throw new Error(
+			`${ directory } has more than one .csproj: ${ files.join( ", " ) }`,
+		);
+	}
+	return files[0] ?? null;
+}
+
+/**
  * Finds the project to build: a .cseproject, a folder holding one, a registered
  * project's name, or the default.
  */
@@ -275,6 +292,8 @@ export function ProjectModuleSource(
 			+ `= ${ Json( InputManifestsOf( Directory, Project ) ) };`,
 		"export const DefaultInputManifest "
 			+ `= ${ JSON.stringify( Project.Input.Default ) };`,
+		"export const CSharpScripts "
+			+ `= ${ JSON.stringify( CSharpProjectIn( Directory ) ) };`,
 		"export const DataAssetUrls "
 			+ `= ${
 				Json(

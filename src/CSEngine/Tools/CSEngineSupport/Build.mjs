@@ -47,6 +47,10 @@ writeFileSync( resolve( PluginDirectory, "package.json" ), `${JSON.stringify( {
 }, null, "\t" )}\n` );
 
 copyFileSync( resolve( Here, "Extension/package.json" ), resolve( OutDirectory, "package.json" ) );
+// the contract language (.contract files): highlighting, comments, brackets
+mkdirSync( resolve( OutDirectory, "Syntaxes" ), { recursive: true } );
+copyFileSync( resolve( Here, "Extension/Syntaxes/Contract.tmLanguage.json" ), resolve( OutDirectory, "Syntaxes/Contract.tmLanguage.json" ) );
+copyFileSync( resolve( Here, "Extension/Contract.language-configuration.json" ), resolve( OutDirectory, "Contract.language-configuration.json" ) );
 copyFileSync( resolve( Here, "README.md" ), resolve( OutDirectory, "README.md" ) );
 copyFileSync( resolve( Here, "Extension/.vscodeignore" ), resolve( OutDirectory, ".vscodeignore" ) );
 

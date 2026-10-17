@@ -3,7 +3,7 @@
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { ParseProject } from "../../../../Core/Source/Engine/Projects/ProjectDescriptor.ts";
+import { ParseProject, SerializeProject, type ProjectTheme } from "../../../../Core/Source/Engine/Projects/ProjectDescriptor.ts";
 import { ParseUiManifest, SerializeUiManifest, UpsertManifestEntry, type UiManifest, type UiManifestEntry } from "../../../../Modules/Engine/UI/Source/Documents/UiManifest.ts";
 
 /** A project as the UI designer sees it: its name and the UI documents its manifest lists. */
@@ -11,6 +11,8 @@ export interface DesignerProject {
 	Name: string;
 	File: string;
 	Documents: UiManifestEntry[];
+	/** The theme the game draws its documents in (none: the engine's). */
+	Theme?: ProjectTheme;
 }
 
 /** A document to save: its layout file, and the UiScript class generated from its node graph (when it has one). */
@@ -43,7 +45,16 @@ function Readable(text: string): string {
 export class DesignerService {
 	public Open(projectFile: string): DesignerProject {
 		const { project } = this.Project(projectFile);
-		return { Name: project.Name, File: projectFile, Documents: this.Manifest(projectFile).manifest.Documents };
+		const theme = project.Ui.Theme;
+		return { Name: project.Name, File: projectFile, Documents: this.Manifest(projectFile).manifest.Documents, ...(theme ? { Theme: theme } : {}) };
+	}
+
+	/** Makes `theme` the one the game draws its documents in (Ui.Theme of the .cseproject); one that isn't a theme is refused. */
+	public SetTheme(projectFile: string, theme: ProjectTheme): void {
+		const { project } = this.Project(projectFile);
+		const text = SerializeProject({ ...project, Ui: { ...project.Ui, Theme: theme } });
+		ParseProject(text); // checks it before anything is written
+		this.Write(projectFile, projectFile, text);
 	}
 
 	public Read(projectFile: string, id: string): string {

@@ -1,0 +1,20 @@
+// The interop load (Source/Scripts/Interop.ts and Interop.cs): TypeScript and C# calling each other many times a frame.
+namespace PerfSuite;
+
+/// What travels with a call: a struct, a vector, a string.
+struct Probe {
+    Id: int;
+    At: vec3;
+    Name: string;
+}
+
+/// Implemented in C# (InteropTarget); TypeScript calls it.
+contract ICounter {
+    Add( amount: int ): int;
+    Echo( probe: Probe ): Probe;
+}
+
+/// Implemented in TypeScript (InteropLoad); C# calls it.
+contract IClock {
+    Now(): double;
+}

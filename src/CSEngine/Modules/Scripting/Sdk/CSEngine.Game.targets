@@ -1,0 +1,61 @@
+<Project>
+
+	<!--
+		A game's C# scripts: import this from the project's .csproj (the templates do). The scripts are components
+		(subclasses of CSEngine.Component) the engine runs in the browser next to the TypeScript ones; this builds them,
+		with the engine's scripting library, into a .NET WebAssembly bundle in Binaries/Scripts, which the engine's Vite
+		build serves at /scripts-wasm/ (Core/BuildTools/ScriptsWasmPlugin.ts).
+
+		Debug (pnpm dev): interpreted, quick to build. Release (pnpm build): AOT-compiled with the IL stripped - the
+		C# side of a game is machine code, not readable IL, which is why a component that should not be easy to
+		reverse-engineer belongs here.
+	-->
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<RuntimeIdentifier>browser-wasm</RuntimeIdentifier>
+		<OutputType>Exe</OutputType>
+		<SelfContained>true</SelfContained>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<LangVersion>latest</LangVersion>
+
+		<WasmMainJSPath>$(MSBuildThisFileDirectory)main.js</WasmMainJSPath>
+		<WasmEnableThreads>false</WasmEnableThreads>
+		<WasmEnableSIMD>true</WasmEnableSIMD>
+		<InvariantGlobalization>true</InvariantGlobalization>
+		<EventSourceSupport>false</EventSourceSupport>
+		<WasmEnableLegacyJsInterop>false</WasmEnableLegacyJsInterop>
+
+		<BaseOutputPath>$(MSBuildProjectDirectory)/Binaries/Scripts/</BaseOutputPath>
+		<!-- the rest of a project is not C# sources: content, the web build, node packages -->
+		<DefaultItemExcludes>$(DefaultItemExcludes);node_modules/**;Binaries/**;Content/**;Saved/**</DefaultItemExcludes>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)' == 'Release'">
+		<PublishTrimmed>true</PublishTrimmed>
+		<TrimMode>partial</TrimMode>
+		<RunAOTCompilation>true</RunAOTCompilation>
+		<WasmStripILAfterAOT>true</WasmStripILAfterAOT>
+		<WasmNativeStrip>true</WasmNativeStrip>
+		<WasmNativeDebugSymbols>false</WasmNativeDebugSymbols>
+		<WasmEmitSourceMap>false</WasmEmitSourceMap>
+		<DebugType>none</DebugType>
+		<DebugSymbols>false</DebugSymbols>
+		<UseSystemResourceKeys>true</UseSystemResourceKeys>
+		<Optimize>true</Optimize>
+		<!-- the published .wasm files are gzip-only, like the physics' (the loader inflates them) -->
+		<CseWasmFrameworkDir>$(MSBuildProjectDirectory)/Binaries/Scripts/$(Configuration)/$(TargetFramework)/browser-wasm/AppBundle/_framework/</CseWasmFrameworkDir>
+	</PropertyGroup>
+
+	<Import Project="$(MSBuildThisFileDirectory)../../Physics/Bridge/GzipCompressWasmAssets.targets" />
+
+	<ItemGroup>
+		<ProjectReference Include="$(MSBuildThisFileDirectory)../CSharp/CSEngine.Scripting.csproj" />
+		<Compile Include="$(MSBuildThisFileDirectory)GameEntry.cs" Link="CSEngine/GameEntry.cs" Visible="false" />
+		<!-- components are found by reflection: the game's assembly is kept whole -->
+		<TrimmerRootAssembly Include="$(AssemblyName)" />
+		<TrimmerRootAssembly Include="CSEngine.Scripting" />
+	</ItemGroup>
+
+</Project>

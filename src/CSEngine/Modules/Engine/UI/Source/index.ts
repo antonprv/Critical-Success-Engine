@@ -12,6 +12,7 @@ export * from "./Core/EventHub";
 export * from "./Core/Kits";
 export * from "./Core/PointerTracking";
 export * from "./Core/Themes";
+export * from "./Core/ThemeMemory";
 export * from "./Core/UseControl";
 
 // Controllers

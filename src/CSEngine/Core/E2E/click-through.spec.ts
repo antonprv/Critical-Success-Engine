@@ -2,7 +2,7 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import type { Locator, Page } from "@playwright/test";
-import { expect, test } from "./support/game";
+import { expect, test, UiLayer } from "./support/game";
 
 /**
  * What the mouse would hit at the middle of an element: which document, which
@@ -77,8 +77,7 @@ test.describe(
 				expect( await HitAtMiddle( page, crosshair ) )
 					.toEqual( { canvas: true, document: null, widget: null } );
 				const panel = page.locator(
-					".cse-ui-host [data-ui=\"FirstPersonHud\"] "
-				+ "[data-name=\"AmmoWindow\"]",
+					`${ UiLayer( "FirstPersonHud" ) } [data-name="AmmoWindow"]`,
 				);
 				const hit = await HitAtMiddle( page, panel );
 				// the panel takes its own clicks

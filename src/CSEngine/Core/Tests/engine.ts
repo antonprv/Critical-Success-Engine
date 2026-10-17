@@ -34,6 +34,8 @@ import {
 } from "../Source/Workers/Protocol/TransformProtocol";
 import { FakePort } from "./Harness";
 import { MakeWorld } from "./helpers";
+import { EngineContainers } from "../Source/Engine/DI/EngineContainers";
+import { GameUiInstaller } from "@cse/ui/game";
 
 type Tuple3 = [number, number, number];
 
@@ -130,6 +132,12 @@ export function MakeEngine() {
 		Scenes: scenes as never,
 		Time: time,
 	} );
+	// the game's DI container, as the runtime makes it: the engine's
+	// subsystems and the UI plugin's GameUi (resolved when a component asks)
+	( engine as { Container: unknown; } ).Container = new EngineContainers(
+		engine,
+		[new GameUiInstaller()],
+	).Root;
 
 	let physicsSeen = 0;
 

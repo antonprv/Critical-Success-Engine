@@ -60,6 +60,11 @@ export interface CreateProjectOptions {
 	Location: string;
 	Registry: string;
 	Now?: Date;
+	/**
+	 * The engine's repository (where a project's C# scripts find the engine,
+	 * and its code style comes from); by default the one around the templates.
+	 */
+	EngineRoot?: string;
 }
 
 const IsObject = ( value: unknown ): value is Record<string, unknown> => (
@@ -68,7 +73,11 @@ const IsObject = ( value: unknown ): value is Record<string, unknown> => (
 const Identifier = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const Reserved = ["engine", "core", "ui", "editor", "modules", "templates"];
 const TextFiles = [
+	".contract",
 	".ts",
+	".cs",
+	".csproj",
+	".props",
 	".vue",
 	".json",
 	".cseproject",
@@ -272,6 +281,51 @@ export function ProjectNameProblem( name: string ): string | null {
 }
 
 /**
+ * Build output a template may hold (its C# scripts built in place): not copied.
+ */
+const BuildOutput = ["Binaries", "obj", "bin", "node_modules", ".cse"];
+
+/** A new project's .gitignore: build output and the machine's own settings. */
+const ProjectGitIgnore = [
+	"# Build output (the C# scripts build into Binaries/Scripts and obj)",
+	"Binaries/",
+	"obj/",
+	"bin/",
+	"node_modules/",
+	"# Where the engine is on this machine (written when the project was "
+		+ "created; the editor extension keeps it up to date)",
+	".cse/",
+	"",
+].join( "\n" );
+
+/**
+ * A game's code style: the engine's (src/CSEngine/.editorconfig), the same
+ * rules for C# and TypeScript, without the engine's own file header and
+ * without the sections about the engine's own folders.
+ */
+export function ProjectEditorConfig( engine: string ): string {
+	const lines: string[] = [];
+
+	for ( const line of engine.split( "\n" ) ) {
+		// a section for a path of the engine: the rest is the engine's own
+		if ( /^\[.*\/.*\]/.test( line ) ) {
+			break;
+		}
+		if ( /^file_header_template|IDE0073/.test( line ) ) {
+			continue;
+		}
+		lines.push( line );
+	}
+	// comments that introduced the dropped section
+	while ( lines.length > 0 && /^#|^\s*$/.test( lines.at( -1 )! ) ) {
+		lines.pop();
+	}
+	return "# The engine's code style for games made with it (made from the "
+		+ "engine's src/CSEngine/.editorconfig).\n"
+		+ `${ lines.join( "\n" ) }\n`;
+}
+
+/**
  * Copies a template folder, putting the project's name where the template says
  * TemplateProject.
  */
@@ -283,7 +337,8 @@ function CopyTemplate(
 ): void {
 	mkdirSync( target, { recursive: true } );
 	for ( const entry of readdirSync( source ) ) {
-		if ( root && entry === "Template.json" ) {
+		if ( root && entry === "Template.json"
+			|| BuildOutput.includes( entry ) ) {
 			continue;
 		}
 		const from = join( source, entry );
@@ -302,6 +357,61 @@ function CopyTemplate(
 			copyFileSync( from, to );
 		}
 	}
+}
+
+/**
+ * What a new project gets besides the template: an ignore list, the engine's
+ * code style, and (with C# scripts) where the engine is.
+ */
+function WriteProjectSetup( directory: string, engineRoot: string ): void {
+	writeFileSync( join( directory, ".gitignore" ), ProjectGitIgnore );
+	const style = join( engineRoot, "src/CSEngine/.editorconfig" );
+
+	if ( existsSync( style ) ) {
+		writeFileSync(
+			join( directory, ".editorconfig" ),
+			ProjectEditorConfig( readFileSync( style, "utf8" ) ),
+		);
+	}
+	SyncEngineProps( directory, engineRoot );
+}
+
+/** .cse/Engine.props: where a project's C# scripts find the engine. */
+export function EnginePropsXml( engineRoot: string ): string {
+	return [
+		"<Project>",
+		"\t<!-- Where the engine is: the project's C# scripts build against it "
+			+ "(written when the project was created; the editor extension "
+			+ "keeps it up to date). -->",
+		"\t<PropertyGroup>",
+		`\t\t<CSEnginePath>${ engineRoot }</CSEnginePath>`,
+		"\t</PropertyGroup>",
+		"</Project>",
+		"",
+	].join( "\n" );
+}
+
+/**
+ * Points a project's C# scripts at the engine: writes .cse/Engine.props when
+ * the project has a .csproj and the file says something else. Returns whether
+ * it wrote.
+ */
+export function SyncEngineProps(
+	directory: string,
+	engineRoot: string,
+): boolean {
+	if ( !readdirSync( directory ).some( ( f ) => f.endsWith( ".csproj" ) ) ) {
+		return false;
+	}
+	const file = join( directory, ".cse", "Engine.props" );
+	const xml = EnginePropsXml( engineRoot );
+
+	if ( existsSync( file ) && readFileSync( file, "utf8" ) === xml ) {
+		return false;
+	}
+	mkdirSync( dirname( file ), { recursive: true } );
+	writeFileSync( file, xml );
+	return true;
 }
 
 /**
@@ -340,6 +450,10 @@ export function CreateProject( options: CreateProjectOptions ): {
 		SerializeProject(
 			{ ...project, Template: template.Name, Genre: template.Genre },
 		),
+	);
+	WriteProjectSetup(
+		directory,
+		options.EngineRoot ?? resolve( options.TemplatesDirectory, "../.." ),
 	);
 	RegisterProject( options.Registry, file, options.Now );
 	return { Directory: directory, File: file };

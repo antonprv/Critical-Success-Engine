@@ -1,5 +1,6 @@
 <!-- Created by Anton Piruev in 2026. Any direct commercial use of derivative work is strictly prohibited. -->
 <script setup lang="ts">
+import { FMath } from "@cse/fastmath";
 import { onUnmounted, ref } from "vue";
 import type { SliderController } from "../Controls/SliderController";
 import { ForwardEvents, UseControl } from "../Core/UseControl";
@@ -15,7 +16,7 @@ const track = ref<HTMLElement>();
 
 function MoveTo(clientX: number): void {
 	const rect = track.value!.getBoundingClientRect();
-	c.SetFraction(Math.min(1, Math.max(0, (clientX - rect.left) / rect.width)));
+	c.SetFraction(FMath.Min(1, FMath.Max(0, (clientX - rect.left) / rect.width)));
 }
 
 const OnPointerMove = (event: Event): void => MoveTo((event as PointerEvent).clientX);

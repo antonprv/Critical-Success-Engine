@@ -22,7 +22,9 @@ import type {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	CopyPhysicsWasm, CreatePhysicsWasmMiddleware, PhysicsWasmDefaultDirectory,
+	PhysicsWasmNoSimdDefaultDirectory, PhysicsWasmNoSimdUrlPrefix,
 	PhysicsWasmPlugin, PhysicsWasmUrlPrefix, ResolvePhysicsWasmDirectory,
+	ResolvePhysicsWasmNoSimdDirectory,
 } from "../BuildTools/PhysicsWasmPlugin";
 
 let sandbox = "";
@@ -150,6 +152,39 @@ describe( "ResolvePhysicsWasmDirectory", () => {
 	} );
 } );
 
+describe( "the build for browsers without WebAssembly SIMD", () => {
+	it( "lives next to the main one; PHYSICS_WASM_NOSIMD_DIR overrides it", () => {
+		expect( PhysicsWasmNoSimdDefaultDirectory ).toBe(
+			"../Binaries/PhysicsNoSimd/Release/net10.0/browser-wasm/AppBundle/_framework",
+		);
+		expect( ResolvePhysicsWasmNoSimdDirectory( "/repo/Core", {} ) )
+			.toBe( resolve( "/repo/Core", PhysicsWasmNoSimdDefaultDirectory ) );
+		expect( ResolvePhysicsWasmNoSimdDirectory( "/repo/Core", { PHYSICS_WASM_NOSIMD_DIR: "/x" } ) )
+			.toBe( resolve( "/x" ) );
+		vi.stubEnv( "PHYSICS_WASM_NOSIMD_DIR", "/from/env" );
+		expect( ResolvePhysicsWasmNoSimdDirectory( "/repo/Core" ) ).toBe( resolve( "/from/env" ) );
+	} );
+
+	it( "is served under its own prefix, copied into its own folder", async () => {
+		const directory = MakeFramework();
+		const headers: Record<string, string> = {};
+		const response = Object.assign( new Sink(), { setHeader: ( name: string, value: string ) => {
+			headers[name] = value;
+		} } );
+		const next = vi.fn();
+		CreatePhysicsWasmMiddleware( directory, PhysicsWasmNoSimdUrlPrefix )(
+			{ url: `${ PhysicsWasmNoSimdUrlPrefix }dotnet.js` }, response as never, next,
+		);
+		await response.finished();
+		expect( response.text ).toBe( "export const dotnet = {};" );
+		expect( next ).not.toHaveBeenCalled();
+		const out = join( sandbox, "dist" );
+		expect( CopyPhysicsWasm( directory, out, "physics-wasm-nosimd" ) ).toBe( true );
+		expect( readFileSync( join( out, "physics-wasm-nosimd", "_framework", "dotnet.js" ), "utf8" ) )
+			.toContain( "dotnet" );
+	} );
+} );
+
 describe( "physics runtime middleware (vite dev / vite preview)", () => {
 	it(
 		"serves files under /physics-wasm/_framework/ with the right content "
@@ -259,15 +294,24 @@ describe( "physics runtime middleware (vite dev / vite preview)", () => {
 		},
 	);
 
-	it( "the same folder is served by the plugin's dev-server hook", () => {
+	it( "the plugin's dev-server hook serves both builds", () => {
 		const directory = MakeFramework();
-		const plugin = PhysicsWasmPlugin( directory );
+		const plugin = PhysicsWasmPlugin( directory, directory );
+		const use = vi.fn();
+		( plugin.configureServer as ( server: ViteDevServer ) => void )(
+			{ middlewares: { use } } as unknown as ViteDevServer,
+		);
+		expect( use ).toHaveBeenCalledTimes( 2 );
+		expect( typeof use.mock.calls[0]![0] ).toBe( "function" );
+	} );
+
+	it( "without a fallback folder only the main build is served", () => {
+		const plugin = PhysicsWasmPlugin( MakeFramework() );
 		const use = vi.fn();
 		( plugin.configureServer as ( server: ViteDevServer ) => void )(
 			{ middlewares: { use } } as unknown as ViteDevServer,
 		);
 		expect( use ).toHaveBeenCalledTimes( 1 );
-		expect( typeof use.mock.calls[0]![0] ).toBe( "function" );
 	} );
 } );
 
@@ -345,6 +389,29 @@ describe( "PhysicsWasmPlugin build hook", () => {
 		).toContain( "dotnet" );
 		expect( String( info.mock.calls[0]![0] ) )
 			.toContain( "physics-wasm: copied" );
+		// no fallback build given or found: said, not an error
+		expect( String( info.mock.calls[1]![0] ) )
+			.toContain( "no build for browsers without WebAssembly SIMD" );
+	} );
+
+	it( "says so when the fallback build's folder is missing", () => {
+		const plugin = PhysicsWasmPlugin( MakeFramework(), join( sandbox, "nowhere" ) );
+		const { config, info } = Config( sandbox, "dist" );
+		( plugin.configResolved as ( c: ResolvedConfig ) => void )( config );
+		( plugin.writeBundle as () => void )();
+		expect( String( info.mock.calls[1]![0] ) )
+			.toContain( "no build for browsers without WebAssembly SIMD" );
+	} );
+
+	it( "copies the build for browsers without SIMD too", () => {
+		const directory = MakeFramework();
+		const plugin = PhysicsWasmPlugin( directory, directory );
+		const { config, info } = Config( sandbox, "dist" );
+		( plugin.configResolved as ( c: ResolvedConfig ) => void )( config );
+		( plugin.writeBundle as () => void )();
+		expect( readFileSync( join( sandbox, "dist", "physics-wasm-nosimd", "_framework", "dotnet.js" ), "utf8" ) )
+			.toContain( "dotnet" );
+		expect( String( info.mock.calls[1]![0] ) ).toContain( "physics-wasm-nosimd: copied" );
 	} );
 
 	it(

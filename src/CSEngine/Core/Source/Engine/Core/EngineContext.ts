@@ -1,6 +1,9 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import type { DataStream } from "@cse/datastream";
+import type { Container } from "@cse/di";
+import type { ScriptRuntime } from "@cse/scripting";
 import type { DataAssets } from "../Data/DataAsset";
 import type { SettingsStorage } from "../Storage/SettingsStorage";
 import type { SettingsService } from "../Services/SettingsService";
@@ -57,4 +60,20 @@ export interface EngineContext {
 	readonly Audio: AudioService;
 	readonly Scenes: SceneManager;
 	readonly Time: TimeInfo;
+	/**
+	 * The DataStream: tagged messages between components that don't know each
+	 * other, in TypeScript and in C# alike (`Publish`, `Subscribe`, `Observe`).
+	 */
+	readonly Stream: DataStream;
+	/**
+	 * The runtime of the project's C# components (`CSharp( "Class" )` in a
+	 * manifest); null when the project has none or they failed to load.
+	 */
+	readonly Scripts: ScriptRuntime | null;
+	/**
+	 * The DI container components are injected from (`@Inject` fields, before
+	 * Awake): the current scene's, falling back to the game's root container;
+	 * null where nothing installed one (a bare test world).
+	 */
+	readonly Container: Container | null;
 }

@@ -6,10 +6,23 @@
 // can drive the whole site (workers, protocol, UI, rendering) in a real browser
 // without a .NET build: gravity, resting on axis-aligned boxes, an AABB
 // character controller with the same result layout as the real MoveCharacter,
-// trigger/contact events, and sweeps. Nothing here says anything about how BEPU
-// behaves.
+// trigger/contact events, and sweeps. Nothing here says anything about how
+// CSPhysics behaves.
 
 const Epsilon = 1e-3;
+
+
+/**
+ * What the real bridge hands back for Step and the events: a view of its own
+ * memory (JSType.MemoryView), copied out with slice() and then disposed.
+ */
+function View( values ) {
+	return {
+		length: values.length,
+		slice: () => values.slice(),
+		dispose: () => undefined,
+	};
+}
 
 export function CreateBridge() {
 	let world = null;
@@ -525,7 +538,8 @@ export function CreateBridge() {
 			const w = World();
 
 			for ( const body of allBodies() ) {
-				// like BEPU: kinematic bodies are integrated by their velocity
+				// like CSPhysics: kinematic bodies are integrated by their
+				// velocity
 				if ( body.type === "kinematic" ) {
 					for ( let k = 0; k < 3; k++ ) {
 						body.pos[k] += body.vel[k] * dt;
@@ -624,9 +638,9 @@ export function CreateBridge() {
 			for ( const b of movers ) {
 				out.push( b.id, ...b.pos, ...b.quat, ...b.vel, ...b.angVel );
 			}
-			return out;
+			return View( Float64Array.from( out ) );
 		},
-		GetLastOverlapEvents: () => World().events.slice(),
+		GetLastOverlapEvents: () => View( Int32Array.from( World().events ) ),
 		//#endregion
 	};
 }

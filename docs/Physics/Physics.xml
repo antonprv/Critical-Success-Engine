@@ -9,11 +9,11 @@
              The entire JS-facing surface of the physics simulation. Mirrors
              <see cref="T:Physics.PhysicsWorld"/>'s own "opaque handles + primitives only" design one level
              further out: every handle here is a plain <c>int</c> id minted by this class (never a
-             raw Bepu or Physics handle value), and every shape/pose parameter is
+             raw CSPhysics or Physics handle value), and every shape/pose parameter is
              individual doubles rather than a struct, because that's what the built-in JSExport
              marshaler understands without any custom interop glue. Variable-length data (point clouds,
              triangle soups) crosses as a flat <c>double[]</c> [x0,y0,z0,x1,y1,z1,...] marked with
-             <see cref="!:JSMarshalAs&lt;T&gt;"/>, and every multi-value result comes back as a flat
+             <see cref="T:System.Runtime.InteropServices.JavaScript.JSMarshalAsAttribute`1"/>, and every multi-value result comes back as a flat
              <c>double[]</c> whose layout is documented on the method.
             
              The whole <see cref="T:Physics.PhysicsWorld"/> API is exposed here - there is deliberately nothing left that
@@ -29,13 +29,39 @@
         <member name="F:Physics.Wasm.PhysicsBridge.StepStride">
             <summary>Doubles per body in <see cref="M:Physics.Wasm.PhysicsBridge.Step(System.Double)"/>'s result: [bodyId, pos(3), quat(4), linearVelocity(3), angularVelocity(3)].</summary>
         </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.CreateWorld(System.Double,System.Double,System.Double,System.Int32,System.Int32,System.Boolean,System.Double,System.Double)">
+            <summary>
+            Creates the simulation, replacing (and disposing) any existing world. Resets every shape/body/static id
+            counter, so ids handed out by a previous world must not be reused.
+            </summary>
+            <param name="gravityX">Gravity X, m/s².</param>
+            <param name="gravityY">Gravity Y, m/s².</param>
+            <param name="gravityZ">Gravity Z, m/s².</param>
+            <param name="velocityIterations">Solver velocity iterations per substep.</param>
+            <param name="substeps">Solver substeps per <see cref="M:Physics.Wasm.PhysicsBridge.Step(System.Double)"/>.</param>
+            <param name="useMultithreading">Ignored: the wasm build is single-threaded and always passes false.</param>
+            <param name="frictionCoefficient">Default contact friction.</param>
+            <param name="maximumRecoveryVelocity">Cap on the velocity used to push penetrating bodies apart.</param>
+        </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.DestroyWorld">
+            <summary>Disposes the world. Every other method except <see cref="M:Physics.Wasm.PhysicsBridge.CreateWorld(System.Double,System.Double,System.Double,System.Int32,System.Int32,System.Boolean,System.Double,System.Double)"/> throws until a new one is created.</summary>
+        </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.AddBoxShape(System.Double,System.Double,System.Double)">
+            <summary>Registers a box shape with full extents (not half extents) and returns its shape id.</summary>
+        </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.AddSphereShape(System.Double)">
+            <summary>Registers a sphere shape and returns its shape id.</summary>
+        </member>
         <member name="M:Physics.Wasm.PhysicsBridge.AddCapsuleShape(System.Double,System.Double)">
             <summary><paramref name="cylinderLength"/> is the straight segment only, not the total capped length - matches PhysicsWorld.AddCapsuleShape.</summary>
+        </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.AddCylinderShape(System.Double,System.Double)">
+            <summary>Registers a cylinder shape (<paramref name="height"/> is the full length along local Y) and returns its shape id.</summary>
         </member>
         <member name="M:Physics.Wasm.PhysicsBridge.AddConvexHullShape(System.Double[],System.Double)">
             <summary>
             Builds a convex hull from a flat point cloud [x0,y0,z0,x1,...]. Returns
-            [shapeId, centroidOffsetX, centroidOffsetY, centroidOffsetZ]: Bepu re-centres the hull on its own centroid, and
+            [shapeId, centroidOffsetX, centroidOffsetY, centroidOffsetZ]: CSPhysics re-centres the hull on its own centroid, and
             the offset (in the input points' local space) must be added - rotated by the body's orientation - to the
             source origin when building the pose, or the hull appears shifted. PhysicsWorld.ts does that for you.
             </summary>
@@ -47,22 +73,87 @@
             </summary>
         </member>
         <member name="M:Physics.Wasm.PhysicsBridge.AddDynamicBody(System.Int32,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Int32,System.Int32,System.Int32,System.Int32,System.Boolean)">
+            <summary>Adds a dynamic body and returns its body id.</summary>
+            <param name="shapeId">Id returned by one of the Add*Shape methods.</param>
+            <param name="posX">Initial position X.</param>
+            <param name="posY">Initial position Y.</param>
+            <param name="posZ">Initial position Z.</param>
+            <param name="quatX">Initial orientation quaternion X.</param>
+            <param name="quatY">Initial orientation quaternion Y.</param>
+            <param name="quatZ">Initial orientation quaternion Z.</param>
+            <param name="quatW">Initial orientation quaternion W.</param>
+            <param name="mass">Mass, kg.</param>
+            <param name="layer">Collision layer bits this body belongs to.</param>
+            <param name="mask">Collision layer bits this body collides with.</param>
+            <param name="ownerId">Gameplay id reported back in overlap events and sweep hits.</param>
             <param name="kind">PhysicsObjectKind as int: 0 Solid, 1 Character, 2 Trigger, 3 Projectile.</param>
+            <param name="continuousDetection">Enables continuous collision detection for fast bodies.</param>
         </member>
         <member name="M:Physics.Wasm.PhysicsBridge.AddKinematicBody(System.Int32,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Int32,System.Int32,System.Int32,System.Int32)">
+            <summary>Adds a kinematic body (infinite mass, moved only by velocity/pose) and returns its body id.</summary>
+            <param name="shapeId">Id returned by one of the Add*Shape methods.</param>
+            <param name="posX">Initial position X.</param>
+            <param name="posY">Initial position Y.</param>
+            <param name="posZ">Initial position Z.</param>
+            <param name="quatX">Initial orientation quaternion X.</param>
+            <param name="quatY">Initial orientation quaternion Y.</param>
+            <param name="quatZ">Initial orientation quaternion Z.</param>
+            <param name="quatW">Initial orientation quaternion W.</param>
+            <param name="layer">Collision layer bits this body belongs to.</param>
+            <param name="mask">Collision layer bits this body collides with.</param>
+            <param name="ownerId">Gameplay id reported back in overlap events and sweep hits.</param>
             <param name="kind">PhysicsObjectKind as int: 0 Solid, 1 Character, 2 Trigger, 3 Projectile.</param>
         </member>
         <member name="M:Physics.Wasm.PhysicsBridge.AddStaticBody(System.Int32,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Int32,System.Int32,System.Int32,System.Int32)">
+            <summary>Adds a static collidable and returns its static id (a separate id space from body ids).</summary>
+            <param name="shapeId">Id returned by one of the Add*Shape methods.</param>
+            <param name="posX">Initial position X.</param>
+            <param name="posY">Initial position Y.</param>
+            <param name="posZ">Initial position Z.</param>
+            <param name="quatX">Initial orientation quaternion X.</param>
+            <param name="quatY">Initial orientation quaternion Y.</param>
+            <param name="quatZ">Initial orientation quaternion Z.</param>
+            <param name="quatW">Initial orientation quaternion W.</param>
+            <param name="layer">Collision layer bits this body belongs to.</param>
+            <param name="mask">Collision layer bits this body collides with.</param>
+            <param name="ownerId">Gameplay id reported back in overlap events and sweep hits.</param>
             <param name="kind">PhysicsObjectKind as int: pass 2 (Trigger) for non-solid static sensor volumes.</param>
+        </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.RemoveBody(System.Int32)">
+            <summary>Removes a dynamic or kinematic body. Unknown ids are ignored.</summary>
+        </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.RemoveStatic(System.Int32)">
+            <summary>Removes a static. Unknown ids are ignored.</summary>
+        </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.BodyExists(System.Int32)">
+            <summary>True if the id is registered and the body still exists in the simulation.</summary>
         </member>
         <member name="M:Physics.Wasm.PhysicsBridge.GetBodyPose(System.Int32)">
             <summary>Returns [posX, posY, posZ, quatX, quatY, quatZ, quatW].</summary>
         </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.SetBodyPose(System.Int32,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double)">
+            <summary>Teleports a body to the given position and orientation.</summary>
+        </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.SetAwakeState(System.Int32,System.Boolean)">
+            <summary>Wakes the body (and its island) up or puts it to sleep.</summary>
+        </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.GetAwakeState(System.Int32)">
+            <summary>True if the body is in the active (awake) set.</summary>
+        </member>
         <member name="M:Physics.Wasm.PhysicsBridge.GetLinearVelocity(System.Int32)">
             <summary>Returns [x, y, z].</summary>
         </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.SetLinearVelocity(System.Int32,System.Double,System.Double,System.Double)">
+            <summary>Sets the linear velocity, m/s.</summary>
+        </member>
         <member name="M:Physics.Wasm.PhysicsBridge.GetAngularVelocity(System.Int32)">
             <summary>Returns [x, y, z].</summary>
+        </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.SetAngularVelocity(System.Int32,System.Double,System.Double,System.Double)">
+            <summary>Sets the angular velocity, rad/s.</summary>
+        </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.ApplyImpulse(System.Int32,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double)">
+            <summary>Applies an impulse at an offset from the body's center of mass (world-space offset, not a world position).</summary>
         </member>
         <member name="M:Physics.Wasm.PhysicsBridge.MoveCharacter(System.Int32,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Int32,System.Int32,System.Int32,System.Double,System.Double,System.Double)">
             <summary>
@@ -88,14 +179,21 @@
         </member>
         <member name="M:Physics.Wasm.PhysicsBridge.Step(System.Double)">
             <summary>
-            Advances the simulation and returns every dynamic/kinematic body's fresh state as a flat buffer:
+            Advances the simulation and returns the state of every body that moved, as a view of a flat buffer:
             [bodyId, posX, posY, posZ, quatX, quatY, quatZ, quatW, linVelX, linVelY, linVelZ, angVelX, angVelY, angVelZ]
-            (<see cref="F:Physics.Wasm.PhysicsBridge.StepStride"/> doubles) repeated once per body currently registered, in unspecified order.
-            Call GetLastOverlapEvents() immediately after to read this same step's Entered/Exited transitions.
+            (<see cref="F:Physics.Wasm.PhysicsBridge.StepStride"/> doubles) per awake body, in no particular order. Sleeping bodies don't move and are
+            not listed: their last state stands. The view is valid until the next Step; JS copies it out (slice) and
+            disposes it. Read GetLastOverlapEvents() right after for this step's enter and exit events.
             </summary>
         </member>
         <member name="M:Physics.Wasm.PhysicsBridge.GetLastOverlapEvents">
-            <summary>Flat buffer from the most recent Step(): [ownerIdA, ownerIdB, entered(0/1)] per event.</summary>
+            <summary>
+            The most recent Step's events as a view (copy it out, then dispose it): [ownerIdA, ownerIdB, entered(0/1)] per
+            event. Solid contacts that began or ended, and bodies that entered or left a trigger (the trigger is ownerIdA).
+            </summary>
+        </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.Grow``1(``0[]@,System.Int32)">
+            <summary>Makes room for `length` items; a buffer only grows (doubling), so steps stop allocating.</summary>
         </member>
         <member name="M:Physics.Wasm.PhysicsBridge.ToVectors(System.Double[])">
             <summary>Flat [x0,y0,z0,x1,y1,z1,...] -> Vector3[]. A length that isn't a multiple of 3 is a caller bug, not something to guess around.</summary>

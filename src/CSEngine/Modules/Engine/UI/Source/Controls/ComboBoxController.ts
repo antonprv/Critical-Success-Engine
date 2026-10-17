@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import { ControlBase, type ControlOptions } from "../Core/ControlBase";
 
 export interface ComboOption<T> {
@@ -82,8 +83,8 @@ export class ComboBoxController<T> extends ControlBase<ComboBoxEvents<T>> {
 	private Target(code: string, current: number): number | null {
 		const last = this.Options.length - 1;
 		switch (code) {
-			case "ArrowDown": return Math.min(current + 1, last);
-			case "ArrowUp": return Math.max(current - 1, 0);
+			case "ArrowDown": return FMath.Min(current + 1, last);
+			case "ArrowUp": return FMath.Max(current - 1, 0);
 			case "Home": return 0;
 			case "End": return last;
 		}
@@ -102,7 +103,7 @@ export class ComboBoxController<T> extends ControlBase<ComboBoxEvents<T>> {
 
 	private OpenList(): void {
 		this._open = true;
-		this._highlightedIndex = this._selectedIndex >= 0 ? this._selectedIndex : Math.min(0, this.Options.length - 1);
+		this._highlightedIndex = this._selectedIndex >= 0 ? this._selectedIndex : FMath.Min(0, this.Options.length - 1);
 		this.Emit("open-change", true);
 	}
 

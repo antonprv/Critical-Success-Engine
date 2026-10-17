@@ -7,13 +7,20 @@
 			"@cse/core/modules": ["./Source/Engine/Modules/ModuleManager.ts"],
 			"@cse/core/projects": ["./Source/Engine/Projects/ProjectDescriptor.ts"],
 			"@cse/core/Engine/*": ["./Source/Engine/*"],
-			"@cse/ui/game": ["../Modules/Engine/UI/Source/Runtime/GameUiModule.ts"]
+			"@cse/ui/game": ["../Modules/Engine/UI/Source/Runtime/GameUiModule.ts"],
+			"@cse/fastmath": ["../Modules/Common/FastMath/Source/Index.ts"],
+			"@cse/datastream": ["../Modules/Common/DataStream/Source/Index.ts"],
+			"@cse/di": ["../Modules/Common/DI/Source/Index.ts"],
+			"@cse/scripting": ["../Modules/Scripting/Source/Index.ts"],
+			"@cse/task": ["../Modules/Common/Task/Source/Index.ts"]
 		},
 		// Files the Vite config loads (BuildTools -> Source) import with explicit .ts extensions, as Vite's config loader needs.
 		"allowImportingTsExtensions": true,
 		// File Layout
 
 		"target": "ES2022",
+		// @Inject( IContract ) fields (the engine's DI): TypeScript's own decorators, which oxc compiles too.
+		"experimentalDecorators": true,
 		"module": "ESNext",
 		"moduleResolution": "bundler",
 		"noResolve": false,
@@ -66,7 +73,8 @@
 		"./Source/**/*.tsx",
 		"./Source/**/*.vue",
 		"./Source/**/*.js",
-		"../../Templates/*/Source/**/*.ts"
+		"../../Templates/*/Source/**/*.ts",
+		"../../Perf/*/Source/**/*.ts"
 	],
 
 	"exclude": [

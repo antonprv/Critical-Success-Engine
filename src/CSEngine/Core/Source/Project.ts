@@ -2,6 +2,7 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import {
+	CSharpScripts,
 	InstalledPlugins as Discovered,
 	Project,
 	ProjectModules,
@@ -43,3 +44,6 @@ export const GameProject: ProjectDescriptor = {
  * Unreal finds .uplugin files); the project enables some.
  */
 export const InstalledPlugins: PluginDescriptor[] = Discovered;
+
+/** Whether the project has C# scripts (components written in C#). */
+export const HasCSharpScripts: boolean = CSharpScripts !== null;

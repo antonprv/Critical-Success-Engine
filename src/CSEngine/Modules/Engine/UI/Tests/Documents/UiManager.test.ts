@@ -129,6 +129,18 @@ describe("WinUiHost", () => {
 		expect(host.findAll(".win-ui-host__layer")).toHaveLength(1);
 		host.unmount();
 	});
+	it("a layer leaving (its fade-out still playing) is inert and hidden from assistive technology: no clicks, no reading", async () => {
+		const ui = new UiManager({ Manifest, Load: Files().load });
+		const host = mount(WinUiHost, { props: { manager: ui }, attachTo: document.body, global: { stubs: { transition: false, "transition-group": false } } });
+		await ui.Show("Hud");
+		await nextTick();
+		const layer = host.get(".win-ui-host__layer").element;
+		expect(layer.hasAttribute("inert")).toBe(false);
+		ui.Hide("Hud");
+		await nextTick();
+		expect([layer.hasAttribute("inert"), layer.getAttribute("aria-hidden")]).toEqual([true, "true"]);
+		host.unmount();
+	});
 });
 
 describe("UiManager: more", () => {

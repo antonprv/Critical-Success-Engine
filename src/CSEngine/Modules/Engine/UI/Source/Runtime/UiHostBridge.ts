@@ -6,6 +6,7 @@ import { Actions } from "../Documents/Graph";
 import type { UiDocument } from "../Documents/UiDocument";
 import type { UiManager } from "../Documents/UiManager";
 import { UiChannel, type UiChannels, type UiCommand } from "./GameUi";
+import { Task } from "@cse/task";
 
 type Listen = { id: string; widget: string; event: string; };
 
@@ -19,18 +20,36 @@ function Portable(value: unknown): unknown {
 	}
 }
 
+/** A change of a widget (or a variable): the same key twice means the second replaces the first. */
+function ChangeKey(command: UiCommand): string | null {
+	switch (command.op) {
+		case "set-text": case "set-visible": case "set-enabled": case "set-value": case "set-items":
+			return `${command.op}\u0000${command.id}\u0000${command.widget}`;
+		case "set-variable":
+			return `${command.op}\u0000${command.id}\u0000${command.name}`;
+		default:
+			return null;
+	}
+}
+
 /**
  * The UI plugin's page side: runs the game's commands on the UI documents, in order (a Show and the SetText right after
  * it work, though loading is asynchronous), and sends the events the game listens to back.
+ *
+ * Changes of widgets are applied once per display frame, the last of each winning: a game running far above the
+ * display's rate (no frame limit) would otherwise redo the page's work hundreds of times a second for nothing. A
+ * change still happens before any show, hide or listen that came after it.
  */
 export class UiHostBridge {
-	private _queue: Promise<void> = Promise.resolve();
+	private _queue: Task = Task.CompletedTask;
+	private readonly _changes = new Map<string, UiCommand>();
+	private _frameRequested = false;
 	private readonly _listens: Listen[] = [];
 	private readonly _subscriptions: (() => void)[] = [];
 	private _disposed = false;
 
 	public constructor(private readonly _manager: UiManager, private readonly _channels: UiChannels) {
-		this._subscriptions.push(_channels.On(UiChannel, (payload) => this.Enqueue(payload as UiCommand)));
+		this._subscriptions.push(_channels.On(UiChannel, (payload) => this.Receive(payload as UiCommand)));
 		this._subscriptions.push(_manager.Events.On("shown", (id, document) => {
 			for (const listen of this._listens) if (listen.id === id) this.Attach(listen, document);
 		}));
@@ -39,6 +58,27 @@ export class UiHostBridge {
 	public Dispose(): void {
 		this._disposed = true;
 		for (const off of this._subscriptions.splice(0)) off();
+	}
+
+	private Receive(command: UiCommand): void {
+		const key = ChangeKey(command);
+		if (key === null) {
+			this.FlushChanges();
+			this.Enqueue(command);
+			return;
+		}
+		this._changes.delete(key); // re-added at the end: the order of different changes is kept
+		this._changes.set(key, command);
+		if (!this._frameRequested) {
+			this._frameRequested = true;
+			requestAnimationFrame(() => this.FlushChanges());
+		}
+	}
+
+	private FlushChanges(): void {
+		this._frameRequested = false;
+		for (const change of this._changes.values()) this.Enqueue(change);
+		this._changes.clear();
 	}
 
 	private Enqueue(command: UiCommand): void {
@@ -68,6 +108,7 @@ export class UiHostBridge {
 				control.SetItems(command.items.map((text) => ({ text })));
 				break;
 			}
+			case "set-variable": this._manager.SetVariable(command.id, command.name, command.value); break;
 			case "listen": {
 				const listen = { id: command.id, widget: command.widget, event: command.event };
 				this._listens.push(listen);

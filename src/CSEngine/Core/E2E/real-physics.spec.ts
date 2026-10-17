@@ -4,7 +4,7 @@
 import { expect, test } from "./support/game";
 
 // Only runs with E2E_REAL_PHYSICS=1 (CI, after devops/build-physics.sh): the
-// site built against the REAL BEPU wasm runtime.
+// site built against the REAL CSPhysics wasm runtime.
 test(
 	"the real physics runtime boots and simulates: the player lands, runs and "
 		+ "jumps",

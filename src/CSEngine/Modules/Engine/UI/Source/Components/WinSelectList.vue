@@ -1,5 +1,6 @@
 <!-- Created by Anton Piruev in 2026. Any direct commercial use of derivative work is strictly prohibited. -->
 <script setup lang="ts">
+import { FMath } from "@cse/fastmath";
 export interface SelectListItem {
 	Id: string;
 	Label: string;
@@ -20,7 +21,7 @@ function OnKeyDown(event: KeyboardEvent): void {
 	event.preventDefault();
 	const enabled = props.items.filter((item) => !item.Disabled);
 	const index = enabled.findIndex((item) => item.Id === props.current);
-	const next = enabled[Math.min(Math.max(index + step, 0), enabled.length - 1)];
+	const next = enabled[FMath.Min(FMath.Max(index + step, 0), enabled.length - 1)];
 	if (next) emit("select", next.Id);
 }
 </script>

@@ -1,0 +1,1337 @@
+{
+	"Format": 1,
+	"Name": "Stress",
+	"Script": "",
+	"ClickThrough": true,
+	"Root": {
+		"Name": "Root",
+		"Type": "canvas",
+		"X": 0,
+		"Y": 0,
+		"Width": 800,
+		"Height": 500,
+		"Props": {},
+		"Children": [
+			{
+				"Name": "L0",
+				"Type": "label",
+				"X": 10,
+				"Y": 10,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "0"
+				}
+			},
+			{
+				"Name": "L1",
+				"Type": "label",
+				"X": 88,
+				"Y": 10,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "1"
+				}
+			},
+			{
+				"Name": "L2",
+				"Type": "label",
+				"X": 166,
+				"Y": 10,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "2"
+				}
+			},
+			{
+				"Name": "L3",
+				"Type": "label",
+				"X": 244,
+				"Y": 10,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "3"
+				}
+			},
+			{
+				"Name": "L4",
+				"Type": "label",
+				"X": 322,
+				"Y": 10,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "4"
+				}
+			},
+			{
+				"Name": "L5",
+				"Type": "label",
+				"X": 400,
+				"Y": 10,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "5"
+				}
+			},
+			{
+				"Name": "L6",
+				"Type": "label",
+				"X": 478,
+				"Y": 10,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "6"
+				}
+			},
+			{
+				"Name": "L7",
+				"Type": "label",
+				"X": 556,
+				"Y": 10,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "7"
+				}
+			},
+			{
+				"Name": "L8",
+				"Type": "label",
+				"X": 634,
+				"Y": 10,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "8"
+				}
+			},
+			{
+				"Name": "L9",
+				"Type": "label",
+				"X": 712,
+				"Y": 10,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "9"
+				}
+			},
+			{
+				"Name": "L10",
+				"Type": "label",
+				"X": 10,
+				"Y": 50,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "10"
+				}
+			},
+			{
+				"Name": "L11",
+				"Type": "label",
+				"X": 88,
+				"Y": 50,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "11"
+				}
+			},
+			{
+				"Name": "L12",
+				"Type": "label",
+				"X": 166,
+				"Y": 50,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "12"
+				}
+			},
+			{
+				"Name": "L13",
+				"Type": "label",
+				"X": 244,
+				"Y": 50,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "13"
+				}
+			},
+			{
+				"Name": "L14",
+				"Type": "label",
+				"X": 322,
+				"Y": 50,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "14"
+				}
+			},
+			{
+				"Name": "L15",
+				"Type": "label",
+				"X": 400,
+				"Y": 50,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "15"
+				}
+			},
+			{
+				"Name": "L16",
+				"Type": "label",
+				"X": 478,
+				"Y": 50,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "16"
+				}
+			},
+			{
+				"Name": "L17",
+				"Type": "label",
+				"X": 556,
+				"Y": 50,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "17"
+				}
+			},
+			{
+				"Name": "L18",
+				"Type": "label",
+				"X": 634,
+				"Y": 50,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "18"
+				}
+			},
+			{
+				"Name": "L19",
+				"Type": "label",
+				"X": 712,
+				"Y": 50,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "19"
+				}
+			},
+			{
+				"Name": "L20",
+				"Type": "label",
+				"X": 10,
+				"Y": 90,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "20"
+				}
+			},
+			{
+				"Name": "L21",
+				"Type": "label",
+				"X": 88,
+				"Y": 90,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "21"
+				}
+			},
+			{
+				"Name": "L22",
+				"Type": "label",
+				"X": 166,
+				"Y": 90,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "22"
+				}
+			},
+			{
+				"Name": "L23",
+				"Type": "label",
+				"X": 244,
+				"Y": 90,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "23"
+				}
+			},
+			{
+				"Name": "L24",
+				"Type": "label",
+				"X": 322,
+				"Y": 90,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "24"
+				}
+			},
+			{
+				"Name": "L25",
+				"Type": "label",
+				"X": 400,
+				"Y": 90,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "25"
+				}
+			},
+			{
+				"Name": "L26",
+				"Type": "label",
+				"X": 478,
+				"Y": 90,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "26"
+				}
+			},
+			{
+				"Name": "L27",
+				"Type": "label",
+				"X": 556,
+				"Y": 90,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "27"
+				}
+			},
+			{
+				"Name": "L28",
+				"Type": "label",
+				"X": 634,
+				"Y": 90,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "28"
+				}
+			},
+			{
+				"Name": "L29",
+				"Type": "label",
+				"X": 712,
+				"Y": 90,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "29"
+				}
+			},
+			{
+				"Name": "L30",
+				"Type": "label",
+				"X": 10,
+				"Y": 130,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "30"
+				}
+			},
+			{
+				"Name": "L31",
+				"Type": "label",
+				"X": 88,
+				"Y": 130,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "31"
+				}
+			},
+			{
+				"Name": "L32",
+				"Type": "label",
+				"X": 166,
+				"Y": 130,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "32"
+				}
+			},
+			{
+				"Name": "L33",
+				"Type": "label",
+				"X": 244,
+				"Y": 130,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "33"
+				}
+			},
+			{
+				"Name": "L34",
+				"Type": "label",
+				"X": 322,
+				"Y": 130,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "34"
+				}
+			},
+			{
+				"Name": "L35",
+				"Type": "label",
+				"X": 400,
+				"Y": 130,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "35"
+				}
+			},
+			{
+				"Name": "L36",
+				"Type": "label",
+				"X": 478,
+				"Y": 130,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "36"
+				}
+			},
+			{
+				"Name": "L37",
+				"Type": "label",
+				"X": 556,
+				"Y": 130,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "37"
+				}
+			},
+			{
+				"Name": "L38",
+				"Type": "label",
+				"X": 634,
+				"Y": 130,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "38"
+				}
+			},
+			{
+				"Name": "L39",
+				"Type": "label",
+				"X": 712,
+				"Y": 130,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "39"
+				}
+			},
+			{
+				"Name": "L40",
+				"Type": "label",
+				"X": 10,
+				"Y": 170,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "40"
+				}
+			},
+			{
+				"Name": "L41",
+				"Type": "label",
+				"X": 88,
+				"Y": 170,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "41"
+				}
+			},
+			{
+				"Name": "L42",
+				"Type": "label",
+				"X": 166,
+				"Y": 170,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "42"
+				}
+			},
+			{
+				"Name": "L43",
+				"Type": "label",
+				"X": 244,
+				"Y": 170,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "43"
+				}
+			},
+			{
+				"Name": "L44",
+				"Type": "label",
+				"X": 322,
+				"Y": 170,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "44"
+				}
+			},
+			{
+				"Name": "L45",
+				"Type": "label",
+				"X": 400,
+				"Y": 170,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "45"
+				}
+			},
+			{
+				"Name": "L46",
+				"Type": "label",
+				"X": 478,
+				"Y": 170,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "46"
+				}
+			},
+			{
+				"Name": "L47",
+				"Type": "label",
+				"X": 556,
+				"Y": 170,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "47"
+				}
+			},
+			{
+				"Name": "L48",
+				"Type": "label",
+				"X": 634,
+				"Y": 170,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "48"
+				}
+			},
+			{
+				"Name": "L49",
+				"Type": "label",
+				"X": 712,
+				"Y": 170,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "49"
+				}
+			},
+			{
+				"Name": "L50",
+				"Type": "label",
+				"X": 10,
+				"Y": 210,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "50"
+				}
+			},
+			{
+				"Name": "L51",
+				"Type": "label",
+				"X": 88,
+				"Y": 210,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "51"
+				}
+			},
+			{
+				"Name": "L52",
+				"Type": "label",
+				"X": 166,
+				"Y": 210,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "52"
+				}
+			},
+			{
+				"Name": "L53",
+				"Type": "label",
+				"X": 244,
+				"Y": 210,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "53"
+				}
+			},
+			{
+				"Name": "L54",
+				"Type": "label",
+				"X": 322,
+				"Y": 210,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "54"
+				}
+			},
+			{
+				"Name": "L55",
+				"Type": "label",
+				"X": 400,
+				"Y": 210,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "55"
+				}
+			},
+			{
+				"Name": "L56",
+				"Type": "label",
+				"X": 478,
+				"Y": 210,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "56"
+				}
+			},
+			{
+				"Name": "L57",
+				"Type": "label",
+				"X": 556,
+				"Y": 210,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "57"
+				}
+			},
+			{
+				"Name": "L58",
+				"Type": "label",
+				"X": 634,
+				"Y": 210,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "58"
+				}
+			},
+			{
+				"Name": "L59",
+				"Type": "label",
+				"X": 712,
+				"Y": 210,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "59"
+				}
+			},
+			{
+				"Name": "L60",
+				"Type": "label",
+				"X": 10,
+				"Y": 250,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "60"
+				}
+			},
+			{
+				"Name": "L61",
+				"Type": "label",
+				"X": 88,
+				"Y": 250,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "61"
+				}
+			},
+			{
+				"Name": "L62",
+				"Type": "label",
+				"X": 166,
+				"Y": 250,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "62"
+				}
+			},
+			{
+				"Name": "L63",
+				"Type": "label",
+				"X": 244,
+				"Y": 250,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "63"
+				}
+			},
+			{
+				"Name": "L64",
+				"Type": "label",
+				"X": 322,
+				"Y": 250,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "64"
+				}
+			},
+			{
+				"Name": "L65",
+				"Type": "label",
+				"X": 400,
+				"Y": 250,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "65"
+				}
+			},
+			{
+				"Name": "L66",
+				"Type": "label",
+				"X": 478,
+				"Y": 250,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "66"
+				}
+			},
+			{
+				"Name": "L67",
+				"Type": "label",
+				"X": 556,
+				"Y": 250,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "67"
+				}
+			},
+			{
+				"Name": "L68",
+				"Type": "label",
+				"X": 634,
+				"Y": 250,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "68"
+				}
+			},
+			{
+				"Name": "L69",
+				"Type": "label",
+				"X": 712,
+				"Y": 250,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "69"
+				}
+			},
+			{
+				"Name": "L70",
+				"Type": "label",
+				"X": 10,
+				"Y": 290,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "70"
+				}
+			},
+			{
+				"Name": "L71",
+				"Type": "label",
+				"X": 88,
+				"Y": 290,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "71"
+				}
+			},
+			{
+				"Name": "L72",
+				"Type": "label",
+				"X": 166,
+				"Y": 290,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "72"
+				}
+			},
+			{
+				"Name": "L73",
+				"Type": "label",
+				"X": 244,
+				"Y": 290,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "73"
+				}
+			},
+			{
+				"Name": "L74",
+				"Type": "label",
+				"X": 322,
+				"Y": 290,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "74"
+				}
+			},
+			{
+				"Name": "L75",
+				"Type": "label",
+				"X": 400,
+				"Y": 290,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "75"
+				}
+			},
+			{
+				"Name": "L76",
+				"Type": "label",
+				"X": 478,
+				"Y": 290,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "76"
+				}
+			},
+			{
+				"Name": "L77",
+				"Type": "label",
+				"X": 556,
+				"Y": 290,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "77"
+				}
+			},
+			{
+				"Name": "L78",
+				"Type": "label",
+				"X": 634,
+				"Y": 290,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "78"
+				}
+			},
+			{
+				"Name": "L79",
+				"Type": "label",
+				"X": 712,
+				"Y": 290,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "79"
+				}
+			},
+			{
+				"Name": "L80",
+				"Type": "label",
+				"X": 10,
+				"Y": 330,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "80"
+				}
+			},
+			{
+				"Name": "L81",
+				"Type": "label",
+				"X": 88,
+				"Y": 330,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "81"
+				}
+			},
+			{
+				"Name": "L82",
+				"Type": "label",
+				"X": 166,
+				"Y": 330,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "82"
+				}
+			},
+			{
+				"Name": "L83",
+				"Type": "label",
+				"X": 244,
+				"Y": 330,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "83"
+				}
+			},
+			{
+				"Name": "L84",
+				"Type": "label",
+				"X": 322,
+				"Y": 330,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "84"
+				}
+			},
+			{
+				"Name": "L85",
+				"Type": "label",
+				"X": 400,
+				"Y": 330,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "85"
+				}
+			},
+			{
+				"Name": "L86",
+				"Type": "label",
+				"X": 478,
+				"Y": 330,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "86"
+				}
+			},
+			{
+				"Name": "L87",
+				"Type": "label",
+				"X": 556,
+				"Y": 330,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "87"
+				}
+			},
+			{
+				"Name": "L88",
+				"Type": "label",
+				"X": 634,
+				"Y": 330,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "88"
+				}
+			},
+			{
+				"Name": "L89",
+				"Type": "label",
+				"X": 712,
+				"Y": 330,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "89"
+				}
+			},
+			{
+				"Name": "L90",
+				"Type": "label",
+				"X": 10,
+				"Y": 370,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "90"
+				}
+			},
+			{
+				"Name": "L91",
+				"Type": "label",
+				"X": 88,
+				"Y": 370,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "91"
+				}
+			},
+			{
+				"Name": "L92",
+				"Type": "label",
+				"X": 166,
+				"Y": 370,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "92"
+				}
+			},
+			{
+				"Name": "L93",
+				"Type": "label",
+				"X": 244,
+				"Y": 370,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "93"
+				}
+			},
+			{
+				"Name": "L94",
+				"Type": "label",
+				"X": 322,
+				"Y": 370,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "94"
+				}
+			},
+			{
+				"Name": "L95",
+				"Type": "label",
+				"X": 400,
+				"Y": 370,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "95"
+				}
+			},
+			{
+				"Name": "L96",
+				"Type": "label",
+				"X": 478,
+				"Y": 370,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "96"
+				}
+			},
+			{
+				"Name": "L97",
+				"Type": "label",
+				"X": 556,
+				"Y": 370,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "97"
+				}
+			},
+			{
+				"Name": "L98",
+				"Type": "label",
+				"X": 634,
+				"Y": 370,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "98"
+				}
+			},
+			{
+				"Name": "L99",
+				"Type": "label",
+				"X": 712,
+				"Y": 370,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "99"
+				}
+			},
+			{
+				"Name": "L100",
+				"Type": "label",
+				"X": 10,
+				"Y": 410,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "100"
+				}
+			},
+			{
+				"Name": "L101",
+				"Type": "label",
+				"X": 88,
+				"Y": 410,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "101"
+				}
+			},
+			{
+				"Name": "L102",
+				"Type": "label",
+				"X": 166,
+				"Y": 410,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "102"
+				}
+			},
+			{
+				"Name": "L103",
+				"Type": "label",
+				"X": 244,
+				"Y": 410,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "103"
+				}
+			},
+			{
+				"Name": "L104",
+				"Type": "label",
+				"X": 322,
+				"Y": 410,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "104"
+				}
+			},
+			{
+				"Name": "L105",
+				"Type": "label",
+				"X": 400,
+				"Y": 410,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "105"
+				}
+			},
+			{
+				"Name": "L106",
+				"Type": "label",
+				"X": 478,
+				"Y": 410,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "106"
+				}
+			},
+			{
+				"Name": "L107",
+				"Type": "label",
+				"X": 556,
+				"Y": 410,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "107"
+				}
+			},
+			{
+				"Name": "L108",
+				"Type": "label",
+				"X": 634,
+				"Y": 410,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "108"
+				}
+			},
+			{
+				"Name": "L109",
+				"Type": "label",
+				"X": 712,
+				"Y": 410,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "109"
+				}
+			},
+			{
+				"Name": "L110",
+				"Type": "label",
+				"X": 10,
+				"Y": 450,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "110"
+				}
+			},
+			{
+				"Name": "L111",
+				"Type": "label",
+				"X": 88,
+				"Y": 450,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "111"
+				}
+			},
+			{
+				"Name": "L112",
+				"Type": "label",
+				"X": 166,
+				"Y": 450,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "112"
+				}
+			},
+			{
+				"Name": "L113",
+				"Type": "label",
+				"X": 244,
+				"Y": 450,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "113"
+				}
+			},
+			{
+				"Name": "L114",
+				"Type": "label",
+				"X": 322,
+				"Y": 450,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "114"
+				}
+			},
+			{
+				"Name": "L115",
+				"Type": "label",
+				"X": 400,
+				"Y": 450,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "115"
+				}
+			},
+			{
+				"Name": "L116",
+				"Type": "label",
+				"X": 478,
+				"Y": 450,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "116"
+				}
+			},
+			{
+				"Name": "L117",
+				"Type": "label",
+				"X": 556,
+				"Y": 450,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "117"
+				}
+			},
+			{
+				"Name": "L118",
+				"Type": "label",
+				"X": 634,
+				"Y": 450,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "118"
+				}
+			},
+			{
+				"Name": "L119",
+				"Type": "label",
+				"X": 712,
+				"Y": 450,
+				"Width": 74,
+				"Height": 30,
+				"Props": {
+					"Text": "119"
+				}
+			}
+		]
+	}
+}

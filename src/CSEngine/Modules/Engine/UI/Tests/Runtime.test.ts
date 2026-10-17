@@ -11,7 +11,7 @@ import type { ButtonController } from "../Source/Controls/ButtonController";
 import { CreateNode, NewLayout, SerializeLayout, WidgetType } from "../Source/Documents/Layout";
 import { UiDocument } from "../Source/Documents/UiDocument";
 import { UiManager } from "../Source/Documents/UiManager";
-import { Actions } from "../Source/Documents/Graph";
+import { ActionType, Actions, GraphNodeKind, VariableEvent, VariableKind } from "../Source/Documents/Graph";
 import { GameUi, UiChannel } from "../Source/Runtime/GameUi";
 import { UiHostBridge } from "../Source/Runtime/UiHostBridge";
 
@@ -31,7 +31,13 @@ function Wire(): { game: ChannelHub; page: ChannelHub; } {
 	return { game, page };
 }
 
-const settle = async () => { for (let i = 0; i < 6; i++) await new Promise((resolve) => setTimeout(resolve, 0)); await nextTick(); };
+// Timers, then two animation frames: a window that closes leaves through a
+// transition, which Vue finishes on the frame after next.
+const settle = async () => {
+	for (let i = 0; i < 6; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+	for (let i = 0; i < 2; i++) await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+	await nextTick();
+};
 
 describe("labels are live widgets", () => {
 	it("a label has a controller: scripts change its text and visibility", () => {
@@ -116,6 +122,24 @@ describe("UiHostBridge (the page's side): commands from the game reach the UI do
 		expect(manager.IsShown("Hud")).toBe(false);
 	});
 
+	it("changes of widgets apply at most once per display frame, the last one winning; their order around show and hide holds", async () => {
+		const { ui, manager } = Make();
+		ui.Show("Hud");
+		await settle();
+		const coins = manager.Get("Hud")!.Controller<LabelController>("Coins");
+		const applied = vi.spyOn(Actions, "SetText");
+		// a game running far above the display's rate: 1000 texts before the page draws
+		for (let i = 0; i <= 1000; i++) ui.SetText("Hud", "Coins", `Coins: ${i}`);
+		await settle();
+		expect(applied).toHaveBeenCalledTimes(1);
+		expect(coins.Label).toBe("Coins: 1000");
+		// a change queued before a hide happens before it (not lost, not after it)
+		ui.SetText("Hud", "Coins", "last");
+		ui.Hide("Hud");
+		await settle();
+		expect([coins.Label, manager.IsShown("Hud")]).toEqual(["last", false]);
+	});
+
 	it("widget events go back to the game, also for documents shown after the game started listening", async () => {
 		const { ui, manager } = Make();
 		const clicked = vi.fn();
@@ -163,10 +187,14 @@ describe("UiHostBridge (the page's side): commands from the game reach the UI do
 		await settle();
 		manager.Get("Hud")!.Controller<ButtonController>("Restart").PerformClick();
 		expect(other).not.toHaveBeenCalled();
+		// a command runs at once when nothing is pending (tasks continue synchronously); one queued behind another
+		// is dropped by a Dispose meanwhile
 		ui.Hide("Hud");
-		bridge.Dispose(); // the Hide is queued already
+		expect(manager.IsShown("Hud")).toBe(false);
+		ui.Show("Hud"); // queued behind the Hide's completion
+		bridge.Dispose();
 		await settle();
-		expect(manager.IsShown("Hud")).toBe(true);
+		expect(manager.IsShown("Hud")).toBe(false);
 	});
 
 	it("Dispose stops it", async () => {
@@ -194,8 +222,12 @@ describe("the UI plugin's modules", () => {
 		const host = await page.LoadModuleChecked<import("../Source/Runtime/UiHostModule").default>("UIHost");
 		const layer = document.querySelector(".cse-ui-host")!;
 		expect(layer.nextElementSibling?.id).toBe("ui"); // under the engine's own menus and HUD
-		const { GetGameUi } = await import("../Source/Runtime/GameUiModule");
+		const { GetGameUi, GameUiInstaller, IGameUi } = await import("../Source/Runtime/GameUiModule");
 		await page.LoadModuleChecked("UIGame");
+		// a game reaches it through its contract: GameUiInstaller binds it
+		const { ContainerBuilder } = await import("@cse/di");
+		const container = new ContainerBuilder().Install(new GameUiInstaller()).Build();
+		expect(container.Resolve(IGameUi)).toBe(GetGameUi());
 		const sent: unknown[] = [];
 		engineChannels.Connect((_c, payload) => { sent.push(payload); engineChannels.Deliver(UiChannel, payload); }); // one thread plays both sides
 		GetGameUi().Show("Hud");
@@ -213,12 +245,13 @@ describe("the UI plugin's modules", () => {
 		const { ChannelHub: Hub } = await import("@cse/core/Engine/Core/Channels");
 		const { reactive } = await import("vue");
 		const page = {
-			State: reactive({ loading: { visible: true, label: "Starting workers…", fraction: 0.02 }, menu: { visible: false, mode: 0, scenes: [], currentSceneId: null } }),
+			State: reactive({ loading: { visible: true, label: "Starting workers…", fraction: 0.02 }, menu: { visible: false, mode: 0, scenes: [], currentSceneId: null }, hud: { visible: true, lines: [], bars: [] } }),
 			Title: "T", Resume: vi.fn(), SelectScene: vi.fn(), IsStartMenu: () => true, UseDocumentScreens: vi.fn(), Pause: vi.fn(), SetTouchMode: vi.fn(),
 		};
 		class PageEngine extends Base {
 			public readonly Channels = new Hub();
-			public readonly ProjectUi = { Manifest: { FileVersion: 1, Documents: [] }, Load: async () => "" };
+			// the project's theme: the Tailwind kit, dark
+			public readonly ProjectUi = { Manifest: { FileVersion: 1, Documents: [] }, Load: async () => "", Theme: { Kit: "tailwind", Theme: "xp-blue", Tailwind: { Accent: "rose", Neutral: "stone", Dark: true, Radius: "lg" } } };
 			public readonly PageUi = page;
 		}
 		const modules = Fresh.Get();
@@ -228,6 +261,8 @@ describe("the UI plugin's modules", () => {
 		await modules.LoadModuleChecked("UIHost");
 		await settle();
 		expect(page.UseDocumentScreens).toHaveBeenCalled();
+		// the documents are drawn in the project's theme
+		expect(document.querySelector(".cse-ui-host .win-kit--tailwind")).not.toBeNull();
 		expect(document.querySelector('[data-ui="EngineLoading"] [data-name="Status"]')?.textContent).toBe("Starting workers…");
 		page.State.loading.visible = false;
 		page.State.menu.visible = true;
@@ -361,6 +396,60 @@ describe("values, lists and loading screens", () => {
 				{ op: "show", id: "Splash" }, { op: "set-value", id: "Splash", widget: "Bar", value: 50 }, { op: "set-text", id: "Splash", widget: "Text", text: "a" },
 			]);
 		});
+	});
+});
+
+describe("variables: a component's parameters reach the document's graph", () => {
+	/** A HUD whose graph shows its Coins variable in a label. */
+	function CoinsHud(): string {
+		const layout = NewLayout("Hud");
+		layout.Root.Children!.push(CreateNode(WidgetType.Label, "Coins", 10, 10));
+		layout.Graph = {
+			Variables: [{ Name: "Coins", Kind: VariableKind.Number, Default: 0 }],
+			Nodes: [
+				{ Id: "e", Kind: GraphNodeKind.Event, Type: VariableEvent, X: 0, Y: 0, Params: { Variable: "Coins" } },
+				{ Id: "a", Kind: GraphNodeKind.Action, Type: ActionType.SetText, X: 0, Y: 0, Params: { Widget: "Coins", Text: "Coins: {Coins}" } },
+			],
+			Links: [{ From: "e", To: "a" }],
+		};
+		return SerializeLayout(layout);
+	}
+
+	it("GameUi posts a variable only when its value changes (a component can set it every frame)", () => {
+		const sent: unknown[] = [];
+		const channels = new ChannelHub();
+		channels.Connect((_c, payload) => sent.push(payload));
+		const ui = new GameUi(channels);
+		ui.SetVariable("Hud", "Coins", 1);
+		ui.SetVariable("Hud", "Coins", 1);
+		ui.SetVariable("Menu", "Coins", 1); // another document: its own
+		ui.SetVariable("Hud", "Coins", 2);
+		expect(sent).toEqual([
+			{ op: "set-variable", id: "Hud", name: "Coins", value: 1 }, { op: "set-variable", id: "Menu", name: "Coins", value: 1 },
+			{ op: "set-variable", id: "Hud", name: "Coins", value: 2 },
+		]);
+	});
+
+	it("the page keeps them for the document: set before it shows, while it shows, and again after it was hidden", async () => {
+		const { game, page } = Wire();
+		const manager = new UiManager({ Manifest: { FileVersion: 1, Documents: [{ Id: "Hud", Path: "Hud.ui.json", Script: "" }] }, Load: async () => CoinsHud() });
+		new UiHostBridge(manager, page);
+		const ui = new GameUi(game);
+		ui.SetVariable("Hud", "Coins", 3); // not shown yet
+		ui.Show("Hud");
+		await settle();
+		const coins = () => manager.Get("Hud")!.Controller<LabelController>("Coins").Label;
+		expect(coins()).toBe("Coins: 3");
+		ui.SetVariable("Hud", "Coins", 4);
+		await settle();
+		expect(coins()).toBe("Coins: 4");
+		ui.Hide("Hud");
+		ui.SetVariable("Hud", "Coins", 5);
+		ui.Show("Hud");
+		await settle();
+		expect(coins()).toBe("Coins: 5");
+		expect(manager.Variables("Hud")).toEqual({ Coins: 5 });
+		expect(manager.Variables("Nothing")).toEqual({});
 	});
 });
 

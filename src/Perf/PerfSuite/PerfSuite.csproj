@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!-- The perf suite's C# scripts (Source/**/*.cs): the C# side of the interop load. -->
+	<PropertyGroup>
+		<CSEnginePath Condition="'$(CSEnginePath)' == ''">$(MSBuildProjectDirectory)/../../..</CSEnginePath>
+	</PropertyGroup>
+	<Import Project="$(CSEnginePath)/src/CSEngine/Modules/Scripting/Sdk/CSEngine.Game.targets" />
+
+</Project>

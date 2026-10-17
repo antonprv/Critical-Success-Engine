@@ -11,6 +11,12 @@ export default tseslint.config(
 			".e2e/**",
 			"test-results/**",
 			"playwright-report/**",
+			// generated from .contract files (rewritten on every change)
+			"**/*.contract.ts",
+			// what C# projects build to (a project's scripts: Binaries/Scripts)
+			"**/Binaries/**",
+			"**/obj/**",
+			"**/bin/**",
 		],
 	},
 

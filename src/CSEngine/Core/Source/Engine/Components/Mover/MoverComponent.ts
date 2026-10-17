@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import { Logger } from "../../../Logging/Logger";
 import { CollisionLayer } from "../../Core/CollisionLayer";
 import { Quat } from "../../Math/Quat";
@@ -145,7 +146,10 @@ export class MoverComponent extends CharacterBody {
 			return;
 		}
 
-		const horizontalSpeed = Math.hypot( this.Velocity.X, this.Velocity.Z );
+		const horizontalSpeed = FMath.Length2(
+			this.Velocity.X,
+			this.Velocity.Z,
+		);
 		ui.SetHud(
 			"mover.mode",
 			`Mode: ${
@@ -284,7 +288,7 @@ export class MoverComponent extends CharacterBody {
 
 		// The body itself never rotates (identity basis), so world input ==
 		// local input.
-		const targetAngle = Math.atan2(
+		const targetAngle = FMath.FastAtan2(
 			-this._inputDirection.X,
 			-this._inputDirection.Z,
 		);
@@ -292,7 +296,7 @@ export class MoverComponent extends CharacterBody {
 		const smooth = Quat.Slerp(
 			this._facing,
 			target,
-			Math.min( 1, this.RotationSpeed * dt ),
+			FMath.Min( 1, this.RotationSpeed * dt ),
 		);
 
 		this._facing.CopyFrom( smooth );

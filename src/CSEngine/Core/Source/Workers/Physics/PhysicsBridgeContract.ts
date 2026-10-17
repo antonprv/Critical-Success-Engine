@@ -8,6 +8,26 @@
 export type FlatNumbers = ArrayLike<number>;
 
 /**
+ * A view of the bridge's own memory (.NET's JSType.MemoryView): no per-number
+ * marshalling. It is valid until the bridge's next Step: copy it out (`slice`)
+ * and `dispose` it, as `ReadView` does.
+ */
+export interface BridgeView<T> {
+	readonly length: number;
+	slice(): T;
+	dispose(): void;
+}
+
+/** Copies a bridge view out and lets the bridge have its memory back. */
+export function ReadView<T>( view: BridgeView<T> ): T {
+	try {
+		return view.slice();
+	} finally {
+		view.dispose();
+	}
+}
+
+/**
  * The JS surface of PhysicsBridge.cs's [JSExport] methods, written by hand
  * because the wasm build is not part of the TypeScript build. Ids are minted by
  * the bridge; `ownerId` is echoed back in events and sweeps (the entity id).
@@ -160,15 +180,18 @@ export interface PhysicsBridgeExports {
 	//#region Stepping
 
 	/**
-	 * Flat, BODY_STRIDE (14) doubles per body: [bodyId, pos(3), quat(4),
+	 * The bodies that moved (the awake ones; a sleeping body keeps its last
+	 * state): BODY_STRIDE (14) doubles each, [bodyId, pos(3), quat(4),
 	 * linearVelocity(3), angularVelocity(3)].
 	 */
-	Step( dt: number ): FlatNumbers;
+	Step( dt: number ): BridgeView<Float64Array<ArrayBuffer>>;
 
 	/**
-	 * Flat [ownerA, ownerB, entered(0/1)] triples from the most recent Step.
+	 * [ownerA, ownerB, entered(0/1)] triples from the most recent Step:
+	 * contacts that began or ended, and bodies entering or leaving a trigger
+	 * (ownerA is the trigger).
 	 */
-	GetLastOverlapEvents(): FlatNumbers;
+	GetLastOverlapEvents(): BridgeView<Int32Array<ArrayBuffer>>;
 
 	//#endregion
 }

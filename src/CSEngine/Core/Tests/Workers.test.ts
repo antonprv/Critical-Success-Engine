@@ -141,6 +141,7 @@ describe( "GameLogicWorker", () => {
 			channels: unknown;
 			storage: { Backend: string; };
 			data: { Ids: string[]; };
+			scripts: ( () => Promise<unknown> ) | null;
 			handled: unknown[];
 		}[] = [];
 		vi.doMock( "../Source/Engine/Runtime/GameLogicRuntime", () => ( {
@@ -154,6 +155,7 @@ describe( "GameLogicWorker", () => {
 					_input: unknown,
 					public storage: unknown,
 					public data: unknown,
+					public scripts: unknown,
 				) {
 					instances.push( this as never );
 				}
@@ -167,6 +169,25 @@ describe( "GameLogicWorker", () => {
 		} ) );
 		return instances;
 	}
+
+	it(
+		"listens with addEventListener, never self.onmessage: dotnet.js (the "
+			+ "C# scripts) would take the worker for a plain one and hang",
+		async () => {
+			MockRuntime();
+			await import( "../Source/Workers/GameLogicWorker" );
+			expect( fakeSelf.onmessage ).toBeNull();
+		},
+	);
+
+	it( "starts in the scene the page asks for (?scene=); none: the first", async () => {
+		const instances = MockRuntime();
+		await import( "../Source/Workers/GameLogicWorker" );
+		const ports = { renderPort: new FakePort(), physicsPort: new FakePort(), audioPort: new FakePort(), uiPort: new FakePort() };
+		fakeSelf.Send( { type: GameLogicMsg.Init, ...ports, startScene: "coins" } );
+		await vi.waitFor( () => expect( instances ).toHaveLength( 1 ) );
+		expect( ( instances[0] as unknown as { StartScene: string | null; } ).StartScene ).toBe( "coins" );
+	} );
 
 	it(
 		"starts the engine's modules, then builds the runtime with the four "
@@ -433,6 +454,73 @@ describe( "GameLogicWorker", () => {
 			vi.doUnmock( "../Source/Project" );
 		},
 	);
+} );
+
+describe( "GameLogicWorker with C# scripts", () => {
+	it( "gives the runtime a loader for the project's C# scripts (the Games Sample has some), at the dev server's path", async () => {
+		const load = vi.fn( async () => ( { Names: [], Run: () => new Uint8Array() } ) );
+		vi.doMock( "@cse/scripting", async ( original ) => ( {
+			...await original<typeof import( "@cse/scripting" )>(),
+			LoadScriptsWasm: load,
+		} ) );
+		const instances: { scripts: ( () => Promise<unknown> ) | null; }[] = [];
+		vi.doMock( "../Source/Engine/Runtime/GameLogicRuntime", () => ( {
+			GameLogicRuntime: class {
+				public scripts: ( () => Promise<unknown> ) | null;
+
+				public constructor( ...args: unknown[] ) {
+					this.scripts = args[6] as never;
+					instances.push( this );
+				}
+
+				public Boot = () => Promise.resolve();
+
+				public HandleMainMessage(): void {
+				}
+			},
+		} ) );
+		await import( "../Source/Workers/GameLogicWorker" );
+		fakeSelf.Send( {
+			type: GameLogicMsg.Init,
+			renderPort: new FakePort(),
+			physicsPort: new FakePort(),
+			audioPort: new FakePort(),
+			uiPort: new FakePort(),
+		} );
+		await vi.waitFor( () => expect( instances ).toHaveLength( 1 ) );
+		await instances[0]!.scripts!();
+		expect( load ).toHaveBeenCalledWith( "/scripts-wasm/_framework/dotnet.js" );
+		vi.doUnmock( "@cse/scripting" );
+	} );
+	it( "a project without C# scripts gets no loader", async () => {
+		vi.doMock( "../Source/Project", async ( original ) => ( {
+			...await original<typeof import( "../Source/Project" )>(),
+			HasCSharpScripts: false,
+		} ) );
+		const scripts: unknown[] = [];
+		vi.doMock( "../Source/Engine/Runtime/GameLogicRuntime", () => ( {
+			GameLogicRuntime: class {
+				public constructor( ...args: unknown[] ) {
+					scripts.push( args[6] );
+				}
+
+				public Boot = () => Promise.resolve();
+
+				public HandleMainMessage(): void {
+				}
+			},
+		} ) );
+		await import( "../Source/Workers/GameLogicWorker" );
+		fakeSelf.Send( {
+			type: GameLogicMsg.Init,
+			renderPort: new FakePort(),
+			physicsPort: new FakePort(),
+			audioPort: new FakePort(),
+			uiPort: new FakePort(),
+		} );
+		await vi.waitFor( () => expect( scripts ).toEqual( [null] ) );
+		vi.doUnmock( "../Source/Project" );
+	} );
 } );
 
 describe( "AudioWorker", () => {
@@ -736,6 +824,14 @@ describe( "PhysicsWorker", () => {
 				overlaps?: Int32Array | null;
 			}[] ).find( ( m ) => m.overlaps );
 			expect( withOverlaps ).toBeDefined();
+			// the perf probe: each step's time and body count
+			const taken = ( globalThis as unknown as {
+				__csePerf: { Thread: string; Take(): Record<string, number[]>; };
+			} ).__csePerf;
+			expect( taken.Thread ).toBe( "Physics" );
+			const samples = taken.Take();
+			expect( samples["physics"]!.length ).toBe( steps( port ).length );
+			expect( samples["bodies"]!.length ).toBe( steps( port ).length );
 		},
 	);
 
@@ -859,9 +955,15 @@ describe( "RenderWorker", () => {
 		const scene = {
 			Scene: {}, AssetLoader: {},
 			Resize: vi.fn(), SetClearColor: vi.fn(), PoseCamera: vi.fn(),
+			Perf: { Take: () => ( { frame: [1] } ), Add: vi.fn() },
+			GpuInfo: { renderer: "Fake GPU" },
+			Uncap: vi.fn(), Wake: vi.fn(), UseFxaa: vi.fn(),
 			loop: null as ( () => void ) | null,
-			RunRenderLoop( callback: () => void ) {
-				this.loop = callback;
+			loopResults: [] as boolean[],
+			RunRenderLoop( callback: () => boolean ) {
+				this.loop = () => {
+					this.loopResults.push( callback() );
+				};
 			},
 		};
 		const registry = {
@@ -876,9 +978,9 @@ describe( "RenderWorker", () => {
 		const created: unknown[][] = [];
 		vi.doMock(
 			"../Source/Workers/Render/RenderScene",
-			() => ( { RenderScene: vi.fn( function ( ...args: unknown[] ) {
+			() => ( { RenderScene: Object.assign( vi.fn( function ( ...args: unknown[] ) {
 				created.push( args ); return scene;
-			} ) } ),
+			} ), { WebGl: ( antialias: boolean ) => `webgl, antialias ${ antialias }` } ) } ),
 		);
 		vi.doMock(
 			"../Source/Workers/Render/EntityMeshRegistry",
@@ -930,6 +1032,12 @@ describe( "RenderWorker", () => {
 					{ type: RenderMsg.SetInspectorVisible, visible: true },
 				),
 			).not.toThrow();
+			// the perf harness reads the render thread's samples and GPU here
+			const probe = ( globalThis as unknown as {
+				__csePerf: { Thread: string; Take(): unknown; Info(): unknown; };
+			} ).__csePerf;
+			expect( [probe.Thread, probe.Take(), probe.Info()] )
+				.toEqual( ["Render", { frame: [1] }, { renderer: "Fake GPU" }] );
 		},
 	);
 
@@ -950,8 +1058,10 @@ describe( "RenderWorker", () => {
 					devicePixelRatio: 2,
 				},
 			);
-			expect( created[0] ).toEqual( [{ id: "c" }, 800, 600, 2] );
+			// FXAA by default: the engine is made without multisampling
+			expect( created[0] ).toEqual( [{ id: "c" }, 800, 600, 2, "webgl, antialias false"] );
 			expect( port.sent[0] ).toEqual( { type: RenderMsg.Ready } );
+			expect( scene.Uncap ).not.toHaveBeenCalled();
 
 			scene.loop!();
 			scene.loop!();
@@ -965,6 +1075,34 @@ describe( "RenderWorker", () => {
 			expect( requests.map( ( r ) => r.frameId ) ).toEqual( [1, 2] );
 		},
 	);
+
+
+	it( "with uncapped (the page's ?uncapped) it draws without the display's limit", async () => {
+		const { scene } = await Start();
+		fakeSelf.Send( { type: RenderMsg.Init, canvas: {}, gameLogicPort: new FakePort(), devMode: false, width: 1, height: 1, devicePixelRatio: 1, uncapped: true } );
+		expect( scene.Uncap ).toHaveBeenCalled();
+	} );
+
+	it( "?aa=off: the engine is made without multisampling", async () => {
+		const { created, scene } = await Start();
+		fakeSelf.Send( { type: RenderMsg.Init, canvas: {}, gameLogicPort: new FakePort(), devMode: false, width: 1, height: 1, devicePixelRatio: 1, antialias: "off" } );
+		expect( created[0]![4] ).toBe( "webgl, antialias false" );
+		expect( scene.UseFxaa ).not.toHaveBeenCalled();
+	} );
+
+	it( "?aa=msaa: multisampling, no FXAA pass", async () => {
+		const { created, scene } = await Start();
+		fakeSelf.Send( { type: RenderMsg.Init, canvas: {}, gameLogicPort: new FakePort(), devMode: false, width: 1, height: 1, devicePixelRatio: 1, antialias: "msaa" } );
+		expect( created[0]![4] ).toBe( "webgl, antialias true" );
+		expect( scene.UseFxaa ).not.toHaveBeenCalled();
+	} );
+
+	it( "?aa=fxaa: no multisampling, an FXAA pass instead", async () => {
+		const { created, scene } = await Start();
+		fakeSelf.Send( { type: RenderMsg.Init, canvas: {}, gameLogicPort: new FakePort(), devMode: false, width: 1, height: 1, devicePixelRatio: 1, antialias: "fxaa" } );
+		expect( created[0]![4] ).toBe( "webgl, antialias false" );
+		expect( scene.UseFxaa ).toHaveBeenCalled();
+	} );
 
 	it(
 		"applies a received frame on the next display frame (transforms + "
@@ -1019,6 +1157,8 @@ describe( "RenderWorker", () => {
 			scene.loop!();
 			expect( registry.ApplyTransformBatch ).toHaveBeenCalledTimes( 2 );
 			expect( scene.PoseCamera ).toHaveBeenCalledTimes( 1 );
+			// the loop learns when a frame brings a new game state (fps counts those)
+			expect( scene.loopResults ).toEqual( [false, false, true, true] );
 		},
 	);
 
@@ -1190,6 +1330,41 @@ describe( "PhysicsWasmLoader", () => {
 			).toBe( "/physics-wasm/_framework/dotnet.js" );
 		},
 	);
+
+	it( "without WebAssembly SIMD it loads the fallback build (FastMath instead of SIMD), in dev and in a built site", async () => {
+		const { PhysicsWasmLoader, SupportsWasmSimd } = await import( "../Source/Workers/Physics/PhysicsWasmLoader" );
+		const url = () => ( new PhysicsWasmLoader() as unknown as { _dotnetJsUrl: string; } )._dotnetJsUrl;
+		expect( SupportsWasmSimd() ).toBe( true ); // Node's V8 has it
+		expect( SupportsWasmSimd( { validate: () => false } ) ).toBe( false );
+		vi.stubGlobal( "WebAssembly", undefined ); // no WebAssembly at all
+		expect( SupportsWasmSimd() ).toBe( false );
+		vi.stubGlobal( "WebAssembly", { validate: () => false } );
+		expect( url() ).toBe( "/physics-wasm-nosimd/_framework/dotnet.js" );
+		vi.stubGlobal( "__DEV__", false );
+		vi.stubGlobal( "self", { location: { href: "https://host/run/assets/PhysicsWorker-abc.js" } } );
+		expect( url() ).toBe( "https://host/run/physics-wasm-nosimd/_framework/dotnet.js" );
+	} );
+
+	it( "in a built site, finds the runtime next to the worker's assets folder, so the site can live under any path", async () => {
+		const { PhysicsWasmLoader } = await import( "../Source/Workers/Physics/PhysicsWasmLoader" );
+		const url = () => ( new PhysicsWasmLoader() as unknown as { _dotnetJsUrl: string; } )._dotnetJsUrl;
+
+		vi.stubGlobal( "__DEV__", false );
+		vi.stubGlobal( "self", { location: { href: "https://host/games/run/assets/PhysicsWorker-abc.js" } } );
+		expect( url() ).toBe( "https://host/games/run/physics-wasm/_framework/dotnet.js" );
+		// not served from an assets folder: the root
+		vi.stubGlobal( "self", { location: { href: "https://host/index.html" } } );
+		expect( url() ).toBe( "/physics-wasm/_framework/dotnet.js" );
+		// no location at all (a test or an odd host)
+		vi.stubGlobal( "self", {} );
+		expect( url() ).toBe( "/physics-wasm/_framework/dotnet.js" );
+		vi.stubGlobal( "self", undefined );
+		expect( url() ).toBe( "/physics-wasm/_framework/dotnet.js" );
+		// a bundle that never defined __DEV__ counts as a build
+		vi.stubGlobal( "__DEV__", undefined );
+		vi.stubGlobal( "self", { location: { href: "https://host/assets/w.js" } } );
+		expect( url() ).toBe( "https://host/physics-wasm/_framework/dotnet.js" );
+	} );
 
 	describe( "resource loader", () => {
 		async function Loader(): Promise<Loader> {

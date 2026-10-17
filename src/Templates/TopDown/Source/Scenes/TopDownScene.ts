@@ -19,6 +19,7 @@ import { HudText } from "@cse/core/Engine/Gameplay/Scripts";
 import { StaticBox } from "@cse/core/Engine/Scenes/SceneHelpers";
 import { PadCounter, VisitPad } from "../Scripts/Pads";
 import { TopDownCameraSetup } from "../Scripts/TopDownCameraSetup";
+import { CSharp } from "@cse/core/Engine/Components/CSharp";
 
 const Wall: [number, number, number] = [0.3, 0.33, 0.38];
 const PlayerShape = Shapes.Capsule( 0.5, 2 );
@@ -81,7 +82,11 @@ export const TopDownScene: SceneManifest = {
 				),
 			],
 		),
-		Ent( "Rules", [Comp( PadCounter )] ),
+		Ent( "Rules", [
+			Comp( PadCounter ),
+			// written in C#: Source/Scripts/VisitTimer.cs
+			CSharp( "VisitTimer" ),
+		] ),
 		Ent(
 			"Hints",
 			[

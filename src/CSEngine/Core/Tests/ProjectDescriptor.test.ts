@@ -13,6 +13,7 @@ import {
 	ParseProject,
 	ProjectFileVersion,
 	SerializeProject,
+	ToFriendlyName,
 	type CseProject,
 } from "../Source/Engine/Projects/ProjectDescriptor";
 
@@ -367,6 +368,78 @@ describe( "project descriptors: data assets", () => {
 			.toBe(
 				"Not a project file: data asset Id \"a b\" must be an "
 					+ "identifier",
+			);
+	} );
+} );
+
+describe( "project names in the UI", () => {
+	it(
+		"an identifier reads as words: camel case and acronyms are split, "
+			+ "underscores become spaces",
+		() => {
+			expect( ToFriendlyName( "GamesSample" ) ).toBe( "Games Sample" );
+			expect( ToFriendlyName( "MyRPGGame" ) ).toBe( "My RPG Game" );
+			expect( ToFriendlyName( "Level2Boss" ) ).toBe( "Level 2 Boss" );
+			expect( ToFriendlyName( "space_race" ) ).toBe( "space race" );
+			expect( ToFriendlyName( "Tiny" ) ).toBe( "Tiny" );
+		},
+	);
+} );
+
+describe( "the project's UI theme", () => {
+	const Base = { FileVersion: 1, Name: "Game", Modules: [] };
+
+	it(
+		"is optional; when given it says the kit, the theme and the Tailwind "
+			+ "palette, and is written back",
+		() => {
+			expect( ParseProject( JSON.stringify( Base ) ).Ui.Theme )
+				.toBeUndefined();
+			const theme = {
+				Kit: "tailwind",
+				Theme: "xp-blue",
+				Tailwind: {
+					Accent: "rose",
+					Neutral: "stone",
+					Dark: true,
+					Radius: "lg",
+				},
+			};
+			const project = ParseProject(
+				JSON.stringify( { ...Base, Ui: { Theme: theme } } ),
+			);
+			expect( project.Ui )
+				.toEqual(
+					{ Manifest: "Content/UI/Ui.manifest.json", Theme: theme },
+				);
+			expect( ParseProject( SerializeProject( project ) ).Ui.Theme )
+				.toEqual( theme );
+			// a classic theme needs no palette
+			expect(
+				ParseProject(
+					JSON.stringify(
+						{
+							...Base,
+							Ui: { Theme: { Kit: "classic", Theme: "win98" } },
+						},
+					),
+				).Ui.Theme,
+			)
+				.toEqual( { Kit: "classic", Theme: "win98" } );
+		},
+	);
+
+	it( "a theme that isn't one fails the project, saying why", () => {
+		const Bad = ( theme: unknown ) => () => ParseProject(
+			JSON.stringify( { ...Base, Ui: { Theme: theme } } ),
+		);
+		expect( Bad( "xp" ) )
+			.toThrow( "Ui.Theme must be { Kit, Theme, Tailwind? }" );
+		expect( Bad( { Kit: "classic" } ) )
+			.toThrow( "Ui.Theme must be { Kit, Theme, Tailwind? }" );
+		expect( Bad( { Kit: "classic", Theme: "x", Tailwind: { Accent: 1 } } ) )
+			.toThrow(
+				"Ui.Theme.Tailwind must be { Accent, Neutral, Dark, Radius }",
 			);
 	} );
 } );

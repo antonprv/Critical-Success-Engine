@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import { FMath } from "@cse/fastmath";
 import { ControlBase, type ControlOptions } from "../Core/ControlBase";
 import { CancelableEvent } from "../Core/EventHub";
 
@@ -116,8 +117,8 @@ export class WindowController extends ControlBase<WindowEvents> {
 	}
 
 	public SetSize(width: number, height: number): void {
-		const w = Math.max(this.MinWidth, width);
-		const h = Math.max(this.MinHeight, height);
+		const w = FMath.Max(this.MinWidth, width);
+		const h = FMath.Max(this.MinHeight, height);
 		if (w === this._width && h === this._height) return;
 		this._width = w;
 		this._height = h;
@@ -245,8 +246,8 @@ export class WindowController extends ControlBase<WindowEvents> {
 /** One axis of a border drag: the near edge moves the origin, the far edge only the size; never below `min`. */
 function ResizeAxis(start: number, size: number, delta: number, min: number, near: boolean, far: boolean): [number, number] {
 	if (near) {
-		const newSize = Math.max(min, size - delta);
+		const newSize = FMath.Max(min, size - delta);
 		return [start + size - newSize, newSize];
 	}
-	return [start, far ? Math.max(min, size + delta) : size];
+	return [start, far ? FMath.Max(min, size + delta) : size];
 }

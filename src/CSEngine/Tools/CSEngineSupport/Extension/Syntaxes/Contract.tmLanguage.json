@@ -1,0 +1,47 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "CSE Contract",
+	"scopeName": "source.cse-contract",
+	"patterns": [
+		{ "include": "#comments" },
+		{
+			"name": "meta.namespace.cse-contract",
+			"match": "\\b(namespace)\\s+([A-Za-z_][\\w.]*)",
+			"captures": {
+				"1": { "name": "keyword.other.namespace.cse-contract" },
+				"2": { "name": "entity.name.namespace.cse-contract" }
+			}
+		},
+		{
+			"match": "\\b(contract|struct|enum)\\s+([A-Za-z_]\\w*)",
+			"captures": {
+				"1": { "name": "storage.type.cse-contract" },
+				"2": { "name": "entity.name.type.cse-contract" }
+			}
+		},
+		{
+			"name": "support.type.primitive.cse-contract",
+			"match": "\\b(bool|int|float|double|string|bytes|vec3|quat|void)\\b"
+		},
+		{
+			"match": "\\b([A-Za-z_]\\w*)\\s*(?=\\()",
+			"captures": { "1": { "name": "entity.name.function.cse-contract" } }
+		},
+		{
+			"match": "\\b([A-Za-z_]\\w*)\\s*(?=:)",
+			"captures": { "1": { "name": "variable.other.property.cse-contract" } }
+		},
+		{ "name": "constant.numeric.cse-contract", "match": "-?\\b[0-9]+\\b" },
+		{ "name": "keyword.operator.optional.cse-contract", "match": "\\?" },
+		{ "name": "entity.name.type.cse-contract", "match": "\\b[A-Z]\\w*\\b" }
+	],
+	"repository": {
+		"comments": {
+			"patterns": [
+				{ "name": "comment.line.documentation.cse-contract", "match": "///.*$" },
+				{ "name": "comment.line.double-slash.cse-contract", "match": "//.*$" },
+				{ "name": "comment.block.cse-contract", "begin": "/\\*", "end": "\\*/" }
+			]
+		}
+	}
+}

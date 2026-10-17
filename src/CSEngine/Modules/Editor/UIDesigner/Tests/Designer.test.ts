@@ -469,3 +469,80 @@ describe("DesignerController: graph edges", () => {
 		expect(designer.CanUndo).toBe(false);
 	});
 });
+
+describe("DesignerController: graph variables", () => {
+	it("adds variables with free names, changes their kind (the default follows), default and widget; all undoable", async () => {
+		const { VariableKind } = await import("@cse/ui");
+		const designer = new DesignerController();
+		designer.Add(WidgetType.Slider);
+		expect(designer.AddGraphVariable().Name).toBe("Variable1");
+		expect(designer.AddGraphVariable(VariableKind.Text).Name).toBe("Variable2");
+		expect(designer.Layout.Graph!.Variables).toEqual([
+			{ Name: "Variable1", Kind: VariableKind.Number, Default: 0 }, { Name: "Variable2", Kind: VariableKind.Text, Default: "" },
+		]);
+		designer.SetGraphVariable("Variable2", { Default: "12" });
+		designer.SetGraphVariable("Variable2", { Kind: VariableKind.Number });
+		expect(designer.Layout.Graph!.Variables![1]).toEqual({ Name: "Variable2", Kind: VariableKind.Number, Default: 12 });
+		designer.SetGraphVariable("Variable2", { Default: "abc" });
+		expect(designer.Layout.Graph!.Variables![1]!.Default).toBe(0);
+		designer.SetGraphVariable("Variable1", { Widget: "Slider1" });
+		expect(designer.Layout.Graph!.Variables![0]!.Widget).toBe("Slider1");
+		designer.SetGraphVariable("Variable1", { Widget: "" });
+		expect(designer.Layout.Graph!.Variables![0]).not.toHaveProperty("Widget");
+		designer.SetGraphVariable("ghost", { Default: 1 });
+		designer.Undo();
+		expect(designer.Layout.Graph!.Variables![0]!.Widget).toBe("Slider1");
+	});
+
+	it("renames a variable everywhere the graph uses it ({Name} in texts too), refusing bad and taken names; deletes it", async () => {
+		const { ActionType, GraphNodeKind, VariableEvent } = await import("@cse/ui");
+		const designer = new DesignerController();
+		designer.Add(WidgetType.Label);
+		const score = designer.AddGraphVariable().Name;
+		const other = designer.AddGraphVariable().Name;
+		designer.AddGraphNode(GraphNodeKind.Event, VariableEvent, 0, 0, { Variable: score, Compare: ">", Value: "{Variable2}" });
+		designer.AddGraphNode(GraphNodeKind.Action, ActionType.SetText, 0, 0, { Widget: "Label1", Text: "Score: {Variable1}, {Variable10}" });
+		expect(designer.RenameGraphVariable(score, "Score")).toBe(true);
+		expect(designer.RenameGraphVariable(other, "Score")).toBe(false);
+		expect(designer.RenameGraphVariable(other, "2 bad")).toBe(false);
+		expect(designer.RenameGraphVariable("ghost", "Ghost")).toBe(false);
+		expect(designer.RenameGraphVariable("Score", "Score")).toBe(true);
+		expect(designer.Layout.Graph!.Nodes.map((n) => n.Params)).toEqual([
+			{ Variable: "Score", Compare: ">", Value: "{Variable2}" }, { Widget: "Label1", Text: "Score: {Score}, {Variable10}" },
+		]);
+		designer.DeleteGraphVariable(other);
+		designer.DeleteGraphVariable("ghost");
+		expect(designer.Layout.Graph!.Variables!.map((v) => v.Name)).toEqual(["Score"]);
+	});
+
+	it("renaming a widget renames it where a variable follows it, but not a variable of the same name", async () => {
+		const { GraphNodeKind, VariableEvent } = await import("@cse/ui");
+		const designer = new DesignerController();
+		designer.Add(WidgetType.Slider);
+		designer.AddGraphVariable();
+		designer.RenameGraphVariable("Variable1", "Slider1");
+		designer.SetGraphVariable("Slider1", { Widget: "Slider1" });
+		designer.AddGraphNode(GraphNodeKind.Event, VariableEvent, 0, 0, { Variable: "Slider1" });
+		designer.Rename("Slider1", "Volume");
+		expect(designer.Layout.Graph!.Variables![0]).toMatchObject({ Name: "Slider1", Widget: "Volume" });
+		expect(designer.Layout.Graph!.Nodes[0]!.Params).toEqual({ Variable: "Slider1" });
+	});
+});
+
+describe("DesignerController: graph variables, the edges", () => {
+	it("renaming a variable leaves params that aren't text alone; deleting from a layout without variables does nothing", async () => {
+		const { ActionType, GraphNodeKind } = await import("@cse/ui");
+		const designer = new DesignerController();
+		designer.DeleteGraphVariable("ghost");
+		expect(designer.CanUndo).toBe(false);
+		designer.Add(WidgetType.CheckBox);
+		designer.AddGraphNode(GraphNodeKind.Action, ActionType.EnabledFollowsCheck, 0, 0, { Widget: "CheckBox1", Check: "CheckBox1", Invert: true });
+		designer.Rename("CheckBox1", "Box"); // a graph without variables
+		designer.AddGraphVariable();
+		designer.RenameGraphVariable("Variable1", "Lives");
+		designer.Rename("Box", "Toggle"); // a variable that follows no widget stays as it is
+		expect(designer.Layout.Graph!.Variables![0]).toEqual({ Name: "Lives", Kind: "number", Default: 0 });
+		expect(designer.Layout.Graph!.Nodes[0]!.Params).toEqual({ Widget: "Toggle", Check: "Toggle", Invert: true });
+	});
+});
+

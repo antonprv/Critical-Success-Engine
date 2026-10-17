@@ -1,0 +1,111 @@
+{
+	"date": "2026-10-16T20:22:14.921Z",
+	"machine": {
+		"cpu": "12th Gen Intel(R) Core(TM) i3-1215U",
+		"threads": 8,
+		"memoryGb": 7.5,
+		"gpu": "Intel Corporation Alder Lake-UP3 GT1 [UHD Graphics] (rev 0c)",
+		"acPower": true,
+		"os": "Linux 7.0.11-76070011-generic"
+	},
+	"browser": "155.0.8059.79",
+	"gpu": {
+		"vendor": "Google Inc. (Intel)",
+		"renderer": "ANGLE (Intel, Mesa Intel(R) Graphics (ADL GT2), OpenGL ES 3.2)",
+		"version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+		"width": 1280,
+		"height": 720
+	},
+	"flags": [
+		"--disable-frame-rate-limit",
+		"--disable-gpu-vsync",
+		"--disable-background-timer-throttling",
+		"--disable-renderer-backgrounding",
+		"--disable-backgrounding-occluded-windows",
+		"--ignore-gpu-blocklist",
+		"--enable-gpu-rasterization"
+	],
+	"viewport": {
+		"width": 1280,
+		"height": 720
+	},
+	"method": {
+		"warmupSeconds": 3,
+		"runs": 2,
+		"seconds": 6
+	},
+	"targetFps": 600,
+	"scenarios": {
+		"physics-2000": {
+			"frames": 2863,
+			"fps": 454.1,
+			"drawFps": 454.1,
+			"low1": 137.2,
+			"low01": 90.9,
+			"frameP50": 2.3,
+			"frameP95": 4.1,
+			"frameP99": 5.9,
+			"renderP50": 0.2,
+			"renderP95": 0.3,
+			"draws": 5,
+			"triangles": 800072,
+			"logicP50": 0.4,
+			"logicP95": 0.8,
+			"csharpP50": 0,
+			"stepP50": 0.5,
+			"physicsP50": 10.3,
+			"physicsP95": 12,
+			"bodies": 977,
+			"fpsMin": 454.1,
+			"fpsMax": 463.7,
+			"pageHeapMb": 5.3,
+			"physicsWasmMb": 38.4,
+			"scriptsWasmMb": 32,
+			"windows": [
+				{
+					"frames": 2863,
+					"fps": 454.1,
+					"drawFps": 454.1,
+					"low1": 137.2,
+					"low01": 90.9,
+					"frameP50": 2.4,
+					"frameP95": 4.2,
+					"frameP99": 6.1,
+					"renderP50": 0.2,
+					"renderP95": 0.3,
+					"draws": 5,
+					"triangles": 800072,
+					"logicP50": 0.4,
+					"logicP95": 0.8,
+					"csharpP50": 0,
+					"stepP50": 0.5,
+					"physicsP50": 10.3,
+					"physicsP95": 12,
+					"bodies": 977
+				},
+				{
+					"frames": 2921,
+					"fps": 463.7,
+					"drawFps": 463.7,
+					"low1": 141.4,
+					"low01": 96.8,
+					"frameP50": 2.3,
+					"frameP95": 4.1,
+					"frameP99": 5.9,
+					"renderP50": 0.2,
+					"renderP95": 0.3,
+					"draws": 5,
+					"triangles": 800072,
+					"logicP50": 0.6,
+					"logicP95": 0.8,
+					"csharpP50": 0,
+					"stepP50": 0.5,
+					"physicsP50": 11,
+					"physicsP95": 12.6,
+					"bodies": 977
+				}
+			],
+			"issues": []
+		}
+	}
+}
