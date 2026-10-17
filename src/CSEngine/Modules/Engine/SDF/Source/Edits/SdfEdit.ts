@@ -58,6 +58,11 @@ export const enum SdfEditFlags {
 	Preview = 1,
 	/** Muted in the editor's layer list: neither drawn nor collided. */
 	Muted = 2,
+	/**
+	 * Never folded into the base (SdfWorld): an edit that keeps moving or
+	 * goes away again, like a hole that follows a tunnel gun.
+	 */
+	Keep = 4,
 }
 
 /** An edit as the game sees it. */

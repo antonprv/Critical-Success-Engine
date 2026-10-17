@@ -19,6 +19,8 @@ export * from "./Bricks/BrickMap";
 export * from "./Bricks/BrickAtlas";
 export * from "./Bricks/SdfVolume";
 export * from "./Bricks/DenseGrid";
+export * from "./Bake/SdfBakedLayer";
+export * from "./World/SdfWorld";
 export * from "./Mesh/SurfaceNets";
 export * from "./Mesh/MeshChunks";
 export * from "./Tiers/SdfTier";

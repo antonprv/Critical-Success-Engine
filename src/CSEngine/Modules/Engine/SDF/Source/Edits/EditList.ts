@@ -31,6 +31,8 @@ const DELTA_WORDS = 4 + EDIT_WORDS;
 const enum DeltaKind {
 	Upsert = 0,
 	Remove = 1,
+	/** Removed after being folded into the base (SdfWorld). */
+	Fold = 2,
 }
 
 /** The whole world: what a global edit (an intersection) dirties. */
@@ -163,19 +165,41 @@ export class EditList {
 		return true;
 	}
 
+	/**
+	 * Called by Fold with the edit and its reach before the edit leaves the
+	 * list: whatever owns the base merges it in there (SdfWorld).
+	 */
+	public OnFold: ( ( edit: SdfEdit, reach: Aabb ) => void ) | null = null;
+
 	/** Takes an edit out (false if there is no such one). */
 	public Remove( id: number ): boolean {
+		return this.Drop( id, DeltaKind.Remove );
+	}
+
+	/**
+	 * Merges an edit into the base (OnFold) and takes it out of the list
+	 * (false if there is no such one). Other workers replay it from the
+	 * delta, so their bases fold it too.
+	 */
+	public Fold( id: number ): boolean {
+		return this.Drop( id, DeltaKind.Fold );
+	}
+
+	private Drop( id: number, kind: DeltaKind ): boolean {
 		const edit = this._edits.get( id );
 
 		if ( !edit ) {
 			return false;
+		}
+		if ( kind === DeltaKind.Fold ) {
+			this.OnFold?.( edit, this.Reach( edit ) );
 		}
 		this._edits.delete( id );
 		this._global.delete( id );
 		this._orderDirty = true;
 		this._bvhDirty = true;
 		this.MarkDirty( edit );
-		this._delta.push( [ DeltaKind.Remove, edit ] );
+		this._delta.push( [ kind, edit ] );
 		this._version++;
 		return true;
 	}
@@ -266,7 +290,9 @@ export class EditList {
 	public TakeDelta(): ArrayBuffer {
 		const latest = new Map<number, [ DeltaKind, SdfEdit ]>();
 
+		// in the order of each edit's last change: folds don't commute
 		for ( const entry of this._delta ) {
+			latest.delete( entry[1].Id );
 			latest.set( entry[1].Id, entry );
 		}
 		this._delta = [];
@@ -322,6 +348,15 @@ export class EditList {
 				words.subarray( at + 4 ),
 				0,
 			);
+
+			if ( words[at] === DeltaKind.Fold ) {
+				// folded as the sender had it, even if never seen here
+				if ( !this.Update( id, edit ) ) {
+					this.Adopt( edit );
+				}
+				this.Fold( id );
+				continue;
+			}
 
 			// the same id: assigning it is a no-op
 			if ( !this.Update( id, edit ) ) {
@@ -449,11 +484,33 @@ function ByOrder( a: SdfEdit, b: SdfEdit ): number {
 	return a.Order - b.Order || a.Id - b.Id;
 }
 
-/** Copies the vectors, so a caller's array never aliases an edit's. */
+/**
+ * Copies the vectors, so a caller's array never aliases an edit's, and
+ * rounds every number to float32 - what the packed form, the GPU and other
+ * workers see - so all of them compute the very same world.
+ */
 function OwnArrays( edit: SdfEdit ): void {
-	edit.Position = [ ...edit.Position ];
-	edit.Rotation = [ ...edit.Rotation ];
-	edit.Params = [ ...edit.Params ];
+	const F = Math.fround;
+
+	edit.Position = [
+		F( edit.Position[0] ),
+		F( edit.Position[1] ),
+		F( edit.Position[2] ),
+	];
+	edit.Rotation = [
+		F( edit.Rotation[0] ),
+		F( edit.Rotation[1] ),
+		F( edit.Rotation[2] ),
+		F( edit.Rotation[3] ),
+	];
+	edit.Params = [
+		F( edit.Params[0] ),
+		F( edit.Params[1] ),
+		F( edit.Params[2] ),
+		F( edit.Params[3] ),
+	];
+	edit.Scale = F( edit.Scale );
+	edit.SmoothK = F( edit.SmoothK );
 }
 
 function IsLive( edit: SdfEdit ): boolean {
