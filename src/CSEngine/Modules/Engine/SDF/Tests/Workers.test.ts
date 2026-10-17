@@ -6,6 +6,7 @@ import {
 	CreateAabb,
 	EditList,
 	GroundPlane,
+	CreateMeshWorker,
 	MeshWorkerHost,
 	SdfBakedLayer,
 	SdfEditFlags,
@@ -267,6 +268,19 @@ describe( "SdfMeshWorkers", () => {
 		expect( pool.Update().Built.map( ( chunk ) => chunk.Key ) )
 			.toEqual( [ "25,0,0" ] );
 		pool.Dispose();
+	} );
+
+	it( "makes real workers from the package's worker file", () => {
+		const made: Array<[ URL, WorkerOptions ]> = [];
+
+		vi.stubGlobal( "Worker", class {
+			public constructor( url: URL, options: WorkerOptions ) {
+				made.push( [ url, options ] );
+			}
+		} );
+		CreateMeshWorker();
+		expect( made[0]![0].pathname ).toMatch( /Workers\/MeshWorker\.ts$/ );
+		expect( made[0]![1] ).toEqual( { type: "module" } );
 	} );
 
 	it( "uses all cores but one by default", () => {

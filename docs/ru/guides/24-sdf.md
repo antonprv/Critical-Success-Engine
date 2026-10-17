@@ -101,8 +101,51 @@ scene.onBeforeRenderObservable.add( () => meshes.Update() );
 `ChooseTier( DetectCapabilities( gl, "gpu" in navigator ) )` выбирает тир по возможностям устройства, результату
 короткого бенчмарка и выбору игрока.
 
+## Запечённая база и последние правки
+
+Редактор хранит все правки, а при сборке запекает их в одно сэмплированное поле — `SdfBakedLayer`: ячейки по 8³
+выборок, у ячеек рядом с поверхностью — кирпич 9³ (расстояние и материал по байту), у остальных — только расстояние в
+центре (граница снизу, луч по-прежнему шагает крупно). Игра держит `SdfWorld`: эту базу и не больше `MaxEdits`
+последних правок. Когда правок больше, самые старые вплавляются в базу (`Fold`: пересэмплируются только ячейки, до
+которых правка дотягивается); правки с флагом `Keep` (движущаяся дыра) не вплавляются никогда.
+
+```ts
+import { SdfBakedLayer, SdfEditFlags, SdfOp, SdfShape, SdfWorld } from "@cse/sdf";
+
+// сборка в редакторе: весь список правок -> одна база (её же можно сохранить: Serialize)
+const base = SdfBakedLayer.Bake( editorField, { Bounds: bounds, Spacing: 0.1 } );
+
+// в игре
+const world = new SdfWorld( base, { MaxEdits: 16 } );
+const hole = world.Add( { Shape: SdfShape.Sphere, Op: SdfOp.Subtract, Flags: SdfEditFlags.Keep } );
+world.Add( { Shape: SdfShape.Sphere, Op: SdfOp.Subtract, Position: hit.Position } );   // копание
+```
+
+Вплавления едут в дельтах списка правок, поэтому реплика мира в воркере (`SdfWorld.FromBase` + `ApplyDelta`) вплавляет
+те же правки в том же порядке и совпадает с основным миром бит в бит. Для этого все числа правки при входе в список
+округляются до float32 — так их видит и упакованная форма, и GPU.
+
+## Меш-тир в воркерах
+
+`SdfMeshWorkers` — тот же меш-тир, но каждый чанк строит один из пула воркеров (по умолчанию ядра минус одно), у
+каждого — реплика мира. Пул сам забирает дельты мира и рассылает их, чанки, которых ещё нет, строятся раньше
+перестроек, а чанк, который ещё считается, не отправляется повторно. Слою Babylon всё равно, откуда чанки:
+
+```ts
+import { CreateMeshWorker, SdfMeshWorkers } from "@cse/sdf";
+
+const chunks = new SdfMeshWorkers( world, { CellSize: 0.2, ChunkCells: 20, Radius: 2 }, CreateMeshWorker );
+const meshes = new SdfMeshLayer( scene, chunks );
+```
+
+## Физика
+
+Чанк меш-тира — обычная статика CSPhysics. Физический воркер принимает команды `PhysOpType.SdfChunk` (ключ, позиции
+и индексы чанка) и `RemoveSdfChunk`: новый чанк становится статикой, перестроенный меняет форму на месте
+(`SetStaticShape`, тела на нём просыпаются), старый меш освобождается.
+
 ## Что дальше
 
-Модуль пока не подключён к воркерам движка (раздел 9.6: правки в GameLogic, дельты в рендер и физику) и к физике; нет
-многоуровневых clipmap на GPU, cone marching и тира A (WebGPU). План и оценки — `docs/stage6-estimates.md`, вопросы —
-`docs/stage6-questions.md`, сделанное — `docs/stage6-progress.md`.
+Модуль пока не подключён к воркерам движка (мир в GameLogic, реплики в рендер- и физическом воркерах, сцена из
+манифеста) и не подаёт чанки в физику сам; нет многоуровневых clipmap на GPU, cone marching и тира A (WebGPU).
+План и оценки — `docs/stage6-estimates.md`, вопросы — `docs/stage6-questions.md`, сделанное — `docs/stage6-progress.md`.

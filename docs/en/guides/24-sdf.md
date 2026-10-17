@@ -103,9 +103,54 @@ sorted by the ordinary depth test. `DebugView`: normals, steps per pixel, distan
 `ChooseTier( DetectCapabilities( gl, "gpu" in navigator ) )` picks the tier from the device's capabilities, a short
 benchmark and the player's choice.
 
+## The baked base and the last edits
+
+The editor keeps every edit and, when it builds, bakes them into one sampled field - `SdfBakedLayer`: cells of 8³
+samples, a 9³ brick (distance and material, a byte each) for the cells near the surface, only the center distance
+for the rest (a lower bound: rays still take long steps). The game holds an `SdfWorld`: that base and at most
+`MaxEdits` recent edits. When there are more, the oldest are folded into the base (`Fold`: only the cells an edit
+reaches are sampled again); edits flagged `Keep` (a moving hole) are never folded.
+
+```ts
+import { SdfBakedLayer, SdfEditFlags, SdfOp, SdfShape, SdfWorld } from "@cse/sdf";
+
+// the editor's build: all its edits -> one base (it can be saved too: Serialize)
+const base = SdfBakedLayer.Bake( editorField, { Bounds: bounds, Spacing: 0.1 } );
+
+// in the game
+const world = new SdfWorld( base, { MaxEdits: 16 } );
+const hole = world.Add( { Shape: SdfShape.Sphere, Op: SdfOp.Subtract, Flags: SdfEditFlags.Keep } );
+world.Add( { Shape: SdfShape.Sphere, Op: SdfOp.Subtract, Position: hit.Position } );   // digging
+```
+
+Folds travel in the edit list's deltas, so a replica of the world in a worker (`SdfWorld.FromBase` + `ApplyDelta`)
+folds the same edits in the same order and matches the main world bit for bit. For that every number of an edit is
+rounded to float32 as it enters the list - what the packed form and the GPU see anyway.
+
+## The mesh tier in workers
+
+`SdfMeshWorkers` is the same mesh tier, but each chunk is meshed by one of a pool of workers (the cores but one by
+default), each holding a replica of the world. The pool takes the world's deltas and sends them on itself; chunks
+not there yet are meshed before rebuilds, and a chunk still being meshed isn't sent again. The Babylon layer doesn't
+care where its chunks come from:
+
+```ts
+import { CreateMeshWorker, SdfMeshWorkers } from "@cse/sdf";
+
+const chunks = new SdfMeshWorkers( world, { CellSize: 0.2, ChunkCells: 20, Radius: 2 }, CreateMeshWorker );
+const meshes = new SdfMeshLayer( scene, chunks );
+```
+
+## Physics
+
+A mesh-tier chunk is an ordinary CSPhysics static. The physics worker takes `PhysOpType.SdfChunk` (a key, the chunk's
+positions and indices) and `RemoveSdfChunk`: a new chunk becomes a static, a rebuilt one swaps its shape in place
+(`SetStaticShape`; bodies on it wake up), and the old mesh is freed.
+
 ## What's next
 
-The module isn't wired into the engine's workers yet (section 9.6: edits in GameLogic, deltas to render and physics)
-nor into the physics; there are no multi-level clipmaps on the GPU, no cone marching and no tier A (WebGPU). The plan
+The module isn't wired into the engine's workers yet (the world in GameLogic, replicas in the render and physics
+workers, the scene from its manifest) and doesn't feed chunks to the physics by itself; there are no multi-level
+clipmaps on the GPU, no cone marching and no tier A (WebGPU). The plan
 and estimates are in `docs/stage6-estimates.md`, the questions in `docs/stage6-questions.md`, what's done in
 `docs/stage6-progress.md` (in Russian, like `task.md`).

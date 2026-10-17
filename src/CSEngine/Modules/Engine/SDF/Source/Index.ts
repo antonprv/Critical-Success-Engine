@@ -26,3 +26,4 @@ export * from "./Mesh/MeshChunks";
 export * from "./Tiers/SdfTier";
 export * from "./Workers/MeshWorkerHost";
 export * from "./Workers/SdfMeshWorkers";
+export * from "./Workers/CreateMeshWorker";

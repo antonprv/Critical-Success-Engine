@@ -23,6 +23,7 @@ import { Scene } from "@babylonjs/core/scene";
 import {
 	ChooseTier,
 	CreateAabb,
+	CreateMeshWorker,
 	DenseSdfGrid,
 	DetectCapabilities,
 	EditList,
@@ -35,7 +36,6 @@ import {
 	SdfShape,
 	SdfTier,
 	SdfWorld,
-	type MeshWorkerPort,
 } from "../Source/Index";
 import {
 	SdfMeshLayer,
@@ -192,10 +192,7 @@ function Show( next: SdfTier ): void {
 			CellSize: 0.2,
 			ChunkCells: 20,
 			Radius: 2,
-		}, () => new Worker(
-			new URL( "../Source/Workers/MeshWorker.ts", import.meta.url ),
-			{ type: "module" },
-		) as unknown as MeshWorkerPort );
+		}, CreateMeshWorker );
 
 		chunks.CenterOn( 0, depthCheck ? 0 : 1, 0 );
 		meshed = new SdfMeshLayer( scene, chunks );
