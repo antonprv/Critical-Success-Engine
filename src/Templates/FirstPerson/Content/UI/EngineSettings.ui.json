@@ -59,9 +59,9 @@
 					{
 						"Name": "LessButton",
 						"Type": "button",
-						"X": -157.0,
+						"X": -162.0,
 						"Y": 294,
-						"Width": 90,
+						"Width": 100,
 						"Height": 26,
 						"Props": {
 							"Text": "Less"
@@ -71,9 +71,9 @@
 					{
 						"Name": "MoreButton",
 						"Type": "button",
-						"X": -59.0,
+						"X": -54.0,
 						"Y": 294,
-						"Width": 90,
+						"Width": 100,
 						"Height": 26,
 						"Props": {
 							"Text": "More"
@@ -83,9 +83,9 @@
 					{
 						"Name": "ControlsButton",
 						"Type": "button",
-						"X": 49.0,
+						"X": 54.0,
 						"Y": 294,
-						"Width": 110,
+						"Width": 100,
 						"Height": 26,
 						"Props": {
 							"Text": "Controls"
@@ -95,9 +95,9 @@
 					{
 						"Name": "BackButton",
 						"Type": "button",
-						"X": 157.0,
+						"X": 162.0,
 						"Y": 294,
-						"Width": 90,
+						"Width": 100,
 						"Height": 26,
 						"Props": {
 							"Text": "Back",

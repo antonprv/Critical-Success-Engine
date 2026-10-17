@@ -16,7 +16,7 @@
 				"Type": "window",
 				"X": 12,
 				"Y": 12,
-				"Width": 220,
+				"Width": 260,
 				"Height": 94,
 				"Props": {
 					"Title": "Coin Hunt",
@@ -29,9 +29,8 @@
 					{
 						"Name": "Coins",
 						"Type": "label",
-						"X": 0,
+						"X": 8,
 						"Y": 10,
-						"Width": 190,
 						"Height": 18,
 						"Props": {
 							"Text": "Coins: 0 / 0",
@@ -39,14 +38,14 @@
 							"Bold": true,
 							"Align": "center"
 						},
-						"AnchorX": "center"
+						"AnchorX": "stretch",
+						"Right": 8
 					},
 					{
 						"Name": "Time",
 						"Type": "label",
-						"X": 0,
+						"X": 8,
 						"Y": 32,
-						"Width": 190,
 						"Height": 18,
 						"Props": {
 							"Text": "Time: 60.0",
@@ -54,7 +53,8 @@
 							"Bold": false,
 							"Align": "center"
 						},
-						"AnchorX": "center"
+						"AnchorX": "stretch",
+						"Right": 8
 					}
 				],
 				"AnchorX": "end"

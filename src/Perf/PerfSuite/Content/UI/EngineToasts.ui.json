@@ -14,18 +14,14 @@
 		"Children": [
 			{
 				"Name": "Toasts",
-				"Type": "listbox",
-				"X": 8,
-				"Y": 8,
+				"Type": "toast",
+				"X": 12,
+				"Y": 34,
 				"Width": 320,
-				"Height": 110,
+				"Height": 240,
 				"AnchorX": "end",
 				"AnchorY": "end",
-				"Props": {
-					"Header": "Messages",
-					"Items": [],
-					"Enabled": true
-				}
+				"Props": {}
 			}
 		]
 	}

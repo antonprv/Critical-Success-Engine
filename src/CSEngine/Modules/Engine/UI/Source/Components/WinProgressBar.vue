@@ -19,7 +19,7 @@ const stateClass = computed(() => StateClass[c.State]);
 	<div
 		role="progressbar"
 		class="win-progress"
-		:class="[stateClass, { 'win-progress--marquee': c.Marquee }]"
+		:class="[stateClass, { 'win-progress--marquee': c.Marquee, 'win-progress--boot': c.Variant === 'boot' }]"
 		:aria-valuemin="c.Min"
 		:aria-valuemax="c.Max"
 		:aria-valuenow="c.Marquee ? undefined : c.Value"

@@ -69,7 +69,7 @@ describe("EngineScreens: the hints (top left) and the toasts (bottom right) as U
 		const { page, manager } = Make();
 		page.State.toasts.push("Saved", "Coin!");
 		await settle();
-		expect(manager.Get(EngineToastsId)!.Controller<Items>("Toasts").Items.map((i) => i.text)).toEqual(["Saved", "Coin!"]);
+		expect(manager.Get(EngineToastsId)!.Controller<{ Items: string[]; }>("Toasts").Items).toEqual(["Saved", "Coin!"]);
 		page.State.toasts.splice(0);
 		await settle();
 		expect(manager.IsShown(EngineToastsId)).toBe(false);

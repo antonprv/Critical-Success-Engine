@@ -77,3 +77,17 @@
 .cse-touch__toolbar { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--face, #f0f0f0); border-radius: 6px; pointer-events: auto; }
 .cse-touch__hint { white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .cse-touch__item { transition: none; } }
+
+/* XP start-up capsule: the progress bar's "boot" variant. */
+.win-progress.win-progress--boot { box-sizing: border-box !important; height: 16px !important; padding: 3px !important; border: 1px solid #b2b2b2 !important; border-radius: 5px !important; background: #000 !important; }
+.win-progress--boot .win-progress__fill { border-radius: 2px !important; background: repeating-linear-gradient(90deg, transparent 0 8px, #000 8px 10px), linear-gradient(180deg, #a5c4ff 0%, #3d6ff2 35%, #1d3fd0 70%, #4d7cf8 100%) !important; }
+
+/* Toast widget: XP tray balloons, stacked up from the bottom of the widget. */
+.win-toasts { display: flex; flex-direction: column-reverse; align-items: flex-end; gap: 6px; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.win-toast { position: relative; box-sizing: border-box; max-width: 100%; margin-bottom: 12px; padding: 8px 12px; border: 1px solid #000; border-radius: 8px; background: var(--xp-tooltip, #ffffe1); color: #000; box-shadow: 2px 3px 4px rgba(0, 0, 0, 0.35); font: 12px/1.35 var(--xp-font, Tahoma, Verdana, "DejaVu Sans", sans-serif); }
+.win-toast::before, .win-toast::after { content: ""; position: absolute; right: 28px; border-style: solid; border-color: transparent; }
+.win-toast::before { bottom: -12px; border-width: 12px 12px 0 0; border-top-color: #000; }
+.win-toast::after { bottom: -10px; right: 29px; border-width: 10px 10px 0 0; border-top-color: var(--xp-tooltip, #ffffe1); }
+.win-toast-enter-active, .win-toast-leave-active, .win-toast-move { transition: opacity 0.2s ease, transform 0.2s ease; }
+.win-toast-enter-from, .win-toast-leave-to { opacity: 0; transform: translateY(8px); }
+@media (prefers-reduced-motion: reduce) { .win-toast-enter-active, .win-toast-leave-active, .win-toast-move { transition: none; } }

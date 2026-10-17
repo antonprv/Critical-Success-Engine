@@ -50,6 +50,7 @@ const Celestial: Skin = {
 	Font: "\"Trebuchet MS\", Tahoma, sans-serif",
 	TextColor: "#3b4256",
 	Desktop: "radial-gradient(circle at 50% 25%, #e6f2ff, #8fb6e6)",
+	DesktopOpacity: 1, DesktopBlur: 0,
 	Parts: {
 		[SkinPart.Window]: { [SkinState.Normal]: { Sprite: Sprite(Panel({ Top: "#fbf7ec", Bottom: "#efe3c8", Stroke: "#c9a86a", Radius: 14, Inner: "#e8d5a8" }), 16, 12), Shadow: "0 10px 28px rgba(40, 60, 110, 0.35)" } },
 		[SkinPart.TitleBar]: {
@@ -94,6 +95,7 @@ const Grimoire: Skin = {
 	Font: "Georgia, \"Times New Roman\", serif",
 	TextColor: "#e6d6b0",
 	Desktop: "radial-gradient(circle at 50% 40%, #3a2c22, #0d0907)",
+	DesktopOpacity: 1, DesktopBlur: 0,
 	Parts: {
 		[SkinPart.Window]: { [SkinState.Normal]: { Sprite: Sprite(Panel({ Top: "#2c2119", Bottom: "#16100c", Stroke: "#8a6a3a", Radius: 4, Inner: Gold, Corners: Gold }), 16, 14), Shadow: "0 12px 30px rgba(0, 0, 0, 0.7)" } },
 		[SkinPart.TitleBar]: {

@@ -18,6 +18,8 @@ export interface ProgressBarOptions extends ControlOptions {
 	StepSize?: number;
 	Marquee?: boolean;
 	State?: ProgressState;
+	/** "boot" draws the XP start-up capsule; anything else the kit's own bar. */
+	Variant?: string;
 }
 
 export type ProgressBarEvents = {
@@ -31,6 +33,7 @@ export class ProgressBarController extends ControlBase<ProgressBarEvents> {
 	public readonly Min: number;
 	public readonly Max: number;
 	public StepSize: number;
+	public readonly Variant: string;
 
 	private _value: number;
 	private _marquee: boolean;
@@ -41,6 +44,7 @@ export class ProgressBarController extends ControlBase<ProgressBarEvents> {
 		this.Min = options.Min ?? 0;
 		this.Max = options.Max ?? 100;
 		this.StepSize = options.StepSize ?? 10;
+		this.Variant = options.Variant ?? "default";
 		this._value = this.Clamp(options.Value ?? this.Min);
 		this._marquee = options.Marquee ?? false;
 		this._state = options.State ?? ProgressState.Normal;

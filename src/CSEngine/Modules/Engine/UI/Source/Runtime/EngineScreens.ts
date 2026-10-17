@@ -107,6 +107,7 @@ export class EngineScreens {
 		}
 		const screen = await this._manager.Show(EngineLoadingId);
 		screen.Controller<{ SetValue(value: number): void; }>("Progress").SetValue(FMath.Round(loading.fraction * 100));
+		Actions.SetText(screen, "Title", this._page.Title);
 		Actions.SetText(screen, "Status", loading.label);
 	}
 
@@ -152,7 +153,7 @@ export class EngineScreens {
 			return;
 		}
 		const shown = await this._manager.Show(EngineToastsId);
-		shown.Controller<{ SetItems(items: { text: string; }[]): void; }>("Toasts").SetItems(toasts.map((text) => ({ text })));
+		shown.Controller<{ SetItems(items: string[]): void; }>("Toasts").SetItems([...toasts]);
 	}
 
 	private WireMenu(screen: UiDocument): void {

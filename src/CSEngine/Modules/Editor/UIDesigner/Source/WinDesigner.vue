@@ -574,6 +574,7 @@ const Checked = (event: Event): boolean => (event.target as HTMLInputElement).ch
 					<WinProjectPanel v-if="project" :session="project" :designer="designer" @message="(text: string) => message = text" @use-theme="UseThemeInGame" />
 					<fieldset class="win-groupbox win-designer__palette">
 						<legend class="win-groupbox__title">Palette</legend>
+						<div class="win-designer__palette-list">
 						<button
 							v-for="type in widgets.Palette"
 							:key="type"
@@ -584,6 +585,7 @@ const Checked = (event: Event): boolean => (event.target as HTMLInputElement).ch
 							@click="designer.Add(type)"
 							@dragstart="OnDragStart($event, type)"
 						>{{ widgets.Get(type)!.Label }}</button>
+					</div>
 					</fieldset>
 					<fieldset class="win-groupbox win-designer__hierarchy">
 						<legend class="win-groupbox__title">Hierarchy</legend>
@@ -822,7 +824,8 @@ const Checked = (event: Event): boolean => (event.target as HTMLInputElement).ch
 /* A fieldset is never narrower than its widest content by default: here the groups fit the column instead. */
 .win-designer__side > fieldset { min-inline-size: 0; }
 .win-designer__details { border-left: 1px solid var(--d-line); }
-.win-designer__palette { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.win-designer__palette { flex: 0 0 auto; }
+.win-designer__palette-list { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; max-height: 132px; overflow-y: auto; align-content: start; scrollbar-gutter: stable; }
 .win-designer__palette-item { min-width: 0; padding: 0 4px; font-size: 10px; cursor: grab; }
 .win-designer__hierarchy { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .win-designer__hierarchy-tools { display: flex; gap: 2px; margin-bottom: 4px; }

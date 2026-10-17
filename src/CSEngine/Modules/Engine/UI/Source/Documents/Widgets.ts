@@ -14,6 +14,7 @@ import WinRadioGroup from "../Components/WinRadioGroup.vue";
 import WinSlider from "../Components/WinSlider.vue";
 import WinSpinner from "../Components/WinSpinner.vue";
 import WinStatusBar from "../Components/WinStatusBar.vue";
+import WinToast from "../Components/WinToast.vue";
 import WinTextBox from "../Components/WinTextBox.vue";
 import WinWindow from "../Components/WinWindow.vue";
 import { ButtonController } from "../Controls/ButtonController";
@@ -28,6 +29,7 @@ import { RadioGroupController } from "../Controls/RadioGroupController";
 import { SliderController } from "../Controls/SliderController";
 import { SpinnerController } from "../Controls/SpinnerController";
 import { StatusBarController } from "../Controls/StatusBarController";
+import { ToastController } from "../Controls/ToastController";
 import { TextBoxController } from "../Controls/TextBoxController";
 import { WindowController } from "../Controls/WindowController";
 import { UseControl } from "../Core/UseControl";
@@ -54,6 +56,7 @@ export const enum WidgetType {
 	GameButton = "gamebutton",
 	ListBox = "listbox",
 	StatusBar = "statusbar",
+	Toast = "toast",
 }
 
 export const enum PropKind {
@@ -164,9 +167,23 @@ const Control = (component: Component): Component => defineComponent({
 	setup: (props) => () => h(component, { controller: props.controller }),
 });
 
+/** The canvas: its Fill (none, a solid colour, a gradient, or the skin's desktop), opacity and backdrop blur are drawn behind its children. */
 const CanvasView = defineComponent({
 	inheritAttrs: false,
-	setup: (_props, { slots }) => () => slots["default"]!()
+	props: ViewProps,
+	setup: (props, { slots }) => () => {
+		const p = props.node.Props;
+		const fill = (p["Fill"] as string | undefined) ?? "none", a = (p["Color"] as string | undefined) ?? "#000000", b = (p["Color2"] as string | undefined) ?? "#004e98";
+		const blur = (p["Blur"] as number | undefined) ?? 0, opacity = (p["Opacity"] as number | undefined) ?? 1;
+		const skin = fill === "skin";
+		const background = skin ? "var(--skin-desktop, none)" : fill === "solid" ? a : fill === "gradient" ? `linear-gradient(${(p["Angle"] as number | undefined) ?? 180}deg, ${a}, ${b})` : "none";
+		const filter = skin ? "blur(var(--skin-desktop-blur, 0px))" : blur > 0 ? `blur(${blur}px)` : "none";
+		const bg = fill === "none" ? null : h("div", {
+			class: skin ? "win-fill win-fill--skin" : "win-fill",
+			style: { position: "absolute", inset: "0", pointerEvents: "none", background, opacity: skin ? "var(--skin-desktop-opacity, 1)" : String(opacity), backdropFilter: filter, WebkitBackdropFilter: filter },
+		});
+		return [bg, slots["default"]!()];
+	},
 });
 
 /** A window, with the dialog keys: Enter presses its AcceptButton, Escape its CancelButton (WinForms). */
@@ -194,6 +211,8 @@ const LabelView = defineComponent({
 		style: {
 			fontSize: `${props.node.Props["FontSize"]}px`,
 			fontWeight: props.node.Props["Bold"] ? "bold" : "normal",
+			fontStyle: props.node.Props["Italic"] ? "italic" : "normal",
+			fontFamily: (props.node.Props["FontFamily"] as string | undefined) || undefined,
 			// One line unless the label wraps; the theme's colour unless it names one; left unless aligned otherwise.
 			whiteSpace: props.node.Props["Wrap"] ? "normal" : "nowrap",
 			color: (props.node.Props["Color"] as string | undefined) || undefined,
@@ -237,7 +256,14 @@ export const BuiltInWidgets = new WidgetRegistry()
 		Label: "Canvas",
 		Container: true,
 		Size: [800, 500],
-		Props: [],
+		Props: [
+			{ ...Prop("Fill", "Fill", PropKind.Choice, "none"), Choices: ["none", "solid", "gradient", "skin"] },
+			Prop("Color", "Color (CSS)", PropKind.Text, "#000000"),
+			Prop("Color2", "Gradient end (CSS)", PropKind.Text, "#004e98"),
+			Prop("Angle", "Gradient angle", PropKind.Number, 180),
+			Prop("Opacity", "Opacity (0..1)", PropKind.Number, 1),
+			Prop("Blur", "Backdrop blur, px", PropKind.Number, 0),
+		],
 		Events: ["close", "dialog-result"],
 		Hidden: true,
 		Component: CanvasView
@@ -268,6 +294,7 @@ export const BuiltInWidgets = new WidgetRegistry()
 			Text("Label"), Prop("FontSize", "Font size", PropKind.Number, 11), Prop("Bold", "Bold", PropKind.Boolean, false),
 			Prop("Wrap", "Wrap text", PropKind.Boolean, false), Prop("Color", "Text color (CSS, empty: the theme's)", PropKind.Text, ""),
 			{ ...Prop("Align", "Align", PropKind.Choice, "left"), Choices: ["left", "center", "right"] },
+			Prop("Italic", "Italic", PropKind.Boolean, false), Prop("FontFamily", "Font family (CSS, empty: the theme's)", PropKind.Text, ""),
 		], Component: LabelView,
 		// A live widget: scripts (and node graphs) change its text and visibility.
 		CreateController: (node) => UseControl(new LabelController({ Label: P(node).text("Text") }))
@@ -328,12 +355,13 @@ export const BuiltInWidgets = new WidgetRegistry()
 	})
 	.Register({
 		Type: WidgetType.ProgressBar, Label: "Progress bar", Container: false, Size: [160, 17], Events: ["complete"], Component: Control(WinProgressBar),
-		Props: [...Range(50), Prop("Marquee", "Marquee", PropKind.Boolean, false)],
+		Props: [...Range(50), Prop("Marquee", "Marquee", PropKind.Boolean, false), { ...Prop("Variant", "Variant (boot: the XP start-up capsule)", PropKind.Choice, "default"), Choices: ["default", "boot"] }],
 		CreateController: (node) => {
 			const p = P(node);
-			return UseControl(new ProgressBarController({ Min: p.number("Min"), Max: p.number("Max"), Value: p.number("Value"), Marquee: p.flag("Marquee") }));
+			return UseControl(new ProgressBarController({ Min: p.number("Min"), Max: p.number("Max"), Value: p.number("Value"), Marquee: p.flag("Marquee"), Variant: p.text("Variant") }));
 		},
 	})
+	.Register({ Type: WidgetType.Toast, Label: "Toast", Container: false, Size: [320, 200], Events: [], Props: [], Component: Control(WinToast), CreateController: () => UseControl(new ToastController()) })
 	.Register({
 		Type: WidgetType.Slider, Label: "Slider", Container: false, Size: [160, 30], Events: ["change"], Component: Control(WinSlider),
 		Props: [...Range(50), Prop("Step", "Step", PropKind.Number, 1), Enabled],

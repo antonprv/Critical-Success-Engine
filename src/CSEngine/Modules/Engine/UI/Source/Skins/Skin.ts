@@ -91,6 +91,9 @@ export interface Skin {
 	TextColor?: string;
 	/** Background of the skinned area (and of a desktop inside it). */
 	Desktop?: string;
+	/** Opacity (0..1) and backdrop blur (px) of the desktop fill, drawn by a canvas whose Fill is "skin". */
+	DesktopOpacity?: number;
+	DesktopBlur?: number;
 	Parts: SkinParts;
 }
 
@@ -200,7 +203,11 @@ export function GenerateSkinCss(skin: Skin): string {
 	if (skin.Font !== undefined) root.push(`font-family: ${Css(skin.Font)}`);
 	if (skin.TextColor !== undefined) root.push(`color: ${Css(skin.TextColor)}`);
 	if (root.length > 0) css += Rule(scope, root);
-	if (skin.Desktop !== undefined) css += Rule(`${scope}, ${scope} .win-desktop`, [`background: ${Css(skin.Desktop)}`]);
+	if (skin.Desktop !== undefined) {
+		css += Rule(`${scope}, ${scope} .win-desktop`, [`background: ${Css(skin.Desktop)}`, `--skin-desktop: ${Css(skin.Desktop)}`, `--skin-desktop-opacity: ${skin.DesktopOpacity ?? 1}`, `--skin-desktop-blur: ${skin.DesktopBlur ?? 0}px`]);
+		// A canvas filled with "skin" paints the desktop itself (with opacity and blur), so the layout stops painting it underneath.
+		css += Rule(`${scope}:has(.win-fill--skin)`, ["background: transparent"]);
+	}
 
 	for (const part of SkinParts) {
 		const states = skin.Parts[part];
@@ -254,6 +261,7 @@ export function ValidateSkin(raw: unknown): Skin {
 	if (!IsObject(raw) || typeof raw["Id"] !== "string" || typeof raw["Name"] !== "string" || !IsObject(raw["Parts"])) throw new SkinError("missing Id, Name or Parts");
 	const skin: Skin = { Id: raw["Id"], Name: raw["Name"], Parts: {} };
 	for (const key of ["Font", "TextColor", "Desktop"] as const) if (typeof raw[key] === "string") skin[key] = raw[key];
+	for (const key of ["DesktopOpacity", "DesktopBlur"] as const) if (typeof raw[key] === "number") skin[key] = raw[key];
 
 	for (const [part, rawStates] of Object.entries(raw["Parts"])) {
 		const definition = PartInfo[part as SkinPart] as PartDefinition | undefined;
