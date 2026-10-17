@@ -69,6 +69,15 @@ export interface PhysicsBridgeExports {
 		scaleY: number,
 		scaleZ: number
 	): number;
+	/**
+	 * Static-only. The bytes of an SDF chunk's positions (Float32Array) and
+	 * indices (Uint16Array), read in place. 0 when no triangle has area.
+	 */
+	AddIndexedMeshShape( positions: Uint8Array, indices: Uint8Array ): number;
+	/** Frees a shape nothing uses any more. */
+	RemoveShape( shapeId: number ): void;
+	/** Swaps a static's shape in place, waking what rests on it. */
+	SetStaticShape( staticId: number, shapeId: number ): void;
 
 	//#endregion
 

@@ -7,6 +7,7 @@ import { Quat } from "../../Engine/Math/Quat";
 import { Vec3, type Vec3Tuple } from "../../Engine/Math/Vec3";
 import {
 	PhysBodyType,
+	PhysObjectKind,
 	PhysOpType,
 	PhysQueryType,
 	PhysShape,
@@ -124,6 +125,12 @@ export class PhysicsWorld {
 
 	private readonly _characters = new Map<number, CharacterEntry>();
 
+	/** SDF chunks by key: their static and its current shape. */
+	private readonly _sdfChunks = new Map<
+		string,
+		{ staticId: number; shapeId: number; }
+	>();
+
 	private readonly _shapeCache = new Map<string, ShapeEntry>();
 
 	private _stepIndex = 0;
@@ -153,6 +160,7 @@ export class PhysicsWorld {
 		this._bodyIdToEntity.clear();
 		this._characters.clear();
 		this._shapeCache.clear();
+		this._sdfChunks.clear();
 	}
 
 	//#endregion
@@ -256,6 +264,73 @@ export class PhysicsWorld {
 			case PhysOpType.Sync:
 				reply( { state: PhysState.SyncAck, token: command.token } );
 				break;
+			case PhysOpType.SdfChunk:
+				this.SetSdfChunk( command );
+				break;
+			case PhysOpType.RemoveSdfChunk:
+				this.RemoveSdfChunk( command.key );
+				break;
+		}
+	}
+
+	/**
+	 * Adds an SDF chunk, or swaps a rebuilt one in place (the static keeps
+	 * its id, bodies resting on it wake up) and frees the old mesh.
+	 */
+	private SetSdfChunk(
+		command: Extract<PhysicsCommand, { operation: PhysOpType.SdfChunk; }>,
+	): void {
+		const { positions, indices } = command;
+		const shapeId = this._bridge.AddIndexedMeshShape(
+			new Uint8Array(
+				positions.buffer,
+				positions.byteOffset,
+				positions.byteLength,
+			),
+			new Uint8Array(
+				indices.buffer,
+				indices.byteOffset,
+				indices.byteLength,
+			),
+		);
+		const chunk = this._sdfChunks.get( command.key );
+
+		if ( shapeId === 0 ) {
+			this.RemoveSdfChunk( command.key );
+			return;
+		}
+		if ( chunk ) {
+			this._bridge.SetStaticShape( chunk.staticId, shapeId );
+			this._bridge.RemoveShape( chunk.shapeId );
+			chunk.shapeId = shapeId;
+			return;
+		}
+		this._sdfChunks.set( command.key, {
+			shapeId,
+			staticId: this._bridge.AddStaticBody(
+				shapeId,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				1,
+				command.layer,
+				command.mask,
+				command.ownerId,
+				PhysObjectKind.Solid,
+			),
+		} );
+	}
+
+	private RemoveSdfChunk( key: string ): void {
+		const chunk = this._sdfChunks.get( key );
+
+		if ( chunk ) {
+			this._bridge.RemoveStatic( chunk.staticId );
+			this._bridge.RemoveShape( chunk.shapeId );
+			this._sdfChunks.delete( key );
 		}
 	}
 

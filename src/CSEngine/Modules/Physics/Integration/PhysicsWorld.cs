@@ -326,6 +326,66 @@ namespace Physics
 			// No inertia factory registered - AddDynamicBody will reject this shape, by design.
 		}
 
+		/// <summary>
+		/// Builds a static triangle mesh shape from an indexed mesh - xyz per vertex, three indices per triangle wound
+		/// counter-clockwise seen from outside - as the SDF mesh chunks come (the same buffers the renderer draws).
+		/// Triangles are one-sided and the simulation's front faces are clockwise, so each is turned over here.
+		/// Triangles without area are left out: they spoil contacts. Returns false (and no shape) when nothing is left.
+		/// Static-only.
+		/// </summary>
+		public bool TryAddIndexedMeshShape(
+			ReadOnlySpan<float> positions,
+			ReadOnlySpan<ushort> indices,
+			Vector3 scale,
+			out ShapeHandle shape
+		)
+		{
+			if ( positions.Length % 3 != 0 || indices.Length % 3 != 0 )
+			{
+				throw new ArgumentException( "Positions and indices must come in threes." );
+			}
+
+			int count = 0;
+			_pool.Take<Triangle>( indices.Length / 3, out Buffer<Triangle> triangles );
+			for ( int i = 0; i < indices.Length; i += 3 )
+			{
+				Vector3 a = Vertex( positions, indices[ i ] );
+				Vector3 b = Vertex( positions, indices[ i + 1 ] );
+				Vector3 c = Vertex( positions, indices[ i + 2 ] );
+
+				if ( Vector3.Cross( b - a, c - a ).LengthSquared() > 1e-12f )
+				{
+					triangles[ count++ ] = new Triangle( a, c, b );
+				}
+			}
+
+			if ( count == 0 )
+			{
+				_pool.Return( ref triangles );
+				shape = default;
+				return false;
+			}
+
+			Mesh mesh = new Mesh( triangles.Slice( count ), scale, _pool );
+			shape = new ShapeHandle( _simulation.Shapes.Add( mesh ).Packed );
+			return true;
+		}
+
+		private static Vector3 Vertex( ReadOnlySpan<float> positions, int index ) =>
+			new Vector3( positions[ index * 3 ], positions[ index * 3 + 1 ], positions[ index * 3 + 2 ] );
+
+		/// <summary>
+		/// Removes a shape and gives its memory back (a mesh's triangles and tree). Nothing may use it any more: remove
+		/// or reshape its statics first.
+		/// </summary>
+		public void RemoveShape( ShapeHandle shape )
+		{
+			TypedIndex index = new TypedIndex { Packed = shape.Packed };
+
+			_inertiaFactories.Remove( shape.Packed );
+			_simulation.Shapes.RemoveAndDispose( index, _pool );
+		}
+
 		#endregion
 
 		#region Bodies & statics
@@ -456,6 +516,18 @@ namespace Physics
 				_removals = true;
 				_simulation.Bodies.Remove( simulationHandle );
 			}
+		}
+
+		/// <summary>
+		/// Swaps a static's shape in place - a rebuilt SDF chunk - and wakes the sleeping bodies around its old and new
+		/// bounds. The old shape stays: remove it with RemoveShape once nothing uses it.
+		/// </summary>
+		public void SetStaticShape( StaticHandle handle, ShapeHandle shape )
+		{
+			_simulation.Statics.SetShape(
+				new CSPhysics.StaticHandle( handle.Value ),
+				new TypedIndex { Packed = shape.Packed }
+			);
 		}
 
 		public void RemoveStatic( StaticHandle handle )

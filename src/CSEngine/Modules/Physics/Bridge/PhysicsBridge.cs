@@ -2,6 +2,7 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
 
@@ -196,6 +197,44 @@ namespace Physics.Wasm
 			return id;
 		}
 
+		/// <summary>
+		/// Builds a static triangle mesh shape from an SDF mesh chunk: the bytes of its Float32Array of positions and its
+		/// Uint16Array of indices (counter-clockwise seen from outside), read in place - nothing marshalled per number.
+		/// Returns the shape id, or 0 when the chunk has no triangle with area.
+		/// </summary>
+		[SupportedOSPlatform( "browser" )]
+		[JSExport]
+		public static int AddIndexedMeshShape(
+			[JSMarshalAs<JSType.MemoryView>] Span<byte> positions,
+			[JSMarshalAs<JSType.MemoryView>] Span<byte> indices
+		)
+		{
+			if ( !World.TryAddIndexedMeshShape(
+				MemoryMarshal.Cast<byte, float>( positions ),
+				MemoryMarshal.Cast<byte, ushort>( indices ),
+				Vector3.One,
+				out ShapeHandle handle
+			) )
+			{
+				return 0;
+			}
+
+			int id = _nextShapeId++;
+			_shapes[ id ] = handle;
+			return id;
+		}
+
+		/// <summary>Removes a shape no static or body uses any more, freeing its memory. Unknown ids are ignored.</summary>
+		[SupportedOSPlatform( "browser" )]
+		[JSExport]
+		public static void RemoveShape( int shapeId )
+		{
+			if ( _shapes.Remove( shapeId, out ShapeHandle handle ) )
+			{
+				World.RemoveShape( handle );
+			}
+		}
+
 		#endregion
 
 		#region Bodies & statics
@@ -315,6 +354,20 @@ namespace Physics.Wasm
 			{
 				_bodyIds[ handle.Value ] = 0;
 				World.RemoveBody( handle );
+			}
+		}
+
+		/// <summary>
+		/// Swaps a static's shape in place (a rebuilt SDF chunk), waking the sleeping bodies around it. Unknown ids are
+		/// ignored. The old shape stays: RemoveShape it afterwards.
+		/// </summary>
+		[SupportedOSPlatform( "browser" )]
+		[JSExport]
+		public static void SetStaticShape( int staticId, int shapeId )
+		{
+			if ( _statics.TryGetValue( staticId, out StaticHandle handle ) && _shapes.TryGetValue( shapeId, out ShapeHandle shape ) )
+			{
+				World.SetStaticShape( handle, shape );
 			}
 		}
 

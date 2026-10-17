@@ -52,6 +52,9 @@ export const enum PhysOpType {
 	Query,
 	ResetWorld,
 	Sync,
+	/** An SDF mesh chunk: added, or swapped in place when rebuilt. */
+	SdfChunk,
+	RemoveSdfChunk,
 }
 
 export const enum PhysQueryType {

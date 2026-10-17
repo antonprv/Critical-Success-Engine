@@ -145,7 +145,24 @@ export type PhysicsCommand =
 		operation: PhysOp.ResetWorld;
 		settings: PhysicsWorldSettingsDescriptor;
 	}
-	| { operation: PhysOp.Sync; token: number; };
+	| { operation: PhysOp.Sync; token: number; }
+	| {
+		/**
+		 * A chunk of the SDF world's surface (an SdfMeshChunks mesh, in
+		 * world coordinates, wound counter-clockwise seen from outside). A
+		 * chunk with this key already there is swapped in place; one without
+		 * triangles removes it.
+		 */
+		operation: PhysOp.SdfChunk;
+		key: string;
+		positions: Float32Array;
+		indices: Uint16Array;
+		layer: number;
+		mask: number;
+		/** Reported in overlaps and sweep hits (an entity id, or 0). */
+		ownerId: number;
+	}
+	| { operation: PhysOp.RemoveSdfChunk; key: string; };
 
 /**
  * GameLogic -> Physics. Commands are batched: one postMessage per tick instead
