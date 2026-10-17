@@ -77,19 +77,28 @@ export class SdfWorld {
 	 * returns how many it folded.
 	 */
 	public FoldExcess(): number {
-		let folded = 0;
-
-		while ( this.Edits.Count > this.MaxEdits ) {
-			const oldest = this.Edits.Edits.find( ( edit ) => (
-				edit.Flags & ( SdfEditFlags.Keep | SdfEditFlags.Preview ) )
-					=== 0 );
-
-			if ( !oldest ) {
-				break;
-			}
-			this.Edits.Fold( oldest.Id );
-			folded++;
-		}
-		return folded;
+		return FoldExcess( this.Edits, this.MaxEdits );
 	}
+}
+
+/**
+ * The world's fold policy on any edit list: folds the oldest edits (not Keep,
+ * not Preview) until at most `max` are left; returns how many. A list
+ * without a base (the game's thin copy in GameLogic) just drops them - the
+ * folds go out in its deltas, and the world that has the base merges them.
+ */
+export function FoldExcess( edits: EditList, max: number ): number {
+	let folded = 0;
+
+	while ( edits.Count > max ) {
+		const oldest = edits.Edits.find( ( edit ) => (
+			edit.Flags & ( SdfEditFlags.Keep | SdfEditFlags.Preview ) ) === 0 );
+
+		if ( !oldest ) {
+			break;
+		}
+		edits.Fold( oldest.Id );
+		folded++;
+	}
+	return folded;
 }

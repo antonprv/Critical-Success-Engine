@@ -27,3 +27,6 @@ export * from "./Tiers/SdfTier";
 export * from "./Workers/MeshWorkerHost";
 export * from "./Workers/SdfMeshWorkers";
 export * from "./Workers/CreateMeshWorker";
+export * from "./Engine/SdfProtocol";
+export * from "./Engine/SdfWorkerHost";
+export * from "./Engine/SdfClient";
