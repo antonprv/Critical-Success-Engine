@@ -133,14 +133,16 @@ export class DenseSdfGrid {
 		const range = this.Range;
 		const field = this.Field;
 		// the edits that reach this part, within the encoded range
-		const edits = field.Edits.Candidates( Expanded( Float64Array.of(
-			mx + x0 * h,
-			my + y0 * h,
-			mz + z0 * h,
-			mx + ( x1 + 1 ) * h,
-			my + ( y1 + 1 ) * h,
-			mz + ( z1 + 1 ) * h,
-		), range ) );
+		const program = field.Compile(
+			field.Edits.Candidates( Expanded( Float64Array.of(
+				mx + x0 * h,
+				my + y0 * h,
+				mz + z0 * h,
+				mx + ( x1 + 1 ) * h,
+				my + ( y1 + 1 ) * h,
+				mz + ( z1 + 1 ) * h,
+			), range ) ),
+		);
 		// EncodeDistance clamps at RANGE_SPACINGS spacings: scale the
 		// spacing so the clamp lands at this grid's range
 		const unit = range / RANGE_SPACINGS;
@@ -153,15 +155,10 @@ export class DenseSdfGrid {
 				let at = ( x0 + y * nx + z * nx * ny ) * 2;
 
 				for ( let x = x0; x <= x1; x++ ) {
-					const d = field.Evaluate(
-						edits,
-						mx + ( x + 0.5 ) * h,
-						wy,
-						wz,
-					);
+					const d = program.Distance( mx + ( x + 0.5 ) * h, wy, wz );
 
 					this.Data[at] = EncodeDistance( d, unit );
-					this.Data[at + 1] = field.LastMaterial & 0xff;
+					this.Data[at + 1] = program.LastMaterial & 0xff;
 					at += 2;
 				}
 			}

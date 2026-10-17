@@ -64,30 +64,14 @@ export function ExtractChunk(
 	const grid = new ChunkGrid( distance, options );
 	const builder = new MeshBuilder( grid, distance, options );
 
-	// edges along x: base node (i, j, k), the cells around it vary in y, z
 	for ( let k = 0; k < n; k++ ) {
 		for ( let j = 0; j < n; j++ ) {
 			for ( let i = 0; i < n; i++ ) {
 				const a = grid.At( i, j, k );
 
-				builder.Edge( a, grid.At( i + 1, j, k ), [
-					[ i, j - 1, k - 1 ],
-					[ i, j, k - 1 ],
-					[ i, j, k ],
-					[ i, j - 1, k ],
-				] );
-				builder.Edge( a, grid.At( i, j + 1, k ), [
-					[ i - 1, j, k - 1 ],
-					[ i - 1, j, k ],
-					[ i, j, k ],
-					[ i, j, k - 1 ],
-				] );
-				builder.Edge( a, grid.At( i, j, k + 1 ), [
-					[ i - 1, j - 1, k ],
-					[ i, j - 1, k ],
-					[ i, j, k ],
-					[ i - 1, j, k ],
-				] );
+				builder.Edge( a, grid.At( i + 1, j, k ), 0, i, j, k );
+				builder.Edge( a, grid.At( i, j + 1, k ), 1, i, j, k );
+				builder.Edge( a, grid.At( i, j, k + 1 ), 2, i, j, k );
 			}
 		}
 	}
@@ -146,6 +130,18 @@ const CellEdges: ReadonlyArray<readonly [ number, number ]> = [
 	[ 0, 4 ], [ 1, 5 ], [ 2, 6 ], [ 3, 7 ],
 ];
 
+/**
+ * The four cells around an edge from node (i, j, k), as offsets, per axis
+ * of the edge; listed counter-clockwise seen from +axis.
+ */
+const QuadCells: ReadonlyArray<
+	ReadonlyArray<readonly [ number, number, number ]>
+> = [
+	[ [ 0, -1, -1 ], [ 0, 0, -1 ], [ 0, 0, 0 ], [ 0, -1, 0 ] ],
+	[ [ -1, 0, -1 ], [ -1, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, -1 ] ],
+	[ [ -1, -1, 0 ], [ 0, -1, 0 ], [ 0, 0, 0 ], [ -1, 0, 0 ] ],
+];
+
 /** Weights of the occlusion samples, nearest first. */
 const AoWeights = [ 1, 0.5, 0.25, 0.125, 0.0625 ];
 
@@ -183,19 +179,31 @@ class MeshBuilder {
 	}
 
 	/**
-	 * A grid edge from sample `a` to `b`: if the surface crosses it, a quad
-	 * over the four cells around it, facing from inside to outside.
+	 * The grid edge from node (i, j, k) along `axis`, with samples `a` and
+	 * `b` at its ends: if the surface crosses it, a quad over the four cells
+	 * around it, facing from inside to outside.
 	 */
 	public Edge(
 		a: number,
 		b: number,
-		cells: ReadonlyArray<[ number, number, number ]>,
+		axis: number,
+		i: number,
+		j: number,
+		k: number,
 	): void {
 		if ( ( a < 0 ) === ( b < 0 ) ) {
 			return;
 		}
 
-		const v = cells.map( ( cell ) => this.Vertex( cell ) );
+		const offsets = QuadCells[axis]!;
+		const v: number[] = [];
+
+		for ( let c = 0; c < 4; c++ ) {
+			const o = offsets[c]!;
+
+			v.push( this.Vertex( i + o[0], j + o[1], k + o[2] ) );
+		}
+
 		// listed for a normal along +axis: inside at a, outside at b
 		const [ v0, v1, v2, v3 ] = a < 0 ? v : [ v[0], v[3], v[2], v[1] ];
 
@@ -203,8 +211,7 @@ class MeshBuilder {
 	}
 
 	/** A cell's vertex, made the first time a quad needs it. */
-	private Vertex( cell: readonly [ number, number, number ] ): number {
-		const [ cx, cy, cz ] = cell;
+	private Vertex( cx: number, cy: number, cz: number ): number {
 		const s = this._cellSide;
 		const key = ( cx + 1 ) + ( cy + 1 ) * s + ( cz + 1 ) * s * s;
 		const known = this._vertexOf[key]!;

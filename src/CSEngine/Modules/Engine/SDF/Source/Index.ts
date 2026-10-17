@@ -11,6 +11,7 @@ export * from "./Field/Shapes";
 export * from "./Field/Ops";
 export * from "./Field/BaseLayers";
 export * from "./Field/SdfField";
+export * from "./Field/SdfProgram";
 export * from "./Spatial/Aabb";
 export * from "./Spatial/Bvh";
 export * from "./Bricks/BrickCodec";

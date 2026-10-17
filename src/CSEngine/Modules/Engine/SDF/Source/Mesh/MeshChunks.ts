@@ -182,20 +182,28 @@ export class SdfMeshChunks {
 		coord: Readonly<[ number, number, number ]>,
 	): SdfChunk {
 		const field = this.Field;
-		const edits = field.Edits.Candidates(
+		const program = field.Compile( field.Edits.Candidates(
 			Expanded(
 				this.ChunkBox( coord ),
 				this.CellSize * ( AoReachCells + 2 ),
 			),
-		);
+		) );
 		const size = this.ChunkSize;
+		const center = program.Distance(
+			( coord[0] + 0.5 ) * size,
+			( coord[1] + 0.5 ) * size,
+			( coord[2] + 0.5 ) * size,
+		);
+		// the samples reach one cell past the chunk: farther from the surface
+		// than that, nothing in it can cross (most chunks of an area)
+		const reach = ( size / 2 + this.CellSize ) * FMath.SQRT3;
 
 		return {
 			Key: key,
 			Coord: coord,
 			Version: field.Edits.Version,
-			Mesh: ExtractChunk(
-				( x, y, z ) => field.Evaluate( edits, x, y, z ),
+			Mesh: FMath.Abs( center ) > reach ? EmptyMesh() : ExtractChunk(
+				( x, y, z ) => program.Distance( x, y, z ),
 				{
 					Origin: [
 						coord[0] * size,
@@ -205,7 +213,10 @@ export class SdfMeshChunks {
 					CellSize: this.CellSize,
 					Cells: this.ChunkCells,
 					Ao: this._ao,
-					Material: ( x, y, z ) => field.MaterialOf( edits, x, y, z ),
+					Material: ( x, y, z ) => {
+						program.Distance( x, y, z );
+						return program.LastMaterial;
+					},
 				},
 			),
 		};
@@ -240,6 +251,17 @@ export class SdfMeshChunks {
 			( coord[2] + 0.5 ) * size - this._center[2],
 		);
 	}
+}
+
+/** A chunk without a surface. */
+function EmptyMesh(): SdfMeshData {
+	return {
+		Positions: new Float32Array( 0 ),
+		Normals: new Float32Array( 0 ),
+		Ao: new Float32Array( 0 ),
+		MaterialIds: new Uint16Array( 0 ),
+		Indices: new Uint16Array( 0 ),
+	};
 }
 
 /** A chunk's key from its coordinates. */

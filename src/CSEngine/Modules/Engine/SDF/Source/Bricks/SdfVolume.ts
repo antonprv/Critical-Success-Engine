@@ -331,9 +331,9 @@ export class SdfVolume {
 			z + size + range,
 		);
 		const field = this.Field;
-		const edits = field.Edits.Candidates( region );
+		const program = field.Compile( field.Edits.Candidates( region ) );
 		const Distance = ( px: number, py: number, pz: number ): number => (
-			field.Evaluate( edits, px, py, pz )
+			program.Distance( px, py, pz )
 		);
 		// one sample decides most cells: farther than the stored nodes'
 		// reach (from the center at node 3.5) plus the range, nothing in it

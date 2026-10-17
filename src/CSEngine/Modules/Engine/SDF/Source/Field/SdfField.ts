@@ -12,6 +12,7 @@ import {
 import type { SdfBaseLayer } from "./BaseLayers";
 import { ApplyOp } from "./Ops";
 import { ShapeDistance } from "./Shapes";
+import { SdfProgram } from "./SdfProgram";
 
 /** Where a ray met the surface. */
 export interface SdfHit {
@@ -90,6 +91,14 @@ export class SdfField {
 		}
 		this._material = material;
 		return d;
+	}
+
+	/**
+	 * `edits` (by Order, e.g. a region's Candidates) and the base compiled
+	 * for sampling many points: what bricks and chunks use.
+	 */
+	public Compile( edits: readonly SdfEdit[] = this.Edits.Edits ): SdfProgram {
+		return new SdfProgram( edits, this.Base );
 	}
 
 	/** Material at the point of the last Evaluate (or Distance). */

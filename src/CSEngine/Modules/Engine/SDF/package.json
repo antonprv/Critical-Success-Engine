@@ -20,7 +20,7 @@
 		"lint:fix": "eslint . --fix",
 		"test": "vitest run --coverage",
 		"test:e2e": "playwright test",
-		"bench": "node --experimental-strip-types --no-warnings Bench/Bench.mjs"
+		"bench": "vite build --config vite.bench.config.ts --logLevel warn && node ../../../../Binaries/Bench/SDF/Bench.mjs"
 	},
 	"dependencies": {
 		"@babylonjs/core": "^9.29.0",
