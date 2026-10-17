@@ -5,7 +5,7 @@ import { SdfBakedLayer } from "../Bake/SdfBakedLayer";
 import { EditList } from "../Edits/EditList";
 import { GroundPlane } from "../Field/BaseLayers";
 import { SdfField } from "../Field/SdfField";
-import type { SdfChunk } from "../Mesh/MeshChunks";
+import type { MeshChunksUpdate, SdfChunk } from "../Mesh/MeshChunks";
 import { CreateAabb } from "../Spatial/Aabb";
 import {
 	SdfMeshWorkers,
@@ -43,6 +43,8 @@ interface Loaded {
 	Epoch: number;
 	World: SdfWorld;
 	Pool: SdfMeshWorkers;
+	/** Whether GameLogic was told the area is meshed. */
+	Meshed: boolean;
 }
 
 /**
@@ -169,7 +171,9 @@ export class SdfWorkerHost {
 					? { Workers: this._options.Workers }
 					: {},
 			}, this._options.Spawn ),
+			Meshed: false,
 		};
+		this._loaded.Pool.CenterOn( ...scene.Start ?? [ 0, 0, 0 ] );
 		this._ports.ToGameLogic(
 			{ Type: "loaded", Epoch: epoch, Error: null },
 		);
@@ -203,13 +207,23 @@ export class SdfWorkerHost {
 	}
 
 	private Tick( message: Extract<ToSdfWorker, { Type: "tick"; }> ): void {
-		const { World: world, Pool: pool, Epoch: epoch } = this._loaded!;
+		const loaded = this._loaded!;
+		const { World: world, Pool: pool, Epoch: epoch } = loaded;
 
 		world.Edits.ApplyDelta( message.Delta );
 		pool.CenterOn( ...message.Focus );
 
 		const update = pool.Update();
 
+		this.Publish( epoch, update );
+		if ( !loaded.Meshed && update.Remaining === 0 ) {
+			loaded.Meshed = true;
+			this._ports.ToGameLogic( { Type: "meshed", Epoch: epoch } );
+		}
+	}
+
+	/** Sends the meshes that came back to the render and physics workers. */
+	private Publish( epoch: number, update: MeshChunksUpdate ): void {
 		if ( update.Built.length === 0 && update.Removed.length === 0 ) {
 			return;
 		}

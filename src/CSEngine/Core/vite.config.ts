@@ -82,6 +82,15 @@ export const EngineAliases = {
 		RootDirectory,
 		"../Modules/Scripting/Source/Index.ts",
 	),
+	// "@cse/sdf/render" before "@cse/sdf": aliases match by prefix
+	"@cse/sdf/render": resolve(
+		RootDirectory,
+		"../Modules/Engine/SDF/Source/Render/Index.ts",
+	),
+	"@cse/sdf": resolve(
+		RootDirectory,
+		"../Modules/Engine/SDF/Source/Index.ts",
+	),
 	"@cse/ui/game": resolve(
 		RootDirectory,
 		"../Modules/Engine/UI/Source/Runtime/GameUiModule.ts",

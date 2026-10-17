@@ -35,6 +35,9 @@ importers:
       '@cse/scripting':
         specifier: workspace:*
         version: link:../Modules/Scripting
+      '@cse/sdf':
+        specifier: workspace:*
+        version: link:../Modules/Engine/SDF
       '@cse/task':
         specifier: workspace:*
         version: link:../Modules/Common/Task

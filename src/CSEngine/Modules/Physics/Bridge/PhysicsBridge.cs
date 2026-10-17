@@ -53,6 +53,9 @@ namespace Physics.Wasm
 		private static int[] _events = new int[ 3 * 64 ];
 		private static int _eventCount;
 
+		// An SDF chunk's bytes, written by JS through ChunkBuffer's view.
+		private static byte[] _chunk = new byte[ 64 * 1024 ];
+
 		#region World lifecycle
 
 		/// <summary>
@@ -198,20 +201,33 @@ namespace Physics.Wasm
 		}
 
 		/// <summary>
-		/// Builds a static triangle mesh shape from an SDF mesh chunk: the bytes of its Float32Array of positions and its
-		/// Uint16Array of indices (counter-clockwise seen from outside), read in place - nothing marshalled per number.
-		/// Returns the shape id, or 0 when the chunk has no triangle with area.
+		/// The buffer an SDF mesh chunk is written into before AddIndexedMeshShape, as a view of its memory: JS copies
+		/// the chunk's bytes in (the view's set) and disposes the view - nothing marshalled per number. The buffer only
+		/// grows, so rebuilding chunks stops allocating.
 		/// </summary>
 		[SupportedOSPlatform( "browser" )]
 		[JSExport]
-		public static int AddIndexedMeshShape(
-			[JSMarshalAs<JSType.MemoryView>] Span<byte> positions,
-			[JSMarshalAs<JSType.MemoryView>] Span<byte> indices
-		)
+		[return: JSMarshalAs<JSType.MemoryView>]
+		public static ArraySegment<byte> ChunkBuffer( int bytes )
 		{
+			Grow( ref _chunk, bytes );
+			return new ArraySegment<byte>( _chunk, 0, bytes );
+		}
+
+		/// <summary>
+		/// Builds a static triangle mesh shape from the SDF mesh chunk in ChunkBuffer: `positionBytes` of float positions,
+		/// then `indexBytes` of 16-bit indices (counter-clockwise seen from outside). Returns the shape id, or 0 when the
+		/// chunk has no triangle with area.
+		/// </summary>
+		[SupportedOSPlatform( "browser" )]
+		[JSExport]
+		public static int AddIndexedMeshShape( int positionBytes, int indexBytes )
+		{
+			ReadOnlySpan<byte> chunk = _chunk;
+
 			if ( !World.TryAddIndexedMeshShape(
-				MemoryMarshal.Cast<byte, float>( positions ),
-				MemoryMarshal.Cast<byte, ushort>( indices ),
+				MemoryMarshal.Cast<byte, float>( chunk.Slice( 0, positionBytes ) ),
+				MemoryMarshal.Cast<byte, ushort>( chunk.Slice( positionBytes, indexBytes ) ),
 				Vector3.One,
 				out ShapeHandle handle
 			) )

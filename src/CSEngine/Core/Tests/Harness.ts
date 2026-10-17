@@ -94,6 +94,8 @@ export class Harness {
 
 	public readonly ui = new FakePort();
 
+	public readonly sdf = new FakePort();
+
 	public readonly runtime: GameLogicRuntime;
 
 	private _physicsSeen = 0;
@@ -115,6 +117,7 @@ export class Harness {
 				physics: this.physics as never,
 				audio: this.audio as never,
 				ui: this.ui as never,
+				sdf: this.sdf as never,
 			},
 			registry,
 			channels,
@@ -133,30 +136,33 @@ export class Harness {
 	public async Pump(): Promise<void> {
 		for ( let i = 0; i < 20; i++ ) {
 			await tick();
-			for ( ; this._physicsSeen
-				< this.physics.sent.length; this._physicsSeen++ ) {
-				for ( const command of this.PhysicsBatch(
-					this._physicsSeen,
-				) ) {
-					if ( command.operation === PhysOpType.Sync ) {
-						this.physics.Receive(
-							{ state: PhysState.SyncAck, token: command.token },
-						);
-					}
-				}
-			}
-			for ( ; this._renderSeen
-				< this.render.sent.length; this._renderSeen++ ) {
-				const message = this.render.sent[this._renderSeen] as {
-					operation: RendOpType;
-					token?: number;
-				};
+			this.AckSyncs();
+		}
+	}
 
-				if ( message.operation === RendOpType.Sync ) {
-					this.render.Receive(
-						{ type: RenderMsg.SyncAck, token: message.token },
+	/** Answers the Sync markers posted since the last call. */
+	public AckSyncs(): void {
+		for ( ; this._physicsSeen
+			< this.physics.sent.length; this._physicsSeen++ ) {
+			for ( const command of this.PhysicsBatch( this._physicsSeen ) ) {
+				if ( command.operation === PhysOpType.Sync ) {
+					this.physics.Receive(
+						{ state: PhysState.SyncAck, token: command.token },
 					);
 				}
+			}
+		}
+		for ( ; this._renderSeen
+			< this.render.sent.length; this._renderSeen++ ) {
+			const message = this.render.sent[this._renderSeen] as {
+				operation: RendOpType;
+				token?: number;
+			};
+
+			if ( message.operation === RendOpType.Sync ) {
+				this.render.Receive(
+					{ type: RenderMsg.SyncAck, token: message.token },
+				);
 			}
 		}
 	}

@@ -147,10 +147,43 @@ A mesh-tier chunk is an ordinary CSPhysics static. The physics worker takes `Phy
 positions and indices) and `RemoveSdfChunk`: a new chunk becomes a static, a rebuilt one swaps its shape in place
 (`SetStaticShape`; bodies on it wake up), and the old mesh is freed.
 
+## SDF in the engine
+
+A scene declares its SDF world in its manifest's `sdf` field: the baked base (the editor's build file by URL, or edits
+baked as the scene loads), the limit of recent edits and the mesh tier's settings. The world lives in a worker of its
+own, the SDF worker: GameLogic holds only the recent edits and sends them once a frame as a delta, with the point the
+chunks are built around (the camera, or the point `FocusAhead` in front of it); the chunks go from the SDF worker
+straight to the renderer and the physics.
+
+```ts
+export const Level: SceneManifest = {
+	id: "level", name: "Level", description: "…",
+	sdf: {
+		Base: { Url: "levels/level.sdf" },     // or { Bake: { Edits, Ground, Bounds, Spacing } }
+		MaxEdits: 16,
+		CellSize: 0.25, ChunkCells: 16, Radius: 3,
+		FocusAhead: 20,
+		Start: [ 0, 0, 0 ],                    // meshed first, before entities spawn
+	},
+	entities: [ … ],
+};
+```
+
+A scene doesn't spawn its entities until the SDF worker has meshed the area around `Start` (for the renderer and
+the physics alike), so bodies never fall through ground that isn't built yet. While the scene loads the worker
+meshes around `Start`; set it where the camera's focus will be. The wait gives up after 30 s with a warning, and
+a world that failed to load (`LoadError`) isn't waited for.
+
+From a script - `this.Engine.Sdf`:
+
+```ts
+const hole = this.Engine.Sdf.Add( { Shape: SdfShape.Sphere, Op: SdfOp.Subtract, Flags: SdfEditFlags.Keep } );
+this.Engine.Sdf.Update( hole.Id, { Position: [ x, y, z ] } );   // the id is known at once
+const hit = await this.Engine.Sdf.Raycast( origin, dir );        // answered a frame later
+```
+
 ## What's next
 
-The module isn't wired into the engine's workers yet (the world in GameLogic, replicas in the render and physics
-workers, the scene from its manifest) and doesn't feed chunks to the physics by itself; there are no multi-level
-clipmaps on the GPU, no cone marching and no tier A (WebGPU). The plan
-and estimates are in `docs/stage6-estimates.md`, the questions in `docs/stage6-questions.md`, what's done in
-`docs/stage6-progress.md` (in Russian, like `task.md`).
+Not yet: tier B in the engine (ray marching works in the module's demo, not in the render worker), multi-level clipmaps
+on the GPU, cone marching and tier A (WebGPU). The plan and estimates are in `docs/stage6-estimates.md`, the
+questions in `docs/stage6-questions.md`, what's done in `docs/stage6-progress.md` (in Russian, like `task.md`).

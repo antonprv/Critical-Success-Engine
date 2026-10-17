@@ -1,6 +1,7 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import type { SdfSceneDescriptor } from "@cse/sdf";
 import type { Installer } from "@cse/di";
 import type { Component, ComponentConstructor } from "./Component";
 import type { EngineContext } from "./EngineContext";
@@ -63,6 +64,8 @@ export interface SceneManifest {
 	 * long as the scene is loaded.
 	 */
 	installer?: Installer<EngineContext>;
+	/** The scene's SDF world (its baked base and how it is meshed). */
+	sdf?: SdfSceneDescriptor;
 	entities: EntityManifest[];
 }
 

@@ -10,6 +10,8 @@ export type MainToRenderMessage =
 		type: RenderMsg.Init;
 		canvas: OffscreenCanvas;
 		gameLogicPort: MessagePort;
+		/** The SDF worker's chunks (SdfToRender), if there is one. */
+		sdfPort?: MessagePort;
 		devMode: boolean;
 		/**
 		 * Draw as fast as possible instead of at the display's rate

@@ -5,4 +5,5 @@
 export * from "./Palette";
 export * from "./SdfRaymarchLayer";
 export * from "./SdfMeshLayer";
+export * from "./SdfRenderReceiver";
 export * from "./Shaders";

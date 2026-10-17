@@ -22,7 +22,9 @@ import {
 } from "@cse/core/Engine/Components/Physics/PhysicsBodies";
 import { DynamicShape, StaticBox } from "@cse/core/Engine/Scenes/SceneHelpers";
 import type { Vec3Tuple } from "@cse/core/Engine/Math/Vec3";
+import { SdfOp, SdfShape } from "@cse/sdf";
 import { InteropLoad } from "../Scripts/Interop";
+import { SdfDigger } from "../Scripts/SdfDigger";
 import { Spin } from "../Scripts/Spin";
 import { UiLoad } from "../Scripts/UiLoad";
 
@@ -220,6 +222,73 @@ export const UiScene = Scene(
 	],
 );
 
+/**
+ * An SDF world: ground and smoothly joined shapes baked as the scene loads, a
+ * hole circling through it and pits dug every second (the SDF worker remeshes
+ * all the time), and 200 balls landing on it (its chunks in the physics).
+ */
+export const SdfScene: SceneManifest = {
+	...Scene(
+		"sdf",
+		"SDF world",
+		"A baked SDF world, a moving hole, pits dug, 200 balls on it.",
+		[
+			Ent( "Digger", [ Comp( SdfDigger ) ] ),
+			...Array.from( { length: 200 }, ( _, i ) => DynamicShape(
+				`Ball ${ i }`,
+				Shapes.Sphere( 0.3 ),
+				[
+					( i % 20 ) - 9.5,
+					4 + Math.floor( i / 100 ) * 1.5,
+					( Math.floor( i / 20 ) % 10 ) * 2 - 9,
+				],
+				[0.9, 0.4 + ( i % 5 ) * 0.1, 0.2],
+			) ),
+			Camera( [0, 16, 22], [0, 0, 0] ),
+		],
+	),
+	sdf: {
+		// where the camera's focus (FocusAhead in front of it) is
+		Start: [ 0, 0, 0 ],
+		Base: {
+			Bake: {
+				Ground: 0,
+				Bounds: [ -16, -2, -16, 16, 6, 16 ],
+				Spacing: 0.2,
+				Edits: [
+					{
+						Shape: SdfShape.Sphere,
+						Position: [ 0, 1.5, 0 ],
+						Params: [ 2.5, 0, 0, 0 ],
+						MaterialId: 1,
+					},
+					{
+						Shape: SdfShape.RoundBox,
+						Op: SdfOp.SmoothUnion,
+						Position: [ 5, 1, -3 ],
+						Params: [ 2, 1.2, 2, 0.4 ],
+						SmoothK: 1,
+						MaterialId: 3,
+					},
+					{
+						Shape: SdfShape.Torus,
+						Op: SdfOp.SmoothUnion,
+						Position: [ -6, 0.6, 2 ],
+						Params: [ 2, 0.6, 0, 0 ],
+						SmoothK: 0.6,
+						MaterialId: 4,
+					},
+				],
+			},
+		},
+		MaxEdits: 8,
+		CellSize: 0.25,
+		ChunkCells: 16,
+		Radius: 3,
+		FocusAhead: 26,
+	},
+};
+
 export const PerfScenes = [
 	EmptyScene,
 	EntitiesScene,
@@ -227,4 +296,5 @@ export const PerfScenes = [
 	PhysicsScene,
 	InteropScene,
 	UiScene,
+	SdfScene,
 ];

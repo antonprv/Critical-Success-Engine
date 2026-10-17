@@ -32,6 +32,17 @@ export interface SdfSceneDescriptor {
 	Base: { Url: string; } | { Bake: SdfBakeSource; };
 	/** Edits the game keeps before the oldest fold in. Default 32. */
 	MaxEdits?: number;
+	/**
+	 * The world is meshed around a point this far ahead of the camera
+	 * (default 0: the camera itself) - for a camera high above the ground.
+	 */
+	FocusAhead?: number;
+	/**
+	 * Where the world is meshed first, while the scene loads (default the
+	 * origin): the scene's entities spawn once the chunks there are built,
+	 * so nothing falls through ground that isn't in the physics yet.
+	 */
+	Start?: [ number, number, number ];
 	/** Mesh tier: cell size (default 0.25), cells per chunk (16), radius. */
 	CellSize?: number;
 	ChunkCells?: number;
@@ -72,6 +83,8 @@ export type ToSdfWorker =
 /** SDF worker -> GameLogic. */
 export type FromSdfWorker =
 	| { Type: "loaded"; Epoch: number; Error: string | null; }
+	/** The first time every chunk around the focus has been meshed. */
+	| { Type: "meshed"; Epoch: number; }
 	| { Type: "result"; Id: number; Result: SdfQueryResult; };
 
 /** SDF worker -> render worker. */

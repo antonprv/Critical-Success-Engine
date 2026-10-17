@@ -154,6 +154,36 @@ describe( "SdfClient", () => {
 		expect( client.Loaded ).toBe( false );
 		expect( client.LoadError ).toBe( "broken" );
 	} );
+
+	it( "tells when the first area is meshed", async () => {
+		const client = new SdfClient( () => undefined );
+
+		client.Load( null );
+		expect( client.Meshed ).toBe( true );
+		await client.WhenMeshed();
+
+		client.Load( Scene );
+
+		const meshed = vi.fn();
+
+		void client.WhenMeshed().then( meshed );
+		// an older scene's area: ignored
+		client.Handle( { Type: "meshed", Epoch: 1 } );
+		await Settle();
+		expect( meshed ).not.toHaveBeenCalled();
+		client.Handle( { Type: "meshed", Epoch: 2 } );
+		await Settle();
+		expect( meshed ).toHaveBeenCalledOnce();
+
+		// a scene that fails to load won't be meshed: don't wait for it
+		client.Load( Scene );
+
+		const failed = client.WhenMeshed();
+
+		client.Handle( { Type: "loaded", Epoch: 3, Error: "broken" } );
+		await failed;
+		expect( client.Meshed ).toBe( true );
+	} );
 } );
 
 describe( "SdfWorkerHost", () => {
@@ -183,8 +213,26 @@ describe( "SdfWorkerHost", () => {
 
 			expect( chunk.Mesh.Normals.length )
 				.toBe( chunk.Mesh.Positions.length );
+			// the area is meshed: GameLogic is told once
+			expect( wired.gameLogic.filter( ( message ) => (
+				message.Type === "meshed"
+			) ) ).toEqual( [ { Type: "meshed", Epoch: 1 } ] );
+			expect( wired.client.Meshed ).toBe( true );
 		},
 	);
+
+	it( "starts meshing at the scene's start point", async () => {
+		const wired = Wire();
+
+		wired.client.Load( { ...Scene, Start: [ 2, 1, -2 ] } );
+		await Settle();
+		for ( let i = 0; i < 50 && !wired.client.Meshed; i++ ) {
+			wired.client.Tick( [ 2, 1, -2 ] );
+			await Settle();
+		}
+		expect( wired.client.Meshed ).toBe( true );
+		expect( Keys( wired.render ).size ).toBeGreaterThan( 0 );
+	} );
 
 	it(
 		"folds the game's old edits into its base and answers questions",

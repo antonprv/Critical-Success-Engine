@@ -82,6 +82,7 @@ export class SceneManager {
 			if ( input ) {
 				this._engine.Input.System.UseManifest( input );
 			}
+			await this.WaitForSdf( sceneId, manifest );
 			await this.SpawnEntities( sceneId, manifest );
 			await this.StartScripts( sceneId, manifest );
 		} catch ( error ) {
@@ -126,6 +127,9 @@ export class SceneManager {
 		);
 		this._engine.Render.ClearScene();
 		this._engine.Render.MainCamera = null;
+		// the SDF worker starts on the new world (its chunks carry the scene's
+		// epoch: render and physics drop the old scene's)
+		this._engine.Sdf.Load( manifest.sdf ?? null );
 		this._engine.Render.SetEnvironment(
 			manifest.clearColor ?? [0.08, 0.1, 0.14],
 		);
@@ -143,6 +147,37 @@ export class SceneManager {
 			Logger.LogWarning(
 				"[SceneManager] physics/render did not acknowledge the reset "
 					+ `in time; continuing "${ sceneId }" anyway.`,
+			);
+		}
+	}
+
+	/**
+	 * Bodies must not spawn before the ground they stand on: waits until the
+	 * SDF worker has meshed the area around the scene's start (it is meshed
+	 * for physics and render together).
+	 */
+	private async WaitForSdf(
+		sceneId: string,
+		manifest: SceneManifest,
+	): Promise<void> {
+		if ( !manifest.sdf ) {
+			return;
+		}
+		this._engine.Ui.LoadProgress(
+			sceneId,
+			"Building the SDF world…",
+			0.25,
+		);
+		if ( !( await WithTimeout( this._engine.Sdf.WhenMeshed(), 30_000 ) ) ) {
+			Logger.LogWarning(
+				"[SceneManager] the SDF world was not meshed in time; "
+					+ `continuing "${ sceneId }" anyway.`,
+			);
+		}
+		if ( this._engine.Sdf.LoadError !== null ) {
+			Logger.LogWarning(
+				`[SceneManager] "${ sceneId }": the SDF world failed to load: `
+					+ this._engine.Sdf.LoadError,
 			);
 		}
 	}

@@ -113,6 +113,7 @@ self.addEventListener(
 						physics: message.physicsPort,
 						audio: message.audioPort,
 						ui: message.uiPort,
+						...message.sdfPort ? { sdf: message.sdfPort } : {},
 					},
 					engine.Scenes,
 					engine.Channels,

@@ -144,8 +144,42 @@ const meshes = new SdfMeshLayer( scene, chunks );
 и индексы чанка) и `RemoveSdfChunk`: новый чанк становится статикой, перестроенный меняет форму на месте
 (`SetStaticShape`, тела на нём просыпаются), старый меш освобождается.
 
+## SDF в движке
+
+Сцена объявляет SDF-мир полем `sdf` манифеста: запечённую базу (файл сборки редактора по URL или правки, которые
+запекаются при загрузке), лимит последних правок и параметры меш-тира. Мир живёт в отдельном SDF-воркере: GameLogic
+держит только последние правки и раз в кадр отправляет их дельтой вместе с точкой, вокруг которой строятся чанки
+(камера или точка `FocusAhead` перед ней); чанки уходят из SDF-воркера прямо в рендер и в физику.
+
+```ts
+export const Level: SceneManifest = {
+	id: "level", name: "Level", description: "…",
+	sdf: {
+		Base: { Url: "levels/level.sdf" },     // или { Bake: { Edits, Ground, Bounds, Spacing } }
+		MaxEdits: 16,
+		CellSize: 0.25, ChunkCells: 16, Radius: 3,
+		FocusAhead: 20,
+		Start: [ 0, 0, 0 ],                    // строится первым, до создания сущностей
+	},
+	entities: [ … ],
+};
+```
+
+Сцена не создаёт свои сущности, пока SDF-воркер не построит область вокруг `Start` (и для рендера, и для физики),
+поэтому тела не проваливаются сквозь землю, которой ещё нет. Пока сцена грузится, воркер строит чанки вокруг
+`Start`; ставь её туда, куда будет смотреть фокус камеры. Ожидание сдаётся через 30 с с предупреждением, а мир,
+который не загрузился (`LoadError`), не ждут.
+
+Из скрипта — `this.Engine.Sdf`:
+
+```ts
+const hole = this.Engine.Sdf.Add( { Shape: SdfShape.Sphere, Op: SdfOp.Subtract, Flags: SdfEditFlags.Keep } );
+this.Engine.Sdf.Update( hole.Id, { Position: [ x, y, z ] } );   // id известен сразу
+const hit = await this.Engine.Sdf.Raycast( origin, dir );        // ответ через кадр
+```
+
 ## Что дальше
 
-Модуль пока не подключён к воркерам движка (мир в GameLogic, реплики в рендер- и физическом воркерах, сцена из
-манифеста) и не подаёт чанки в физику сам; нет многоуровневых clipmap на GPU, cone marching и тира A (WebGPU).
+Пока нет тира B в движке (ray marching работает в демо модуля, но не в рендер-воркере), многоуровневых clipmap на GPU,
+cone marching и тира A (WebGPU).
 План и оценки — `docs/stage6-estimates.md`, вопросы — `docs/stage6-questions.md`, сделанное — `docs/stage6-progress.md`.

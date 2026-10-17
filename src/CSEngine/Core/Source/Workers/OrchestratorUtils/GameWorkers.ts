@@ -8,6 +8,7 @@ import type { MainToPhysicsMessage } from "../Protocol/PhysicsProtocol";
 import type {
 	Antialiasing, MainToRenderMessage,
 } from "../Protocol/RenderProtocol";
+import type { MainToSdfMessage } from "../Protocol/SdfWorkerProtocol";
 import type { MainToUiMessage } from "../Protocol/UiProtocol";
 import {
 	DefaultGravity,
@@ -19,6 +20,7 @@ import {
 	PhysicsMsg,
 	GameLogicMsg,
 	AudioMsg,
+	SdfMsg,
 } from "../Common/CommonEnums";
 
 /**
@@ -30,10 +32,12 @@ export function Antialias( value: string | null ): Antialiasing {
 }
 
 /**
- * The five workers and their MessageChannel wiring. The main thread talks to
+ * The six workers and their MessageChannel wiring. The main thread talks to
  * every worker; GameLogic also has a direct port to each of the others: Physics
- * (commands, snapshots), Render (scene diffs, frames), Audio (play-sound) and
- * UI (scenes, progress, HUD in; load-scene, capture out).
+ * (commands, snapshots), Render (scene diffs, frames), Audio (play-sound), UI
+ * (scenes, progress, HUD in; load-scene, capture out) and SDF (the game's SDF
+ * edits and questions). The SDF worker has ports of its own to Render and
+ * Physics: its chunks go there without passing through GameLogic.
  */
 export class GameWorkers {
 	public readonly RenderWorker: Worker;
@@ -49,6 +53,9 @@ export class GameWorkers {
 	 * and logic*, the main thread only renders it.
 	 */
 	public readonly UiWorker: Worker;
+
+	/** The SDF world: its edits, its meshes (in its own mesh workers). */
+	public readonly SdfWorker: Worker;
 
 	/**
 	 * Owns the real AudioContext that AudioWorker's resolved sounds actually
@@ -79,6 +86,10 @@ export class GameWorkers {
 			new URL( "../UiWorker.ts", import.meta.url ),
 			{ type: "module" },
 		);
+		this.SdfWorker = new Worker(
+			new URL( "../SdfWorker.ts", import.meta.url ),
+			{ type: "module" },
+		);
 		this.AudioPlayer = new AudioPlayer( this.AudioWorker );
 
 		this.WireWorkers( canvas, devMode );
@@ -86,36 +97,44 @@ export class GameWorkers {
 
 	/**
 	 * One MessageChannel per worker GameLogic talks to: port1 goes to
-	 * GameLogic, port2 to the other worker.
+	 * GameLogic, port2 to the other worker; and the SDF worker's to Render
+	 * and Physics (port1 to the SDF worker).
 	 */
 	private WireWorkers( canvas: HTMLCanvasElement, devMode: boolean ): void {
 		const render = new MessageChannel();
 		const physics = new MessageChannel();
 		const audio = new MessageChannel();
 		const ui = new MessageChannel();
+		const sdf = new MessageChannel();
+		const sdfRender = new MessageChannel();
+		const sdfPhysics = new MessageChannel();
 
-		this.InitRender( canvas, devMode, render.port2 );
-		this.InitPhysics( physics.port2 );
+		this.InitRender( canvas, devMode, render.port2, sdfRender.port2 );
+		this.InitPhysics( physics.port2, sdfPhysics.port2 );
 		this.InitGameLogic(
 			render.port1,
 			physics.port1,
 			audio.port1,
 			ui.port1,
+			sdf.port1,
 		);
 		this.InitAudio( audio.port2 );
 		this.InitUi( ui.port2 );
+		this.InitSdf( sdf.port2, sdfRender.port1, sdfPhysics.port1 );
 	}
 
 	private InitRender(
 		canvas: HTMLCanvasElement,
 		devMode: boolean,
 		gameLogicPort: MessagePort,
+		sdfPort: MessagePort,
 	): void {
 		const offscreenCanvas = canvas.transferControlToOffscreen();
 		const message: MainToRenderMessage = {
 			type: RenderMsg.Init,
 			canvas: offscreenCanvas,
 			gameLogicPort,
+			sdfPort,
 			devMode,
 			width: canvas.clientWidth,
 			height: canvas.clientHeight,
@@ -129,18 +148,22 @@ export class GameWorkers {
 		};
 		this.RenderWorker.postMessage(
 			message,
-			[offscreenCanvas, gameLogicPort],
+			[offscreenCanvas, gameLogicPort, sdfPort],
 		);
 	}
 
-	private InitPhysics( gameLogicPort: MessagePort ): void {
+	private InitPhysics(
+		gameLogicPort: MessagePort,
+		sdfPort: MessagePort,
+	): void {
 		const message: MainToPhysicsMessage = {
 			type: PhysicsMsg.Init,
 			gameLogicPort,
+			sdfPort,
 			settings: { gravity: [...DefaultGravity] },
 			fixedTimestepMs: PhysicsFixedTimestepMs,
 		};
-		this.PhysicsWorker.postMessage( message, [gameLogicPort] );
+		this.PhysicsWorker.postMessage( message, [gameLogicPort, sdfPort] );
 	}
 
 	private InitGameLogic(
@@ -148,6 +171,7 @@ export class GameWorkers {
 		physicsPort: MessagePort,
 		audioPort: MessagePort,
 		uiPort: MessagePort,
+		sdfPort: MessagePort,
 	): void {
 		// the game's files (data assets) sit next to the page
 		const baseUrl = new URL( ".", document.baseURI ).href;
@@ -157,13 +181,14 @@ export class GameWorkers {
 			physicsPort,
 			audioPort,
 			uiPort,
+			sdfPort,
 			baseUrl,
 			// ?scene=<id>: start in that scene (tests, the perf harness)
 			startScene: new URLSearchParams( location.search ).get( "scene" ),
 		};
 		this.GameLogicWorker.postMessage(
 			message,
-			[renderPort, physicsPort, audioPort, uiPort],
+			[renderPort, physicsPort, audioPort, uiPort, sdfPort],
 		);
 	}
 
@@ -180,6 +205,24 @@ export class GameWorkers {
 		this.UiWorker.postMessage( message, [gameLogicPort] );
 	}
 
+	private InitSdf(
+		gameLogicPort: MessagePort,
+		renderPort: MessagePort,
+		physicsPort: MessagePort,
+	): void {
+		const message: MainToSdfMessage = {
+			type: SdfMsg.Init,
+			gameLogicPort,
+			renderPort,
+			physicsPort,
+			baseUrl: new URL( ".", document.baseURI ).href,
+		};
+		this.SdfWorker.postMessage(
+			message,
+			[gameLogicPort, renderPort, physicsPort],
+		);
+	}
+
 	/** Call once on page teardown (SPA navigation away, hot-reload, etc). */
 	public Dispose(): void {
 		this.RenderWorker.terminate();
@@ -187,5 +230,6 @@ export class GameWorkers {
 		this.GameLogicWorker.terminate();
 		this.AudioWorker.terminate();
 		this.UiWorker.terminate();
+		this.SdfWorker.terminate();
 	}
 }

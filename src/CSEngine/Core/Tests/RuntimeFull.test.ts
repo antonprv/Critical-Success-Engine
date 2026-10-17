@@ -4,6 +4,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Component } from "../Source/Engine/Core/Component";
 import { Comp, Ent } from "../Source/Engine/Core/EntityManifest";
+import {
+	GameLogicRuntime,
+} from "../Source/Engine/Runtime/GameLogicRuntime";
 import { SceneRegistry } from "../Source/Engine/Scenes/SceneRegistry";
 import {
 	GameLogicMsg,
@@ -302,6 +305,110 @@ describe( "GameLogicRuntime - the corners", () => {
 				.toEqual( [PhysOpType.SetAwake, PhysOpType.SetAwake] );
 		},
 	);
+} );
+
+describe( "SceneManager - an SDF scene", () => {
+	const SdfScene = ( entities: ReturnType<typeof Ent>[] = [] ) => ( {
+		...Scene( "sdf", entities ),
+		sdf: {
+			Base: { Url: "level.sdf" },
+			Start: [ 1, 2, 3 ] as [ number, number, number ],
+		},
+	} );
+	const sdfSent = ( harness: Harness ) => harness.sdf.sent as Array<{
+		Type: string;
+		Epoch?: number;
+		Focus?: number[];
+	}>;
+
+	it(
+		"spawns its entities once the area around the start is meshed, and "
+			+ "meshes it meanwhile",
+		async () => {
+			const harness = new Harness(
+				new SceneRegistry().Register( SdfScene( [ Ent( "A", [] ) ] ) ),
+			);
+
+			await harness.BootToScene();
+			const world = harness.runtime.Context.World;
+
+			expect(
+				messages( harness.ui, UiMsg.LoadProgress ).at( -1 )!["label"],
+			).toBe( "Building the SDF world…" );
+			expect( world.FindByName( "A" ) ).toBeUndefined();
+
+			// frames while loading: the SDF worker meshes around the start
+			harness.render.Receive(
+				{ type: RenderMsg.FrameRequest, frameId: 1 },
+			);
+			expect( sdfSent( harness ).at( -1 ) )
+				.toMatchObject( { Type: "tick", Focus: [ 1, 2, 3 ] } );
+
+			const epoch = sdfSent( harness )
+				.find( ( m ) => m.Type === "load" )!.Epoch;
+
+			harness.sdf.Receive(
+				{ Type: "loaded", Epoch: epoch, Error: null },
+			);
+			harness.sdf.Receive( { Type: "meshed", Epoch: epoch } );
+			await harness.Pump();
+			expect( world.FindByName( "A" )?.Name ).toBe( "A" );
+			expect( harness.runtime.Context.Scenes.CurrentSceneId )
+				.toBe( "sdf" );
+		},
+	);
+
+	it( "carries on with a warning when its world fails to load", async () => {
+		const log = SilenceConsole();
+		const harness = new Harness(
+			new SceneRegistry().Register( SdfScene() ),
+		);
+
+		await harness.BootToScene();
+		harness.sdf.Receive( { Type: "loaded", Epoch: 1, Error: "HTTP 404" } );
+		await harness.Pump();
+		expect( harness.runtime.Context.Scenes.CurrentSceneId ).toBe( "sdf" );
+		expect( log.warn.mock.calls.some(
+			( c ) => String( c[0] ).includes( "HTTP 404" ),
+		) ).toBe( true );
+	} );
+
+	it( "doesn't wait without an SDF worker", async () => {
+		const ports = { render: 0, physics: 0, audio: 0, ui: 0 };
+		const runtime = new GameLogicRuntime(
+			Object.fromEntries( Object.keys( ports ).map(
+				( key ) => [ key, new FakePort() ],
+			) ) as never,
+			new SceneRegistry(),
+		);
+
+		await runtime.Context.Sdf.WhenMeshed();
+		expect( runtime.Context.Sdf.Loaded ).toBe( false );
+	} );
+
+	it( "doesn't wait for the meshing forever", async () => {
+		vi.useFakeTimers();
+
+		const log = SilenceConsole();
+		const harness = new Harness(
+			new SceneRegistry().Register( SdfScene() ),
+		);
+		const boot = harness.runtime.Boot();
+
+		harness.render.Receive( { type: RenderMsg.Ready } );
+		harness.physics.Receive( { state: PhysState.Ready } );
+		for ( let i = 0; i < 10; i++ ) {
+			await vi.advanceTimersByTimeAsync( 0 );
+			harness.AckSyncs();
+		}
+		await vi.advanceTimersByTimeAsync( 30_000 );
+		await vi.advanceTimersByTimeAsync( 1_000 );
+		await boot;
+		expect( log.warn.mock.calls.some(
+			( c ) => String( c[0] ).includes( "was not meshed in time" ),
+		) ).toBe( true );
+		expect( harness.runtime.Context.Scenes.CurrentSceneId ).toBe( "sdf" );
+	} );
 } );
 
 describe( "SceneManager - the corners", () => {

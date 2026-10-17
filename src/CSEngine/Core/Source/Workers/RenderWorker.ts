@@ -2,6 +2,8 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { FMath } from "@cse/fastmath";
+import type { SdfToRender } from "@cse/sdf";
+import { SdfRenderReceiver } from "@cse/sdf/render";
 import { Logger } from "../Logging/Logger";
 import { RenderMsg, RendOpType as RendOp } from "./Common/CommonEnums";
 import { EntityMeshRegistry } from "./Render/EntityMeshRegistry";
@@ -76,6 +78,17 @@ function Init(
 		scene.Uncap();
 	}
 	const registry = new EntityMeshRegistry( scene.Scene, scene.AssetLoader );
+
+	// the SDF world's chunks come straight from the SDF worker
+	if ( message.sdfPort ) {
+		const sdf = new SdfRenderReceiver( scene.Scene );
+
+		message.sdfPort.onmessage = ( e: MessageEvent<SdfToRender> ) => {
+			if ( sdf.Handle( e.data ) ) {
+				scene.Wake();
+			}
+		};
+	}
 	renderScene = scene;
 	const gameLogicPort = message.gameLogicPort;
 	const Post = ( reply: RenderToGameLogicMessage ): void => (

@@ -2,6 +2,7 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { FMath } from "@cse/fastmath";
+import type { SdfToPhysics } from "@cse/sdf";
 import { Logger } from "../Logging/Logger";
 import { PhysicsMsg, PhysState } from "./Common/CommonEnums";
 import { PhysicsWasmLoader } from "./Physics/PhysicsWasmLoader";
@@ -22,6 +23,8 @@ let fixedTimestepMs = 1000 / 60;
 // starts spawning as soon as it has a port, long before dotnet.js is ready) are
 // queued here and replayed once the world exists.
 let pendingMessages: GameLogicToPhysicsMessage[] = [];
+/** The SDF worker's chunks that came before the world was up. */
+let pendingSdf: SdfToPhysics[] = [];
 let failed = false;
 
 // Own static buffer per realm - App.ts's timer doesn't flush this one.
@@ -136,6 +139,18 @@ function InitializeWorld(
 		event: MessageEvent<GameLogicToPhysicsMessage>,
 	) => HandleGameLogicMessage( event.data );
 
+	const sdfPort = message.sdfPort ?? null;
+
+	if ( sdfPort ) {
+		sdfPort.onmessage = ( event: MessageEvent<SdfToPhysics> ) => {
+			if ( world ) {
+				world.HandleSdf( event.data );
+			} else if ( !failed ) {
+				pendingSdf.push( event.data );
+			}
+		};
+	}
+
 	const watchdog = setTimeout(
 		() => Logger.LogError(
 			"[PhysicsWorker] PhysicsBridge still not loaded after 15 s - "
@@ -149,7 +164,12 @@ function InitializeWorld(
 		.then( ( bridge ) => {
 			clearTimeout( watchdog );
 			world = new PhysicsWorld( bridge );
+			// a recreated world (a scene load) gets the SDF chunks again
+			world.OnSdfReset = () => sdfPort?.postMessage( { Type: "reset" } );
 			world.CreateWorld( message.settings );
+			for ( const queued of pendingSdf.splice( 0 ) ) {
+				world.HandleSdf( queued );
+			}
 
 			Post( { state: PhysState.Ready } );
 
@@ -173,6 +193,7 @@ function InitializeWorld(
 			);
 			failed = true;
 			pendingMessages = [];
+			pendingSdf = [];
 			// Tell GameLogic right away, so it neither waits for a "ready" that
 			// will never come nor for sync acks.
 			Post(

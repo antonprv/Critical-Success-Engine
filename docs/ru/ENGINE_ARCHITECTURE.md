@@ -2,7 +2,7 @@
 
 # Архитектура движка
 
-Пять воркеров, одна точка расширения.
+Шесть воркеров, одна точка расширения.
 
 ```
 main thread   DOM-события, отрисовка UiStore (Vue + Quasar), pointer lock, AudioContext
@@ -11,6 +11,7 @@ GameLogic     сущности, компоненты, сцены, состоян
 PhysicsWorker CSPhysics через wasm: цикл фиксированного шага, выполнение команд, снимки Workers/Physics/PhysicsWorld.ts
 RenderWorker  Babylon на OffscreenCanvas, протокол frame-request/frame            Workers/RenderWorker.ts
 AudioWorker   декодирование звука; воспроизведение идёт в главном потоке (AudioPlayer)
+SdfWorker     SDF-мир: запечённая база и последние правки, пул мешинг-воркеров      @cse/sdf: Engine/SdfWorkerHost.ts
 ```
 
 C# есть только для физического движка и его моста (`Modules/Physics/Bridge/PhysicsBridge.cs`). Всё остальное - TypeScript.

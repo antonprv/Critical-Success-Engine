@@ -2,7 +2,7 @@
 
 # Engine architecture
 
-Five workers, one extension point.
+Six workers, one extension point.
 
 ```
 main thread   DOM events, Vue + Quasar rendering of UiStore, pointer lock, AudioContext
@@ -11,6 +11,7 @@ GameLogic     entities, components, scenes, input state, frame + physics clocks 
 PhysicsWorker CSPhysics via wasm: fixed-step loop, command execution, snapshots       Workers/Physics/PhysicsWorld.ts
 RenderWorker  Babylon on an OffscreenCanvas, frame-request/frame protocol         Workers/RenderWorker.ts
 AudioWorker   sound decoding; playback happens on the main thread (AudioPlayer)
+SdfWorker     the SDF world: the baked base and the recent edits, a pool of mesh workers  @cse/sdf: Engine/SdfWorkerHost.ts
 ```
 
 C# exists only for the physics engine and its bridge (`Modules/Physics/Bridge/PhysicsBridge.cs`). Everything else is TypeScript.

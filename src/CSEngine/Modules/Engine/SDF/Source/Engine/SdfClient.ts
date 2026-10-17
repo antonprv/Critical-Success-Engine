@@ -34,6 +34,11 @@ export class SdfClient {
 
 	public LoadError: string | null = null;
 
+	/** Whether the current scene's first area has been meshed. */
+	public Meshed = false;
+
+	private _whenMeshed: Array<() => void> = [];
+
 	private _nextQuery = 1;
 
 	private readonly _waiting = new Map<
@@ -56,7 +61,11 @@ export class SdfClient {
 		this.MaxEdits = scene?.MaxEdits ?? 32;
 		this.Loaded = false;
 		this.LoadError = null;
+		this.Meshed = false;
 		this.Answer( null );
+		if ( !scene ) {
+			this.MarkMeshed();
+		}
 		this._post( { Type: "load", Epoch: this.Epoch, Scene: scene }, [] );
 	}
 
@@ -112,12 +121,31 @@ export class SdfClient {
 		>;
 	}
 
+	/**
+	 * Resolves once the current scene's first area has been meshed (at once
+	 * without an SDF world, or when it failed to load).
+	 */
+	public WhenMeshed(): Promise<void> {
+		return this.Meshed
+			? Promise.resolve()
+			: new Promise( ( resolve ) => this._whenMeshed.push( resolve ) );
+	}
+
 	/** A message from the SDF worker. */
 	public Handle( message: FromSdfWorker ): void {
 		if ( message.Type === "loaded" ) {
 			if ( message.Epoch === this.Epoch ) {
 				this.Loaded = message.Error === null;
 				this.LoadError = message.Error;
+				if ( message.Error !== null ) {
+					this.MarkMeshed();
+				}
+			}
+			return;
+		}
+		if ( message.Type === "meshed" ) {
+			if ( message.Epoch === this.Epoch ) {
+				this.MarkMeshed();
 			}
 			return;
 		}
@@ -135,6 +163,13 @@ export class SdfClient {
 			this._waiting.set( id, resolve );
 			this._post( { Type: "query", Id: id, Query: query }, [] );
 		} );
+	}
+
+	private MarkMeshed(): void {
+		this.Meshed = true;
+		for ( const resolve of this._whenMeshed.splice( 0 ) ) {
+			resolve();
+		}
 	}
 
 	/** Answers every waiting question with `result` (a scene went away). */

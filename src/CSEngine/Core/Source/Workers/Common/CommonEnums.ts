@@ -191,6 +191,11 @@ export const enum PhysicsMsg {
 	SetRunning,
 }
 
+/** main -> SdfWorker (SdfWorkerProtocol.ts). */
+export const enum SdfMsg {
+	Init = 0,
+}
+
 /** main -> GameLogicWorker (GameLogicProtocol.ts). */
 export const enum GameLogicMsg {
 	Init = 0,

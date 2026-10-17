@@ -34,7 +34,7 @@ export class SdfMeshLayer {
 
 	public constructor(
 		private readonly _scene: Scene,
-		public readonly Chunks: SdfChunkSource,
+		public readonly Chunks: SdfChunkSource | null,
 		options: MeshLayerOptions = {},
 	) {
 		this._palette = options.Palette ?? DefaultPalette;
@@ -52,12 +52,23 @@ export class SdfMeshLayer {
 		return this._meshes.get( key );
 	}
 
-	/** Takes the chunks the source has ready; returns what changed. */
+	/**
+	 * Takes the chunks the source has ready; returns what changed. Without a
+	 * source (the chunks are pushed with Apply) there is nothing to take.
+	 */
 	public Update(): MeshChunksUpdate {
-		const update = this.Chunks.Update();
+		const update = this.Chunks?.Update()
+			?? { Built: [], Removed: [], Remaining: 0 };
 
 		this.Apply( update );
 		return update;
+	}
+
+	/** Drops every chunk (a new scene). */
+	public Clear(): void {
+		for ( const key of [ ...this._meshes.keys() ] ) {
+			this.Drop( key );
+		}
 	}
 
 	/** Swaps in rebuilt chunks and drops the ones that left. */
@@ -74,11 +85,9 @@ export class SdfMeshLayer {
 	}
 
 	public Dispose(): void {
-		for ( const key of [ ...this._meshes.keys() ] ) {
-			this.Drop( key );
-		}
+		this.Clear();
 		this.Material.dispose();
-		this.Chunks.Dispose();
+		this.Chunks?.Dispose();
 	}
 
 	private Build( chunk: SdfChunk ): Mesh {

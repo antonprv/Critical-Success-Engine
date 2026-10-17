@@ -10,6 +10,7 @@ import type { SettingsService } from "../Services/SettingsService";
 import type { AudioService } from "../Services/AudioService";
 import type { InputService } from "../Services/InputService";
 import type { PhysicsService } from "../Services/PhysicsService";
+import type { SdfService } from "../Services/SdfService";
 import type { RenderService } from "../Services/RenderService";
 import type { UiService } from "../Services/UiService";
 import type { SceneManager } from "../Scenes/SceneManager";
@@ -39,6 +40,8 @@ export interface TimeInfo {
 export interface EngineContext {
 	readonly World: EntityWorld;
 	readonly Physics: PhysicsService;
+	/** The scene's SDF world: edits made in play, raycasts, distances. */
+	readonly Sdf: SdfService;
 	readonly Render: RenderService;
 	readonly Input: InputService;
 	readonly Ui: UiService;

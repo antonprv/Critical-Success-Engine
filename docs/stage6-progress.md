@@ -29,6 +29,10 @@
 | SDF.4c | Движущаяся правка не морит голодом остальную область | 3b530e3 | `Tests/Mesh.test.ts` «hands out chunks never meshed…», демо `?tier=mesh` |
 | SDF.8a | Чанк — твёрдая статика; перестроенный чанк меняется на месте и будит лежащие на нём тела; память не растёт | 3d39d77 | `Modules/Physics/Tests/SdfChunks.cs` (29/29, SIMD и CseNoSimd) |
 | SDF.8a | Команды `SdfChunk`/`RemoveSdfChunk` физического воркера | 3d39d77 | `Core/Tests/PhysicsWorldFull.test.ts` «SDF chunks» |
+| SDF.5 | Мир в отдельном SDF-воркере; GameLogic держит только последние правки, id сразу, вопросы — через кадр | 16c6287, этот | `SDF/Tests/Engine.test.ts`, `Core/Tests/SdfService.test.ts` |
+| SDF.5 | Чанки из SDF-воркера в рендер и физику, старые сцены отбрасываются по эпохе, пересозданная физика получает чанки снова | 16c6287, этот | `SDF/Tests/Engine.test.ts`, `SDF/Tests/Render.test.ts`, `Core/Tests/Workers.test.ts`, `Core/Tests/PhysicsWorldFull.test.ts` |
+| SDF.5 | Сцена создаёт сущности только после того, как построена область вокруг `Start` (тела не проваливаются) | этот | `Core/Tests/RuntimeFull.test.ts` «SceneManager - an SDF scene»; стенд `?scene=sdf` в Chromium: 200 шаров лежат на SDF-земле и в ямах |
+| S6-05 (SDF) | Сценарий `sdf` на стенде: запечённая база, движущаяся дыра, ямы раз в секунду, 200 шаров | этот | `src/Perf/PerfSuite` (`Source/Scenes/PerfScenes.ts`, `Source/Scripts/SdfDigger.ts`), `Core/Perf/Scenarios.mjs` |
 
 Сверка по заимствованиям: код написан заново по `plan.md`; папки `/Claude` в контейнере не было, ничего из неё не
 использовалось. Формулы расстояний — общеизвестные замкнутые формы (каталог Иниго Килеса), записаны своими словами.

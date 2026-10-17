@@ -18,6 +18,7 @@ import {
 	MenuMode,
 	PhysicsMsg,
 	RenderMsg,
+	SdfMsg,
 	SoundAction,
 	SoundType,
 	UiMsg,
@@ -1182,7 +1183,7 @@ describe( "GameWorkers and Orchestrator", () => {
 	}
 
 	it(
-		"starts the five workers as ES modules and connects them with message "
+		"starts the six workers as ES modules and connects them with message "
 			+ "channels",
 		async () => {
 			const {
@@ -1202,6 +1203,7 @@ describe( "GameWorkers and Orchestrator", () => {
 						"GameLogicWorker.ts",
 						"AudioWorker.ts",
 						"UiWorker.ts",
+						"SdfWorker.ts",
 					],
 				);
 			expect(
@@ -1217,7 +1219,8 @@ describe( "GameWorkers and Orchestrator", () => {
 				physics = init( workers.PhysicsWorker ),
 				logic = init( workers.GameLogicWorker ),
 				audio = init( workers.AudioWorker ),
-				ui = init( workers.UiWorker );
+				ui = init( workers.UiWorker ),
+				sdf = init( workers.SdfWorker );
 			expect( render.message )
 				.toMatchObject(
 					{
@@ -1245,7 +1248,7 @@ describe( "GameWorkers and Orchestrator", () => {
 			// Each GameLogic port is the other end of the channel handed to
 			// that worker.
 			const logicInit = logic.message as Record<string, MessagePort>;
-			expect( logic.transfer ).toHaveLength( 4 );
+			expect( logic.transfer ).toHaveLength( 5 );
 			expect( render.transfer )
 				.toEqual(
 					[
@@ -1253,8 +1256,24 @@ describe( "GameWorkers and Orchestrator", () => {
 						( render.message as {
 							gameLogicPort: unknown;
 						} ).gameLogicPort,
+						( render.message as { sdfPort: unknown; } ).sdfPort,
 					],
 				);
+			// the SDF worker: its own ports to GameLogic, Render and Physics
+			const sdfInit = sdf.message as Record<string, unknown>;
+
+			expect( sdfInit["type"] ).toBe( SdfMsg.Init );
+			expect( sdf.transfer ).toEqual( [
+				sdfInit["gameLogicPort"],
+				sdfInit["renderPort"],
+				sdfInit["physicsPort"],
+			] );
+			expect( sdfInit["baseUrl"] )
+				.toBe( new URL( ".", document.baseURI ).href );
+			expect( physics.transfer ).toEqual( [
+				( physics.message as { gameLogicPort: unknown; } ).gameLogicPort,
+				( physics.message as { sdfPort: unknown; } ).sdfPort,
+			] );
 			expect( audio.transfer )
 				.toEqual(
 					[
@@ -1278,9 +1297,10 @@ describe( "GameWorkers and Orchestrator", () => {
 						logicInit["physicsPort"],
 						logicInit["audioPort"],
 						logicInit["uiPort"],
+						logicInit["sdfPort"],
 					],
 				).size,
-			).toBe( 4 );
+			).toBe( 5 );
 			// where the game's files (data/*.csedata) are
 			expect( logicInit["baseUrl"] )
 				.toBe( new URL( ".", document.baseURI ).href );
@@ -1305,7 +1325,7 @@ describe( "GameWorkers and Orchestrator", () => {
 			} = await import( "../Source/Workers/Orchestrator" );
 			const store = new UiStore();
 			const orchestrator = new Orchestrator( Canvas(), false, store );
-			expect( FakeWorker.created ).toHaveLength( 5 );
+			expect( FakeWorker.created ).toHaveLength( 6 );
 			expect( store.Actions.constructor.name ).toBe( "UiBridge" );
 
 			orchestrator.Dispose();

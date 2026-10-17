@@ -334,7 +334,7 @@ const probe = {
 		return [ ...pixels.slice( 0, 3 ) ].map( ( v ) => v / 255 );
 	},
 	get Pending(): number {
-		return meshed?.Chunks.Pending ?? 0;
+		return meshed?.Chunks?.Pending ?? 0;
 	},
 };
 

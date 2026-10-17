@@ -31,6 +31,7 @@ import {
 	SdfMeshLayer,
 	SdfQuality,
 	SdfRaymarchLayer,
+	SdfRenderReceiver,
 } from "../Source/Render/Index";
 
 const engines: NullEngine[] = [];
@@ -259,5 +260,41 @@ describe( "SdfMeshLayer", () => {
 		expect( colors[1] ).toBe( 0 );
 		expect( colors[3] ).toBe( 1 );
 		layer.Dispose();
+	} );
+} );
+
+describe( "SdfRenderReceiver", () => {
+	it( "draws the chunks of the current scene only", () => {
+		const scene = NewScene();
+		const { field } = World();
+		const chunks = new SdfMeshChunks(
+			field,
+			{ CellSize: 0.5, ChunkCells: 4, Radius: 0 },
+		);
+		const built = chunks.Update().Built;
+		const receiver = new SdfRenderReceiver( scene );
+
+		expect( receiver.Handle( { Type: "begin", Epoch: 2 } ) ).toBe( true );
+		// an older scene's chunks, late
+		expect(
+			receiver.Handle(
+				{ Type: "chunks", Epoch: 1, Built: built, Removed: [] },
+			),
+		)
+			.toBe( false );
+		expect( receiver.Layer.Count ).toBe( 0 );
+		expect(
+			receiver.Handle(
+				{ Type: "chunks", Epoch: 2, Built: built, Removed: [] },
+			),
+		)
+			.toBe( true );
+		expect( receiver.Layer.Count ).toBe( 1 );
+		// pushed, not pulled: Update takes nothing
+		expect( receiver.Layer.Update().Built ).toEqual( [] );
+		receiver.Handle( { Type: "begin", Epoch: 3 } );
+		expect( receiver.Layer.Count ).toBe( 0 );
+		receiver.Dispose();
+		chunks.Dispose();
 	} );
 } );

@@ -2,6 +2,7 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { FMath } from "@cse/fastmath";
+import type { SdfToPhysics } from "@cse/sdf";
 import { Logger } from "../../Logging/Logger";
 import { Quat } from "../../Engine/Math/Quat";
 import { Vec3, type Vec3Tuple } from "../../Engine/Math/Vec3";
@@ -125,6 +126,19 @@ export class PhysicsWorld {
 
 	private readonly _characters = new Map<number, CharacterEntry>();
 
+	/**
+	 * The world was recreated (a scene load): called so the SDF worker sends
+	 * its chunks again.
+	 */
+	public OnSdfReset: ( () => void ) | null = null;
+
+	/** The SDF worker's scene, and its chunks' collision layer and mask. */
+	private _sdfEpoch = 0;
+
+	private _sdfLayer = 1;
+
+	private _sdfMask = -1;
+
 	/** SDF chunks by key: their static and its current shape. */
 	private readonly _sdfChunks = new Map<
 		string,
@@ -161,6 +175,40 @@ export class PhysicsWorld {
 		this._characters.clear();
 		this._shapeCache.clear();
 		this._sdfChunks.clear();
+		this.OnSdfReset?.();
+	}
+
+	/**
+	 * A message from the SDF worker: a new scene drops the old one's chunks;
+	 * chunks of an older scene still on their way are ignored.
+	 */
+	public HandleSdf( message: SdfToPhysics ): void {
+		if ( message.Type === "begin" ) {
+			this._sdfEpoch = message.Epoch;
+			this._sdfLayer = message.Layer;
+			this._sdfMask = message.Mask;
+			for ( const key of [ ...this._sdfChunks.keys() ] ) {
+				this.RemoveSdfChunk( key );
+			}
+			return;
+		}
+		if ( message.Epoch !== this._sdfEpoch ) {
+			return;
+		}
+		for ( const key of message.Removed ) {
+			this.RemoveSdfChunk( key );
+		}
+		for ( const chunk of message.Built ) {
+			this.SetSdfChunk( {
+				operation: PhysOpType.SdfChunk,
+				key: chunk.Key,
+				positions: chunk.Positions,
+				indices: chunk.Indices,
+				layer: this._sdfLayer,
+				mask: this._sdfMask,
+				ownerId: 0,
+			} );
+		}
 	}
 
 	//#endregion
@@ -281,17 +329,32 @@ export class PhysicsWorld {
 		command: Extract<PhysicsCommand, { operation: PhysOpType.SdfChunk; }>,
 	): void {
 		const { positions, indices } = command;
-		const shapeId = this._bridge.AddIndexedMeshShape(
-			new Uint8Array(
+		// the chunk's bytes into the bridge's own memory, then the mesh
+		const view = this._bridge.ChunkBuffer(
+			positions.byteLength + indices.byteLength,
+		);
+
+		try {
+			view.set( new Uint8Array(
 				positions.buffer,
 				positions.byteOffset,
 				positions.byteLength,
-			),
-			new Uint8Array(
-				indices.buffer,
-				indices.byteOffset,
-				indices.byteLength,
-			),
+			) );
+			view.set(
+				new Uint8Array(
+					indices.buffer,
+					indices.byteOffset,
+					indices.byteLength,
+				),
+				positions.byteLength,
+			);
+		} finally {
+			view.dispose();
+		}
+
+		const shapeId = this._bridge.AddIndexedMeshShape(
+			positions.byteLength,
+			indices.byteLength,
 		);
 		const chunk = this._sdfChunks.get( command.key );
 

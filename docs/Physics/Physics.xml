@@ -72,11 +72,18 @@
             i.e. the array length a multiple of 9). Static-only - never pass the resulting shape to AddDynamicBody.
             </summary>
         </member>
-        <member name="M:Physics.Wasm.PhysicsBridge.AddIndexedMeshShape(System.Span{System.Byte},System.Span{System.Byte})">
+        <member name="M:Physics.Wasm.PhysicsBridge.ChunkBuffer(System.Int32)">
             <summary>
-            Builds a static triangle mesh shape from an SDF mesh chunk: the bytes of its Float32Array of positions and its
-            Uint16Array of indices (counter-clockwise seen from outside), read in place - nothing marshalled per number.
-            Returns the shape id, or 0 when the chunk has no triangle with area.
+            The buffer an SDF mesh chunk is written into before AddIndexedMeshShape, as a view of its memory: JS copies
+            the chunk's bytes in (the view's set) and disposes the view - nothing marshalled per number. The buffer only
+            grows, so rebuilding chunks stops allocating.
+            </summary>
+        </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.AddIndexedMeshShape(System.Int32,System.Int32)">
+            <summary>
+            Builds a static triangle mesh shape from the SDF mesh chunk in ChunkBuffer: `positionBytes` of float positions,
+            then `indexBytes` of 16-bit indices (counter-clockwise seen from outside). Returns the shape id, or 0 when the
+            chunk has no triangle with area.
             </summary>
         </member>
         <member name="M:Physics.Wasm.PhysicsBridge.RemoveShape(System.Int32)">
