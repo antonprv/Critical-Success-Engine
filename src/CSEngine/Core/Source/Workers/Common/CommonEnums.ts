@@ -52,6 +52,9 @@ export const enum PhysOpType {
 	Query,
 	ResetWorld,
 	Sync,
+	/** An SDF mesh chunk: added, or swapped in place when rebuilt. */
+	SdfChunk,
+	RemoveSdfChunk,
 }
 
 export const enum PhysQueryType {
@@ -186,6 +189,11 @@ export const enum RenderMsg {
 export const enum PhysicsMsg {
 	Init = 0,
 	SetRunning,
+}
+
+/** main -> SdfWorker (SdfWorkerProtocol.ts). */
+export const enum SdfMsg {
+	Init = 0,
 }
 
 /** main -> GameLogicWorker (GameLogicProtocol.ts). */

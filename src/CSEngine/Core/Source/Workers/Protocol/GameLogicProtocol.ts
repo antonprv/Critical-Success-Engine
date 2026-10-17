@@ -37,5 +37,7 @@ export type MainToGameLogicMessage =
 		physicsPort: MessagePort;
 		audioPort: MessagePort;
 		uiPort: MessagePort;
+		/** The SDF worker (SdfClient's messages), if there is one. */
+		sdfPort?: MessagePort;
 	}
 	| { type: GameLogicMsg.Input; event: InputEvent; };

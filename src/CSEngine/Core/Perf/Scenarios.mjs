@@ -20,6 +20,7 @@ export const Scenarios = [
 	{ Id: "static-100k", Project: PerfSuite, Scene: "static-100k", Description: "PerfSuite: one static mesh of 100 352 triangles." },
 	{ Id: "physics-2000", Project: PerfSuite, Scene: "physics-2000", Description: "PerfSuite: 2 000 dynamic balls (CSPhysics) stirred by a kinematic paddle, so they stay awake." },
 	{ Id: "interop", Project: PerfSuite, Scene: "interop", Description: "PerfSuite: TypeScript calls a C# component 500 times a frame through a contract, and it calls TypeScript 500 times back." },
+	{ Id: "sdf", Project: PerfSuite, Scene: "sdf", Description: "PerfSuite: an SDF world baked at load, a hole moving through it and a pit dug every second (meshed in the SDF worker's pool), 200 balls landing on its chunks." },
 	{ Id: "ui-heavy", Project: PerfSuite, Scene: "ui-heavy", Description: "PerfSuite: a UI document of 120 labels, all changed every frame from the game thread." },
 	{ Id: "bouncing-ball", Project: null, Scene: "bouncing-ball", Description: "Blank template: a ball, the ground, a C# component (Games Sample)." },
 	{ Id: "character-test", Project: null, Scene: "character-test", Description: "First Person template: a room with a ramp, platforms, crates, a trigger (Games Sample)." },
@@ -34,7 +35,6 @@ export const Pending = [
 	{ Id: "keyframes-10k", Description: "10 000 keyframe tracks - keyframes are S6-10, not built yet." },
 	{ Id: "forward-plus-lights", Description: "Forward against Forward+ with many lights - the renderer is S6-06, not built yet." },
 	{ Id: "bsp-map", Description: "A BSP map - the map compiler is S6-04, not built yet." },
-	{ Id: "sdf", Description: "An SDF scene - the SDF renderer (plan.md) is not built yet." },
 	{ Id: "electron", Description: "The same scenes in the Electron build - Electron game builds are S6-07, not built yet." },
 ];
 

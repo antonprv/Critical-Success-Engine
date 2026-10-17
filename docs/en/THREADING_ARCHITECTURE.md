@@ -2,7 +2,7 @@
 
 # Threading architecture
 
-The engine runs in the page (the main thread) and five workers. This document says who owns what, why the split looks like this, and
+The engine runs in the page (the main thread) and six workers. This document says who owns what, why the split looks like this, and
 what to keep in mind when relying on it. The code is in `src/CSEngine/Core/Source/Workers`; the model of scripting and scenes is in
 [ENGINE_ARCHITECTURE.md](ENGINE_ARCHITECTURE.md) and the [guides](guides/00-index.md).
 
@@ -16,9 +16,11 @@ what to keep in mind when relying on it. The code is in `src/CSEngine/Core/Sourc
 | `GameLogicWorker.ts` | entities, components, scenes, input state, the frame and physics ticks | rendering, physics internals |
 | `AudioWorker.ts` | sound decoding | playback (that is on the main thread) |
 | `UiWorker.ts` | the state and logic of the menu / loading screen (`Workers/Ui/UiController.ts`) | drawing (Vue on the main thread draws the state) |
+| `SdfWorker.ts` | the scene's SDF world (the baked base, a replica of the recent edits), a pool of mesh workers, answers to raycasts | the scripts (in GameLogic), rendering and physics (it sends them chunks) |
 
 `Workers/Orchestrator.ts` starts the workers; `Workers/OrchestratorUtils/GameWorkers.ts` wires them: the main thread talks to every worker, and
-GameLogic gets a direct `MessageChannel` to each of the render, physics, audio and UI workers (port 1 goes to GameLogic, port 2 to the other worker).
+GameLogic gets a direct `MessageChannel` to each of the render, physics, audio, UI and SDF workers (port 1 goes to GameLogic, port 2 to the other worker).
+The SDF worker has channels of its own to render and physics: the SDF world's chunks go there directly, not through GameLogic, where the scripts run.
 The message types are in `Workers/Protocol/`. A new system (asset streaming, networking, a pathfinding worker) gets its own file and its own channel to
 whoever needs its output; the channels are created in one place, `GameWorkers`.
 

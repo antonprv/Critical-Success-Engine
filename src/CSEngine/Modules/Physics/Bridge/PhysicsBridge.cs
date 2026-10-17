@@ -2,6 +2,7 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
 
@@ -51,6 +52,9 @@ namespace Physics.Wasm
 		private static double[] _snapshot = new double[ StepStride * 64 ];
 		private static int[] _events = new int[ 3 * 64 ];
 		private static int _eventCount;
+
+		// An SDF chunk's bytes, written by JS through ChunkBuffer's view.
+		private static byte[] _chunk = new byte[ 64 * 1024 ];
 
 		#region World lifecycle
 
@@ -196,6 +200,57 @@ namespace Physics.Wasm
 			return id;
 		}
 
+		/// <summary>
+		/// The buffer an SDF mesh chunk is written into before AddIndexedMeshShape, as a view of its memory: JS copies
+		/// the chunk's bytes in (the view's set) and disposes the view - nothing marshalled per number. The buffer only
+		/// grows, so rebuilding chunks stops allocating.
+		/// </summary>
+		[SupportedOSPlatform( "browser" )]
+		[JSExport]
+		[return: JSMarshalAs<JSType.MemoryView>]
+		public static ArraySegment<byte> ChunkBuffer( int bytes )
+		{
+			Grow( ref _chunk, bytes );
+			return new ArraySegment<byte>( _chunk, 0, bytes );
+		}
+
+		/// <summary>
+		/// Builds a static triangle mesh shape from the SDF mesh chunk in ChunkBuffer: `positionBytes` of float positions,
+		/// then `indexBytes` of 16-bit indices (counter-clockwise seen from outside). Returns the shape id, or 0 when the
+		/// chunk has no triangle with area.
+		/// </summary>
+		[SupportedOSPlatform( "browser" )]
+		[JSExport]
+		public static int AddIndexedMeshShape( int positionBytes, int indexBytes )
+		{
+			ReadOnlySpan<byte> chunk = _chunk;
+
+			if ( !World.TryAddIndexedMeshShape(
+				MemoryMarshal.Cast<byte, float>( chunk.Slice( 0, positionBytes ) ),
+				MemoryMarshal.Cast<byte, ushort>( chunk.Slice( positionBytes, indexBytes ) ),
+				Vector3.One,
+				out ShapeHandle handle
+			) )
+			{
+				return 0;
+			}
+
+			int id = _nextShapeId++;
+			_shapes[ id ] = handle;
+			return id;
+		}
+
+		/// <summary>Removes a shape no static or body uses any more, freeing its memory. Unknown ids are ignored.</summary>
+		[SupportedOSPlatform( "browser" )]
+		[JSExport]
+		public static void RemoveShape( int shapeId )
+		{
+			if ( _shapes.Remove( shapeId, out ShapeHandle handle ) )
+			{
+				World.RemoveShape( handle );
+			}
+		}
+
 		#endregion
 
 		#region Bodies & statics
@@ -315,6 +370,20 @@ namespace Physics.Wasm
 			{
 				_bodyIds[ handle.Value ] = 0;
 				World.RemoveBody( handle );
+			}
+		}
+
+		/// <summary>
+		/// Swaps a static's shape in place (a rebuilt SDF chunk), waking the sleeping bodies around it. Unknown ids are
+		/// ignored. The old shape stays: RemoveShape it afterwards.
+		/// </summary>
+		[SupportedOSPlatform( "browser" )]
+		[JSExport]
+		public static void SetStaticShape( int staticId, int shapeId )
+		{
+			if ( _statics.TryGetValue( staticId, out StaticHandle handle ) && _shapes.TryGetValue( shapeId, out ShapeHandle shape ) )
+			{
+				World.SetStaticShape( handle, shape );
 			}
 		}
 

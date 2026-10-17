@@ -48,6 +48,7 @@ import {
 	PhysicsService,
 	type OverlapEventData,
 } from "../Services/PhysicsService";
+import { SdfService } from "../Services/SdfService";
 import { EmptyFrame, RenderService } from "../Services/RenderService";
 import { UiService } from "../Services/UiService";
 
@@ -59,6 +60,8 @@ export interface GameLogicPorts {
 	physics: MessagePort;
 	audio: MessagePort;
 	ui: MessagePort;
+	/** The SDF worker; none: scenes have no SDF world. */
+	sdf?: MessagePort;
 }
 
 /**
@@ -77,6 +80,8 @@ export class GameLogicRuntime {
 	private readonly _world: EntityWorld;
 
 	private readonly _physics: PhysicsService;
+
+	private readonly _sdf: SdfService;
 
 	private readonly _render: RenderService;
 
@@ -152,6 +157,7 @@ export class GameLogicRuntime {
 			RenderAlpha: 0,
 		};
 		this._physics = new PhysicsService( ports.physics );
+		this._sdf = new SdfService( ports.sdf ?? null );
 		this._render = new RenderService( ports.render );
 		this._input = new InputService();
 		// the project's actions and bindings (the engine has none of its own)
@@ -167,6 +173,7 @@ export class GameLogicRuntime {
 		// first with a late-bound world.
 		const context = {
 			Physics: this._physics,
+			Sdf: this._sdf,
 			Render: this._render,
 			Input: this._input,
 			Ui: this._ui,
@@ -571,7 +578,9 @@ export class GameLogicRuntime {
 
 		if ( this._scenes.IsLoading ) {
 			// The world is being rebuilt: keep the render worker's request
-			// accounting balanced with an empty frame.
+			// accounting balanced with an empty frame. The SDF worker meshes
+			// the new scene's start meanwhile (the scene waits for it).
+			this._sdf.TickLoading();
 			this._render.PostFrame( frameId, 0, new ArrayBuffer( 0 ), null );
 			this._lastFrameMs = now;
 			return;
@@ -646,6 +655,12 @@ export class GameLogicRuntime {
 		}
 
 		const camera = this._render.MainCamera?.GetPose( alpha ) ?? null;
+
+		// the SDF worker meshes around the camera
+		const [ px, py, pz, qx, qy, qz, qw ] = camera?.transform
+			?? [ 0, 0, 0, 0, 0, 0, 1 ];
+
+		this._sdf.Tick( [ px, py, pz ], [ qx, qy, qz, qw ] );
 		// a copy of just the changed part: the buffer itself is kept for the
 		// next frame (what is posted is transferred away)
 		const buffer = count === 0

@@ -36,6 +36,22 @@ function MakeBridge(): FakeBridge {
 		AddCapsuleShape: vi.fn( next ), AddCylinderShape: vi.fn( next ),
 		AddConvexHullShape: vi.fn( () => [next(), 0, 0, 0] ),
 		AddTriangleMeshShape: vi.fn( next ),
+		ChunkBuffer: vi.fn( ( bytes: number ) => {
+			const memory = new Uint8Array( bytes );
+
+			return {
+				memory,
+				length: bytes,
+				set: ( source: Uint8Array, offset = 0 ) => memory.set(
+					source,
+					offset,
+				),
+				dispose: vi.fn(),
+			};
+		} ),
+		AddIndexedMeshShape: vi.fn( next ),
+		RemoveShape: vi.fn(),
+		SetStaticShape: vi.fn(),
 		AddDynamicBody: vi.fn( next ), AddKinematicBody: vi.fn( next ),
 		AddStaticBody: vi.fn( next ),
 		RemoveBody: vi.fn(), RemoveStatic: vi.fn(),
@@ -908,6 +924,142 @@ describe(
 			apply( { operation: PhysOpType.Sync, token: 3 } );
 			expect( replies )
 				.toEqual( [{ state: PhysState.SyncAck, token: 3 }] );
+		} );
+
+		describe( "SDF chunks", () => {
+			const Chunk = (
+				key: string,
+				triangles = 1,
+			): PhysicsCommand => ( {
+				operation: PhysOpType.SdfChunk,
+				key,
+				positions: new Float32Array( [ 0, 0, 0, 1, 0, 0, 0, 0, 1 ] ),
+				indices: new Uint16Array( triangles * 3 ),
+				layer: 1,
+				mask: -1,
+				ownerId: 0,
+			} );
+
+			it( "adds a chunk as a static at the origin", () => {
+				const { bridge, apply } = Setup();
+
+				apply( Chunk( "0,0,0" ) );
+
+				const view = bridge.ChunkBuffer!.mock.results[0]!.value as {
+					memory: Uint8Array;
+					dispose: ReturnType<typeof vi.fn>;
+				};
+
+				// the chunk's bytes, copied into the bridge's memory
+				expect( bridge.ChunkBuffer ).toHaveBeenCalledWith( 42 );
+				expect( new Float32Array( view.memory.buffer, 0, 9 )[3] )
+					.toBe( 1 );
+				expect( view.dispose ).toHaveBeenCalled();
+				expect( bridge.AddIndexedMeshShape )
+					.toHaveBeenCalledWith( 36, 6 );
+				expect( bridge.AddStaticBody ).toHaveBeenCalledWith(
+					expect.any( Number ),
+					0, 0, 0, 0, 0, 0, 1,
+					1, -1, 0, PhysObjectKind.Solid,
+				);
+			} );
+
+			it( "swaps a rebuilt chunk in place and frees the old mesh", () => {
+				const { bridge, apply } = Setup();
+
+				apply( Chunk( "a" ) );
+
+				const staticId = bridge.AddStaticBody!.mock.results[0]!.value;
+				const first =
+					bridge.AddIndexedMeshShape!.mock.results[0]!.value;
+
+				apply( Chunk( "a" ) );
+
+				const second =
+					bridge.AddIndexedMeshShape!.mock.results[1]!.value;
+
+				expect( bridge.AddStaticBody ).toHaveBeenCalledTimes( 1 );
+				expect( bridge.SetStaticShape )
+					.toHaveBeenCalledWith( staticId, second );
+				expect( bridge.RemoveShape ).toHaveBeenCalledWith( first );
+			} );
+
+			it(
+				"removes a chunk, also when a rebuild leaves no triangles",
+				() => {
+					const { bridge, apply } = Setup();
+
+					apply( Chunk( "a" ), Chunk( "b" ) );
+					apply( { operation: PhysOpType.RemoveSdfChunk, key: "a" } );
+					expect( bridge.RemoveStatic ).toHaveBeenCalledTimes( 1 );
+					// unknown keys: nothing
+					apply( { operation: PhysOpType.RemoveSdfChunk, key: "a" } );
+					expect( bridge.RemoveStatic ).toHaveBeenCalledTimes( 1 );
+
+					bridge.AddIndexedMeshShape!.mockReturnValueOnce( 0 );
+					apply( Chunk( "b", 0 ) );
+					expect( bridge.RemoveStatic ).toHaveBeenCalledTimes( 2 );
+					expect( bridge.RemoveShape ).toHaveBeenCalledTimes( 2 );
+				},
+			);
+
+			it( "takes the SDF worker's chunks for the current scene", () => {
+				const { bridge, world } = Setup();
+				const chunk = ( key: string ) => ( {
+					Key: key,
+					Positions: new Float32Array( 9 ),
+					Indices: new Uint16Array( 3 ),
+				} );
+
+				world.HandleSdf(
+					{ Type: "begin", Epoch: 2, Layer: 8, Mask: 3 },
+				);
+				// an older scene's: dropped
+				world.HandleSdf( {
+					Type: "chunks", Epoch: 1, Built: [ chunk( "old" ) ],
+					Removed: [],
+				} );
+				expect( bridge.AddStaticBody ).not.toHaveBeenCalled();
+				world.HandleSdf( {
+					Type: "chunks",
+					Epoch: 2,
+					Built: [ chunk( "a" ), chunk( "b" ) ],
+					Removed: [],
+				} );
+				expect( bridge.AddStaticBody ).toHaveBeenCalledWith(
+					expect.any( Number ),
+					0, 0, 0, 0, 0, 0, 1,
+					8, 3, 0, PhysObjectKind.Solid,
+				);
+				world.HandleSdf( {
+					Type: "chunks", Epoch: 2, Built: [], Removed: [ "a" ],
+				} );
+				expect( bridge.RemoveStatic ).toHaveBeenCalledTimes( 1 );
+				// a new scene drops the rest
+				world.HandleSdf(
+					{ Type: "begin", Epoch: 3, Layer: 1, Mask: -1 },
+				);
+				expect( bridge.RemoveStatic ).toHaveBeenCalledTimes( 2 );
+			} );
+
+			it( "asks for the chunks again when the world is recreated", () => {
+				const { world } = Setup();
+				const reset = vi.fn();
+
+				world.OnSdfReset = reset;
+				world.CreateWorld( { gravity: [ 0, -20, 0 ] } );
+				expect( reset ).toHaveBeenCalledTimes( 1 );
+			} );
+
+			it( "forgets its chunks with the world", () => {
+				const { bridge, apply, world } = Setup();
+
+				apply( Chunk( "a" ) );
+				world.CreateWorld( { gravity: [ 0, -20, 0 ] } );
+				apply( Chunk( "a" ) );
+				expect( bridge.AddStaticBody ).toHaveBeenCalledTimes( 2 );
+				expect( bridge.SetStaticShape ).not.toHaveBeenCalled();
+			} );
 		} );
 	},
 );

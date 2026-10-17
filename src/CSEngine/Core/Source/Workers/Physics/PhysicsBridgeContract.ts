@@ -18,6 +18,13 @@ export interface BridgeView<T> {
 	dispose(): void;
 }
 
+/** A view of bridge memory JS writes into (`set`), then disposes. */
+export interface WritableBridgeView {
+	readonly length: number;
+	set( source: Uint8Array, targetOffset?: number ): void;
+	dispose(): void;
+}
+
 /** Copies a bridge view out and lets the bridge have its memory back. */
 export function ReadView<T>( view: BridgeView<T> ): T {
 	try {
@@ -69,6 +76,21 @@ export interface PhysicsBridgeExports {
 		scaleY: number,
 		scaleZ: number
 	): number;
+	/**
+	 * The bridge's buffer for an SDF chunk, `bytes` long: write the chunk's
+	 * positions (Float32Array bytes) and then its indices (Uint16Array bytes)
+	 * in, and dispose it.
+	 */
+	ChunkBuffer( bytes: number ): WritableBridgeView;
+	/**
+	 * Static-only: a mesh from the chunk in ChunkBuffer. 0 when no triangle
+	 * has area.
+	 */
+	AddIndexedMeshShape( positionBytes: number, indexBytes: number ): number;
+	/** Frees a shape nothing uses any more. */
+	RemoveShape( shapeId: number ): void;
+	/** Swaps a static's shape in place, waking what rests on it. */
+	SetStaticShape( staticId: number, shapeId: number ): void;
 
 	//#endregion
 

@@ -13,3 +13,22 @@ The following steps were used to generate this project:
 - Create `eslint.config.js` to enable linting.
 - Add project to solution.
 - Write this file.
+
+## Stage 6: the SDF world (`Modules/Engine/SDF`)
+
+- New module `@cse/sdf` (plan.md): the ordered edit list as the world's source of truth (64-byte edits, versions,
+  deltas between workers, saving), the exact field with raycasts, a BVH of edits, compiled edit programs, a brick cache
+  (R8 atlas with copy-on-write, toroidal brick map, budgeted incremental rebuilds), the mesh tier (Surface Nets chunks
+  without cracks, baked AO, 16-bit indices) and tier selection.
+- Babylon layers (`@cse/sdf/render`): a ray-marched layer that writes depth into Babylon's buffer (M0), and the mesh
+  tier as Babylon meshes. Demo page, end-to-end depth check in Chromium, CPU benchmark, CI step.
+- The editor's build bakes every edit into one base (`SdfBakedLayer`); the game's `SdfWorld` keeps only the last
+  `MaxEdits` edits and folds older ones into the base (`Keep` edits never fold), bit-identical in worker replicas.
+- The mesh tier meshes in a pool of workers (`SdfMeshWorkers`), new chunks before rebuilds.
+- CSPhysics: SDF chunks as indexed-mesh statics, a rebuilt chunk swaps its shape in place (fixed `Statics.SetShape`
+  not storing the new shape).
+- In the engine: a sixth worker, the SDF worker, holds the world and the mesh pool and sends chunks straight to the
+  renderer and the physics; GameLogic keeps only the recent edits (`this.Engine.Sdf`: edits with ids at once,
+  raycasts and distances a frame later). A scene declares its world in the manifest's `sdf` field and spawns its
+  entities only once the area around its `Start` is meshed. Perf suite scenario `sdf`.
+- Docs: guide 24 (en/ru), `docs/stage6-estimates.md`, `docs/stage6-questions.md`, `docs/stage6-progress.md`.

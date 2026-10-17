@@ -10,6 +10,8 @@ export type MainToPhysicsMessage =
 	| {
 		type: PhysicsMsg.Init;
 		gameLogicPort: MessagePort;
+		/** The SDF worker's chunks (SdfToPhysics), if there is one. */
+		sdfPort?: MessagePort;
 		settings: PhysicsWorldSettingsDescriptor;
 		fixedTimestepMs: number;
 	}

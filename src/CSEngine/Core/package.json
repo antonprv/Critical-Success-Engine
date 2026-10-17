@@ -34,6 +34,7 @@
 		"@cse/di": "workspace:*",
 		"@cse/fastmath": "workspace:*",
 		"@cse/scripting": "workspace:*",
+		"@cse/sdf": "workspace:*",
 		"@cse/task": "workspace:*",
 		"@babylonjs/core": "^9.29.0",
 		"@babylonjs/loaders": "^9.29.0",

@@ -72,6 +72,23 @@
             i.e. the array length a multiple of 9). Static-only - never pass the resulting shape to AddDynamicBody.
             </summary>
         </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.ChunkBuffer(System.Int32)">
+            <summary>
+            The buffer an SDF mesh chunk is written into before AddIndexedMeshShape, as a view of its memory: JS copies
+            the chunk's bytes in (the view's set) and disposes the view - nothing marshalled per number. The buffer only
+            grows, so rebuilding chunks stops allocating.
+            </summary>
+        </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.AddIndexedMeshShape(System.Int32,System.Int32)">
+            <summary>
+            Builds a static triangle mesh shape from the SDF mesh chunk in ChunkBuffer: `positionBytes` of float positions,
+            then `indexBytes` of 16-bit indices (counter-clockwise seen from outside). Returns the shape id, or 0 when the
+            chunk has no triangle with area.
+            </summary>
+        </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.RemoveShape(System.Int32)">
+            <summary>Removes a shape no static or body uses any more, freeing its memory. Unknown ids are ignored.</summary>
+        </member>
         <member name="M:Physics.Wasm.PhysicsBridge.AddDynamicBody(System.Int32,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Int32,System.Int32,System.Int32,System.Int32,System.Boolean)">
             <summary>Adds a dynamic body and returns its body id.</summary>
             <param name="shapeId">Id returned by one of the Add*Shape methods.</param>
@@ -121,6 +138,12 @@
         </member>
         <member name="M:Physics.Wasm.PhysicsBridge.RemoveBody(System.Int32)">
             <summary>Removes a dynamic or kinematic body. Unknown ids are ignored.</summary>
+        </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.SetStaticShape(System.Int32,System.Int32)">
+            <summary>
+            Swaps a static's shape in place (a rebuilt SDF chunk), waking the sleeping bodies around it. Unknown ids are
+            ignored. The old shape stays: RemoveShape it afterwards.
+            </summary>
         </member>
         <member name="M:Physics.Wasm.PhysicsBridge.RemoveStatic(System.Int32)">
             <summary>Removes a static. Unknown ids are ignored.</summary>

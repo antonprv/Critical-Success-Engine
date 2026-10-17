@@ -18,6 +18,7 @@ import {
 	PhysState,
 	RenderMsg,
 	RendOpType,
+	SdfMsg,
 	SoundAction,
 	SoundType,
 	UiMsg,
@@ -80,6 +81,8 @@ afterEach( () => {
 	vi.doUnmock( "../Source/Workers/Physics/PhysicsWorld" );
 	vi.doUnmock( "../Source/Workers/Render/RenderScene" );
 	vi.doUnmock( "../Source/Workers/Render/EntityMeshRegistry" );
+	vi.doUnmock( "@cse/sdf" );
+	vi.doUnmock( "@cse/sdf/render" );
 } );
 
 const flush = async (): Promise<void> => {
@@ -179,6 +182,22 @@ describe( "GameLogicWorker", () => {
 			expect( fakeSelf.onmessage ).toBeNull();
 		},
 	);
+
+	it( "hands the SDF worker's port to the runtime when there is one", async () => {
+		const instances = MockRuntime();
+		await import( "../Source/Workers/GameLogicWorker" );
+		const sdfPort = new FakePort();
+		fakeSelf.Send( {
+			type: GameLogicMsg.Init,
+			renderPort: new FakePort(),
+			physicsPort: new FakePort(),
+			audioPort: new FakePort(),
+			uiPort: new FakePort(),
+			sdfPort,
+		} );
+		await vi.waitFor( () => expect( instances ).toHaveLength( 1 ) );
+		expect( ( instances[0]!.ports as { sdf: unknown; } ).sdf ).toBe( sdfPort );
+	} );
 
 	it( "starts in the scene the page asks for (?scene=); none: the first", async () => {
 		const instances = MockRuntime();
@@ -728,12 +747,21 @@ describe( "PhysicsWorker", () => {
 
 		public steps = 0;
 
+		public sdf: unknown[] = [];
+
+		public OnSdfReset: ( () => void ) | null = null;
+
 		public constructor( public bridge: unknown ) {
 			World.instances.push( this );
 		}
 
 		public CreateWorld( settings: unknown ): void {
 			this.created = settings;
+			this.OnSdfReset?.();
+		}
+
+		public HandleSdf( message: unknown ): void {
+			this.sdf.push( message );
 		}
 
 		public ApplyCommands(
@@ -948,6 +976,57 @@ describe( "PhysicsWorker", () => {
 			),
 		).toBe( false );
 	} );
+	it(
+		"takes the SDF worker's chunks (queued until the world is up) and asks "
+			+ "for them again when the world is recreated",
+		async () => {
+			let finishLoading!: ( bridge: unknown ) => void;
+			const port = await Start(
+				() => new Promise( ( resolve ) => ( finishLoading = resolve ) ),
+			);
+			const sdf = new FakePort();
+
+			fakeSelf.Send( {
+				type: PhysicsMsg.Init,
+				gameLogicPort: port,
+				sdfPort: sdf,
+				settings: { gravity: [0, -20, 0] },
+				fixedTimestepMs: 10,
+			} );
+			sdf.Receive( { Type: "begin", Epoch: 1 } );
+			finishLoading( {} );
+			await flush();
+
+			const world = World.instances[0]!;
+
+			// the first world asks too (the SDF worker has nothing yet)
+			expect( sdf.sent ).toEqual( [ { Type: "reset" } ] );
+			expect( world.sdf ).toEqual( [ { Type: "begin", Epoch: 1 } ] );
+			sdf.Receive( { Type: "chunks", Epoch: 1 } );
+			expect( world.sdf ).toHaveLength( 2 );
+		},
+	);
+
+	it(
+		"drops the SDF worker's chunks when physics failed to load",
+		async () => {
+			SilenceConsole();
+			const port = await Start( () => Promise.reject( new Error( "no" ) ) );
+			const sdf = new FakePort();
+
+			fakeSelf.Send( {
+				type: PhysicsMsg.Init,
+				gameLogicPort: port,
+				sdfPort: sdf,
+				settings: { gravity: [0, -20, 0] },
+				fixedTimestepMs: 10,
+			} );
+			sdf.Receive( { Type: "begin", Epoch: 1 } );
+			await flush();
+			sdf.Receive( { Type: "begin", Epoch: 2 } );
+			expect( World.instances ).toHaveLength( 0 );
+		},
+	);
 } );
 
 describe( "RenderWorker", () => {
@@ -1267,6 +1346,38 @@ describe( "RenderWorker", () => {
 				);
 		},
 	);
+	it( "draws the SDF worker's chunks and wakes the loop for them", async () => {
+		const handled: unknown[] = [];
+
+		vi.doMock( "@cse/sdf/render", () => ( {
+			SdfRenderReceiver: class {
+				public Handle( message: { changed: boolean; } ): boolean {
+					handled.push( message );
+					return message.changed;
+				}
+			},
+		} ) );
+
+		const { scene } = await Start();
+		const sdfPort = new FakePort();
+
+		fakeSelf.Send( {
+			type: RenderMsg.Init,
+			canvas: {},
+			gameLogicPort: new FakePort(),
+			sdfPort,
+			devMode: false,
+			width: 800,
+			height: 600,
+			devicePixelRatio: 1,
+		} );
+		scene.Wake.mockClear();
+		sdfPort.Receive( { changed: false } );
+		expect( scene.Wake ).not.toHaveBeenCalled();
+		sdfPort.Receive( { changed: true } );
+		expect( scene.Wake ).toHaveBeenCalledTimes( 1 );
+		expect( handled ).toHaveLength( 2 );
+	} );
 } );
 
 describe( "PhysicsWasmLoader", () => {
@@ -1453,5 +1564,91 @@ describe( "PhysicsWasmLoader", () => {
 					/Missing gzip asset: \/f\/dotnet\.native\.wasm\.gz \(404 Not Found\)/,
 				);
 		} );
+	} );
+} );
+
+describe( "SdfWorker", () => {
+	async function Start() {
+		const hosts: Array<{
+			ports: {
+				ToGameLogic( m: unknown ): void;
+				ToRender( m: unknown, t: unknown[] ): void;
+				ToPhysics( m: unknown, t: unknown[] ): void;
+			};
+			options: { Spawn: unknown; Fetch( url: string ): Promise<ArrayBuffer>; };
+			gameLogic: unknown[];
+			physics: unknown[];
+		}> = [];
+
+		vi.doMock( "@cse/sdf", () => ( {
+			CreateMeshWorker: "spawn",
+			SdfWorkerHost: class {
+				public gameLogic: unknown[] = [];
+
+				public physics: unknown[] = [];
+
+				public constructor( public ports: unknown, public options: unknown ) {
+					hosts.push( this as never );
+				}
+
+				public HandleGameLogic( message: { fail?: boolean; } ): Promise<void> {
+					this.gameLogic.push( message );
+					return message.fail ? Promise.reject( new Error( "broken" ) ) : Promise.resolve();
+				}
+
+				public HandlePhysics( message: unknown ): void {
+					this.physics.push( message );
+				}
+			},
+		} ) );
+		await import( "../Source/Workers/SdfWorker" );
+
+		const ports = {
+			gameLogicPort: new FakePort(),
+			renderPort: new FakePort(),
+			physicsPort: new FakePort(),
+		};
+
+		fakeSelf.Send( { type: SdfMsg.Init, ...ports, baseUrl: "https://game.test/play/" } );
+		return { host: hosts[0]!, ...ports };
+	}
+
+	it( "wires its ports to the host and the host's messages to its ports", async () => {
+		const { host, gameLogicPort, renderPort, physicsPort } = await Start();
+
+		expect( host.options.Spawn ).toBe( "spawn" );
+		gameLogicPort.Receive( { Type: "tick" } );
+		physicsPort.Receive( { Type: "reset" } );
+		expect( host.gameLogic ).toEqual( [ { Type: "tick" } ] );
+		expect( host.physics ).toEqual( [ { Type: "reset" } ] );
+		host.ports.ToGameLogic( { Type: "loaded" } );
+		host.ports.ToRender( { Type: "begin" }, [] );
+		host.ports.ToPhysics( { Type: "begin" }, [] );
+		expect( gameLogicPort.sent ).toEqual( [ { Type: "loaded" } ] );
+		expect( renderPort.sent ).toEqual( [ { Type: "begin" } ] );
+		expect( physicsPort.sent ).toEqual( [ { Type: "begin" } ] );
+
+		// a failure is logged, not thrown at the port
+		const { Logger } = await import( "../Source/Logging/Logger" );
+		const logged = vi.spyOn( Logger, "LogException" )
+			.mockImplementation( () => undefined );
+
+		gameLogicPort.Receive( { fail: true } );
+		await flush();
+		expect( logged ).toHaveBeenCalledWith( expect.any( Error ), "[SdfWorker]" );
+	} );
+
+	it( "fetches baked bases next to the game", async () => {
+		const { host } = await Start();
+		const fetch = vi.fn( async ( url: URL ) => (
+			url.pathname.endsWith( "level.sdf" )
+				? { ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer( 3 ) }
+				: { ok: false, status: 404 }
+		) );
+
+		vi.stubGlobal( "fetch", fetch );
+		expect( ( await host.options.Fetch( "levels/level.sdf" ) ).byteLength ).toBe( 3 );
+		expect( fetch.mock.calls[0]![0].href ).toBe( "https://game.test/play/levels/level.sdf" );
+		await expect( host.options.Fetch( "missing.sdf" ) ).rejects.toThrow( "missing.sdf: HTTP 404" );
 	} );
 } );

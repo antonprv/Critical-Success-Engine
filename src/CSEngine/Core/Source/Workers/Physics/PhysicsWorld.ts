@@ -2,11 +2,13 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { FMath } from "@cse/fastmath";
+import type { SdfToPhysics } from "@cse/sdf";
 import { Logger } from "../../Logging/Logger";
 import { Quat } from "../../Engine/Math/Quat";
 import { Vec3, type Vec3Tuple } from "../../Engine/Math/Vec3";
 import {
 	PhysBodyType,
+	PhysObjectKind,
 	PhysOpType,
 	PhysQueryType,
 	PhysShape,
@@ -124,6 +126,25 @@ export class PhysicsWorld {
 
 	private readonly _characters = new Map<number, CharacterEntry>();
 
+	/**
+	 * The world was recreated (a scene load): called so the SDF worker sends
+	 * its chunks again.
+	 */
+	public OnSdfReset: ( () => void ) | null = null;
+
+	/** The SDF worker's scene, and its chunks' collision layer and mask. */
+	private _sdfEpoch = 0;
+
+	private _sdfLayer = 1;
+
+	private _sdfMask = -1;
+
+	/** SDF chunks by key: their static and its current shape. */
+	private readonly _sdfChunks = new Map<
+		string,
+		{ staticId: number; shapeId: number; }
+	>();
+
 	private readonly _shapeCache = new Map<string, ShapeEntry>();
 
 	private _stepIndex = 0;
@@ -153,6 +174,41 @@ export class PhysicsWorld {
 		this._bodyIdToEntity.clear();
 		this._characters.clear();
 		this._shapeCache.clear();
+		this._sdfChunks.clear();
+		this.OnSdfReset?.();
+	}
+
+	/**
+	 * A message from the SDF worker: a new scene drops the old one's chunks;
+	 * chunks of an older scene still on their way are ignored.
+	 */
+	public HandleSdf( message: SdfToPhysics ): void {
+		if ( message.Type === "begin" ) {
+			this._sdfEpoch = message.Epoch;
+			this._sdfLayer = message.Layer;
+			this._sdfMask = message.Mask;
+			for ( const key of [ ...this._sdfChunks.keys() ] ) {
+				this.RemoveSdfChunk( key );
+			}
+			return;
+		}
+		if ( message.Epoch !== this._sdfEpoch ) {
+			return;
+		}
+		for ( const key of message.Removed ) {
+			this.RemoveSdfChunk( key );
+		}
+		for ( const chunk of message.Built ) {
+			this.SetSdfChunk( {
+				operation: PhysOpType.SdfChunk,
+				key: chunk.Key,
+				positions: chunk.Positions,
+				indices: chunk.Indices,
+				layer: this._sdfLayer,
+				mask: this._sdfMask,
+				ownerId: 0,
+			} );
+		}
 	}
 
 	//#endregion
@@ -256,6 +312,88 @@ export class PhysicsWorld {
 			case PhysOpType.Sync:
 				reply( { state: PhysState.SyncAck, token: command.token } );
 				break;
+			case PhysOpType.SdfChunk:
+				this.SetSdfChunk( command );
+				break;
+			case PhysOpType.RemoveSdfChunk:
+				this.RemoveSdfChunk( command.key );
+				break;
+		}
+	}
+
+	/**
+	 * Adds an SDF chunk, or swaps a rebuilt one in place (the static keeps
+	 * its id, bodies resting on it wake up) and frees the old mesh.
+	 */
+	private SetSdfChunk(
+		command: Extract<PhysicsCommand, { operation: PhysOpType.SdfChunk; }>,
+	): void {
+		const { positions, indices } = command;
+		// the chunk's bytes into the bridge's own memory, then the mesh
+		const view = this._bridge.ChunkBuffer(
+			positions.byteLength + indices.byteLength,
+		);
+
+		try {
+			view.set( new Uint8Array(
+				positions.buffer,
+				positions.byteOffset,
+				positions.byteLength,
+			) );
+			view.set(
+				new Uint8Array(
+					indices.buffer,
+					indices.byteOffset,
+					indices.byteLength,
+				),
+				positions.byteLength,
+			);
+		} finally {
+			view.dispose();
+		}
+
+		const shapeId = this._bridge.AddIndexedMeshShape(
+			positions.byteLength,
+			indices.byteLength,
+		);
+		const chunk = this._sdfChunks.get( command.key );
+
+		if ( shapeId === 0 ) {
+			this.RemoveSdfChunk( command.key );
+			return;
+		}
+		if ( chunk ) {
+			this._bridge.SetStaticShape( chunk.staticId, shapeId );
+			this._bridge.RemoveShape( chunk.shapeId );
+			chunk.shapeId = shapeId;
+			return;
+		}
+		this._sdfChunks.set( command.key, {
+			shapeId,
+			staticId: this._bridge.AddStaticBody(
+				shapeId,
+				0,
+				0,
+				0,
+				0,
+				0,
+				0,
+				1,
+				command.layer,
+				command.mask,
+				command.ownerId,
+				PhysObjectKind.Solid,
+			),
+		} );
+	}
+
+	private RemoveSdfChunk( key: string ): void {
+		const chunk = this._sdfChunks.get( key );
+
+		if ( chunk ) {
+			this._bridge.RemoveStatic( chunk.staticId );
+			this._bridge.RemoveShape( chunk.shapeId );
+			this._sdfChunks.delete( key );
 		}
 	}
 

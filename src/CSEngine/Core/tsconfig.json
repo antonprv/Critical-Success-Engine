@@ -12,7 +12,9 @@
 			"@cse/datastream": ["../Modules/Common/DataStream/Source/Index.ts"],
 			"@cse/di": ["../Modules/Common/DI/Source/Index.ts"],
 			"@cse/scripting": ["../Modules/Scripting/Source/Index.ts"],
-			"@cse/task": ["../Modules/Common/Task/Source/Index.ts"]
+			"@cse/task": ["../Modules/Common/Task/Source/Index.ts"],
+			"@cse/sdf": ["../Modules/Engine/SDF/Source/Index.ts"],
+			"@cse/sdf/render": ["../Modules/Engine/SDF/Source/Render/Index.ts"]
 		},
 		// Files the Vite config loads (BuildTools -> Source) import with explicit .ts extensions, as Vite's config loader needs.
 		"allowImportingTsExtensions": true,

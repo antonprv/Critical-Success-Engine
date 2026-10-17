@@ -212,6 +212,17 @@ jobs:
           pnpm build
           pnpm test:e2e
 
+      # The SDF world module (edit list, bricks, mesh tier, Babylon layers); its end-to-end test checks that meshes
+      # and the SDF surface sort by depth on the demo page.
+      - name: "SDF module: type check, lint, unit tests (100% coverage), build, end-to-end"
+        working-directory: src/CSEngine/Modules/Engine/SDF
+        run: |
+          pnpm typecheck
+          pnpm lint
+          pnpm test
+          pnpm build
+          pnpm test:e2e
+
       # The UI Designer editor module: its own checks, on top of the UI module it builds on.
       - name: "UI Designer: type check, lint, unit tests (100% coverage), build, end-to-end"
         working-directory: src/CSEngine/Modules/Editor/UIDesigner

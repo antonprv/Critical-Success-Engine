@@ -1,0 +1,123 @@
+// Created by Anton Piruev in 2026.
+// Any direct commercial use of derivative work is strictly prohibited.
+
+import { EditList } from "../Edits/EditList";
+import { SdfField } from "../Field/SdfField";
+import { SdfMeshChunks } from "../Mesh/MeshChunks";
+import type { SdfMeshData } from "../Mesh/SurfaceNets";
+import { SdfWorld } from "../World/SdfWorld";
+
+/** Main thread -> mesh worker. */
+export type ToMeshWorker =
+	| {
+		Type: "init";
+		/** The baked base (SdfBakedLayer.Serialize), or none. */
+		Base: ArrayBuffer | null;
+		/** The recent edits now (EditList.Serialize), or none. */
+		Edits: ArrayBuffer | null;
+		/** The main world's version they are at. */
+		Version: number;
+		CellSize: number;
+		ChunkCells: number;
+		Ao: boolean;
+	}
+	/** EditList.TakeDelta of the main world. */
+	| { Type: "delta"; Delta: ArrayBuffer; }
+	| {
+		Type: "mesh";
+		Job: number;
+		Key: string;
+		Coord: [ number, number, number ];
+	};
+
+/** Mesh worker -> main thread. */
+export interface FromMeshWorker {
+	Type: "meshed";
+	Job: number;
+	Key: string;
+	Coord: [ number, number, number ];
+	/** The main world's version the mesh was made at. */
+	Version: number;
+	Mesh: SdfMeshData;
+}
+
+/** A reply and the buffers it hands over. */
+export interface MeshWorkerReply {
+	Message: FromMeshWorker;
+	Transfer: ArrayBuffer[];
+}
+
+/**
+ * What a mesh worker does (the worker file only wires it to its port): a
+ * replica of the world - the same baked base, the main world's deltas
+ * replayed in order, folds included - and chunks meshed from it on request.
+ * Messages on a port arrive in order, so a job always sees every edit sent
+ * before it.
+ */
+export class MeshWorkerHost {
+	private _chunks: SdfMeshChunks | null = null;
+
+	private _edits: EditList | null = null;
+
+	private _version = 0;
+
+	public Handle( message: ToMeshWorker ): MeshWorkerReply | null {
+		switch ( message.Type ) {
+			case "init": {
+				const field = message.Base
+					? SdfWorld.FromBase(
+						message.Base,
+						{ MaxEdits: Infinity },
+						message.Edits,
+					).Field
+					: new SdfField( message.Edits
+						? EditList.Deserialize( message.Edits )
+						: new EditList() );
+
+				this._edits = field.Edits;
+				this._version = message.Version;
+				this._chunks?.Dispose();
+				this._chunks = new SdfMeshChunks( field, {
+					CellSize: message.CellSize,
+					ChunkCells: message.ChunkCells,
+					Ao: message.Ao,
+					Radius: 0,
+				} );
+				return null;
+			}
+			case "delta":
+				this._version = this.Ready()[0].ApplyDelta( message.Delta );
+				return null;
+			case "mesh": {
+				const chunk = this.Ready()[1]
+					.Mesh( message.Key, message.Coord );
+				const mesh = chunk.Mesh;
+
+				return {
+					Message: {
+						Type: "meshed",
+						Job: message.Job,
+						Key: message.Key,
+						Coord: message.Coord,
+						Version: this._version,
+						Mesh: mesh,
+					},
+					Transfer: [
+						mesh.Positions.buffer as ArrayBuffer,
+						mesh.Normals.buffer as ArrayBuffer,
+						mesh.Ao.buffer as ArrayBuffer,
+						mesh.MaterialIds.buffer as ArrayBuffer,
+						mesh.Indices.buffer as ArrayBuffer,
+					],
+				};
+			}
+		}
+	}
+
+	private Ready(): [ EditList, SdfMeshChunks ] {
+		if ( !this._edits || !this._chunks ) {
+			throw new Error( "The mesh worker got work before init" );
+		}
+		return [ this._edits, this._chunks ];
+	}
+}
