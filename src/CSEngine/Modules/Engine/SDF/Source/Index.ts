@@ -6,6 +6,11 @@
  * brick cache and the mesh tier. Babylon's side is "@cse/sdf/render".
  */
 export * from "./Edits/SdfEdit";
+export * from "./Edits/SdfDynamicEdits";
+export * from "./Edits/SdfSplat";
+export * from "./Edits/SdfCurve";
+export * from "./Splats/GrassField";
+export * from "./Field/FieldState";
 export * from "./Edits/EditList";
 export * from "./Field/Shapes";
 export * from "./Field/Ops";

@@ -14,11 +14,11 @@ import { SyncTracker } from "../Core/SyncTracker";
 import type { Vec3Tuple } from "../Math/Vec3";
 
 /**
- * Something that can say where the main camera is for a given interpolation
- * alpha (implemented by CameraComponent).
+ * Something that can say where the main camera is at a physics step time
+ * (TimeInfo.RenderStep; implemented by CameraComponent).
  */
 export interface ICameraSource {
-	GetPose( alpha: number ): CameraPose;
+	GetPose( at: number ): CameraPose;
 }
 
 export class RenderService {
@@ -100,7 +100,13 @@ export class RenderService {
 		entityCount: number,
 		buffer: ArrayBuffer,
 		camera: CameraPose | null,
+		sdfDynamic: Float32Array | null = null,
 	): void {
+		const transfer: Transferable[] = buffer.byteLength > 0 ? [buffer] : [];
+
+		if ( sdfDynamic ) {
+			transfer.push( sdfDynamic.buffer );
+		}
 		this.Post(
 			{
 				operation: RendOpType.Frame,
@@ -108,8 +114,9 @@ export class RenderService {
 				camera,
 				entityCount,
 				buffer,
+				sdfDynamic,
 			},
-			buffer.byteLength > 0 ? [buffer] : [],
+			transfer,
 		);
 	}
 }

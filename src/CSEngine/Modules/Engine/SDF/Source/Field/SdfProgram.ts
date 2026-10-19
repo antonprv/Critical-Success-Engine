@@ -2,14 +2,14 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import {
-	IsCarving,
-	IsGlobal,
+	LayerIndex,
 	SdfEditFlags,
-	SdfOp,
 	SdfShape,
 	type SdfEdit,
 } from "../Edits/SdfEdit";
 import type { SdfBaseLayer } from "./BaseLayers";
+import { FieldState } from "./FieldState";
+import { RoundCone, ShapeRadius } from "./Shapes";
 
 /** Numbers per compiled edit. */
 const Stride = 20;
@@ -35,8 +35,12 @@ const enum Slot {
 	P3 = 14,
 	K = 15,
 	Material = 16,
-	/** 1 carving, 2 global (intersection), 0 adding. */
-	Kind = 17,
+	/** Index of the edit's layer. */
+	Layer = 17,
+	/** Its mask (the layers it merges with). */
+	Mask = 18,
+	/** The world radius the edit changes anything within (shape and blend). */
+	Bound = 19,
 }
 
 /**
@@ -56,7 +60,7 @@ export class SdfProgram {
 
 	private readonly _count: number;
 
-	private _material = 0;
+	private readonly _state = new FieldState();
 
 	public constructor(
 		edits: readonly SdfEdit[],
@@ -89,11 +93,13 @@ export class SdfProgram {
 			d[at + Slot.P3] = edit.Params[3];
 			d[at + Slot.K] = edit.SmoothK;
 			d[at + Slot.Material] = edit.MaterialId;
-			d[at + Slot.Kind] = IsCarving( edit.Op )
-				? 1
-				: IsGlobal( edit.Op )
-					? 2
-					: 0;
+			d[at + Slot.Layer] = LayerIndex( edit.Layer );
+			d[at + Slot.Mask] = edit.Mask;
+			d[at + Slot.Bound] = ShapeRadius(
+				edit.Shape,
+				edit.Params,
+			) * edit.Scale
+				+ edit.SmoothK;
 		} );
 	}
 
@@ -102,56 +108,69 @@ export class SdfProgram {
 		return this._count;
 	}
 
-	/** Material at the point of the last Distance. */
+	/** Material at the point of the last Distance (the first of its pair). */
 	public get LastMaterial(): number {
-		return this._material;
+		return this._state.Material;
+	}
+
+	/** The second material there and its share (0..1): where two fade. */
+	public get LastMaterialB(): number {
+		return this._state.MaterialB;
+	}
+
+	public get LastMix(): number {
+		return this._state.Mix;
+	}
+
+	/** The layer of the surface nearest there. */
+	public get LastLayer(): number {
+		return this._state.Layer;
 	}
 
 	/** Signed distance at a world point. */
 	public Distance( x: number, y: number, z: number ): number {
 		const data = this._data;
-		let d = Infinity;
-		let material = 0;
+		const state = this._state;
 
+		state.Reset();
 		if ( this._base !== null ) {
-			d = this._base.Distance( x, y, z );
-			material = this._base.MaterialId;
+			const base = this._base;
+			const d = base.Distance( x, y, z );
+
+			state.SetBase(
+				d,
+				base.LayerIndex ?? 0,
+				base.MaterialId,
+				base.MaterialB ?? base.MaterialId,
+				base.MaterialMix ?? 0,
+			);
 		}
 		for ( let at = 0; at < this._count * Stride; at += Stride ) {
-			const e = EditAt( data, at, x, y, z );
-			const k = data[at + Slot.K]!;
-			let next: number;
+			const dx = x - data[at + Slot.Px]!;
+			const dy = y - data[at + Slot.Py]!;
+			const dz = z - data[at + Slot.Pz]!;
 
-			switch ( data[at + Slot.Op]! ) {
-				case SdfOp.Union:
-					next = d < e ? d : e;
-					break;
-				case SdfOp.Subtract:
-					next = d > -e ? d : -e;
-					break;
-				case SdfOp.Intersect:
-					next = d > e ? d : e;
-					break;
-				case SdfOp.SmoothUnion:
-					next = Smin( d, e, k );
-					break;
-				case SdfOp.SmoothSubtract:
-					next = -Smin( -d, e, k );
-					break;
-				default:
-					next = -Smin( -d, -e, k );
-					break;
+			// too far to change this point: its shape isn't evaluated
+			if ( !state.Reaches(
+				data[at + Slot.Op]!,
+				data[at + Slot.Layer]!,
+				data[at + Slot.Mask]!,
+				Math.sqrt(
+					dx * dx + dy * dy + dz * dz,
+				) - data[at + Slot.Bound]!,
+			) ) {
+				continue;
 			}
-
-			const kind = data[at + Slot.Kind]!;
-
-			if ( kind === 1 ? -e > d : kind === 2 ? e > d : e < d ) {
-				material = data[at + Slot.Material]!;
-			}
-			d = next;
+			state.Apply(
+				data[at + Slot.Op]!,
+				data[at + Slot.Layer]!,
+				data[at + Slot.Mask]!,
+				EditAt( data, at, x, y, z ),
+				data[at + Slot.K]!,
+				data[at + Slot.Material]!,
+			);
 		}
-		this._material = material;
-		return d;
+		return state.Result();
 	}
 }
 
@@ -223,6 +242,9 @@ function EditAt(
 			d = ( inside < 0 ? inside : 0 ) + Math.sqrt( ox * ox + oy * oy );
 			break;
 		}
+		case SdfShape.RoundCone:
+			d = RoundCone( lx, ly, lz, p0, p1, data[at + Slot.P2]! );
+			break;
 		default: {
 			const rz = data[at + Slot.P2]!;
 			const ax = lx / p0;
@@ -262,18 +284,4 @@ function RoundBox(
 
 	return Math.sqrt( ox * ox + oy * oy + oz * oz )
 		+ ( inside < 0 ? inside : 0 ) - r;
-}
-
-/** The quadratic smooth minimum (Ops.SmoothMin), inlined here. */
-function Smin( a: number, b: number, k: number ): number {
-	const gap = a > b ? a - b : b - a;
-	const low = a < b ? a : b;
-
-	if ( !( gap < k ) ) {
-		return low;
-	}
-
-	const h = ( k - gap ) / k;
-
-	return low - h * h * k * 0.25;
 }

@@ -1,28 +1,27 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-import { FMath } from "@cse/fastmath";
-import { Constants } from "@babylonjs/core/Engines/constants";
-import "@babylonjs/core/Engines/Extensions/engine.rawTexture";
-import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
-import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
-import { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
-import { Effect } from "@babylonjs/core/Materials/effect";
-import { RawTexture3D } from "@babylonjs/core/Materials/Textures/rawTexture3D";
-import { Texture } from "@babylonjs/core/Materials/Textures/texture";
-import { Color3 } from "@babylonjs/core/Maths/math.color";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
+import type { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
-import type { DenseSdfGrid } from "../Bricks/DenseGrid";
-import { DefaultPalette } from "./Palette";
+import { DenseSdfGrid } from "../Bricks/DenseGrid";
+import type { SdfVolume } from "../Bricks/SdfVolume";
+import { DefaultPalette, PaletteFloats } from "./Palette";
+import { SdfCheckerboard } from "./SdfCheckerboard";
+import { SdfConeMarch } from "./SdfConeMarch";
+import { SdfBrickTexture } from "./SdfBrickTexture";
+import { SdfLightBuffer } from "./SdfLightBuffer";
 import {
-	RaymarchFragment,
-	RaymarchShaderName,
-	RaymarchVertex,
-} from "./Shaders";
+	CreateCasterMaterial,
+	CreateRaymarchMaterial,
+	type RaymarchSettings,
+} from "./RaymarchMaterial";
+import { SdfRenderContext } from "./SdfRenderContext";
+import { SdfShadowCache } from "./SdfShadowCache";
+import { SdfVolumeTexture } from "./SdfVolumeTexture";
 
 /** What the ray-marched layer shows. */
 export const enum SdfDebugView {
@@ -49,6 +48,34 @@ export interface RaymarchLayerOptions {
 	Quality?: SdfQuality;
 	/** Shrinks steps where distances are bounds, not exact. Default 0.9. */
 	StepScale?: number;
+	/**
+	 * What the layer shares with the scene's meshes (shadows, dynamic edits,
+	 * occlusion); by default a context of its own, disposed with it.
+	 */
+	Context?: SdfRenderContext;
+	/**
+	 * The cone march the rays start from (plan.md 20.1): its tiles in
+	 * pixels, by default one level of 8 (none: from the box). The empty
+	 * space before a surface is crossed once a tile.
+	 */
+	ConeTiles?: readonly number[];
+	/**
+	 * Marched with the checkerboard (plan.md 21.7, SdfCheckerboard): half the
+	 * rays a frame. Default on (where the GPU draws into float targets).
+	 */
+	Checkerboard?: boolean;
+	/**
+	 * The soft shadows and occlusion marched at this fraction of the
+	 * screen's width and height (plan.md 21.8 item 6, SdfLightBuffer); 0:
+	 * every pixel marches its own. Default 0.5.
+	 */
+	LightResolution?: number;
+	/**
+	 * The box's shadow marched once and kept while nothing it depends on
+	 * changes (SdfShadowCache). Default on (with the context's shadows,
+	 * where the GPU draws into float targets).
+	 */
+	ShadowCache?: boolean;
 }
 
 /**
@@ -56,187 +83,250 @@ export interface RaymarchLayerOptions {
  * (plan.md 15, M0): a box around the grid whose back faces run the marcher,
  * which writes the hit's depth, so meshes in front of and behind the SDF
  * surface are sorted by the ordinary depth test (plan.md 8.1, variant 1).
- * The sun and sky come from the scene's first directional and hemispheric
- * lights (SyncLights), so both worlds are lit alike (plan.md 8.2).
+ * The context's dynamic edits are applied on the GPU, the meshes and the
+ * SDF shadow each other through the sun's shadow map, and both are occluded
+ * by each other (plan.md 8.2-8.3).
  */
 export class SdfRaymarchLayer {
 	public readonly Mesh: Mesh;
 
 	public readonly Material: ShaderMaterial;
 
-	public readonly Texture: RawTexture3D;
+	/** The grid's texture, or the bricks' map and atlases. */
+	public readonly Volume: SdfVolumeTexture | SdfBrickTexture;
 
-	public DebugView = SdfDebugView.Lit;
+	public readonly Context: SdfRenderContext;
 
-	public Quality: SdfQuality;
+	public readonly Cone: SdfConeMarch | null = null;
 
-	public StepScale: number;
+	public readonly Checker: SdfCheckerboard | null = null;
 
-	private readonly _sunDirection = new Vector3( -0.4, -1, -0.5 );
+	public readonly Light: SdfLightBuffer | null = null;
 
-	private readonly _sunColor = new Color3( 0.7, 0.7, 0.7 );
+	public readonly ShadowCache: SdfShadowCache | null = null;
 
-	private readonly _skyColor = new Color3( 0.65, 0.65, 0.65 );
+	/** Bumped as the grid is uploaded: the cached shadow is old. */
+	private _uploads = 0;
 
-	private readonly _groundColor = new Color3( 0.16, 0.16, 0.2 );
+	private readonly _settings: RaymarchSettings;
 
-	private readonly _palette: number[];
+	private readonly _ownContext: boolean;
 
 	private readonly _refresh: Observer<Scene>;
 
+	private readonly _drawn: Observer<Scene>;
+
+	/**
+	 * @param Grid The world sampled: a dense grid over its box, or bricks
+	 * (plan.md 5: memory only near the surface; the box drawn is the map's
+	 * window as it is now, built so far as its budget allows each frame).
+	 */
 	public constructor(
 		private readonly _scene: Scene,
-		public readonly Grid: DenseSdfGrid,
+		public readonly Grid: DenseSdfGrid | SdfVolume,
 		options: RaymarchLayerOptions = {},
 	) {
-		const [ nx, ny, nz ] = Grid.Resolution;
-		const [ sx, sy, sz ] = Grid.Size;
+		this.Volume = Grid instanceof DenseSdfGrid
+			? SdfVolumeTexture.FromGrid( _scene, Grid )
+			: new SdfBrickTexture( _scene, Grid );
 
-		this.Quality = options.Quality ?? SdfQuality.Shadows;
-		this.StepScale = options.StepScale ?? 0.9;
-		this._palette = ( options.Palette ?? DefaultPalette )
-			.slice( 0, 8 )
-			.flatMap( ( color ) => [ color.r, color.g, color.b ] );
-		while ( this._palette.length < 24 ) {
-			this._palette.push( 1, 1, 1 );
+		const [ sx, sy, sz ] = this.Volume.Size;
+		const [ mx, my, mz ] = this.Volume.Min;
+
+		this._ownContext = !options.Context;
+		this.Context = options.Context ?? new SdfRenderContext( _scene );
+		this._settings = {
+			DebugView: SdfDebugView.Lit,
+			Quality: options.Quality ?? SdfQuality.Shadows,
+			StepScale: options.StepScale ?? 0.9,
+			ProxyThreshold: 0,
+			Palette: PaletteFloats( options.Palette ?? DefaultPalette ),
+		};
+		this.Context.Volume = this.Volume;
+		const tiles = options.ConeTiles ?? [ 8 ];
+
+		if ( tiles.length > 0 && SdfConeMarch.Supported( _scene ) ) {
+			this.Cone = new SdfConeMarch(
+				_scene,
+				this.Context,
+				this._settings,
+				false,
+				tiles,
+			);
+		}
+		const start = this.Cone?.Start ?? null;
+		const resolution = options.LightResolution ?? 0.5;
+
+		// before the corners: they read it
+		if ( resolution > 0 && SdfConeMarch.Supported( _scene ) ) {
+			this.Light = new SdfLightBuffer(
+				_scene,
+				resolution,
+				( buffer ) => CreateRaymarchMaterial(
+					_scene,
+					this.Context,
+					this._settings,
+					false,
+					{ Stage: "light", Target: () => buffer.Target },
+					start,
+				),
+			);
 		}
 
-		Effect.ShadersStore[`${ RaymarchShaderName }VertexShader`] =
-			RaymarchVertex;
-		Effect.ShadersStore[`${ RaymarchShaderName }FragmentShader`]
-			= RaymarchFragment;
+		const light = this.Light;
 
-		this.Texture = new RawTexture3D(
-			Grid.Data,
-			nx,
-			ny,
-			nz,
-			Constants.TEXTUREFORMAT_RG,
-			_scene,
-			false,
-			false,
-			Texture.BILINEAR_SAMPLINGMODE,
-		);
-		this.Texture.wrapU = Texture.CLAMP_ADDRESSMODE;
-		this.Texture.wrapV = Texture.CLAMP_ADDRESSMODE;
-		this.Texture.wrapR = Texture.CLAMP_ADDRESSMODE;
+		// float targets for the corners, as for the cones
+		if ( ( options.Checkerboard ?? true )
+			&& SdfConeMarch.Supported( _scene ) ) {
+			this.Checker = new SdfCheckerboard(
+				_scene,
+				( checker ) => CreateRaymarchMaterial(
+					_scene,
+					this.Context,
+					this._settings,
+					false,
+					{ Stage: "checker", Checker: () => checker },
+					start,
+					light,
+				),
+			);
+		}
 
-		this.Material = new ShaderMaterial(
-			"sdfRaymarch",
+		const checker = this.Checker;
+		const shadows = this.Context.Shadows;
+
+		if ( shadows && ( options.ShadowCache ?? true )
+			&& SdfConeMarch.Supported( _scene ) ) {
+			this.ShadowCache = new SdfShadowCache(
+				_scene,
+				shadows,
+				() => CreateCasterMaterial(
+					_scene,
+					this.Context,
+					this._settings,
+					false,
+					{ Store: true },
+				),
+			);
+		}
+		this.Material = CreateRaymarchMaterial(
 			_scene,
-			RaymarchShaderName,
-			{
-				attributes: [ "position" ],
-				uniforms: [
-					"world",
-					"viewProjection",
-					"cameraPosition",
-					"boundsMin",
-					"boundsSize",
-					"volumeSize",
-					"range",
-					"pixelAngle",
-					"stepScale",
-					"sunDirection",
-					"sunColor",
-					"skyColor",
-					"groundColor",
-					"palette",
-					"debugMode",
-					"quality",
-				],
-				samplers: [ "sdfVolume" ],
-			},
+			this.Context,
+			this._settings,
+			false,
+			checker ? { Stage: "resolve", Checker: () => checker } : null,
+			checker ? null : start,
+			checker ? null : light,
+			this.ShadowCache,
 		);
-		// only the far side of the box: one fragment per pixel, also with the
-		// camera inside it
-		this.Material.backFaceCulling = true;
-		this.Material.cullBackFaces = false;
-		this.Material.setTexture( "sdfVolume", this.Texture );
-		this.Material.setVector3(
-			"boundsMin",
-			new Vector3( Grid.Min[0], Grid.Min[1], Grid.Min[2] ),
-		);
-		this.Material.setVector3( "boundsSize", new Vector3( sx, sy, sz ) );
-		this.Material.setVector3( "volumeSize", new Vector3( nx, ny, nz ) );
-		this.Material.setFloat( "range", Grid.Range );
-		this.Material.onBindObservable.add( () => this.Bind() );
 
 		this.Mesh = CreateBox( "sdfVolume", { size: 1 }, _scene );
 		this.Mesh.scaling.set( sx, sy, sz );
-		this.Mesh.position.set(
-			Grid.Min[0] + sx / 2,
-			Grid.Min[1] + sy / 2,
-			Grid.Min[2] + sz / 2,
-		);
+		this.Mesh.position.set( mx + sx / 2, my + sy / 2, mz + sz / 2 );
 		this.Mesh.material = this.Material;
 		this.Mesh.isPickable = false;
+		this.Context.Own( this.Mesh, true, false );
 
 		this._refresh = _scene.onBeforeRenderObservable.add(
 			() => this.Update(),
 		);
-		this.SyncLights();
+		// the bricks replaced this frame give their slots back once drawn
+		this._drawn = _scene.onAfterRenderObservable.add(
+			() => this.Bricks?.EndFrame(),
+		);
+	}
+
+	/** The bricks, when the world is sampled into them. */
+	public get Bricks(): SdfVolume | null {
+		return this.Grid instanceof DenseSdfGrid ? null : this.Grid;
+	}
+
+	/** The volume's 3D texture. */
+	public get Texture(): SdfVolumeTexture["Texture"]
+		| SdfBrickTexture["Texture"] {
+		return this.Volume.Texture;
+	}
+
+	public get DebugView(): SdfDebugView {
+		return this._settings.DebugView;
+	}
+
+	public set DebugView( view: SdfDebugView ) {
+		this._settings.DebugView = view;
+	}
+
+	public get Quality(): SdfQuality {
+		return this._settings.Quality;
+	}
+
+	public set Quality( quality: SdfQuality ) {
+		this._settings.Quality = quality;
+	}
+
+	public get StepScale(): number {
+		return this._settings.StepScale;
+	}
+
+	public set StepScale( scale: number ) {
+		this._settings.StepScale = scale;
 	}
 
 	/**
 	 * Re-samples what the edits changed and uploads the grid if anything
-	 * was; true if it was. Runs before every frame by itself.
+	 * was (bricks: rebuilds within their budget and sends what changed);
+	 * true if it was. Runs before every frame by itself. The dynamic edits
+	 * never come here: the GPU applies them.
 	 */
 	public Update(): boolean {
-		if ( this.Grid.Refresh() === 0 ) {
-			return false;
+		this.Cone?.Draw( [ this.Mesh ], this.Mesh.isEnabled() );
+		this.Light?.Draw( [ this.Mesh ], this.Mesh.isEnabled() );
+		this.Checker?.Next( [ this.Mesh ], this.Mesh.isEnabled() );
+
+		const grid = this.Grid;
+		let uploaded: boolean;
+
+		if ( grid instanceof DenseSdfGrid ) {
+			uploaded = grid.Refresh() !== 0;
+			if ( uploaded ) {
+				( this.Volume as SdfVolumeTexture )
+					.Update( grid.Data, ...grid.Written );
+			}
+		} else {
+			grid.Update();
+			uploaded = ( this.Volume as SdfBrickTexture ).Update();
 		}
-		this.Texture.update( this.Grid.Data );
-		return true;
+		if ( uploaded ) {
+			this._uploads++;
+		}
+		this.ShadowCache?.Refresh( [ this.Mesh ], [
+			this._uploads,
+			this.Context.Dynamic.Version,
+			this._settings.StepScale,
+		] );
+		return uploaded;
 	}
 
 	/** Takes the sun and the sky from the scene's lights. */
 	public SyncLights(): void {
-		for ( const light of this._scene.lights ) {
-			if ( light instanceof DirectionalLight ) {
-				this._sunDirection.copyFrom( light.direction );
-				this._sunColor.copyFrom(
-					light.diffuse.scale( light.intensity ),
-				);
-			} else if ( light instanceof HemisphericLight ) {
-				this._skyColor.copyFrom(
-					light.diffuse.scale( light.intensity ),
-				);
-				this._groundColor.copyFrom(
-					light.groundColor.scale( light.intensity ),
-				);
-			}
-		}
+		this.Context.SyncLights();
 	}
 
 	public Dispose(): void {
 		this._scene.onBeforeRenderObservable.remove( this._refresh );
+		this._scene.onAfterRenderObservable.remove( this._drawn );
+		if ( this.Context.Volume === this.Volume ) {
+			this.Context.Volume = null;
+		}
 		this.Mesh.dispose();
 		this.Material.dispose();
-		this.Texture.dispose();
+		this.Cone?.Dispose();
+		this.Checker?.Dispose();
+		this.Light?.Dispose();
+		this.ShadowCache?.Dispose();
+		this.Volume.Dispose();
 		this.Grid.Dispose();
-	}
-
-	/** Per-frame uniforms, set as the material is bound. */
-	private Bind(): void {
-		const material = this.Material;
-		const camera = this._scene.activeCamera;
-		const height = this._scene.getEngine().getRenderHeight();
-
-		if ( camera ) {
-			material.setVector3( "cameraPosition", camera.globalPosition );
-			material.setFloat(
-				"pixelAngle",
-				FMath.FastTan( camera.fov / 2 ) * 2 / FMath.Max( 1, height ),
-			);
+		if ( this._ownContext ) {
+			this.Context.Dispose();
 		}
-		material.setFloat( "stepScale", this.StepScale );
-		material.setFloat( "debugMode", this.DebugView );
-		material.setFloat( "quality", this.Quality );
-		material.setVector3( "sunDirection", this._sunDirection );
-		material.setColor3( "sunColor", this._sunColor );
-		material.setColor3( "skyColor", this._skyColor );
-		material.setColor3( "groundColor", this._groundColor );
-		material.setArray3( "palette", this._palette );
 	}
 }

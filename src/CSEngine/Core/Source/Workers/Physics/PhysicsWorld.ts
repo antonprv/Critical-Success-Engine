@@ -51,6 +51,8 @@ interface ShapeEntry {
 	 */
 	centroidOffset: Tuple3;
 	capsule?: { radius: number; cylinderLength: number; };
+	/** How far the shape reaches from its center (a sphere around it). */
+	reach: number;
 }
 
 type SpawnCommand = Extract<
@@ -67,6 +69,8 @@ interface BodyEntry {
 	handle: number;
 	bodyType: PhysBodyType;
 	centroidOffset: Tuple3;
+	/** How far its shape reaches from its center. */
+	reach: number;
 	/**
 	 * Kinematic bodies only: last pose we were told about, for deriving
 	 * velocity from the pose delta.
@@ -139,10 +143,20 @@ export class PhysicsWorld {
 
 	private _sdfMask = -1;
 
-	/** SDF chunks by key: their static and its current shape. */
-	private readonly _sdfChunks = new Map<
-		string,
-		{ staticId: number; shapeId: number; }
+	/**
+	 * SDF chunks by key: their static, its current shape, and its triangles
+	 * with their x, z bounds (what is solid where: NearestAbove).
+	 */
+	private readonly _sdfChunks = new Map<string, SdfChunkEntry>();
+
+	/**
+	 * Bodies a new surface closed over (a hole gone by), pushed up out of the
+	 * solid a step at a time - never teleported through what lies above:
+	 * entity id -> the height its center must pass, and the steps so far.
+	 */
+	private readonly _rising = new Map<
+		number,
+		{ surface: number; steps: number; }
 	>();
 
 	private readonly _shapeCache = new Map<string, ShapeEntry>();
@@ -362,29 +376,130 @@ export class PhysicsWorld {
 			this.RemoveSdfChunk( command.key );
 			return;
 		}
+
+		const bounds = XzBounds( positions );
+
 		if ( chunk ) {
 			this._bridge.SetStaticShape( chunk.staticId, shapeId );
 			this._bridge.RemoveShape( chunk.shapeId );
 			chunk.shapeId = shapeId;
-			return;
-		}
-		this._sdfChunks.set( command.key, {
-			shapeId,
-			staticId: this._bridge.AddStaticBody(
+			chunk.positions = positions;
+			chunk.indices = indices;
+			chunk.bounds = bounds;
+		} else {
+			this._sdfChunks.set( command.key, {
 				shapeId,
-				0,
-				0,
-				0,
-				0,
-				0,
-				0,
-				1,
-				command.layer,
-				command.mask,
-				command.ownerId,
-				PhysObjectKind.Solid,
-			),
-		} );
+				positions,
+				indices,
+				bounds,
+				staticId: this._bridge.AddStaticBody(
+					shapeId,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					1,
+					command.layer,
+					command.mask,
+					command.ownerId,
+					PhysObjectKind.Solid,
+				),
+			} );
+		}
+		// a surface that came back (a moving hole gone by) may be over bodies
+		// lying where it was open: under its triangles - they face outwards
+		// only - they would fall through
+		this.FindBuried( bounds );
+	}
+
+	/**
+	 * The dynamic bodies within a chunk's x, z bounds that are inside the
+	 * solid now - the first surface straight above their center, in any
+	 * chunk, faces up (under an overhang the first one above faces down) -
+	 * start rising out of it (PushOut).
+	 */
+	private FindBuried( bounds: XzBox ): void {
+		for ( const body of this._entities.values() ) {
+			if ( body.bodyType !== PhysBodyType.Dynamic ) {
+				continue;
+			}
+
+			const pose = this._bridge.GetBodyPose( body.handle );
+			const [ x, y, z ] = [ pose[0]!, pose[1]!, pose[2]! ];
+
+			if ( !InXz( bounds, x, z ) ) {
+				continue;
+			}
+
+			let nearest: [ number, boolean ] | null = null;
+
+			for ( const chunk of this._sdfChunks.values() ) {
+				if ( !InXz( chunk.bounds, x, z ) ) {
+					continue;
+				}
+
+				const hit = NearestAbove(
+					chunk.positions,
+					chunk.indices,
+					x,
+					y,
+					z,
+					body.reach + 3,
+				);
+
+				if ( hit && ( !nearest || hit[0] < nearest[0] ) ) {
+					nearest = hit;
+				}
+			}
+			if ( nearest && nearest[1] ) {
+				this._rising.set(
+					body.entityId,
+					{ surface: nearest[0], steps: 0 },
+				);
+				this._bridge.SetAwakeState( body.handle, true );
+			}
+		}
+	}
+
+	/**
+	 * Before each step: the buried bodies (FindBuried) go up - faster the
+	 * deeper they are (MaxRiseSpeed at most, as a solver pushes bodies apart
+	 * at a bounded speed) - until their center is out over the surface,
+	 * where its triangles take them; given up after RiseSteps.
+	 */
+	private PushOut( dt: number ): void {
+		for ( const [ id, rising ] of this._rising ) {
+			const body = this._entities.get( id );
+
+			if ( !body || ++rising.steps > RiseSteps ) {
+				this._rising.delete( id );
+				continue;
+			}
+
+			const pose = this._bridge.GetBodyPose( body.handle );
+			const below = rising.surface + RiseClearance - pose[1]!;
+
+			if ( below <= 0 ) {
+				this._rising.delete( id );
+				continue;
+			}
+
+			const velocity = this._bridge.GetLinearVelocity( body.handle );
+			const up = FMath.Min(
+				MaxRiseSpeed,
+				FMath.Max( MinRiseSpeed, below / ( dt * 4 ) ),
+			);
+
+			this._bridge.SetLinearVelocity(
+				body.handle,
+				velocity[0]!,
+				FMath.Max( velocity[1]!, up ),
+				velocity[2]!,
+			);
+			this._bridge.SetAwakeState( body.handle, true );
+		}
 	}
 
 	private RemoveSdfChunk( key: string ): void {
@@ -481,6 +596,7 @@ export class PhysicsWorld {
 			handle,
 			bodyType: command.bodyType,
 			centroidOffset: shape.centroidOffset,
+			reach: shape.reach,
 			lastPose: command.bodyType === PhysBodyType.Kinematic
 				? command.transform
 				: undefined,
@@ -660,12 +776,14 @@ export class PhysicsWorld {
 				entry = {
 					id: this._bridge.AddBoxShape( ...shape.size ),
 					centroidOffset: [0, 0, 0],
+					reach: Math.hypot( ...shape.size ) / 2,
 				};
 				break;
 			case PhysShape.Sphere:
 				entry = {
 					id: this._bridge.AddSphereShape( shape.radius ),
 					centroidOffset: [0, 0, 0],
+					reach: shape.radius,
 				};
 				break;
 			case PhysShape.Capsule:
@@ -675,6 +793,7 @@ export class PhysicsWorld {
 						shape.cylinderLength,
 					),
 					centroidOffset: [0, 0, 0],
+					reach: shape.radius + shape.cylinderLength / 2,
 					capsule: {
 						radius: shape.radius,
 						cylinderLength: shape.cylinderLength,
@@ -688,6 +807,7 @@ export class PhysicsWorld {
 						shape.height,
 					),
 					centroidOffset: [0, 0, 0],
+					reach: Math.hypot( shape.radius, shape.height / 2 ),
 				};
 				break;
 			case PhysShape.ConvexHull: {
@@ -698,6 +818,12 @@ export class PhysicsWorld {
 				entry = {
 					id: result[0]!,
 					centroidOffset: [result[1]!, result[2]!, result[3]!],
+					reach: HullReach(
+						shape.points,
+						result[1]!,
+						result[2]!,
+						result[3]!,
+					),
 				};
 				break;
 			}
@@ -708,6 +834,7 @@ export class PhysicsWorld {
 						...shape.scale,
 					),
 					centroidOffset: [0, 0, 0],
+					reach: 0,
 				};
 				break;
 		}
@@ -816,6 +943,7 @@ export class PhysicsWorld {
 	 */
 	public Step( dt: number ): PhysicsStepOutput {
 		this.ApplyKinematicPoses( dt );
+		this.PushOut( dt );
 		this.MoveCharacters( dt );
 
 		const flat = ReadView( this._bridge.Step( dt ) );
@@ -1056,4 +1184,125 @@ export class PhysicsWorld {
 	}
 
 	//#endregion
+}
+
+/** An SDF chunk in the physics. */
+interface SdfChunkEntry {
+	staticId: number;
+	shapeId: number;
+	positions: Float32Array;
+	indices: Uint16Array;
+	bounds: XzBox;
+}
+
+/** x0, z0, x1, z1. */
+type XzBox = [ number, number, number, number ];
+
+/**
+ * A body buried under a new surface is pushed up for at most this many steps.
+ */
+const RiseSteps = 120;
+
+/** It rises at least this fast, at most that (m/s). */
+const MinRiseSpeed = 1;
+
+const MaxRiseSpeed = 8;
+
+/**
+ * Its center is out once this far over the surface (its triangles take it
+ * then).
+ */
+const RiseClearance = 0.02;
+
+function XzBounds( positions: Float32Array ): XzBox {
+	const box: XzBox = [ Infinity, Infinity, -Infinity, -Infinity ];
+
+	for ( let i = 0; i < positions.length; i += 3 ) {
+		box[0] = Math.min( box[0], positions[i]! );
+		box[1] = Math.min( box[1], positions[i + 2]! );
+		box[2] = Math.max( box[2], positions[i]! );
+		box[3] = Math.max( box[3], positions[i + 2]! );
+	}
+	return box;
+}
+
+function InXz( box: XzBox, x: number, z: number ): boolean {
+	return x >= box[0] && x <= box[2] && z >= box[1] && z <= box[3];
+}
+
+/**
+ * The first triangle straight above (x, y, z), within `limit`: its height,
+ * and whether it faces up (the point is under a floor: inside the solid) or
+ * down (a ceiling over it); null if there is none. Triangles wind
+ * counter-clockwise seen from outside.
+ */
+export function NearestAbove(
+	positions: ArrayLike<number>,
+	indices: ArrayLike<number>,
+	x: number,
+	y: number,
+	z: number,
+	limit: number,
+): [ number, boolean ] | null {
+	let best = Infinity;
+	let up = false;
+
+	for ( let t = 0; t + 2 < indices.length; t += 3 ) {
+		const a = indices[t]! * 3;
+		const b = indices[t + 1]! * 3;
+		const c = indices[t + 2]! * 3;
+		const ax = positions[a]!;
+		const az = positions[a + 2]!;
+		const bx = positions[b]!;
+		const bz = positions[b + 2]!;
+		const cx = positions[c]!;
+		const cz = positions[c + 2]!;
+		// where (x, z) lies in the triangle seen from above
+		const d = ( bz - cz ) * ( ax - cx ) + ( cx - bx ) * ( az - cz );
+
+		if ( d === 0 ) {
+			continue;
+		}
+
+		const u = ( ( bz - cz ) * ( x - cx ) + ( cx - bx ) * ( z - cz ) ) / d;
+		const v = ( ( cz - az ) * ( x - cx ) + ( ax - cx ) * ( z - cz ) ) / d;
+
+		if ( u < 0 || v < 0 || u + v > 1 ) {
+			continue;
+		}
+
+		const height = u * positions[a + 1]! + v * positions[b + 1]!
+			+ ( 1 - u - v ) * positions[c + 1]!;
+
+		if ( height < y || height > y + limit || height >= best ) {
+			continue;
+		}
+		best = height;
+		// the normal's y: (b - a) x (c - a), up when seen counter-clockwise
+		// from above
+		up = ( bz - az ) * ( cx - ax ) - ( bx - ax ) * ( cz - az ) > 0;
+	}
+	return best !== Infinity ? [ best, up ] : null;
+}
+
+/** How far a hull's points reach from its centroid. */
+function HullReach(
+	points: number[],
+	cx: number,
+	cy: number,
+	cz: number,
+): number {
+	let reach = 0;
+
+	for ( let i = 0; i + 2 < points.length; i += 3 ) {
+		reach = Math.max(
+			reach,
+			Math.hypot(
+				points[i]! - cx,
+				points[i + 1]! - cy,
+				points[i + 2]! - cz,
+			),
+		);
+	}
+	return reach;
 }

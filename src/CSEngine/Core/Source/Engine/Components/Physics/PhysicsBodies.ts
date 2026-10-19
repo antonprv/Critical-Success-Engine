@@ -113,7 +113,11 @@ export class RigidBody extends PhysicsBody {
 		const state = this.BodyState;
 
 		if ( state ) {
-			this.Transform.PushPhysicsPose( state.Position, state.Rotation );
+			this.Transform.PushPhysicsPose(
+				state.Position,
+				state.Rotation,
+				this.Engine.Time.PhysicsStepCount,
+			);
 		}
 	}
 

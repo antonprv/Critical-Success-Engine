@@ -54,6 +54,21 @@ function meshQuad() {
 	return up.concat(down);
 }
 
+/**
+ * An SDF mesh chunk as the engine sends it (PhysicsWorld.SetSdfChunk): a quad at height `y` over x in [-40, -20],
+ * z in [-40, -20], float positions then 16-bit indices, counter-clockwise seen from above, through ChunkBuffer.
+ * Returns the shape id.
+ */
+function addChunkShape(P, y) {
+	const positions = new Float32Array([-40, y, -40, -20, y, -40, -20, y, -20, -40, y, -20]);
+	const indices = new Uint16Array([0, 2, 1, 0, 3, 2]);
+	const view = P.ChunkBuffer(positions.byteLength + indices.byteLength);
+	view.set(new Uint8Array(positions.buffer));
+	view.set(new Uint8Array(indices.buffer), positions.byteLength);
+	view.dispose();
+	return P.AddIndexedMeshShape(positions.byteLength, indices.byteLength);
+}
+
 function createWorld(P, groundSize) {
 	P.CreateWorld(0, -10, 0, 8, 1, false, 1, 2);
 	P.AddStaticBody(P.AddBoxShape(groundSize, 2, groundSize), 0, -1, 0, ...Q, ALL, ALL, 1, 0);
@@ -93,6 +108,17 @@ export function runFeatureScenario(P) {
 		}
 	}
 
+	// An SDF chunk: every shape dropped on it; rebuilt in place below.
+	const chunkShape = addChunkShape(P, 5);
+	const chunk = P.AddStaticBody(chunkShape, 0, 0, 0, ...Q, ALL, ALL, 90, 0);
+	const onChunk = [];
+	let cx = -38;
+	for (const name of names) {
+		const [shape, rest] = shapes[name];
+		onChunk.push({ name, rest, id: P.AddDynamicBody(shape, cx, 9, -30, ...Q, 1, ALL, ALL, 91, 0, false) });
+		cx += 3;
+	}
+
 	// Trigger volume on the ground and a ball falling through it: overlap enter events, no collision response.
 	P.AddStaticBody(P.AddBoxShape(4, 4, 4), 60, 2, 0, ...Q, ALL, ALL, 77, 2);
 	const dropped = P.AddDynamicBody(shapes.sphere[0], 60, 6, 0, ...Q, 1, ALL, ALL, 78, 0, false);
@@ -126,6 +152,22 @@ export function runFeatureScenario(P) {
 		const y = P.GetBodyPose(body.id)[1];
 		check(`rest: ${body.name}`, Math.abs(y - body.rest) <= body.tolerance, `y=${y.toFixed(3)} expected ${body.rest}`);
 	}
+	for (const body of onChunk) {
+		const y = P.GetBodyPose(body.id)[1];
+		check(`rest: ${body.name} on an SDF chunk`, Math.abs(y - body.rest - 5) <= 0.15, `y=${y.toFixed(3)}`);
+	}
+
+	// The chunk rebuilt a meter lower (a pit dug), swapped in place: what rests on it wakes and falls onto it.
+	const rebuilt = addChunkShape(P, 4);
+	P.SetStaticShape(chunk, rebuilt);
+	P.RemoveShape(chunkShape);
+	for (let i = 0; i < 120; i++) Step(P);
+	for (const body of onChunk) {
+		const y = P.GetBodyPose(body.id)[1];
+		check(`rest: ${body.name} on a rebuilt SDF chunk`, Math.abs(y - body.rest - 4) <= 0.2, `y=${y.toFixed(3)}`);
+	}
+	P.RemoveStatic(chunk);
+	P.RemoveShape(rebuilt);
 
 	// Sleeping and waking.
 	const sleeper = resting[0].id;
@@ -176,6 +218,18 @@ export function runFeatureScenario(P) {
 	P.RemoveStatic(1);
 	check("removed body is gone", !P.BodyExists(resting[1].id));
 	for (let i = 0; i < 30; i++) Step(P);
+
+	// Many bodies falling at once: every one in the step's snapshot (the ids-by-handle table grows past 256, 512,
+	// 1024 meanwhile, and must keep what it held - when it didn't, the first bodies hung where they were spawned).
+	const falling = [];
+	for (let i = 0; i < 1100; i++) {
+		falling.push(P.AddDynamicBody(shapes.sphere[0], 200 + (i % 40) * 1.2, 20 + Math.floor(i / 1600), Math.floor(i / 40) * 1.2, ...Q, 1, ALL, ALL, 2000 + i, 0, false));
+	}
+	const seen = new Set();
+	const { bodies } = Step(P);
+	for (let i = 0; i < bodies.length; i += 14) seen.add(bodies[i]);
+	const missing = falling.filter(id => !seen.has(id));
+	check("every falling body is in the snapshot", missing.length === 0, `${missing.length} of ${falling.length} missing`);
 	P.DestroyWorld();
 
 	return { checks };

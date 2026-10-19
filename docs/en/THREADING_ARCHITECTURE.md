@@ -64,8 +64,11 @@ GameLogicWorker (the render tick)
 RenderWorker draws the latest frame it received.
 ```
 
-Physics steps and render frames are decoupled. The interpolation between the last two physics poses happens in GameLogic
-(`Transform.WriteInterpolated`), so the render worker just applies what it is told.
+Physics steps and render frames are decoupled. The interpolation happens in GameLogic (`Transform.WriteInterpolated`), so
+the render worker just applies what it is told. Each physics-driven transform keeps its last four poses with their step
+numbers, and frames are drawn at `Time.RenderStep`: a step and a half behind the newest step, advancing smoothly with the
+frames (faster while behind, slower while ahead, never backwards; at once only after a long stall). The physics worker
+steps from a timer and catches up in bursts, so steps arrive late or several at once; drawn by step time, neither shows.
 
 ## Developer tools
 

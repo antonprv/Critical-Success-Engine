@@ -22,3 +22,14 @@ export function PaletteColor(
 ): Color3 {
 	return palette[materialId % palette.length]!;
 }
+
+/** Palette colors as the shaders take them: eight, three floats each. */
+export function PaletteFloats( palette: readonly Color3[] ): number[] {
+	const floats = palette.slice( 0, 8 )
+		.flatMap( ( color ) => [ color.r, color.g, color.b ] );
+
+	while ( floats.length < 24 ) {
+		floats.push( 1, 1, 1 );
+	}
+	return floats;
+}

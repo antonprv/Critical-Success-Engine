@@ -24,6 +24,12 @@ export const enum SdfShape {
 	Cylinder = 5,
 	/** P0..P2: radii (a bound, not an exact distance). */
 	Ellipsoid = 6,
+	/**
+	 * Along local Y: a segment whose radius goes from one end's to the
+	 * other's (a capsule with ends of two sizes). P0: half length, P1: the
+	 * radius at -Y, P2: at +Y. Pieces of a curve (SdfCurve) join smoothly.
+	 */
+	RoundCone = 7,
 }
 
 /**
@@ -84,8 +90,20 @@ export interface SdfEdit {
 	MaterialId: number;
 	Flags: SdfEditFlags;
 	PhysicsMode: SdfPhysicsMode;
-	/** Edits moved and combined as one (0: none). */
+	/** Edits moved and combined as one (0: none; 16 bits). */
 	Group: number;
+	/**
+	 * The layers the edit's shape belongs to (a bit each, 8 layers; the
+	 * ground and the baked base are layer 1). Default 1.
+	 */
+	Layer: number;
+	/**
+	 * The layers it merges with (a bit each): its smooth operation blends
+	 * the surfaces and fades the materials only into those; others it meets
+	 * with a hard seam (it still casts and receives shadows, occludes...).
+	 * A subtraction or intersection only cuts these layers. Default all.
+	 */
+	Mask: number;
 	/** Position in the list: operations don't commute. */
 	Order: number;
 }
@@ -135,7 +153,9 @@ export function PackEdit(
 		| ( ( edit.Flags & 0xf ) << 12 )
 		| ( ( edit.MaterialId & MAX_MATERIAL ) << 16 );
 	floats[at + 13] = edit.SmoothK;
-	words[at + 14] = edit.Group;
+	words[at + 14] = ( edit.Group & 0xffff )
+		| ( ( edit.Layer & 0xff ) << 16 )
+		| ( ( edit.Mask & 0xff ) << 24 );
 	words[at + 15] = edit.Order;
 }
 
@@ -171,7 +191,9 @@ export function UnpackEdit(
 		Flags: ( ( kind >>> 12 ) & 0xf ) as SdfEditFlags,
 		MaterialId: kind >>> 16,
 		SmoothK: floats[at + 13]!,
-		Group: words[at + 14]!,
+		Group: words[at + 14]! & 0xffff,
+		Layer: ( words[at + 14]! >>> 16 ) & 0xff,
+		Mask: words[at + 14]! >>> 24,
 		Order: words[at + 15]!,
 	};
 }
@@ -188,6 +210,14 @@ export function IsCarving( op: SdfOp ): boolean {
  */
 export function IsGlobal( op: SdfOp ): boolean {
 	return op === SdfOp.Intersect || op === SdfOp.SmoothIntersect;
+}
+
+/** Every layer: the default mask (an edit merges with everything). */
+export const ALL_LAYERS = 0xff;
+
+/** Index (0..7) of a layer set's lowest layer; 0 for none. */
+export function LayerIndex( layer: number ): number {
+	return layer === 0 ? 0 : 31 - Math.clz32( layer & -layer );
 }
 
 /** Whether an operation blends (its reach grows by SmoothK). */

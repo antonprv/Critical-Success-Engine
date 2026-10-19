@@ -399,9 +399,16 @@ describe( "RenderService", () => {
 						camera: null,
 						entityCount: 2,
 						buffer,
+						sdfDynamic: null,
 					},
 				);
 			expect( port.transfers[1] ).toEqual( [buffer] );
+
+			// the SDF world's dynamic edits, when they changed, go along
+			const dynamic = new Float32Array( 16 );
+			render.PostFrame( 8, 0, new ArrayBuffer( 0 ), null, dynamic );
+			expect( port.sent[2] ).toMatchObject( { sdfDynamic: dynamic } );
+			expect( port.transfers[2] ).toEqual( [dynamic.buffer] );
 			expect( render.MainCamera ).toBeNull();
 		},
 	);
@@ -701,7 +708,6 @@ describe( "PhysicsService", () => {
 			// unknown character
 			characters.set( [777, 1, 0, 1, 0, 0, 0, 0, 0], CHARACTER_STRIDE );
 
-			const before = performance.now();
 			service.HandleMessage( {
 				state: PhysState.Step, step: 5, bodyCount: 2,
 				bodies: bodies.buffer,
@@ -716,7 +722,6 @@ describe( "PhysicsService", () => {
 			expect( character )
 				.toMatchObject( { IsOnFloor: true, GroundEntityId: 33 } );
 			expect( character.Velocity.ToTuple() ).toEqual( [4, 5, 6] );
-			expect( service.LastStepTimeMs ).toBeGreaterThanOrEqual( before );
 			expect( steps )
 				.toEqual(
 					[

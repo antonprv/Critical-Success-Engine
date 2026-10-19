@@ -4,7 +4,7 @@
 import { FMath } from "@cse/fastmath";
 import type { EditWatcher } from "../Edits/EditList";
 import type { SdfField } from "../Field/SdfField";
-import { CreateAabb, type Aabb } from "../Spatial/Aabb";
+import { CreateAabb, Overlaps, type Aabb } from "../Spatial/Aabb";
 import { BrickAtlas } from "./BrickAtlas";
 import {
 	BRICK_CELLS,
@@ -17,11 +17,23 @@ import {
 import {
 	BrickMap,
 	CELL_EMPTY,
+	CELL_PENDING,
 	CELL_SOLID,
 	CELL_STALE,
 	CellSlot,
 	IsBrickCell,
 } from "./BrickMap";
+
+/**
+ * A map texel's alpha (MapTexels): a brick, a solid cell; below, an empty
+ * cell's distance in cells to the nearest one that isn't.
+ */
+export const MapTexelBrick = 255;
+
+export const MapTexelSolid = 254;
+
+/** The farthest distance an empty cell's texel tells. */
+const MapTexelFar = 253;
 
 export interface SdfVolumeOptions {
 	/** Sample spacing h, world units (a cell is 8 of them). */
@@ -37,6 +49,24 @@ export interface SdfVolumeOptions {
 	 * center, so slices aren't generated every frame (plan.md 5.4). Default 2.
 	 */
 	Hysteresis?: number;
+	/**
+	 * Keeps each node's materials too (the atlas's Materials), for drawing.
+	 * Default false.
+	 */
+	Materials?: boolean;
+	/**
+	 * How far from the surface distances are encoded, in spacings. Default
+	 * RANGE_SPACINGS (2.5: enough to march and for normals); drawing with
+	 * occlusion and soft shadows wants more (they read the field farther
+	 * out: 8, as the dense grid).
+	 */
+	RangeSpacings?: number;
+	/**
+	 * Only the world inside this box: a cell wholly outside it stays empty
+	 * (what lies beyond - a field's far side, the base's own bounds - isn't
+	 * sampled). Default: all of it.
+	 */
+	Bounds?: Aabb;
 }
 
 /** What one Update did. */
@@ -78,7 +108,25 @@ export class SdfVolume {
 	/** Cells waiting for a rebuild, by their map index. */
 	private readonly _queue = new Map<number, [ number, number, number ]>();
 
+	/**
+	 * Grows whenever a cell of the map changes (what follows the map
+	 * compares).
+	 */
+	public Version = 0;
+
 	private readonly _brick = new Uint8Array( BRICK_VOLUME );
+
+	/** How far from the surface distances are encoded, world units. */
+	public readonly Range: number;
+
+	/** The only part of the world sampled (SdfVolumeOptions.Bounds). */
+	public readonly Bounds: Aabb | null;
+
+	/** The spacing the codec encodes for, so its range is Range. */
+	private readonly _unit: number;
+
+	/** The brick's materials, four bytes a node (with Materials). */
+	private readonly _materials: Uint8Array | null;
 
 	private readonly _eye: [ number, number, number ] = [ 0, 0, 0 ];
 
@@ -91,13 +139,25 @@ export class SdfVolume {
 		const size = options.AtlasSize ?? [ 160, 160, 160 ];
 
 		this.Spacing = options.Spacing;
+		this.Range = ( options.RangeSpacings ?? RANGE_SPACINGS )
+			* options.Spacing;
+		this._unit = this.Range / RANGE_SPACINGS;
+		this.Bounds = options.Bounds ?? null;
 		this.Budget = options.Budget ?? 256;
 		this._hysteresis = options.Hysteresis ?? 2;
 		this.Map = new BrickMap(
 			options.MapSize ?? 32,
 			options.Spacing * BRICK_CELLS,
 		);
-		this.Atlas = new BrickAtlas( size[0], size[1], size[2] );
+		this.Atlas = new BrickAtlas(
+			size[0],
+			size[1],
+			size[2],
+			options.Materials ?? false,
+		);
+		this._materials = options.Materials
+			? new Uint8Array( BRICK_VOLUME * 4 )
+			: null;
 		this._changes = Field.Edits.Watch();
 		this.CenterOn( 0, 0, 0, true );
 		// the window starts out all pending
@@ -109,11 +169,6 @@ export class SdfVolume {
 			Infinity,
 			Infinity,
 		) );
-	}
-
-	/** How far from the surface distances are encoded, world units. */
-	public get Range(): number {
-		return RANGE_SPACINGS * this.Spacing;
 	}
 
 	/** Cells waiting for a rebuild. */
@@ -160,6 +215,7 @@ export class SdfVolume {
 		for ( const slot of freed ) {
 			this.Atlas.Retire( slot );
 		}
+		this.Version++;
 	}
 
 	/**
@@ -197,7 +253,78 @@ export class SdfVolume {
 			stats.Bricks += built ? 1 : 0;
 		}
 		stats.Remaining = this._queue.size;
+		if ( stats.Generated > 0 ) {
+			this.Version++;
+		}
 		return stats;
+	}
+
+	/**
+	 * The map as a texture's texels (RGBA8, toroidal as Cells): a brick's
+	 * slot (x, y, z in slots) with alpha MapTexelBrick, a solid cell's
+	 * MapTexelSolid, an empty one's distance in cells to the nearest cell
+	 * that isn't empty (or the window's edge: beyond it nothing is known),
+	 * so a ray crosses empty space in long steps. A pending cell counts as
+	 * not empty: nothing is known of it.
+	 */
+	public MapTexels( out: Uint8Array ): void {
+		const map = this.Map;
+		const m = map.Size;
+		const [ ox, oy, oz ] = map.Origin;
+		const [ sx, sy ] = this.Atlas.Slots;
+		const far = new Uint8Array( m * m * m );
+
+		// window order (local x fastest), then a chamfer pass each way
+		// over the 26 neighbors: the Chebyshev distance in cells
+		for ( let z = 0, i = 0; z < m; z++ ) {
+			for ( let y = 0; y < m; y++ ) {
+				for ( let x = 0; x < m; x++, i++ ) {
+					const value = map.Cells[map.Index(
+						ox + x,
+						oy + y,
+						oz + z,
+					)]!;
+
+					far[i] = value === CELL_EMPTY ? MapTexelFar : 0;
+				}
+			}
+		}
+		Chamfer( far, m, 1 );
+		Chamfer( far, m, -1 );
+		for ( let z = 0, i = 0; z < m; z++ ) {
+			for ( let y = 0; y < m; y++ ) {
+				for ( let x = 0; x < m; x++, i++ ) {
+					const at = map.Index( ox + x, oy + y, oz + z ) * 4;
+					const value = map.Cells[at / 4]!;
+
+					if ( IsBrickCell( value ) ) {
+						const slot = CellSlot( value );
+
+						out[at] = slot % sx;
+						out[at + 1] = FMath.Floor( slot / sx ) % sy;
+						out[at + 2] = FMath.Floor( slot / ( sx * sy ) );
+						out[at + 3] = MapTexelBrick;
+						continue;
+					}
+					out[at] = 0;
+					out[at + 1] = 0;
+					out[at + 2] = 0;
+					out[at + 3] = value === CELL_SOLID
+						? MapTexelSolid
+						: value === CELL_PENDING
+							? 0
+							: Math.min(
+								far[i]!,
+								x + 1,
+								y + 1,
+								z + 1,
+								m - x,
+								m - y,
+								m - z,
+							);
+				}
+			}
+		}
 	}
 
 	/** Stops following the edit list. */
@@ -266,7 +393,7 @@ export class SdfVolume {
 
 		return DecodeDistance(
 			FMath.LerpUnclamped( Plane( z0 ), Plane( z0 + 1 ), fz ),
-			this.Spacing,
+			this._unit,
 		);
 	}
 
@@ -330,11 +457,39 @@ export class SdfVolume {
 			y + size + range,
 			z + size + range,
 		);
+		const bounds = this.Bounds;
+
+		// wholly outside the bounds: nothing there
+		if ( bounds && !Overlaps( bounds, CreateAabb(
+			x,
+			y,
+			z,
+			x + size,
+			y + size,
+			z + size,
+		) ) ) {
+			this.RetireCell( map.Get( cx, cy, cz ) );
+			map.Set( cx, cy, cz, CELL_EMPTY );
+			return false;
+		}
+
 		const field = this.Field;
 		const program = field.Compile( field.Edits.Candidates( region ) );
 		const Distance = ( px: number, py: number, pz: number ): number => (
 			program.Distance( px, py, pz )
 		);
+		const materials = this._materials;
+		// as DenseSdfGrid keeps them: the pair, then the mix and the layer
+		const Sampled = materials
+			? ( index: number ): void => {
+				const at = index * 4;
+
+				materials[at] = program.LastMaterial & 0xff;
+				materials[at + 1] = program.LastMaterialB & 0xff;
+				materials[at + 2] = ( Math.round( program.LastMix * 31 ) << 3 )
+					| ( program.LastLayer & 7 );
+			}
+			: null;
 		// one sample decides most cells: farther than the stored nodes'
 		// reach (from the center at node 3.5) plus the range, nothing in it
 		// can be within range of the surface
@@ -342,7 +497,16 @@ export class SdfVolume {
 		const center = Distance( x + 3.5 * h, y + 3.5 * h, z + 3.5 * h );
 		const kind = center > reach ? BrickClass.Empty
 			: center < -reach ? BrickClass.Solid
-				: BuildBrick( Distance, x, y, z, h, this._brick );
+				: BuildBrick(
+					Distance,
+					x,
+					y,
+					z,
+					h,
+					this._brick,
+					Sampled,
+					this._unit,
+				);
 		const old = map.Get( cx, cy, cz );
 
 		if ( kind !== BrickClass.Surface ) {
@@ -361,7 +525,7 @@ export class SdfVolume {
 		if ( slot < 0 ) {
 			return null;
 		}
-		this.Atlas.Write( slot, this._brick );
+		this.Atlas.Write( slot, this._brick, materials );
 		map.Set( cx, cy, cz, slot );
 		this.RetireCell( old );
 		return true;
@@ -381,5 +545,54 @@ export class SdfVolume {
 			( cell[1] + 0.5 ) * size - this._eye[1],
 			( cell[2] + 0.5 ) * size - this._eye[2],
 		);
+	}
+}
+
+/**
+ * One chamfer pass of the Chebyshev distance over an m^3 grid (x fastest):
+ * forward (`way` 1) each cell takes the least of its 13 neighbors before it
+ * plus one, backward (-1) of the 13 after it.
+ */
+function Chamfer( far: Uint8Array, m: number, way: 1 | -1 ): void {
+	const first = way > 0 ? 0 : m - 1;
+	const end = way > 0 ? m : -1;
+
+	for ( let z = first; z !== end; z += way ) {
+		for ( let y = first; y !== end; y += way ) {
+			for ( let x = first; x !== end; x += way ) {
+				const i = x + ( y + z * m ) * m;
+				let best = far[i]!;
+
+				if ( best === 0 ) {
+					continue;
+				}
+				// the neighbors already passed: a step back in z, or in the
+				// same z a step back in y, or the one back in x
+				for ( let dz = 0; dz <= 1; dz++ ) {
+					for ( let dy = -1; dy <= 1; dy++ ) {
+						for ( let dx = -1; dx <= 1; dx++ ) {
+							if ( dz === 0
+								&& ( dy < 0 || ( dy === 0 && dx <= 0 ) ) ) {
+								continue;
+							}
+
+							const nx = x - dx * way;
+							const ny = y - dy * way;
+							const nz = z - dz * way;
+
+							if ( nx < 0 || ny < 0 || nz < 0
+								|| nx >= m || ny >= m || nz >= m ) {
+								continue;
+							}
+							best = FMath.Min(
+								best,
+								far[nx + ( ny + nz * m ) * m]! + 1,
+							);
+						}
+					}
+				}
+				far[i] = best;
+			}
+		}
 	}
 }

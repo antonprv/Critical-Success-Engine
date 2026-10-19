@@ -216,7 +216,16 @@
             </summary>
         </member>
         <member name="M:Physics.Wasm.PhysicsBridge.Grow``1(``0[]@,System.Int32)">
-            <summary>Makes room for `length` items; a buffer only grows (doubling), so steps stop allocating.</summary>
+            <summary>
+            Makes room for `length` items; a buffer only grows (doubling), so steps stop allocating. What it held is
+            dropped: for scratch buffers, rewritten before they are read.
+            </summary>
+        </member>
+        <member name="M:Physics.Wasm.PhysicsBridge.GrowKeeping``1(``0[]@,System.Int32)">
+            <summary>
+            Grow for a table (the ids by handle): what it holds is kept. Grow dropped it - every body added before the
+            table grew past 256, 512, 1024... went missing from the steps' snapshots and hung where it was spawned.
+            </summary>
         </member>
         <member name="M:Physics.Wasm.PhysicsBridge.ToVectors(System.Double[])">
             <summary>Flat [x0,y0,z0,x1,y1,z1,...] -> Vector3[]. A length that isn't a multiple of 3 is a caller bug, not something to guess around.</summary>

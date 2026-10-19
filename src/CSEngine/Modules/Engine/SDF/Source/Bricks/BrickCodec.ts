@@ -59,7 +59,11 @@ export function BrickIndex( x: number, y: number, z: number ): number {
 /**
  * Fills `out` with a brick's samples: node n of each axis lies at
  * `origin + n * spacing` (the brick's corner is node 0). Returns what the
- * brick holds; for an empty or solid one `out` is still written.
+ * brick holds; for an empty or solid one `out` is still written. `sampled`
+ * hears of each node right after its distance (its index in `out`): what
+ * else the caller keeps of it (the materials). The distances are encoded
+ * as for this `unit` of spacing (the range is RANGE_SPACINGS of it): the
+ * spacing itself, or wider for a wider range.
  */
 export function BuildBrick(
 	distance: ( x: number, y: number, z: number ) => number,
@@ -68,6 +72,8 @@ export function BuildBrick(
 	originZ: number,
 	spacing: number,
 	out: Uint8Array,
+	sampled: ( ( index: number ) => void ) | null = null,
+	unit = spacing,
 ): BrickClass {
 	let below = false;
 	let above = false;
@@ -82,9 +88,10 @@ export function BuildBrick(
 			for ( let x = -1; x <= BRICK_CELLS; x++ ) {
 				const byte = EncodeDistance(
 					distance( originX + x * spacing, wy, wz ),
-					spacing,
+					unit,
 				);
 
+				sampled?.( i );
 				out[i++] = byte;
 				below ||= byte < 255;
 				above ||= byte > 0;

@@ -4,6 +4,8 @@
 import type { SdfEditInit } from "../Edits/SdfEdit";
 import type { SdfHit } from "../Field/SdfField";
 import type { SdfChunk } from "../Mesh/MeshChunks";
+import type { SdfVolumeData } from "../Render/SdfVolumeTexture";
+import type { SdfGrassOptions } from "../Splats/GrassField";
 
 /**
  * The messages of the SDF worker: GameLogic sends it the game's edits and
@@ -47,9 +49,38 @@ export interface SdfSceneDescriptor {
 	CellSize?: number;
 	ChunkCells?: number;
 	Radius?: number;
+	/**
+	 * Levels of detail (MeshChunksOptions.Levels): past Radius chunks the
+	 * cells double, up to this many levels. Default 1.
+	 */
+	Levels?: number;
+	/**
+	 * The physics takes the chunks of the levels below this (default 2):
+	 * near enough to stand on; the far ones only cost it shapes.
+	 */
+	PhysicsLevels?: number;
 	/** The chunks' collision layer and mask. Default 1 and all. */
 	Layer?: number;
 	Mask?: number;
+	/**
+	 * The sun's shadow map: the scene's meshes and the SDF world shadow each
+	 * other. Default true.
+	 */
+	Shadows?: boolean;
+	/**
+	 * Texels along the longest side of the volume the renderer samples the
+	 * base into (the dynamic edits' proxies and the meshes' occlusion read
+	 * it); 0: none. Default 128.
+	 */
+	VolumeTexels?: number;
+	/** Splat grass over the world's surface (needs the volume). */
+	Grass?: SdfGrassOptions;
+}
+
+/** How the renderer shows a scene's SDF world (null: there is none). */
+export interface SdfRenderSettings {
+	Shadows: boolean;
+	Grass?: SdfGrassOptions;
 }
 
 export type SdfQuery =
@@ -77,6 +108,11 @@ export type ToSdfWorker =
 		Type: "tick";
 		Delta: ArrayBuffer;
 		Focus: [ number, number, number ];
+		/**
+		 * The dynamic edits the physics feels (SdfDynamicEdits.PackedPhysics)
+		 * when they changed since the last tick; else null.
+		 */
+		Dynamic: Float32Array | null;
 	}
 	| { Type: "query"; Id: number; Query: SdfQuery; };
 
@@ -90,13 +126,15 @@ export type FromSdfWorker =
 /** SDF worker -> render worker. */
 export type SdfToRender =
 	/** A new scene: drop every chunk of the old one. */
-	| { Type: "begin"; Epoch: number; }
+	| { Type: "begin"; Epoch: number; Settings: SdfRenderSettings | null; }
 	| {
 		Type: "chunks";
 		Epoch: number;
 		Built: SdfChunk[];
 		Removed: string[];
-	};
+	}
+	/** The world sampled into a volume (again after edits changed it). */
+	| { Type: "volume"; Epoch: number; Volume: SdfVolumeData; };
 
 /** A chunk as the physics needs it: its triangles. */
 export interface SdfPhysicsChunk {
@@ -119,4 +157,9 @@ export type SdfToPhysics =
 /** Physics worker -> SDF worker. */
 export type PhysicsToSdf =
 	/** Its world was recreated (a scene load): send every chunk again. */
-	{ Type: "reset"; };
+	| { Type: "reset"; }
+	/**
+	 * A "chunks" message is in its world (what paces the chunks of moving
+	 * edits).
+	 */
+	| { Type: "taken"; Epoch: number; };

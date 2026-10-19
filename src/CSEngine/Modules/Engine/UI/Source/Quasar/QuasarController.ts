@@ -86,6 +86,12 @@ export class QuasarController extends ControlBase<QuasarEvents> {
 		(this.Events as unknown as { Emit(event: string, ...args: unknown[]): void; }).Emit(event, ...args);
 	}
 
+	/**
+	 * The view's template ref: one function per controller, so when the view gets a new controller (the designer's new
+	 * document) Vue hands the component over from the old one to it.
+	 */
+	public readonly BindRef = (instance: unknown): void => this.Bind(instance as Instance | null);
+
 	/** Called by the view with the mounted component (null when it goes). */
 	public Bind(instance: Instance | null): void {
 		// The component is Vue's own object: kept as it is, not made reactive with the controller.

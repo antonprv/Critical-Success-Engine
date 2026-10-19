@@ -22,13 +22,24 @@ export class BrickAtlas {
 	/** The texels, x fastest. A fresh atlas is "far outside" everywhere. */
 	public readonly Data: Uint8Array;
 
+	/**
+	 * With materials: four bytes a texel, as DenseSdfGrid's after the
+	 * distance (the pair, then the mix and the layer); else empty.
+	 */
+	public readonly Materials: Uint8Array;
+
 	private readonly _free: number[] = [];
 
 	private readonly _retired: number[] = [];
 
 	private readonly _dirty = new Set<number>();
 
-	public constructor( sizeX: number, sizeY: number, sizeZ: number ) {
+	public constructor(
+		sizeX: number,
+		sizeY: number,
+		sizeZ: number,
+		materials = false,
+	) {
 		this.Size = [ sizeX, sizeY, sizeZ ];
 		this.Slots = [
 			FMath.Floor( sizeX / BRICK_STORED ),
@@ -36,6 +47,9 @@ export class BrickAtlas {
 			FMath.Floor( sizeZ / BRICK_STORED ),
 		];
 		this.Data = new Uint8Array( sizeX * sizeY * sizeZ ).fill( 255 );
+		this.Materials = new Uint8Array(
+			materials ? sizeX * sizeY * sizeZ * 4 : 0,
+		);
 		// popped from the end: slot 0 is handed out first
 		for ( let slot = this.Capacity - 1; slot >= 0; slot-- ) {
 			this._free.push( slot );
@@ -86,10 +100,18 @@ export class BrickAtlas {
 		];
 	}
 
-	/** Copies a built brick (BRICK_VOLUME bytes) into its slot. */
-	public Write( slot: number, brick: Uint8Array ): void {
+	/**
+	 * Copies a built brick (BRICK_VOLUME bytes) into its slot, and its
+	 * materials (four bytes a node) where the atlas keeps them.
+	 */
+	public Write(
+		slot: number,
+		brick: Uint8Array,
+		materials: Uint8Array | null = null,
+	): void {
 		const [ ox, oy, oz ] = this.SlotOrigin( slot );
 		const [ width, height ] = this.Size;
+		const keep = materials !== null && this.Materials.length > 0;
 		let i = 0;
 
 		for ( let z = 0; z < BRICK_STORED; z++ ) {
@@ -97,6 +119,12 @@ export class BrickAtlas {
 				const row = ox + ( oy + y + ( oz + z ) * height ) * width;
 
 				this.Data.set( brick.subarray( i, i + BRICK_STORED ), row );
+				if ( keep ) {
+					this.Materials.set(
+						materials.subarray( i * 4, ( i + BRICK_STORED ) * 4 ),
+						row * 4,
+					);
+				}
 				i += BRICK_STORED;
 			}
 		}

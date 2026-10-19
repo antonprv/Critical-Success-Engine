@@ -31,6 +31,7 @@
 						"Type": "label",
 						"X": 8,
 						"Y": 10,
+						"Width": 244,
 						"Height": 18,
 						"Props": {
 							"Text": "Coins: 0 / 0",
@@ -46,6 +47,7 @@
 						"Type": "label",
 						"X": 8,
 						"Y": 32,
+						"Width": 244,
 						"Height": 18,
 						"Props": {
 							"Text": "Time: 60.0",

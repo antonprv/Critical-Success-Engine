@@ -99,6 +99,7 @@ export class CharacterBody extends PhysicsBody {
 			this.Transform.PushPhysicsPose(
 				body.Position,
 				this.Transform.Rotation,
+				this.Engine.Time.PhysicsStepCount,
 			);
 		}
 

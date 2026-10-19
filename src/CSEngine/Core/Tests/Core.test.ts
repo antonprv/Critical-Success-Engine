@@ -114,6 +114,41 @@ describe( "Transform", () => {
 		},
 	);
 
+	it( "draws the pose at a step time, however the steps came", () => {
+		const t = new Transform();
+		const out = new Float64Array( 7 );
+		const At = ( step: number ): number => {
+			t.WriteInterpolated( step, out, 0 );
+			return out[0]!;
+		};
+
+		// steps 10, 11, 12 arrived at once: each is still there to draw
+		t.PushPhysicsPose( new Vec3( 0, 0, 0 ), Quat.Identity(), 10 );
+		t.PushPhysicsPose( new Vec3( 1, 0, 0 ), Quat.Identity(), 11 );
+		t.PushPhysicsPose( new Vec3( 3, 0, 0 ), Quat.Identity(), 12 );
+		expect( At( 10.5 ) ).toBeCloseTo( 0.5 );
+		expect( At( 11.5 ) ).toBeCloseTo( 2 );
+		// past the newest: the newest (no guessing ahead); before the oldest:
+		// the oldest
+		expect( At( 13 ) ).toBe( 3 );
+		expect( At( 9 ) ).toBe( 0 );
+
+		// the same step again replaces it; a step after a gap (it slept)
+		// starts from where it stood
+		t.PushPhysicsPose( new Vec3( 4, 0, 0 ), Quat.Identity(), 12 );
+		expect( At( 12 ) ).toBe( 4 );
+		t.PushPhysicsPose( new Vec3( 8, 0, 0 ), Quat.Identity(), 20 );
+		expect( At( 15 ) ).toBe( 4 );
+		expect( At( 19.5 ) ).toBeCloseTo( 6 );
+		// four kept: the oldest went
+		expect( At( 10 ) ).toBe( 1 );
+
+		// a teleport is drawn at once, at any step time
+		t.Teleport( new Vec3( -5, 0, 0 ) );
+		expect( At( 0 ) ).toBe( -5 );
+		expect( At( 100 ) ).toBe( -5 );
+	} );
+
 	it( "script-driven transforms are written as they are", () => {
 		const t = new Transform();
 		t.Position.Set( 1, 2, 3 );

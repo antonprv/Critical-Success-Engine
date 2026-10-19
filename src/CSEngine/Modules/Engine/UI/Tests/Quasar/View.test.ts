@@ -3,7 +3,7 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { flushPromises, mount } from "@vue/test-utils";
-import { h, nextTick } from "vue";
+import { defineComponent, h, nextTick, shallowRef } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import WinThemeProvider from "../../Source/Components/WinThemeProvider.vue";
 import { WinKit } from "../../Source/Core/Kits";
@@ -14,7 +14,8 @@ import WinLayoutView from "../../Source/Documents/WinLayoutView.vue";
 import { BuiltInWidgets } from "../../Source/Documents/Widgets";
 import type { QuasarController } from "../../Source/Quasar/QuasarController";
 import { QuasarWidget } from "../../Source/Quasar/QuasarWidgets";
-import { ListenerOf, ParseDirectiveKey } from "../../Source/Quasar/QuasarView";
+import { ListenerOf, MissingParent, ParseDirectiveKey } from "../../Source/Quasar/QuasarView";
+import type { QuasarComponentRow } from "../../Source/Quasar/QuasarTypes";
 import { QuasarComponentTable } from "../../Source/Quasar/QuasarTable.generated";
 
 afterEach(() => { document.body.innerHTML = ""; });
@@ -127,5 +128,70 @@ describe("Quasar view helpers", () => {
 		expect(ParseDirectiveKey("ripple")).toEqual({ Name: "ripple", Arg: undefined, Modifiers: {} });
 		expect(ListenerOf("update:model-value")).toBe("onUpdate:modelValue");
 		expect(ListenerOf("click")).toBe("onClick");
+	});
+});
+
+describe("Quasar widgets in the designer", () => {
+	it("follow the designer's new document at every change: its controllers and props", async () => {
+		const layout = (label: string, directives?: Record<string, true>): UiLayout => Layout({ ...CreateNode("q-btn", "Ok", 0, 0), Props: { label }, ...(directives ? { Directives: directives } : {}) });
+		const current = shallowRef(new UiDocument(layout("First")));
+		const wrapper = mount({ render: () => h(WinThemeProvider, { theme: WinTheme.XpBlue }, () => h(WinLayoutView, { document: current.value })) }, { attachTo: window.document.body });
+		await flushPromises();
+		await vi.waitFor(() => expect(wrapper.find('[data-name="Ok"] .q-btn').exists()).toBe(true));
+		const old = current.value.Controller<QuasarController>("Ok");
+		expect(() => old.Call("click")).not.toThrow();
+
+		// the designer's next document: the same view, the new controller's props, the component handed over
+		current.value = new UiDocument(layout("Second"));
+		await flushPromises();
+		expect(wrapper.get('[data-name="Ok"] .q-btn').text()).toBe("Second");
+		expect(() => old.Call("click")).toThrow("isn't on screen");
+		expect(() => current.value.Controller<QuasarController>("Ok").Call("click")).not.toThrow();
+
+		// a directive added: loaded, then drawn with it
+		current.value = new UiDocument(layout("Third", { ripple: true }));
+		await flushPromises();
+		await vi.waitFor(() => expect(wrapper.get('[data-name="Ok"] .q-btn').text()).toBe("Third"));
+		// a directive Quasar hasn't: said on the widget
+		current.value = new UiDocument(layout("Fourth", { "no-such": true } as Record<string, true>));
+		await flushPromises();
+		await vi.waitFor(() => expect(wrapper.get('[data-name="Ok"] .win-quasar--failed').text()).toBe('QBtn: Quasar has no directive "no-such"'));
+		wrapper.unmount();
+	});
+
+	it("says where a component that needs a parent goes, and draws it there", async () => {
+		const drawer = CreateNode("q-drawer", "Side", 0, 0);
+		const page = CreateNode("q-page", "Page", 0, 0);
+		const tabs = CreateNode("q-tabs", "Tabs", 0, 100);
+		tabs.Children = [{ ...CreateNode("q-tab", "One", 0, 0), Props: { name: "one", label: "One" } }, { ...CreateNode("q-route-tab", "Route", 0, 0), Props: { name: "route", label: "Route" } }];
+		const { wrapper } = await Show(Layout(drawer, page, tabs));
+		expect(wrapper.get('[data-name="Side"] .win-quasar--orphan').text()).toBe("QDrawer goes inside a Layout (q-layout)");
+		expect(wrapper.get('[data-name="Page"] .win-quasar--orphan').text()).toContain("q-page-container");
+		expect(wrapper.find('[data-name="One"] .q-tab').exists()).toBe(true);
+		expect(wrapper.get('[data-name="Route"] .win-quasar--orphan').text()).toContain("Vue Router");
+		expect(MissingParent("QBtn", () => false)).toBeNull();
+		wrapper.unmount();
+	});
+
+	it("shows a component that fails alone, the rest of the document drawn", async () => {
+		const failing: QuasarComponentRow = { ...QuasarComponentTable.find((row) => row.Name === "QBtn")!, Name: "QBroken", Type: "q-broken", Load: async () => ({ default: defineComponent({ setup: () => { throw new Error("broken setup"); } }) }) };
+		const thrown: QuasarComponentRow = { ...failing, Name: "QThrown", Type: "q-thrown", Load: async () => ({ default: defineComponent({ setup: () => { throw "a string"; } }) }) };
+		const widgets = BuiltInWidgets.Extend().Register(QuasarWidget(failing)).Register(QuasarWidget(thrown));
+		const document = new UiDocument(Layout(CreateNode("q-broken", "Broken", 0, 0, widgets), CreateNode("q-thrown", "Thrown", 0, 40, widgets), CreateNode("q-btn", "Fine", 0, 80)), { Widgets: widgets });
+		vi.spyOn(console, "warn").mockImplementation(() => undefined);
+		const wrapper = mount({ render: () => h(WinThemeProvider, { theme: WinTheme.XpBlue }, () => h(WinLayoutView, { document })) }, { attachTo: window.document.body });
+		await vi.waitFor(() => expect(wrapper.find('[data-name="Broken"] .win-quasar--failed').exists()).toBe(true));
+		expect(wrapper.get('[data-name="Broken"] .win-quasar--failed').text()).toBe("QBroken: broken setup");
+		await vi.waitFor(() => expect(wrapper.get('[data-name="Thrown"] .win-quasar--failed').text()).toBe("QThrown: a string"));
+		await vi.waitFor(() => expect(wrapper.find('[data-name="Fine"] .q-btn').exists()).toBe(true));
+		wrapper.unmount();
+	});
+
+	it("draws a virtual scroll's items as text without widgets of its own", async () => {
+		const scroll = { ...CreateNode("q-virtual-scroll", "List", 0, 0), Props: { items: ["Plain", { label: "Labelled" }] } };
+		const { wrapper } = await Show(Layout(scroll));
+		await vi.waitFor(() => expect(wrapper.get('[data-name="List"]').text()).toContain("Labelled"));
+		expect(wrapper.get('[data-name="List"]').text()).toContain("Plain");
+		wrapper.unmount();
 	});
 });

@@ -1,7 +1,6 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { NullEngine } from "@babylonjs/core/Engines/nullEngine";
 import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
@@ -81,10 +80,13 @@ describe( "DenseSdfGrid", () => {
 		expect( grid.Range ).toBe( 2 );
 
 		// texel (8, 8, 8) is centered at (0.125, 0.125, 0.125): inside the ball
-		const at = ( 8 + 8 * 16 + 8 * 16 * 12 ) * 2;
+		const at = ( 8 + 8 * 16 + 8 * 16 * 12 ) * 4;
 
+		// distance, material pair, then the mix (5 bits) and the layer (3)
 		expect( grid.Data[at] ).toBeLessThan( 128 );
 		expect( grid.Data[at + 1] ).toBe( 3 );
+		expect( grid.Data[at + 2] ).toBe( 3 );
+		expect( grid.Data[at + 3] ).toBe( 0 );
 		// the corner texel: ground material, far outside the ball
 		expect( grid.Data[1] ).toBe( 0 );
 	} );
@@ -99,13 +101,19 @@ describe( "DenseSdfGrid", () => {
 		);
 
 		expect( grid.Refresh() ).toBe( 0 );
+		// nothing written: no slices
+		expect( grid.Written[1] ).toBeLessThan( grid.Written[0] );
 		list.Update( ball.Id, { Position: [ 0.5, 0, 0 ] } );
 
 		const written = grid.Refresh();
 
-		// the old and the new reach, a fraction of the grid each
+		// the old and the new reach, a fraction of the grid each, in a few
+		// of its slices
 		expect( written ).toBeGreaterThan( 0 );
 		expect( written ).toBeLessThan( 32 ** 3 );
+		expect( grid.Written[0] ).toBeGreaterThan( 0 );
+		expect( grid.Written[1] ).toBeLessThan( 31 );
+		expect( grid.Written[1] ).toBeGreaterThanOrEqual( grid.Written[0] );
 		list.Add( { Shape: SdfShape.Sphere, Position: [ 50, 0, 0 ] } );
 		expect( grid.Refresh() ).toBe( 0 );
 		grid.Dispose();
@@ -128,8 +136,9 @@ describe( "SdfRaymarchLayer", () => {
 			Quality: SdfQuality.Plain,
 			StepScale: 0.8,
 		} );
-		const update = vi.spyOn( layer.Texture, "update" );
+		const update = vi.spyOn( layer.Volume, "Update" );
 
+		expect( layer.Texture ).toBe( layer.Volume.Texture );
 		expect( layer.Mesh.scaling.asArray() ).toEqual( [ 4, 4, 4 ] );
 		expect( layer.Mesh.position.asArray() ).toEqual( [ 0, 0, 0 ] );
 		expect( layer.Material.backFaceCulling ).toBe( true );
@@ -138,13 +147,14 @@ describe( "SdfRaymarchLayer", () => {
 		list.Update( ball.Id, { Scale: 1.2 } );
 		// before every frame by itself
 		scene.onBeforeRenderObservable.notifyObservers( scene );
-		expect( update ).toHaveBeenCalledWith( grid.Data );
+		// the slices the edit changed
+		expect( update ).toHaveBeenCalledWith( grid.Data, ...grid.Written );
 		expect( layer.StepScale ).toBe( 0.8 );
 		layer.Dispose();
 		expect( layer.Mesh.isDisposed() ).toBe( true );
 	} );
 
-	it( "binds the camera, the lights and the view", () => {
+	it( "takes the scene's lights and its view settings", () => {
 		const scene = NewScene();
 		const { field } = World();
 		const sun = new DirectionalLight(
@@ -166,40 +176,24 @@ describe( "SdfRaymarchLayer", () => {
 			scene,
 			new DenseSdfGrid( field, CreateAabb( -1, -1, -1, 1, 1, 1 ), 4 ),
 		);
-		const material = layer.Material;
-		const vectors = vi.spyOn( material, "setVector3" );
-		const colors = vi.spyOn( material, "setColor3" );
-		const floats = vi.spyOn( material, "setFloat" );
 
 		expect( layer.Quality ).toBe( SdfQuality.Shadows );
+		layer.Quality = SdfQuality.Occlusion;
+		expect( layer.Quality ).toBe( SdfQuality.Occlusion );
 		layer.DebugView = SdfDebugView.Steps;
+		expect( layer.DebugView ).toBe( SdfDebugView.Steps );
+		layer.StepScale = 0.5;
+		expect( layer.StepScale ).toBe( 0.5 );
+		sun.intensity = 3;
+		layer.SyncLights();
+		expect( layer.Context.SunDirection ).toEqual( new Vector3( 0, -1, 0 ) );
+		expect( layer.Context.SunColor ).toEqual( new Color3( 3, 3, 3 ) );
+		expect( layer.Context.GroundColor ).toEqual( new Color3( 0.5, 0, 0 ) );
+		// its own context: disposed with it
+		const dispose = vi.spyOn( layer.Context, "Dispose" );
 
-		// no camera yet: the rest is still bound
-		material.onBindObservable.notifyObservers( layer.Mesh );
-		expect( vectors ).not
-			.toHaveBeenCalledWith( "cameraPosition", expect.anything() );
-		expect( floats )
-			.toHaveBeenCalledWith( "debugMode", SdfDebugView.Steps );
-
-		const camera = new FreeCamera(
-			"camera",
-			new Vector3( 0, 0, 5 ),
-			scene,
-		);
-
-		scene.activeCamera = camera;
-		material.onBindObservable.notifyObservers( layer.Mesh );
-		expect( vectors )
-			.toHaveBeenCalledWith( "cameraPosition", camera.globalPosition );
-		expect( floats )
-			.toHaveBeenCalledWith( "pixelAngle", expect.any( Number ) );
-		expect( vectors )
-			.toHaveBeenCalledWith( "sunDirection", new Vector3( 0, -1, 0 ) );
-		expect( colors )
-			.toHaveBeenCalledWith( "sunColor", new Color3( 2, 2, 2 ) );
-		expect( colors )
-			.toHaveBeenCalledWith( "groundColor", new Color3( 0.5, 0, 0 ) );
 		layer.Dispose();
+		expect( dispose ).toHaveBeenCalled();
 	} );
 } );
 
@@ -274,7 +268,8 @@ describe( "SdfRenderReceiver", () => {
 		const built = chunks.Update().Built;
 		const receiver = new SdfRenderReceiver( scene );
 
-		expect( receiver.Handle( { Type: "begin", Epoch: 2 } ) ).toBe( true );
+		expect( receiver.Handle( { Type: "begin", Epoch: 2, Settings: null } ) )
+			.toBe( true );
 		// an older scene's chunks, late
 		expect(
 			receiver.Handle(
@@ -292,7 +287,7 @@ describe( "SdfRenderReceiver", () => {
 		expect( receiver.Layer.Count ).toBe( 1 );
 		// pushed, not pulled: Update takes nothing
 		expect( receiver.Layer.Update().Built ).toEqual( [] );
-		receiver.Handle( { Type: "begin", Epoch: 3 } );
+		receiver.Handle( { Type: "begin", Epoch: 3, Settings: null } );
 		expect( receiver.Layer.Count ).toBe( 0 );
 		receiver.Dispose();
 		chunks.Dispose();

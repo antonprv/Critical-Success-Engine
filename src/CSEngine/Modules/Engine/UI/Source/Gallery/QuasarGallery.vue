@@ -9,6 +9,7 @@ import { UiDocument } from "../Documents/UiDocument";
 import WinLayoutView from "../Documents/WinLayoutView.vue";
 import { QuasarComponentTable } from "../Quasar/QuasarTable.generated";
 import type { QuasarComponentRow } from "../Quasar/QuasarTypes";
+import type { JsonValue } from "../Documents/Json";
 
 // Every Quasar component as a widget of a UI document, in each of its states, in the kit and theme picked: what the
 // screenshot tests photograph (?kit=classic|tailwind, &theme=, &dark=1, &only=QBtn,QInput).
@@ -32,14 +33,44 @@ const rows = QuasarComponentTable.filter((row) => !only || only.includes(row.Nam
 const States = ["normal", "hover", "focus", "disabled", "error"] as const;
 type State = (typeof States)[number];
 
+/**
+ * Components that draw only inside another one (QuasarView's Parents): shown in it - the parent's type, the slot they
+ * go into and the parent's props. QRouteTab stays alone (it needs Vue Router, which a UI document has not), and so do
+ * QHeader and QFooter (a layout in a cell isn't the page's): they show where they go.
+ */
+const Parents: Record<string, { Type: string; Slot?: string; Props?: Record<string, JsonValue>; Child?: Record<string, JsonValue>; }> = {
+	QTab: { Type: "q-tabs", Props: { "model-value": "one" }, Child: { name: "one", label: "Tab" } },
+	QStep: { Type: "q-stepper", Props: { "model-value": 1 }, Child: { name: 1, title: "Step" } },
+	QTimelineEntry: { Type: "q-timeline", Child: { title: "Entry", subtitle: "Today" } },
+	QUploaderAddTrigger: { Type: "q-uploader", Slot: "header" },
+};
+
+/** What a component's cell holds: it, or its parent with it. */
+function CellSize(row: QuasarComponentRow): readonly [number, number] {
+	const parent = Parents[row.Name];
+	const holder = parent && QuasarComponentTable.find((entry) => entry.Type === parent.Type);
+	return holder ? [holder.Size[0], holder.Size[1]] : [row.Size[0], row.Size[1]];
+}
+
 function Layout(row: QuasarComponentRow, state: State): UiLayout {
 	const layout = NewLayout(`${row.Name} ${state}`);
-	const node = CreateNode(row.Type, "Widget", 8, 8);
+	const parent = Parents[row.Name];
+	const node = CreateNode(row.Type, "Widget", parent ? 0 : 8, parent ? 0 : 8);
 	if (state === "disabled") node.Props["disable"] = true;
 	if (state === "error") Object.assign(node.Props, { error: true, "error-message": "Error" });
 	// Popups show their content inline here: a dialog, menu or tooltip open in place would cover the page.
 	if (["QDialog", "QMenu", "QTooltip", "QPopupProxy"].includes(row.Name)) node.Content = row.Name;
-	layout.Root.Children!.push(node);
+	if (!parent) {
+		layout.Root.Children!.push(node);
+		return layout;
+	}
+	const holder = CreateNode(parent.Type, "Parent", 8, 8);
+	[holder.Width, holder.Height] = CellSize(row);
+	Object.assign(holder.Props, parent.Props ?? {});
+	Object.assign(node.Props, parent.Child ?? {});
+	if (parent.Slot) node.Slot = parent.Slot;
+	holder.Children = [node];
+	layout.Root.Children!.push(holder);
 	return layout;
 }
 
@@ -64,7 +95,7 @@ const cells = computed(() => (sample ? [] : rows).map((row) => ({
 			</div>
 			<section v-for="cell in cells" :key="cell.row.Name" class="quasar-gallery__row" :data-component="cell.row.Name">
 				<h3>{{ cell.row.Name }} <small>{{ cell.row.Group }}</small></h3>
-				<div v-for="item in cell.documents" :key="item.state" class="quasar-gallery__cell" :data-state="item.state" :style="{ width: `${cell.row.Size[0] + 16}px`, height: `${cell.row.Size[1] + 16}px` }">
+				<div v-for="item in cell.documents" :key="item.state" class="quasar-gallery__cell" :data-state="item.state" :style="{ width: `${CellSize(cell.row)[0] + 16}px`, height: `${CellSize(cell.row)[1] + 16}px` }">
 					<WinLayoutView :document="item.document" />
 				</div>
 			</section>

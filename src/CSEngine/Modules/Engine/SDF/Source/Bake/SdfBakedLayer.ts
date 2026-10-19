@@ -11,7 +11,14 @@ import { CreateAabb, Overlaps, type Aabb } from "../Spatial/Aabb";
 /** "CSDB" as a little-endian word: the start of a baked layer. */
 export const BAKED_MAGIC = 0x42445343;
 
-export const BAKED_VERSION = 1;
+/** 2: every node and cell keeps a material pair, its mix and its layer. */
+export const BAKED_VERSION = 2;
+
+/** Bytes a node keeps: distance, first and second material, mix, layer. */
+const NodeBytes = 5;
+
+/** Bytes a cell keeps besides its brick index and center distance. */
+const CellBytes = 4;
 
 /** Cells along a baked brick's edge; it stores the 9 nodes of each axis. */
 const Cells = 8;
@@ -40,15 +47,22 @@ export interface BakeOptions {
  * folds its old edits into, so the game only ever keeps a few recent ones.
  *
  * The box is cut into cells of 8^3 samples. A cell the surface passes near
- * keeps a brick of 9^3 nodes (distance and material, a byte each); any other
- * cell keeps only the distance at its center, which bounds the distance
- * anywhere in it (the cell is farther from the surface than the brick
- * range, so rays still take long steps there). Outside the box the world is
- * empty.
+ * keeps a brick of 9^3 nodes (distance, a material pair and how much of the
+ * second, and the layer: a byte each); any other cell keeps only the distance
+ * at its center (and its material and layer), which bounds the distance
+ * anywhere in it (the cell is farther from the surface than the brick range, so
+ * rays still take long steps there). Outside the box the world is empty.
  */
 export class SdfBakedLayer implements SdfBaseLayer {
-	/** Material of points outside every brick (the nearest cell's). */
+	/** Material at the point of the last Distance (the nearest node's). */
 	public MaterialId = 0;
+
+	/** The second material there, its share (0..1) and the layer. */
+	public MaterialB = 0;
+
+	public MaterialMix = 0;
+
+	public LayerIndex = 0;
 
 	/** Lowest corner of the box. */
 	public readonly Min: Readonly<[ number, number, number ]>;
@@ -64,12 +78,16 @@ export class SdfBakedLayer implements SdfBaseLayer {
 	/** Per cell: the distance at its center. */
 	private _center: Float32Array;
 
-	/** Per cell: the material at its center. */
+	/** Per cell: material, second material, mix, layer at its center. */
 	private _cellMaterial: Uint8Array;
 
-	/** Bricks, BAKED_BRICK_NODES apiece: distance bytes, then materials. */
+	/** Bricks, BAKED_BRICK_NODES apiece: distance bytes. */
 	private _distances: Uint8Array;
 
+	/**
+	 * Bricks, BAKED_BRICK_NODES * 4 apiece: per node material, second, mix,
+	 * layer.
+	 */
 	private _materials: Uint8Array;
 
 	private _brickCount: number;
@@ -89,7 +107,7 @@ export class SdfBakedLayer implements SdfBaseLayer {
 		this.Size = size;
 		this._brickOf = new Int32Array( cells ).fill( -1 );
 		this._center = new Float32Array( cells ).fill( Infinity );
-		this._cellMaterial = new Uint8Array( cells );
+		this._cellMaterial = new Uint8Array( cells * CellBytes );
 		this._distances = new Uint8Array( 0 );
 		this._materials = new Uint8Array( 0 );
 		this._brickCount = 0;
@@ -167,7 +185,7 @@ export class SdfBakedLayer implements SdfBaseLayer {
 
 		if ( fx < 0 || fy < 0 || fz < 0 || fx >= sx || fy >= sy || fz >= sz ) {
 			// empty outside: at least as far as the box
-			this.MaterialId = 0;
+			this.SetMaterial( 0, 0, 0, 0 );
 			return FMath.Max( this.BoxDistance( x, y, z ), this.Range );
 		}
 
@@ -190,7 +208,7 @@ export class SdfBakedLayer implements SdfBaseLayer {
 			// center's bound never reads nearer than that
 			const bound = FMath.Max( FMath.Abs( center ) - off, this.Range );
 
-			this.MaterialId = this._cellMaterial[index]!;
+			this.SetMaterialFrom( this._cellMaterial, index * CellBytes );
 			return center >= 0 ? bound : -bound;
 		}
 		return this.Trilinear(
@@ -246,7 +264,7 @@ export class SdfBakedLayer implements SdfBaseLayer {
 		const bricks = this._brickCount;
 		const brickBytes = bricks * BAKED_BRICK_NODES;
 		const buffer = new ArrayBuffer(
-			HeaderBytes + cells * 9 + brickBytes * 2,
+			HeaderBytes + cells * ( 8 + CellBytes ) + brickBytes * NodeBytes,
 		);
 		const head = new Uint32Array( buffer, 0, 6 );
 		const floats = new Float64Array( buffer, 24, 4 );
@@ -262,7 +280,7 @@ export class SdfBakedLayer implements SdfBaseLayer {
 		Put( new Uint8Array( this._center.buffer ) );
 		Put( this._cellMaterial );
 		Put( this._distances.subarray( 0, brickBytes ) );
-		Put( this._materials.subarray( 0, brickBytes ) );
+		Put( this._materials.subarray( 0, brickBytes * ( NodeBytes - 1 ) ) );
 		return buffer;
 	}
 
@@ -303,9 +321,9 @@ export class SdfBakedLayer implements SdfBaseLayer {
 
 		layer._brickOf = new Int32Array( Take( cells * 4 ).buffer );
 		layer._center = new Float32Array( Take( cells * 4 ).buffer );
-		layer._cellMaterial = Take( cells );
+		layer._cellMaterial = Take( cells * CellBytes );
 		layer._distances = Take( brickBytes );
-		layer._materials = Take( brickBytes );
+		layer._materials = Take( brickBytes * ( NodeBytes - 1 ) );
 		layer._brickCount = bricks;
 		// slots no cell points at (freed before saving) are free again
 		const used = new Set( layer._brickOf );
@@ -344,7 +362,7 @@ export class SdfBakedLayer implements SdfBaseLayer {
 		const pending: Array<{
 			index: number;
 			center: number;
-			material: number;
+			material: Uint8Array;
 			brick: Uint8Array | null;
 		}> = [];
 
@@ -369,11 +387,11 @@ export class SdfBakedLayer implements SdfBaseLayer {
 						oy + c / 2,
 						oz + c / 2,
 					), -far, far );
-					const centerMaterial = program.LastMaterial;
+					const centerMaterial = MaterialBytes( program );
 					let brick: Uint8Array | null = null;
 
 					if ( FMath.Abs( center ) <= reach ) {
-						brick = new Uint8Array( BAKED_BRICK_NODES * 2 );
+						brick = new Uint8Array( BAKED_BRICK_NODES * NodeBytes );
 						if ( !SampleBrick(
 							program,
 							ox,
@@ -403,13 +421,13 @@ export class SdfBakedLayer implements SdfBaseLayer {
 	private Write(
 		index: number,
 		center: number,
-		material: number,
+		material: Uint8Array,
 		brick: Uint8Array | null,
 	): void {
 		let slot = this._brickOf[index]!;
 
 		this._center[index] = center;
-		this._cellMaterial[index] = material;
+		this._cellMaterial.set( material, index * CellBytes );
 		if ( brick === null ) {
 			if ( slot >= 0 ) {
 				this._free.push( slot );
@@ -425,7 +443,10 @@ export class SdfBakedLayer implements SdfBaseLayer {
 		const at = slot * BAKED_BRICK_NODES;
 
 		this._distances.set( brick.subarray( 0, BAKED_BRICK_NODES ), at );
-		this._materials.set( brick.subarray( BAKED_BRICK_NODES ), at );
+		this._materials.set(
+			brick.subarray( BAKED_BRICK_NODES ),
+			at * ( NodeBytes - 1 ),
+		);
 	}
 
 	/** A new brick slot at the end (the arrays grow by half when full). */
@@ -439,7 +460,7 @@ export class SdfBakedLayer implements SdfBaseLayer {
 				this._distances.length * 1.5 | 0,
 			);
 			const distances = new Uint8Array( capacity );
-			const materials = new Uint8Array( capacity );
+			const materials = new Uint8Array( capacity * ( NodeBytes - 1 ) );
 
 			distances.set( this._distances );
 			materials.set( this._materials );
@@ -487,8 +508,30 @@ export class SdfBakedLayer implements SdfBaseLayer {
 			+ FMath.Round( u )
 			+ ( FMath.Round( v ) + FMath.Round( w ) * Nodes ) * Nodes;
 
-		this.MaterialId = this._materials[nearest]!;
+		this.SetMaterialFrom( this._materials, nearest * ( NodeBytes - 1 ) );
 		return ( value / 255 - 0.5 ) * 2 * this.Range;
+	}
+
+	private SetMaterial(
+		a: number,
+		b: number,
+		mix: number,
+		layer: number,
+	): void {
+		this.MaterialId = a;
+		this.MaterialB = b;
+		this.MaterialMix = mix;
+		this.LayerIndex = layer;
+	}
+
+	/** Reads a stored material: first, second, mix (a byte), layer. */
+	private SetMaterialFrom( bytes: Uint8Array, at: number ): void {
+		this.SetMaterial(
+			bytes[at]!,
+			bytes[at + 1]!,
+			bytes[at + 2]! / 255,
+			bytes[at + 3]!,
+		);
 	}
 
 	/** Distance from a point to the layer's box (0 inside). */
@@ -504,8 +547,8 @@ export class SdfBakedLayer implements SdfBaseLayer {
 
 /**
  * Samples a brick's 9^3 nodes (corner at o, spacing h) into `out` (distance
- * bytes, then materials); false if every node is out of range on the same
- * side (no brick needed after all).
+ * bytes, then per node the material, second material, mix and layer); false if
+ * every node is out of range on the same side (no brick needed after all).
  */
 function SampleBrick(
 	program: SdfProgram,
@@ -532,7 +575,11 @@ function SampleBrick(
 				const byte = FMath.Round( ( t * 0.5 + 0.5 ) * 255 );
 
 				out[i] = byte;
-				out[BAKED_BRICK_NODES + i] = program.LastMaterial;
+				WriteMaterial(
+					program,
+					out,
+					BAKED_BRICK_NODES + i * ( NodeBytes - 1 ),
+				);
 				below ||= byte < 255;
 				above ||= byte > 0;
 				i++;
@@ -540,4 +587,25 @@ function SampleBrick(
 		}
 	}
 	return below && above;
+}
+
+/**
+ * The material at a program's last point as stored: first, second, mix, layer.
+ */
+function MaterialBytes( program: SdfProgram ): Uint8Array {
+	const bytes = new Uint8Array( 4 );
+
+	WriteMaterial( program, bytes, 0 );
+	return bytes;
+}
+
+function WriteMaterial(
+	program: SdfProgram,
+	out: Uint8Array,
+	at: number,
+): void {
+	out[at] = program.LastMaterial;
+	out[at + 1] = program.LastMaterialB;
+	out[at + 2] = FMath.Round( program.LastMix * 255 );
+	out[at + 3] = program.LastLayer;
 }

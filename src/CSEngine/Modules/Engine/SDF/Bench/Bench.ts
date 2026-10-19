@@ -51,6 +51,7 @@ import {
 	EditList,
 	ExtractChunk,
 	GroundPlane,
+	Overlaps,
 	SdfField,
 	SdfOp,
 	SdfShape,
@@ -157,6 +158,88 @@ describe( "mesh tier", () => {
 			CellSize: 0.2,
 			Cells: 20,
 			Ao: false,
+		} );
+	} );
+
+	bench( "the same, every node sampled (no skipping)", () => {
+		ExtractChunk( Distance, {
+			Origin: [ -2, -0.5, -2 ],
+			CellSize: 0.2,
+			Cells: 20,
+			Ao: false,
+			SkipEmpty: false,
+		} );
+	} );
+
+	// a chunk of open ground: the surface a slice of it
+	bench( "a chunk of ground, no AO", () => {
+		ExtractChunk( Distance, {
+			Origin: [ 4, -2, 4 ],
+			CellSize: 0.2,
+			Cells: 20,
+			Ao: false,
+		} );
+	} );
+
+	bench( "the same, every node sampled (no skipping)", () => {
+		ExtractChunk( Distance, {
+			Origin: [ 4, -2, 4 ],
+			CellSize: 0.2,
+			Cells: 20,
+			Ao: false,
+			SkipEmpty: false,
+		} );
+	} );
+} );
+
+describe( "mesh tier, a dug world", () => {
+	// 300 holes over 20 x 20 m: a 4 m chunk has a dozen or so in reach
+	const edits = new EditList();
+	const field = new SdfField( edits, new GroundPlane( 0 ) );
+	let seed = 1;
+	const Random = (): number => {
+		seed = ( seed * 16807 ) % 2147483647;
+		return seed / 2147483647;
+	};
+
+	for ( let i = 0; i < 300; i++ ) {
+		edits.Add( {
+			Shape: SdfShape.Sphere,
+			Op: SdfOp.SmoothSubtract,
+			Position: [ Random() * 20 - 10, 0, Random() * 20 - 10 ],
+			Params: [ 0.3 + Random() * 0.6, 0, 0, 0 ],
+			SmoothK: 0.2,
+		} );
+	}
+
+	const box = CreateAabb( -2.4, -2.4, -2.4, 2.4, 2.4, 2.4 );
+	const list = edits.Candidates( box );
+	const program = field.Compile( list );
+	const Distance = ( x: number, y: number, z: number ): number => (
+		program.Distance( x, y, z )
+	);
+	const options = {
+		Origin: [ -2, -2, -2 ] as [ number, number, number ],
+		CellSize: 0.2,
+		Cells: 20,
+		Ao: false,
+	};
+
+	bench( `one chunk, ${ list.length } edits in reach, no AO`, () => {
+		ExtractChunk( Distance, options );
+	} );
+
+	bench( "the same, each block its own edits", () => {
+		ExtractChunk( Distance, {
+			...options,
+			Region: ( min, max ) => {
+				const block = CreateAabb( ...min, ...max );
+				const part = field.Compile( list.filter(
+					( edit ) => Overlaps( edits.Reach( edit ), block ),
+				) );
+
+				return ( x, y, z ) => part.Distance( x, y, z );
+			},
 		} );
 	} );
 } );

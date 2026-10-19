@@ -2,6 +2,8 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { EditList } from "../Edits/EditList";
+import type { SdfEdit } from "../Edits/SdfEdit";
+import { SdfDynamicEdits } from "../Edits/SdfDynamicEdits";
 import { SdfField } from "../Field/SdfField";
 import { SdfMeshChunks } from "../Mesh/MeshChunks";
 import type { SdfMeshData } from "../Mesh/SurfaceNets";
@@ -20,6 +22,8 @@ export type ToMeshWorker =
 		CellSize: number;
 		ChunkCells: number;
 		Ao: boolean;
+		/** Skirts on the chunks' open borders (levels of detail). */
+		Skirts?: boolean;
 	}
 	/** EditList.TakeDelta of the main world. */
 	| { Type: "delta"; Delta: ArrayBuffer; }
@@ -28,6 +32,13 @@ export type ToMeshWorker =
 		Job: number;
 		Key: string;
 		Coord: [ number, number, number ];
+		/** Its level of detail (none: 0). */
+		Level?: number;
+		/**
+		 * For the physics alone: the dynamic edits it feels
+		 * (SdfDynamicEdits.Packed), applied after the world's; no occlusion.
+		 */
+		Physics?: Float32Array;
 	};
 
 /** Mesh worker -> main thread. */
@@ -36,9 +47,12 @@ export interface FromMeshWorker {
 	Job: number;
 	Key: string;
 	Coord: [ number, number, number ];
+	Level: number;
 	/** The main world's version the mesh was made at. */
 	Version: number;
 	Mesh: SdfMeshData;
+	/** Made for the physics (with its dynamic edits). */
+	Physics: boolean;
 }
 
 /** A reply and the buffers it hands over. */
@@ -81,6 +95,7 @@ export class MeshWorkerHost {
 					CellSize: message.CellSize,
 					ChunkCells: message.ChunkCells,
 					Ao: message.Ao,
+					Skirts: message.Skirts ?? false,
 					Radius: 0,
 				} );
 				return null;
@@ -89,8 +104,33 @@ export class MeshWorkerHost {
 				this._version = this.Ready()[0].ApplyDelta( message.Delta );
 				return null;
 			case "mesh": {
-				const chunk = this.Ready()[1]
-					.Mesh( message.Key, message.Coord );
+				const physics = message.Physics;
+				let extra: SdfEdit[] = [];
+
+				if ( physics ) {
+					const dynamic = new SdfDynamicEdits();
+
+					dynamic.Load( physics );
+					extra = dynamic.AsEdits();
+				}
+
+				const level = message.Level ?? 0;
+				const chunks = this.Ready()[1];
+				const chunk = physics
+					? chunks.Mesh(
+						message.Key,
+						message.Coord,
+						extra,
+						false,
+						level,
+					)
+					: chunks.Mesh(
+						message.Key,
+						message.Coord,
+						[],
+						undefined,
+						level,
+					);
 				const mesh = chunk.Mesh;
 
 				return {
@@ -99,14 +139,18 @@ export class MeshWorkerHost {
 						Job: message.Job,
 						Key: message.Key,
 						Coord: message.Coord,
+						Level: level,
 						Version: this._version,
 						Mesh: mesh,
+						Physics: physics !== undefined,
 					},
 					Transfer: [
 						mesh.Positions.buffer as ArrayBuffer,
 						mesh.Normals.buffer as ArrayBuffer,
 						mesh.Ao.buffer as ArrayBuffer,
 						mesh.MaterialIds.buffer as ArrayBuffer,
+						mesh.MaterialIdsB.buffer as ArrayBuffer,
+						mesh.MaterialMix.buffer as ArrayBuffer,
 						mesh.Indices.buffer as ArrayBuffer,
 					],
 				};

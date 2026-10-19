@@ -2,7 +2,7 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { FMath } from "@cse/fastmath";
-import type { SdfToPhysics } from "@cse/sdf";
+import type { PhysicsToSdf, SdfToPhysics } from "@cse/sdf";
 import { Logger } from "../Logging/Logger";
 import { PhysicsMsg, PhysState } from "./Common/CommonEnums";
 import { PhysicsWasmLoader } from "./Physics/PhysicsWasmLoader";
@@ -147,6 +147,17 @@ function InitializeWorld(
 				world.HandleSdf( event.data );
 			} else if ( !failed ) {
 				pendingSdf.push( event.data );
+				return;
+			}
+			// the SDF worker sends the next chunks for moving edits once these
+			// are in
+			if ( event.data.Type === "chunks" ) {
+				sdfPort.postMessage(
+					{
+						Type: "taken",
+						Epoch: event.data.Epoch,
+					} satisfies PhysicsToSdf,
+				);
 			}
 		};
 	}
@@ -169,6 +180,14 @@ function InitializeWorld(
 			world.CreateWorld( message.settings );
 			for ( const queued of pendingSdf.splice( 0 ) ) {
 				world.HandleSdf( queued );
+				if ( queued.Type === "chunks" ) {
+					sdfPort?.postMessage(
+						{
+							Type: "taken",
+							Epoch: queued.Epoch,
+						} satisfies PhysicsToSdf,
+					);
+				}
 			}
 
 			Post( { state: PhysState.Ready } );

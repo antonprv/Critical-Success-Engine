@@ -10,6 +10,8 @@ import {
 	CreateMeshWorker,
 	MeshWorkerHost,
 	SdfBakedLayer,
+	SdfDynamicEdits,
+	SdfDynamicFlags,
 	SdfEditFlags,
 	SdfField,
 	SdfMeshChunks,
@@ -204,6 +206,32 @@ describe( "SdfMeshWorkers", () => {
 		},
 	);
 
+	it( "fills its workers and no more; levels travel with the chunks", () => {
+		const world = NewWorld();
+		const worker = new FakeWorker( true );
+		const pool = new SdfMeshWorkers(
+			world,
+			{ ...Options, Radius: 1, Levels: 2, Workers: 1, InFlight: 2 },
+			() => worker,
+		);
+
+		pool.Update();
+		expect( worker.Held ).toHaveLength( 2 );
+		// all busy: nothing more is handed out
+		pool.Update();
+		expect( worker.Held ).toHaveLength( 2 );
+		worker.Flush( 0 );
+		worker.Flush( 0 );
+
+		const back = pool.Update().Built;
+
+		expect( back ).toHaveLength( 2 );
+		for ( const chunk of back ) {
+			expect( chunk.Level ).toBe( chunk.Key.includes( ":" ) ? 1 : 0 );
+		}
+		pool.Dispose();
+	} );
+
 	it( "drops the meshes of chunks that left the area", () => {
 		const world = NewWorld();
 		const worker = new FakeWorker( true );
@@ -300,7 +328,34 @@ describe( "MeshWorkerHost", () => {
 		expect( reply.Message.Job ).toBe( 7 );
 		expect( reply.Message.Version ).toBe( 1 );
 		expect( reply.Message.Mesh.Indices.length ).toBeGreaterThan( 0 );
-		expect( reply.Transfer ).toHaveLength( 5 );
+		expect( reply.Message.Physics ).toBe( false );
+		expect( reply.Transfer ).toHaveLength( 7 );
+
+		// for the physics: with the dynamic edits it feels (a hole through
+		// the ball), no occlusion
+		const dynamic = new SdfDynamicEdits();
+
+		dynamic.Add( {
+			Shape: SdfShape.Sphere,
+			Op: SdfOp.Subtract,
+			Position: [ 1, 1, 1.6 ],
+			Params: [ 0.5, 0, 0, 0 ],
+			Flags: SdfDynamicFlags.Physics,
+		} );
+
+		const physics = host.Handle( {
+			Type: "mesh",
+			Job: 8,
+			Key: "0,0,0",
+			Coord: [ 0, 0, 0 ],
+			Physics: dynamic.Packed(),
+		} )!;
+
+		expect( physics.Message.Physics ).toBe( true );
+		expect( physics.Message.Mesh.Indices ).not
+			.toEqual( reply.Message.Mesh.Indices );
+		expect( [ ...physics.Message.Mesh.Ao ].every( ( ao ) => ao === 1 ) )
+			.toBe( true );
 		// edits given whole at init, and their version
 		host.Handle( {
 			Type: "init",

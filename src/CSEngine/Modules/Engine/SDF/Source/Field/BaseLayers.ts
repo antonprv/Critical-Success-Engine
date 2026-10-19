@@ -14,8 +14,18 @@ export interface SdfBaseLayer {
 	 */
 	Distance( x: number, y: number, z: number ): number;
 
-	/** Material of the ground. */
+	/** Material of the ground (at the point of the last Distance). */
 	readonly MaterialId: number;
+
+	/**
+	 * Where the base fades between two materials (a baked layer): the second
+	 * one and its share there. Default: none.
+	 */
+	readonly MaterialB?: number;
+	readonly MaterialMix?: number;
+
+	/** Its layer (an index) at the point of the last Distance. Default 0. */
+	readonly LayerIndex?: number;
 }
 
 /** A flat ground: solid below `Height`. */

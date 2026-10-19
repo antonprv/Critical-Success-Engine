@@ -3,7 +3,7 @@
 
 import tailwindcss from "@tailwindcss/vite";
 import vue from "@vitejs/plugin-vue";
-import { QuasarDefines } from "./Build/QuasarBuild.ts";
+import { QuasarDefines } from "./Build/QuasarBuild.mjs";
 import { defineConfig } from "vitest/config";
 
 // The UI module's unit and component tests (jsdom); coverage counts its own sources.

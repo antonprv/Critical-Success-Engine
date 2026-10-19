@@ -104,7 +104,11 @@ export class PlatformMover extends Component {
 			Vec3.FromTuple( this.Axis ).Normalized()
 				.Mul( offset ),
 		);
-		this.Transform.PushPhysicsPose( position, this.Transform.Rotation );
+		this.Transform.PushPhysicsPose(
+			position,
+			this.Transform.Rotation,
+			this.Engine.Time.PhysicsStepCount,
+		);
 	}
 }
 

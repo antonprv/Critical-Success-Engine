@@ -26,10 +26,11 @@ export interface TimeInfo {
 	FrameCount: number;
 	PhysicsStepCount: number;
 	/**
-	 * Fraction (0..1) of the current physics step that has elapsed - how far
-	 * render poses are interpolated.
+	 * The physics step time frames are drawn at (in steps, fractional): a
+	 * step and a half behind the newest, advancing smoothly with the frames
+	 * however the steps arrive. Transform.WriteInterpolated takes it.
 	 */
-	RenderAlpha: number;
+	RenderStep: number;
 }
 
 /**

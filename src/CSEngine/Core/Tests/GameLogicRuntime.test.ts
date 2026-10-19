@@ -188,6 +188,36 @@ describe( "GameLogicRuntime", () => {
 	} );
 
 	it(
+		"draws a step and a half behind the newest step, only forward",
+		async () => {
+			await harness.BootToScene();
+
+			const time = harness.runtime.Context.Time;
+			const frame = ( id: number ): void => harness.render.Receive(
+				{ type: RenderMsg.FrameRequest, frameId: id },
+			);
+
+			for ( let i = 0; i < 12; i++ ) {
+				harness.Step( [] );
+			}
+			// far behind (the first frames): there at once
+			frame( 1 );
+			expect( time.RenderStep ).toBe( time.PhysicsStepCount - 1.5 );
+
+			// then with the frames, never past the newest step nor back
+			let last = time.RenderStep;
+
+			for ( let i = 0; i < 20; i++ ) {
+				frame( 2 + i );
+				expect( time.RenderStep ).toBeGreaterThanOrEqual( last );
+				expect( time.RenderStep )
+					.toBeLessThanOrEqual( time.PhysicsStepCount );
+				last = time.RenderStep;
+			}
+		},
+	);
+
+	it(
 		"sends only poses that changed since the last frame (a still entity "
 			+ "costs nothing)",
 		async () => {

@@ -11,10 +11,13 @@ import { AllKits, DefaultQuasarTheme, KitLabels, QuasarThemeClasses, WinKit } fr
 import { WinTheme } from "../../Source/Core/Themes";
 
 describe("the Quasar kit", () => {
-	it("is a third kit: the Tailwind kit's classes plus its own, in Quasar's blue by default", () => {
+	it("is a third kit of its own look, in Quasar's own colours by default", () => {
 		expect(AllKits).toEqual([WinKit.Classic, WinKit.Tailwind, WinKit.Quasar]);
 		expect(KitLabels[WinKit.Quasar]).toBe("Quasar");
-		expect(QuasarThemeClasses({ ...DefaultQuasarTheme, Dark: true })).toEqual(["win-kit--quasar", "win-kit--tailwind", "tw-accent--blue", "tw-neutral--gray", "tw-radius--sm", "tw-dark"]);
+		// its own look, not the Tailwind kit's; the palette's variables
+		expect(QuasarThemeClasses({ ...DefaultQuasarTheme, Dark: true })).toEqual(["win-kit--quasar", "tw-accent--blue", "tw-neutral--gray", "tw-dark"]);
+		// another palette than Quasar's own: its colour is the primary
+		expect(QuasarThemeClasses({ ...DefaultQuasarTheme, Accent: "emerald" })).toEqual(["win-kit--quasar", "tw-accent--emerald", "tw-neutral--gray", "qk-brand--palette"]);
 	});
 
 	it("tells what is inside a provider its kit and whether it is dark; outside one, Classic and light", () => {
@@ -25,7 +28,8 @@ describe("the Quasar kit", () => {
 
 		const kit = ref(WinKit.Quasar);
 		const wrapper = mount({ render: () => h(WinThemeProvider, { theme: WinTheme.XpBlue, kit: kit.value }, () => h(Probe)) });
-		expect(wrapper.get(".win-root").classes()).toEqual(expect.arrayContaining(["win-kit--quasar", "tw-accent--blue", "tw-radius--sm"]));
+		expect(wrapper.get(".win-root").classes()).toEqual(expect.arrayContaining(["win-kit--quasar", "tw-accent--blue"]));
+		expect(wrapper.get(".win-root").classes()).not.toContain("win-kit--tailwind");
 		expect(seen!.Kit).toBe(WinKit.Quasar);
 		expect(seen!.Dark).toBe(false);
 		const dark = mount({ render: () => h(WinThemeProvider, { theme: WinTheme.XpBlue, kit: WinKit.Tailwind, tailwind: { Accent: "rose", Neutral: "stone", Dark: true, Radius: "lg" } }, () => h(Probe)) });

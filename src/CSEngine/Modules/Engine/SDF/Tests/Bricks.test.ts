@@ -19,7 +19,10 @@ import {
 	EditList,
 	EncodeDistance,
 	GroundPlane,
+	CreateAabb,
 	IsBrickCell,
+	MapTexelBrick,
+	MapTexelSolid,
 	RANGE_SPACINGS,
 	SdfField,
 	SdfShape,
@@ -48,6 +51,27 @@ describe( "brick codec", () => {
 		expect( BrickIndex( 0, 0, 0 ) )
 			.toBe( 1 + BRICK_STORED + BRICK_STORED ** 2 );
 		expect( BrickIndex( 8, 8, 8 ) ).toBe( BRICK_VOLUME - 1 );
+	} );
+
+	it( "tells of each node sampled, encoded for a unit", () => {
+		const out = new Uint8Array( BRICK_VOLUME );
+		const seen: number[] = [];
+
+		BuildBrick(
+			( x ) => x,
+			0,
+			0,
+			0,
+			0.1,
+			out,
+			( index ) => seen.push( index ),
+			0.4,
+		);
+		expect( seen ).toHaveLength( BRICK_VOLUME );
+		expect( seen[5] ).toBe( 5 );
+		// node 8 along x: 0.8 away, within the wider unit's range (1.0)
+		expect( DecodeDistance( out[BrickIndex( 8, 0, 0 )]!, 0.4 ) )
+			.toBeCloseTo( 0.8, 1 );
 	} );
 
 	it( "tells empty, solid and surface bricks apart", () => {
@@ -82,6 +106,20 @@ describe( "BrickAtlas", () => {
 		expect( atlas.Allocate() ).toBe( -1 );
 		atlas.EndFrame();
 		expect( atlas.Allocate() ).toBe( 1 );
+	} );
+
+	it( "stores the materials of a brick beside its distances", () => {
+		const atlas = new BrickAtlas( 20, 10, 10, true );
+		const brick = new Uint8Array( BRICK_VOLUME ).fill( 9 );
+		const materials = new Uint8Array( BRICK_VOLUME * 4 ).fill( 4 );
+
+		atlas.Write( 1, brick, materials );
+		expect( atlas.Materials[10 * 4] ).toBe( 4 );
+		expect( atlas.Materials[0] ).toBe( 0 );
+		// without materials given: the distances alone
+		atlas.Write( 0, brick );
+		expect( atlas.Materials[0] ).toBe( 0 );
+		expect( atlas.Data[0] ).toBe( 9 );
 	} );
 
 	it( "stores bricks at their slot", () => {
@@ -298,6 +336,142 @@ describe( "SdfVolume", () => {
 		expect( volume.Map.Origin[0] ).toBe( -16 );
 		volume.CenterOn( 16, 0, 0 );
 		expect( volume.Map.Origin[0] ).toBe( -14 );
+	} );
+
+	it( "keeps materials, a wider range and only its bounds when asked", () => {
+		const list = new EditList();
+
+		list.Add( {
+			Shape: SdfShape.Sphere,
+			Params: [ 1, 0, 0, 0 ],
+			MaterialId: 3,
+		} );
+		// a second ball the bounds leave out
+		list.Add( {
+			Shape: SdfShape.Sphere,
+			Position: [ 0, 2.4, 0 ],
+			Params: [ 0.3, 0, 0, 0 ],
+		} );
+
+		const field = new SdfField( list );
+		const volume = new SdfVolume( field, {
+			Spacing: 0.1,
+			MapSize: 8,
+			Materials: true,
+			RangeSpacings: 8,
+			Bounds: CreateAabb( -2, -2, -2, 2, 1.5, 2 ),
+		} );
+		const version = volume.Version;
+
+		volume.Update();
+		expect( volume.Version ).toBeGreaterThan( version );
+		expect( volume.Range ).toBeCloseTo( 0.8, 12 );
+		expect( volume.Bounds ).not.toBeNull();
+		// the wider range: still exact near the surface, and farther out
+		expect( volume.Sample( 1.5, 0, 0 ) ).toBeCloseTo( 0.5, 1 );
+		// out of the bounds: nothing, though the field has a ball there
+		expect( volume.Map.Get( 0, 2, 0 ) ).toBe( CELL_EMPTY );
+		expect( volume.Map.Get( 0, 3, 0 ) ).toBe( CELL_EMPTY );
+
+		// every node of the ball's bricks keeps its material
+		const atlas = volume.Atlas;
+		const cell = volume.Map.Get( 1, 0, 0 );
+
+		expect( IsBrickCell( cell ) ).toBe( true );
+		expect( atlas.Materials ).toHaveLength( atlas.Data.length * 4 );
+
+		const [ x, y, z ] = atlas.SlotOrigin( CellSlot( cell ) );
+		const [ width, height ] = atlas.Size;
+
+		expect( atlas.Materials[( x + ( y + z * height ) * width ) * 4] )
+			.toBe( 3 );
+
+		// without materials the atlas keeps none
+		const plain = new SdfVolume( field, { Spacing: 0.1, MapSize: 4 } );
+
+		plain.Update();
+		expect( plain.Atlas.Materials ).toHaveLength( 0 );
+		expect( plain.Bounds ).toBeNull();
+	} );
+
+	it( "lays its map out as texels: slots, solid, empty space", () => {
+		const list = new EditList();
+
+		list.Add( { Shape: SdfShape.Sphere, Params: [ 2.5, 0, 0, 0 ] } );
+
+		const volume = new SdfVolume( new SdfField( list ), {
+			Spacing: 0.1,
+			MapSize: 8,
+			Budget: Infinity,
+		} );
+		const map = volume.Map;
+		const texels = new Uint8Array( 8 * 8 * 8 * 4 );
+		const At = ( cx: number, cy: number, cz: number ): number[] => {
+			const at = map.Index( cx, cy, cz ) * 4;
+
+			return [ ...texels.subarray( at, at + 4 ) ];
+		};
+
+		// nothing built yet: pending, not known to be empty
+		volume.MapTexels( texels );
+		expect( At( 0, 0, 0 )[3] ).toBe( 0 );
+		volume.Update();
+		volume.MapTexels( texels );
+
+		// a brick: its slot in slots, x fastest
+		const value = map.Get( 3, 0, 0 );
+		const slot = CellSlot( value );
+		const [ sx, sy ] = volume.Atlas.Slots;
+
+		expect( IsBrickCell( value ) ).toBe( true );
+		expect( At( 3, 0, 0 ) ).toEqual( [
+			slot % sx,
+			Math.floor( slot / sx ) % sy,
+			Math.floor( slot / ( sx * sy ) ),
+			MapTexelBrick,
+		] );
+		// deep inside: solid
+		expect( At( 0, 0, 0 )[3] ).toBe( MapTexelSolid );
+
+		// an empty cell: its distance in cells to the nearest that isn't,
+		// or to the window's edge
+		const empty: Array<[ number, number, number ]> = [];
+
+		for ( let z = -4; z < 4; z++ ) {
+			for ( let y = -4; y < 4; y++ ) {
+				for ( let x = -4; x < 4; x++ ) {
+					if ( map.Get( x, y, z ) === CELL_EMPTY ) {
+						empty.push( [ x, y, z ] );
+					}
+				}
+			}
+		}
+		expect( empty.length ).toBeGreaterThan( 0 );
+		for ( const [ x, y, z ] of empty ) {
+			let nearest = Math.min(
+				x + 5,
+				y + 5,
+				z + 5,
+				4 - x,
+				4 - y,
+				4 - z,
+			);
+
+			for ( let cz = -4; cz < 4; cz++ ) {
+				for ( let cy = -4; cy < 4; cy++ ) {
+					for ( let cx = -4; cx < 4; cx++ ) {
+						if ( map.Get( cx, cy, cz ) !== CELL_EMPTY ) {
+							nearest = Math.min( nearest, Math.max(
+								Math.abs( cx - x ),
+								Math.abs( cy - y ),
+								Math.abs( cz - z ),
+							) );
+						}
+					}
+				}
+			}
+			expect( At( x, y, z ) ).toEqual( [ 0, 0, 0, nearest ] );
+		}
 	} );
 
 	it( "stops following the edits when disposed", () => {

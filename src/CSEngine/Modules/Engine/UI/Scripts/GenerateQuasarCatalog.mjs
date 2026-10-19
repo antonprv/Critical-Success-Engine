@@ -61,7 +61,7 @@ const Starters = {
 	QBreadcrumbsEl: { label: "Home" }, QPagination: { "model-value": 1, max: 5 }, QStepper: { "model-value": 1 }, QStep: { name: 1, title: "Step" },
 	QTable: { title: "Table", "row-key": "name", columns: [{ name: "name", label: "Name", field: "name", align: "left", sortable: true }, { name: "value", label: "Value", field: "value", sortable: true }], rows: [{ name: "Alpha", value: 1 }, { name: "Beta", value: 2 }, { name: "Gamma", value: 3 }] },
 	QTree: { "node-key": "label", nodes: [{ label: "Root", children: [{ label: "Child 1" }, { label: "Child 2" }] }] },
-	QVirtualScroll: { items: ["Item 1", "Item 2", "Item 3"] },
+	QVirtualScroll: { items: ["Item 1", "Item 2", "Item 3"] }, QSplitter: { "model-value": 50 },
 	QTimelineEntry: { title: "Event", subtitle: "Today" }, QChatMessage: { name: "Me", text: ["Hello"], sent: true },
 	QExpansionItem: { label: "Details" }, QBanner: {}, QToolbarTitle: {}, QItemLabel: {},
 	QDialog: { "model-value": false }, QMenu: {}, QTooltip: {},

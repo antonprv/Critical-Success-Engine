@@ -141,6 +141,11 @@ export class GameWorkers {
 			devicePixelRatio: window.devicePixelRatio,
 			// ?uncapped: no frame rate limit (the perf harness measures so)
 			uncapped: new URLSearchParams( location.search ).has( "uncapped" ),
+			// ?shadows=off, ?sdfao=off: the SDF scenes' shadows, occlusion
+			shadows: new URLSearchParams( location.search ).get( "shadows" )
+				!== "off",
+			sdfOcclusion: new URLSearchParams( location.search ).get( "sdfao" )
+				!== "off",
 			// ?aa=msaa / ?aa=off: multisampled edges, or none
 			antialias: Antialias(
 				new URLSearchParams( location.search ).get( "aa" ),

@@ -18,6 +18,13 @@ export type MainToRenderMessage =
 		 * (?uncapped).
 		 */
 		uncapped?: boolean;
+		/** The sun's shadows in SDF scenes (?shadows=off: none). */
+		shadows?: boolean;
+		/**
+		 * The SDF world and the meshes occluding each other (?sdfao=off:
+		 * not).
+		 */
+		sdfOcclusion?: boolean;
 		/**
 		 * Smooth edges: "fxaa" (the default: one cheap pass over the finished
 		 * frame), "msaa" (multisampling, a cheaper pass over the finished

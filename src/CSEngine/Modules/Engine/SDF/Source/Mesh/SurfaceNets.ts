@@ -2,6 +2,7 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { FMath } from "@cse/fastmath";
+import { UnpackMaterial } from "../Field/FieldState";
 
 /**
  * Cells along a chunk's edge at most: a chunk's vertices (one per cell of
@@ -21,9 +22,60 @@ export interface ChunkOptions {
 	 * samples of the field along the normal. Default true.
 	 */
 	Ao?: boolean;
-	/** The material at a surface point; without it every vertex gets 0. */
+	/**
+	 * The occlusion's step along the normal (world units; default a cell):
+	 * the same at every level of detail, so the shading doesn't change where
+	 * the levels meet.
+	 */
+	AoStep?: number;
+	/**
+	 * The material at a surface point as a packed pair (PackMaterial);
+	 * without it every vertex gets 0.
+	 */
 	Material?: ( x: number, y: number, z: number ) => number;
+	/**
+	 * How deep skirts hang from the mesh's open borders, into the solid
+	 * (world units; 0, the default: none). They hide the cracks where a
+	 * chunk meets one of another level of detail.
+	 */
+	Skirt?: number;
+	/**
+	 * Skips the empty space inside the chunk (plan.md 21.8 item 1): the
+	 * nodes go in blocks of 4^3, and a block whose center is farther from
+	 * the surface than the block reaches (and a cell beyond, and a margin
+	 * for fields whose distances are bounds) takes the center's distance
+	 * for all its nodes - no edge touching it can cross the surface, so the
+	 * mesh is the same - one sample instead of 64. Default true.
+	 */
+	SkipEmpty?: boolean;
+	/**
+	 * The field to sample a block's nodes with, given the box they span
+	 * (RegionCells grown, world units): a shorter one where fewer edits reach
+	 * (plan.md 21.8 item 2). The normals of the vertices in the block's
+	 * cells take it too. By default the chunk's own `distance`.
+	 */
+	Region?: (
+		min: Readonly<[ number, number, number ]>,
+		max: Readonly<[ number, number, number ]>,
+	) => ( x: number, y: number, z: number ) => number;
 }
+
+/** Nodes along a block's edge (ChunkOptions.SkipEmpty). */
+const BlockNodes = 4;
+
+/**
+ * How much farther than it reaches a block's center must be from the
+ * surface to be skipped: a margin for distances that are only bounds.
+ */
+const BlockMargin = 1.25;
+
+/**
+ * Cells a block's box grows by for its own field (ChunkOptions.Region):
+ * its vertices lie a cell past its nodes and their normals sample a
+ * quarter cell around; a smooth subtraction reaches deeper than its bounds
+ * inside the solid (by the distance there): one more for that.
+ */
+const RegionCells = 3;
 
 /** One chunk's triangles, ready for a vertex buffer. */
 export interface SdfMeshData {
@@ -33,9 +85,17 @@ export interface SdfMeshData {
 	Normals: Float32Array;
 	/** Baked occlusion per vertex: 1 open, 0 fully covered. */
 	Ao: Float32Array;
+	/** Per vertex: its material, a second one and the second's share (/255). */
 	MaterialIds: Uint16Array;
+	MaterialIdsB: Uint16Array;
+	MaterialMix: Uint8Array;
 	/** Counter-clockwise seen from outside (the normal's side). */
 	Indices: Uint16Array;
+	/**
+	 * Where the skirts' triangles start in Indices (none: no skirts): the
+	 * physics takes only what comes before.
+	 */
+	SkirtFrom?: number;
 }
 
 /**
@@ -47,7 +107,10 @@ export interface SdfMeshData {
  * Seams: the chunk samples one node beyond itself on each side and owns the
  * edges whose lower node lies inside it, so neighbouring chunks create the
  * same vertices on their shared border from the same samples and every quad
- * is made by exactly one chunk: no cracks, no doubles.
+ * is made by exactly one chunk: no cracks, no doubles. Between chunks of
+ * different cell sizes the borders don't meet: with skirts
+ * (ChunkOptions.Skirt) the chunks overlap by a cell and the skirts cover the
+ * steps.
  */
 export function ExtractChunk(
 	distance: ( x: number, y: number, z: number ) => number,
@@ -63,10 +126,14 @@ export function ExtractChunk(
 
 	const grid = new ChunkGrid( distance, options );
 	const builder = new MeshBuilder( grid, distance, options );
+	// with skirts the edges on the far faces too: the mesh reaches half a
+	// cell past the chunk on every side, so a neighbour of another level
+	// overlaps it instead of leaving a gap (the skirts close the steps)
+	const last = ( options.Skirt ?? 0 ) > 0 ? n : n - 1;
 
-	for ( let k = 0; k < n; k++ ) {
-		for ( let j = 0; j < n; j++ ) {
-			for ( let i = 0; i < n; i++ ) {
+	for ( let k = 0; k <= last; k++ ) {
+		for ( let j = 0; j <= last; j++ ) {
+			for ( let i = 0; i <= last; i++ ) {
 				const a = grid.At( i, j, k );
 
 				builder.Edge( a, grid.At( i + 1, j, k ), 0, i, j, k );
@@ -75,6 +142,7 @@ export function ExtractChunk(
 			}
 		}
 	}
+	builder.Skirts( options.Skirt ?? 0 );
 	return builder.Finish();
 }
 
@@ -89,30 +157,148 @@ class ChunkGrid {
 
 	public readonly CellSize: number;
 
+	/** Each block's field (Region), where it has one of its own. */
+	private readonly _fields: Array<
+		( ( x: number, y: number, z: number ) => number ) | undefined
+	> = [];
+
+	/** Blocks along an axis. */
+	private readonly _blocks: number;
+
 	public constructor(
 		distance: ( x: number, y: number, z: number ) => number,
 		options: ChunkOptions,
 	) {
 		const side = options.Cells + 3;
-		const [ ox, oy, oz ] = options.Origin;
 		const h = options.CellSize;
-		let i = 0;
 
 		this.Side = side;
 		this.Origin = options.Origin;
 		this.CellSize = h;
 		this.Samples = new Float64Array( side * side * side );
-		for ( let z = -1; z < side - 1; z++ ) {
-			for ( let y = -1; y < side - 1; y++ ) {
-				for ( let x = -1; x < side - 1; x++ ) {
+		this._blocks = Math.ceil( side / BlockNodes );
+		if ( options.SkipEmpty === false ) {
+			this.Fill( distance, 0, 0, 0, side, side, side );
+			return;
+		}
+
+		const [ ox, oy, oz ] = options.Origin;
+
+		for ( let z = 0; z < side; z += BlockNodes ) {
+			for ( let y = 0; y < side; y += BlockNodes ) {
+				for ( let x = 0; x < side; x += BlockNodes ) {
+					const x1 = Math.min( x + BlockNodes, side );
+					const y1 = Math.min( y + BlockNodes, side );
+					const z1 = Math.min( z + BlockNodes, side );
+					// the block's center and how far its nodes lie from it
+					// (node n of the samples sits at n - 1 cells)
+					const cx = ( x + x1 - 1 ) / 2 - 1;
+					const cy = ( y + y1 - 1 ) / 2 - 1;
+					const cz = ( z + z1 - 1 ) / 2 - 1;
+					const reach = FMath.Length3(
+						x1 - 1 - x,
+						y1 - 1 - y,
+						z1 - 1 - z,
+					) / 2;
+					const d = distance(
+						ox + cx * h,
+						oy + cy * h,
+						oz + cz * h,
+					);
+
+					if ( FMath.Abs( d ) > ( reach + 1 ) * h * BlockMargin ) {
+						this.Set( d, x, y, z, x1, y1, z1 );
+					} else {
+						// sample x is node x - 1, the last x1 - 2; grown by
+						// RegionCells
+						const field = options.Region?.(
+							[
+								ox + ( x - 1 - RegionCells ) * h,
+								oy + ( y - 1 - RegionCells ) * h,
+								oz + ( z - 1 - RegionCells ) * h,
+							],
+							[
+								ox + ( x1 - 2 + RegionCells ) * h,
+								oy + ( y1 - 2 + RegionCells ) * h,
+								oz + ( z1 - 2 + RegionCells ) * h,
+							],
+						);
+
+						this._fields[this.BlockOf( x, y, z )] = field;
+						this.Fill( field ?? distance, x, y, z, x1, y1, z1 );
+					}
+				}
+			}
+		}
+	}
+
+	/** Samples the nodes x0..x1-1 (sample indices) of each axis. */
+	private Fill(
+		distance: ( x: number, y: number, z: number ) => number,
+		x0: number,
+		y0: number,
+		z0: number,
+		x1: number,
+		y1: number,
+		z1: number,
+	): void {
+		const [ ox, oy, oz ] = this.Origin;
+		const h = this.CellSize;
+		const s = this.Side;
+
+		for ( let z = z0; z < z1; z++ ) {
+			for ( let y = y0; y < y1; y++ ) {
+				let i = x0 + ( y + z * s ) * s;
+
+				for ( let x = x0; x < x1; x++ ) {
 					this.Samples[i++] = distance(
-						ox + x * h,
-						oy + y * h,
-						oz + z * h,
+						ox + ( x - 1 ) * h,
+						oy + ( y - 1 ) * h,
+						oz + ( z - 1 ) * h,
 					);
 				}
 			}
 		}
+	}
+
+	/** One value for the nodes x0..x1-1 of each axis. */
+	private Set(
+		d: number,
+		x0: number,
+		y0: number,
+		z0: number,
+		x1: number,
+		y1: number,
+		z1: number,
+	): void {
+		const s = this.Side;
+
+		for ( let z = z0; z < z1; z++ ) {
+			for ( let y = y0; y < y1; y++ ) {
+				const i = x0 + ( y + z * s ) * s;
+
+				this.Samples.fill( d, i, i + x1 - x0 );
+			}
+		}
+	}
+
+	/**
+	 * The field near cell (x, y, z) (each -1..N): its lowest node's block's
+	 * own, or none (the chunk's).
+	 */
+	public FieldOf( x: number, y: number, z: number ): (
+		( x: number, y: number, z: number ) => number
+	) | undefined {
+		return this._fields[this.BlockOf( x + 1, y + 1, z + 1 )];
+	}
+
+	/** The block of a node (sample indices). */
+	private BlockOf( x: number, y: number, z: number ): number {
+		const b = this._blocks;
+
+		return ( ( x / BlockNodes ) | 0 )
+			+ ( ( ( y / BlockNodes ) | 0 )
+				+ ( ( z / BlockNodes ) | 0 ) * b ) * b;
 	}
 
 	/** The sample at node (x, y, z), each -1..N+1. */
@@ -157,6 +343,8 @@ class MeshBuilder {
 	private readonly _materials: number[] = [];
 
 	private readonly _indices: number[] = [];
+
+	private _skirtFrom = -1;
 
 	/** Cell -> its vertex (-1: none yet), cells -1..N on each axis. */
 	private readonly _vertexOf: Int32Array;
@@ -258,7 +446,13 @@ class MeshBuilder {
 		const y = grid.Origin[1] + ( cy + sy / count ) * h;
 		const z = grid.Origin[2] + ( cz + sz / count ) * h;
 		const index = this._positions.length / 3;
-		const [ nx, ny, nz ] = this.Gradient( x, y, z, h * 0.25 );
+		const [ nx, ny, nz ] = this.Gradient(
+			grid.FieldOf( cx, cy, cz ) ?? this._distance,
+			x,
+			y,
+			z,
+			h * 0.25,
+		);
 
 		this._positions.push( x, y, z );
 		this._normals.push( nx, ny, nz );
@@ -274,12 +468,12 @@ class MeshBuilder {
 
 	/** Unit gradient by four samples on a tetrahedron; +Y where flat. */
 	private Gradient(
+		f: ( x: number, y: number, z: number ) => number,
 		x: number,
 		y: number,
 		z: number,
 		e: number,
 	): [ number, number, number ] {
-		const f = this._distance;
 		const a = f( x + e, y - e, z - e );
 		const b = f( x - e, y - e, z + e );
 		const c = f( x - e, y + e, z - e );
@@ -306,7 +500,7 @@ class MeshBuilder {
 		ny: number,
 		nz: number,
 	): number {
-		const step = this._grid.CellSize;
+		const step = this._options.AoStep ?? this._grid.CellSize;
 		// the vertex sits near, not on, the surface: measure from where it is
 		const start = this._distance( x, y, z );
 		let occlusion = 0;
@@ -324,13 +518,95 @@ class MeshBuilder {
 		return 1 - occlusion / AoTotal;
 	}
 
+	/**
+	 * A skirt along every open border edge (an edge of one triangle only): a
+	 * quad down from it along the vertices' normals, into the solid, facing
+	 * the way the surface would go on. Its vertices are copies, shaded as
+	 * the border's. None if they would overflow 16-bit indices.
+	 */
+	public Skirts( depth: number ): void {
+		if ( depth <= 0 ) {
+			return;
+		}
+
+		const indices = this._indices;
+		// an edge seen once, as its triangle runs it; a shared edge runs
+		// both ways and cancels
+		const open = new Map<number, [ number, number ]>();
+		const stride = this._positions.length / 3;
+
+		for ( let t = 0; t < indices.length; t += 3 ) {
+			for ( let e = 0; e < 3; e++ ) {
+				const a = indices[t + e]!;
+				const b = indices[t + ( e + 1 ) % 3]!;
+				const back = b * stride + a;
+
+				if ( open.has( back ) ) {
+					open.delete( back );
+				} else {
+					open.set( a * stride + b, [ a, b ] );
+				}
+			}
+		}
+
+		const dropped = new Map<number, number>();
+		const borders = new Set( [ ...open.values() ].flat() );
+
+		if ( stride + borders.size > 65535 ) {
+			return;
+		}
+		this._skirtFrom = indices.length;
+
+		const Drop = ( v: number ): number => {
+			const known = dropped.get( v );
+
+			if ( known !== undefined ) {
+				return known;
+			}
+
+			const n = [ 0, 1, 2 ].map( ( c ) => this._normals[v * 3 + c]! );
+			const index = this._positions.length / 3;
+
+			for ( let c = 0; c < 3; c++ ) {
+				this._positions.push(
+					this._positions[v * 3 + c]! - n[c]! * depth,
+				);
+				this._normals.push( n[c]! );
+			}
+			this._ao.push( this._ao[v]! );
+			this._materials.push( this._materials[v]! );
+			dropped.set( v, index );
+			return index;
+		};
+
+		for ( const [ a, b ] of open.values() ) {
+			const da = Drop( a );
+			const db = Drop( b );
+
+			// the triangle runs a -> b; the skirt across the edge runs b -> a
+			indices.push( b, a, da, b, da, db );
+		}
+	}
+
 	public Finish(): SdfMeshData {
 		return {
 			Positions: Float32Array.from( this._positions ),
 			Normals: Float32Array.from( this._normals ),
 			Ao: Float32Array.from( this._ao ),
-			MaterialIds: Uint16Array.from( this._materials ),
+			MaterialIds: Uint16Array.from(
+				this._materials,
+				( packed ) => UnpackMaterial( packed )[0],
+			),
+			MaterialIdsB: Uint16Array.from(
+				this._materials,
+				( packed ) => UnpackMaterial( packed )[1],
+			),
+			MaterialMix: Uint8Array.from(
+				this._materials,
+				( packed ) => Math.round( UnpackMaterial( packed )[2] * 255 ),
+			),
 			Indices: Uint16Array.from( this._indices ),
+			...this._skirtFrom >= 0 ? { SkirtFrom: this._skirtFrom } : {},
 		};
 	}
 }

@@ -7,10 +7,14 @@ import type { SdfField } from "../Field/SdfField";
 import { Expanded, type Aabb } from "../Spatial/Aabb";
 import { EncodeDistance, RANGE_SPACINGS } from "./BrickCodec";
 
+/** Bytes per texel: distance, material, second material, mix and layer. */
+export const TexelBytes = 4;
+
 /**
- * A dense grid of the field over one box (plan.md 15, M0): two bytes per
- * texel, the distance (R8, as the bricks encode it, but with a wider range
- * so rays take long steps through empty space) and the material id (G8).
+ * A dense grid of the field over one box (plan.md 15, M0): four bytes per
+ * texel - the distance (R, as the bricks encode it, but with a wider range
+ * so rays take long steps through empty space), the material pair (G, B)
+ * and, in A, how much of the second (5 bits) and the layer (3 bits).
  * Texel i sits at the center of cell i, so the hardware filter reads it at
  * uvw = (p - min) / size with no half-texel offset. An edit re-samples only
  * the texels within its reach.
@@ -30,11 +34,25 @@ export class DenseSdfGrid {
 
 	public readonly Size: Readonly<[ number, number, number ]>;
 
-	/** Distance, material per texel; x fastest. */
+	/**
+	 * Per texel (x fastest): distance, material, second material, then the mix
+	 * (5 bits) and the layer (3 bits).
+	 */
 	public readonly Data: Uint8Array;
 
 	/** Encoded range in texels on each side of the surface. */
 	public readonly RangeSpacings: number;
+
+	/**
+	 * Grows whenever Refresh wrote anything (what follows the grid compares).
+	 */
+	public Version = 0;
+
+	/**
+	 * The slices (z) the last Refresh wrote, first to last: none when the last
+	 * is below the first.
+	 */
+	public readonly Written: [ number, number ] = [ 0, -1 ];
 
 	private readonly _changes: EditWatcher;
 
@@ -61,7 +79,7 @@ export class DenseSdfGrid {
 		this.Resolution = [ nx, ny, nz ];
 		this.Min = [ bounds[0]!, bounds[1]!, bounds[2]! ];
 		this.Size = [ nx * h, ny * h, nz * h ];
-		this.Data = new Uint8Array( nx * ny * nz * 2 );
+		this.Data = new Uint8Array( nx * ny * nz * TexelBytes );
 		this._changes = Field.Edits.Watch();
 		this.Sample( 0, 0, 0, nx - 1, ny - 1, nz - 1 );
 	}
@@ -78,10 +96,15 @@ export class DenseSdfGrid {
 	public Refresh(): number {
 		let written = 0;
 
+		this.Written[0] = this.Resolution[2];
+		this.Written[1] = -1;
 		for ( const box of this._changes.Take() ) {
 			written += this.SampleBox(
 				Expanded( box, this.Range + this.Spacing ),
 			);
+		}
+		if ( written > 0 ) {
+			this.Version++;
 		}
 		return written;
 	}
@@ -129,6 +152,9 @@ export class DenseSdfGrid {
 
 		const h = this.Spacing;
 		const [ mx, my, mz ] = this.Min;
+
+		this.Written[0] = FMath.Min( this.Written[0], z0 );
+		this.Written[1] = FMath.Max( this.Written[1], z1 );
 		const [ nx, ny ] = this.Resolution;
 		const range = this.Range;
 		const field = this.Field;
@@ -152,14 +178,20 @@ export class DenseSdfGrid {
 
 			for ( let y = y0; y <= y1; y++ ) {
 				const wy = my + ( y + 0.5 ) * h;
-				let at = ( x0 + y * nx + z * nx * ny ) * 2;
+				let at = ( x0 + y * nx + z * nx * ny ) * TexelBytes;
 
 				for ( let x = x0; x <= x1; x++ ) {
 					const d = program.Distance( mx + ( x + 0.5 ) * h, wy, wz );
 
 					this.Data[at] = EncodeDistance( d, unit );
 					this.Data[at + 1] = program.LastMaterial & 0xff;
-					at += 2;
+					this.Data[at + 2] = program.LastMaterialB & 0xff;
+					// the mix in 5 bits, the layer in 3
+					this.Data[at + 3] = ( Math.round(
+						program.LastMix * 31,
+					) << 3 )
+						| ( program.LastLayer & 7 );
+					at += TexelBytes;
 				}
 			}
 		}

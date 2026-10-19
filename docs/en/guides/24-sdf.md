@@ -74,6 +74,15 @@ copy-on-write when a brick is replaced. `Update()` takes the changed boxes, grow
 cells there stale and rebuilds at most `Budget` cells per call, nearest to the eye first; a stale brick stays visible
 until its replacement is ready. `Sample( x, y, z )` reads the cache the way the GPU does (trilinearly).
 
+For drawing, `Materials: true` keeps each node's materials in a second atlas of the same slots, `RangeSpacings` widens
+the encoded range (occlusion and soft shadows read the field farther out than marching does: 8 spacings, as the dense
+grid) and `Bounds` samples only the world inside a box. `SdfRaymarchLayer` takes such a volume instead of a dense grid:
+`SdfBrickTexture` sends the atlases and the map (a texel a cell: a slot, solid, or how many cells of empty space lie
+around, so a ray crosses it in long steps), later only the slots written and the map when it changed, and the shaders
+compile with `SDF_BRICKS`. On scenes the size of the demo it is slower than the dense grid (two dependent reads a
+step: 131 vs 88 fps at 1080p) and not smaller; it is the ground for the clipmaps of large worlds, where a dense volume
+doesn't fit. The demo shows it with `?bricks=1`.
+
 ## The mesh tier
 
 `SdfMeshChunks` builds the world as triangles around a center (the player): Surface Nets per chunk with shared borders
@@ -99,6 +108,29 @@ scene.onBeforeRenderObservable.add( () => meshes.Update() );
 the hit in the same pass (the sun and sky come from the scene's `DirectionalLight` and `HemisphericLight`, plus AO
 and soft shadows through the field) and writes `gl_FragDepth`, so meshes in front of and behind the SDF surface are
 sorted by the ordinary depth test. `DebugView`: normals, steps per pixel, distance bands. It needs WebGL2.
+
+Before the screen pass the box is drawn into a target with a texel per 8x8 pixels (`ConeTiles`, by default `[ 8 ]`;
+coarsest first for several levels, `[]` turns it off): a texel marches one cone around all its pixels' rays until a
+surface comes nearer than the cone's radius, and every ray on screen starts there (cone marching, plan.md 20.1).
+Empty space before a surface is crossed once a tile; where the cone met nothing the pixel is done without a step.
+Every pixel still finds its own hit: on the still test scenes the picture is the same to the pixel, on a slab's edges
+seen at a grazing angle a pixel may fall either way (sphere tracing decides those by where its steps land). The demo:
+330 → 565 fps on mostly empty space, the march alone (`?view=2`) 230 → 350. It needs float render targets
+(`SdfConeMarch.Supported`); without them the rays start at the box. The dynamic edits' hulls take `ConeTiles` too
+(`MeshLayerOptions`), off by default: a hull's ray starts at its sphere, which the edit mostly fills - there the extra
+pass costs more than it saves.
+
+Both the ray-marched box and the dynamic edits' hulls are marched with a **checkerboard** (`Checkerboard`, on by default;
+plan.md 21.7, after Decima): a frame marches half the corners of the pixel grid - those whose x + y + parity is even -
+into a target of a texel a corner, the parity flips every frame, and the pixels on screen are resolved from their two
+corners of this frame and, reprojected through the previous frame's camera and kept where they saw the same surface, the
+two the previous frame marched. Half the rays a frame, four samples a pixel, no accumulation past two frames (no TAA
+smear); edges come out smoother, a little softer. A corner's ray is built from its corner, not from where its texel
+rasterizes, and the pass draws with the screen's view-projection (Babylon would fit one to the target's shape). Measured:
+tier B 64 → 93 fps (`light`), 77 → 118 (`showcase`), 552 → 602 (`depth`); the hulls 235 → 259 (`sdf-dynamic-16`),
+762 → 801 (`sdf-splats`). Lighting halves; the march saves less than half (a group of rays marches as long as its
+longest, and the checkerboard's groups span twice the screen). In motion it flickers no more than without. It needs float
+render targets, as the cones do; `?checker=0` turns it off in the demo.
 
 `ChooseTier( DetectCapabilities( gl, "gpu" in navigator ) )` picks the tier from the device's capabilities, a short
 benchmark and the player's choice.
@@ -141,6 +173,46 @@ const chunks = new SdfMeshWorkers( world, { CellSize: 0.2, ChunkCells: 20, Radiu
 const meshes = new SdfMeshLayer( scene, chunks );
 ```
 
+Meshing skips what it can (plan.md 21.8 items 1-2): the chunk's nodes go in blocks of 4³, and a block whose center is
+farther from the surface than the block reaches takes that one sample for all its nodes; the others are sampled with
+only the edits that reach them (`ChunkOptions.SkipEmpty`, `Region`). The mesh is the same, the physics' chunks too:
+0.95 → 0.61 ms for a chunk of ground, 5.0 → 3.4 ms for one with 37 edits in reach.
+
+## Levels of detail
+
+With `Levels` (chunk options, or `Levels` in the scene's `sdf` field) the chunks grow with the distance: a chunk of
+level L has cells 2^L as big and as many of them. The last level's chunks fill `Radius` around the center; nearer,
+each splits into its eight of the next finer level, down to level 0 within about `Radius` chunks of the player (an
+octree, so chunks of different levels never overlap). Keys of level 0 stay `"x,y,z"`, the others are `"L:x,y,z"`.
+
+```ts
+// cells 0.25 m near, 4 m at level 4: a 320 m land in ~600 chunks
+const chunks = new SdfMeshWorkers( world, { CellSize: 0.25, ChunkCells: 16, Radius: 2, Levels: 5 }, CreateMeshWorker );
+```
+
+- **Seams.** Where levels meet the borders don't match, so with more than one level every chunk builds one more row
+  of quads (its mesh reaches half a cell past it on every side: neighbours overlap) and hangs skirts two cells deep
+  from its open borders into the solid (`Skirts`). The physics never gets the skirts (`SdfMeshData.SkirtFrom`).
+- **No blinking.** As the player moves, a chunk that leaves the area stays drawn until what replaces it is built;
+  one that leaves altogether goes at once. The area is laid out again only after a move of an eighth of a chunk.
+- **Shading.** The baked occlusion steps by level 0's cell at every level, so the shading doesn't change where the
+  levels meet.
+- **Steady shadows.** The sun's shadow map keeps its place while its casters stay in the box it was fitted to; refitted,
+  its size is rounded to a step of 2^(1/4) and its center to a texel, and its normal bias grows with its texels. A map
+  fitted anew every frame slid its texels over the world as chunks came and went, and the acne on every slope crawled.
+- **Shadows.** Only levels below `ShadowLevels` (the mesh layer's option, default 2) cast into the sun's shadow map:
+  the map fits its casters, and the far levels would spread it over the whole world (acne on every slope). Far
+  shadows are cascades' job (the renderer, S6-06). All levels receive.
+- **Physics.** It takes the chunks of the levels below `PhysicsLevels` (scene option, default 2); far chunks only cost
+  it shapes. The SDF worker sees to the area and the pool at most every `PoolMs` (4 ms): GameLogic ticks every
+  frame, and work on every tick of an uncapped game would queue ticks faster than they are taken.
+- **Limits.** What is thinner than a level's cell vanishes at that distance (a 2 m slab under 4 m cells, a thin tower).
+  The world under the ground must be deep enough for the coarsest cell. The mesh layer's `Triangles` is what is drawn
+  now (the budget of plan.md 23.4).
+
+The perf scene `sdf-lod`: a 256 m land, five levels, the camera flying round it at 15 m/s - 647 fps on the test
+laptop, the camera still - 622 (125k triangles).
+
 ## Physics
 
 A mesh-tier chunk is an ordinary CSPhysics static. The physics worker takes `PhysOpType.SdfChunk` (a key, the chunk's
@@ -181,6 +253,108 @@ const hole = this.Engine.Sdf.Add( { Shape: SdfShape.Sphere, Op: SdfOp.Subtract, 
 this.Engine.Sdf.Update( hole.Id, { Position: [ x, y, z ] } );   // the id is known at once
 const hit = await this.Engine.Sdf.Raycast( origin, dir );        // answered a frame later
 ```
+
+## Light, shadows and occlusion
+
+`SdfRenderContext` ties the SDF world and the scene's meshes together: they share the sun's shadow map (meshes shadow
+the SDF world and the other way round; drawn at most `ShadowHz` times a second), and an ordinary mesh's material gets a
+plugin that darkens it by the SDF world's occlusion (two samples of the volume per vertex) and by the other meshes'
+(each mesh stands in as a sphere). The engine makes the context for an SDF scene by itself; `?shadows=off` and
+`?sdfao=off` on the page switch both off for a test.
+
+Tier B keeps two dear parts of its light off the hot path (plan.md 21.8):
+
+- `LightResolution` (default 0.5 of the screen across and down): `SdfLightBuffer` marches the soft shadow and the
+  occlusion at that resolution; the full-resolution pass still lights every pixel itself, taking those two factors
+  from the four nearest texels that saw the same surface, and marching them itself where none did. 1080p: 94 → 113 fps
+  (`light`), 112 → 132 (`showcase`).
+- `ShadowCache` (default on): `SdfShadowCache` marches the box into the sun's view once and keeps it while the shadow
+  map's matrix, the box, the field and the dynamic edits stay the same; the shadow pass then reads a texel instead of
+  marching. While the edits keep changing it stays out of the way. 114 → 133 fps, the same frame.
+
+## Dynamic edits
+
+Edits that move every frame - a hole that follows the tunnel gun, a blob that floats, a splat in flight - are kept
+apart from the edit list: no version, no delta, nothing folded, saved or meshed for drawing. The GPU draws them on top of
+the world (the ray marcher, or a hull around each over the mesh tier), so moving one costs a few uniforms. At most
+`MAX_DYNAMIC_EDITS` (16) at once.
+
+```ts
+const hole = this.Engine.Sdf.AddDynamic( {
+	Shape: SdfShape.Sphere, Op: SdfOp.SmoothSubtract, Params: [ 1.5, 0, 0, 0 ], SmoothK: 0.4,
+	Flags: SdfDynamicFlags.Physics,   // optional: the physics feels it too
+} );
+this.Engine.Sdf.UpdateDynamic( hole.Id, { Position: [ x, y, z ] } );   // every frame, for free
+this.Engine.Sdf.RemoveDynamic( hole.Id );
+```
+
+With `SdfDynamicFlags.Physics` the SDF worker meshes the chunks the edit reaches again for the physics alone (never for
+drawing), with the edit applied, at most 20 times a second and only once the physics took the last ones: balls fall
+into a moving hole and roll over a moving blob. The chunks the edit leaves get their own meshes back.
+
+## Layers and masks
+
+An edit has a `Layer` (one bit of eight) and a `Mask` (the layers it merges with; all by default). Where an edit's mask
+has the layer of the surface it meets, they merge: a smooth union fills the seam with a fillet and the two materials fade
+into each other over `SmoothK`. Where it doesn't, they meet with a hard seam and keep their own materials - but still
+shadow and occlude each other. A cut (`Subtract`) only cuts the layers of its mask.
+
+```ts
+world.Add( { Shape: SdfShape.Torus, Layer: 2, Mask: 2, MaterialId: 4 } );   // a torus that never melts into the rest
+```
+
+Dynamic edits and splats take the same `Layer` and `Mask`.
+
+## Splats
+
+A splat is a soft blob that sticks where it lands (paint, mud, slime). In the engine: an entity with a `Projectile` and
+an `SdfSplat`. In flight it is a dynamic edit stretched along its velocity; where the projectile hits, `Engine.Sdf.Splat`
+leaves an ordinary edit, an ellipsoid flattened against the surface (`SplatEdit`: its volume kept, a little sunk in),
+merged with what it hit if the layers allow. Any number pile up: the oldest fold into the base.
+
+```ts
+Ent( "Splat", [
+	Comp( Projectile, { Radius: 0.15, ApplyGravity: true } ),
+	Comp( SdfSplat, { Radius: 0.22, MaterialId: 2, Layer: 1, Mask: ALL_LAYERS } ),
+] );
+```
+
+## Splat grass
+
+`sdf.Grass` in a scene's manifest grows grass over the SDF world: blades scattered over the surface where it is of one
+of `OnMaterials`, drawn as thin instances in tiles of 8 m (a tile out of view isn't drawn; a far one draws only a
+share of its blades, past `LodDistance`). Whatever moves over it - every mesh the context knows, as a sphere - presses
+the blades flat, away from it; they stand up again over `Recover` seconds. A dynamic edit that takes the ground away
+takes the blades too. Where the grass's mask has the ground's layer, the roots fade into the ground's colour.
+
+```ts
+sdf: { …, Grass: { Bounds: [ -13, -13, 13, 13 ], Density: 40, Height: 0.35, Recover: 2.5 } },
+```
+
+## Curves, bodies, craters
+
+A tube along a curve - a worm, a root, a cable; with Op Subtract, a tunnel - is a round cone per piece (SdfShape.RoundCone:
+a segment with a radius at each end), each ending in the sphere the next one starts with, so it has no seams:
+
+```ts
+this.Engine.Sdf.AddCurve( {
+	Points: [ [ 0, 0.3, 0 ], [ 3, 0.8, 1 ], [ 6, 0.3, 0 ] ],   // a Catmull-Rom spline through them
+	Radii: [ 0.3, 0.5, 0.2 ],                                   // the radius at each point
+	MaterialId: 4,
+} );
+```
+
+`SdfWorm` grows one: its head wanders from where the entity stands and lays a piece every `Piece` metres (real edits: the
+physics feels them, the oldest fold into the base). `SdfBody` draws an entity as a shape of the SDF world that follows its
+transform - put it on a rigid body of the same size, and a cube pushed by the physics melts into the floor as it slides.
+`SdfSplat` with `Carve` takes matter away where it hits: a crater, deeper than wide; shots that keep hitting one spot go
+through.
+
+When a surface comes back over bodies (a moving hole the physics felt has gone by), the physics worker pushes the bodies
+that ended up inside it up and out - a step at a time, faster the deeper they are (1 to 8 m/s), never teleported. Inside
+means the first surface straight above the body, in any chunk, faces up; under an overhang it faces down, and the body
+stays. Bodies past the meshed area (`Radius` chunks around the focus) have nothing under
+them: keep play inside it, or fence it.
 
 ## What's next
 

@@ -117,10 +117,10 @@ export class Game {
 		return this.menu.or( this.hud.first() ).first();
 	}
 
-	/** Toasts: the rows of the engine's toasts document (bottom right). */
+	/** Toasts: the messages of the engine's toasts document (bottom right). */
 	public get toasts(): Locator {
 		return this.page.locator(
-			`${ UiLayer( "EngineToasts" ) } [role=gridcell]`,
+			`${ UiLayer( "EngineToasts" ) } .win-toast`,
 		);
 	}
 

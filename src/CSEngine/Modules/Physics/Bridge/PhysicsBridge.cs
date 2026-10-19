@@ -290,7 +290,7 @@ namespace Physics.Wasm
 
 			int id = _nextBodyId++;
 			_bodies[ id ] = handle;
-			Grow( ref _bodyIds, handle.Value + 1 );
+			GrowKeeping( ref _bodyIds, handle.Value + 1 );
 			_bodyIds[ handle.Value ] = id;
 			return id;
 		}
@@ -325,7 +325,7 @@ namespace Physics.Wasm
 
 			int id = _nextBodyId++;
 			_bodies[ id ] = handle;
-			Grow( ref _bodyIds, handle.Value + 1 );
+			GrowKeeping( ref _bodyIds, handle.Value + 1 );
 			_bodyIds[ handle.Value ] = id;
 			return id;
 		}
@@ -660,12 +660,27 @@ namespace Physics.Wasm
 		[return: JSMarshalAs<JSType.MemoryView>]
 		public static ArraySegment<int> GetLastOverlapEvents() => new ArraySegment<int>( _events, 0, _eventCount );
 
-		/// <summary>Makes room for `length` items; a buffer only grows (doubling), so steps stop allocating.</summary>
+		/// <summary>
+		/// Makes room for `length` items; a buffer only grows (doubling), so steps stop allocating. What it held is
+		/// dropped: for scratch buffers, rewritten before they are read.
+		/// </summary>
 		private static void Grow<T>( ref T[] buffer, int length )
 		{
 			if ( length > buffer.Length )
 			{
 				buffer = new T[ Math.Max( length, buffer.Length * 2 ) ];
+			}
+		}
+
+		/// <summary>
+		/// Grow for a table (the ids by handle): what it holds is kept. Grow dropped it - every body added before the
+		/// table grew past 256, 512, 1024... went missing from the steps' snapshots and hung where it was spawned.
+		/// </summary>
+		private static void GrowKeeping<T>( ref T[] buffer, int length )
+		{
+			if ( length > buffer.Length )
+			{
+				Array.Resize( ref buffer, Math.Max( length, buffer.Length * 2 ) );
 			}
 		}
 

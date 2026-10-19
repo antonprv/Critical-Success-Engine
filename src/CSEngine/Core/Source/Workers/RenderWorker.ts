@@ -30,6 +30,9 @@ const MaxOutstanding = 2;
 // the scene and registry passed in.
 let renderScene: RenderScene | null = null;
 
+/** The SDF world's chunks and dynamic edits, if there is an SDF worker. */
+let sdfReceiver: SdfRenderReceiver | null = null;
+
 let nextFrameId = 1;
 let outstanding = 0;
 let pendingFrame: {
@@ -81,13 +84,17 @@ function Init(
 
 	// the SDF world's chunks come straight from the SDF worker
 	if ( message.sdfPort ) {
-		const sdf = new SdfRenderReceiver( scene.Scene );
+		const sdf = new SdfRenderReceiver( scene.Scene, {
+			Shadows: message.shadows ?? true,
+			Occlusion: message.sdfOcclusion ?? true,
+		} );
 
 		message.sdfPort.onmessage = ( e: MessageEvent<SdfToRender> ) => {
 			if ( sdf.Handle( e.data ) ) {
 				scene.Wake();
 			}
 		};
+		sdfReceiver = sdf;
 	}
 	renderScene = scene;
 	const gameLogicPort = message.gameLogicPort;
@@ -177,6 +184,11 @@ function HandleGameLogicMessage(
 			break;
 		case RendOp.Frame:
 			outstanding = FMath.Max( 0, outstanding - 1 );
+			// at once, not with the frame drawn: a newer frame may replace
+			// this one, and it carries the edits only if they changed again
+			if ( message.sdfDynamic ) {
+				sdfReceiver?.SetDynamic( message.sdfDynamic );
+			}
 			// Latest frame wins: an older one that was never drawn is simply
 			// superseded.
 			pendingFrame = {

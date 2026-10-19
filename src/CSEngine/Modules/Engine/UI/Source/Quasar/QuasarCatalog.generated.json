@@ -13049,7 +13049,9 @@
 				}
 			],
 			"Unsupported": [],
-			"Starter": {},
+			"Starter": {
+				"model-value": 50
+			},
 			"Slots": [
 				"default",
 				"before",

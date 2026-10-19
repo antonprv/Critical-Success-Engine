@@ -2,7 +2,9 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { FMath } from "@cse/fastmath";
+import type { Aabb } from "../Spatial/Aabb";
 import {
+	type ChunkJob,
 	SdfMeshChunks,
 	type MeshChunksOptions,
 	type MeshChunksUpdate,
@@ -31,6 +33,9 @@ interface WorkerSlot {
 	Busy: number;
 }
 
+/** Workers that mesh chunks for the physics' moving edits. */
+const PhysicsSlots = 2;
+
 /**
  * The mesh tier meshed in parallel (plan.md 9.6, 22.3): the same area and
  * priorities as SdfMeshChunks, but every chunk is meshed by one of several
@@ -54,6 +59,11 @@ export class SdfMeshWorkers implements SdfChunkSource {
 	private readonly _latest = new Map<string, number>();
 
 	private _ready: SdfChunk[] = [];
+
+	/** Physics meshes being made, and the ones back. */
+	private _physicsBusy = 0;
+
+	private _physicsReady: SdfChunk[] = [];
 
 	public constructor(
 		private readonly _world: SdfWorld,
@@ -88,6 +98,7 @@ export class SdfMeshWorkers implements SdfChunkSource {
 				CellSize: this._chunks.CellSize,
 				ChunkCells: this._chunks.ChunkCells,
 				Ao: options.Ao ?? true,
+				Skirts: options.Skirts ?? this._chunks.Levels > 1,
 			}, [ own, recent ] );
 			this._workers.push( slot );
 		}
@@ -101,6 +112,55 @@ export class SdfMeshWorkers implements SdfChunkSource {
 	/** Chunks queued or being meshed. */
 	public get Pending(): number {
 		return this._chunks.Pending + this._latest.size;
+	}
+
+	/** The chunks a box reaches (see SdfMeshChunks.ChunksIn). */
+	public ChunksIn( box: Aabb ): ChunkJob[] {
+		return this._chunks.ChunksIn( box );
+	}
+
+	/** Whether every physics mesh asked for is back. */
+	public get PhysicsIdle(): boolean {
+		return this._physicsBusy === 0;
+	}
+
+	/**
+	 * Meshes chunks for the physics alone, with dynamic edits (packed) after
+	 * the world's: TakePhysics gives them as they come back.
+	 */
+	public MeshPhysics(
+		jobs: readonly ChunkJob[],
+		dynamic: Float32Array,
+	): void {
+		// a couple of workers at most: the rest keep the cores free for the
+		// render and the physics (the physics' chunks may come a frame later)
+		const slots = this._workers.slice( 0, PhysicsSlots );
+
+		for ( const job of jobs ) {
+			const slot = slots.reduce(
+				( best, next ) => ( next.Busy < best.Busy ? next : best ),
+			);
+			const own = dynamic.slice();
+
+			slot.Busy++;
+			this._physicsBusy++;
+			slot.Port.postMessage( {
+				Type: "mesh",
+				Job: this._nextJob++,
+				Key: job.Key,
+				Coord: [ job.Coord[0], job.Coord[1], job.Coord[2] ],
+				Level: job.Level,
+				Physics: own,
+			}, [ own.buffer ] );
+		}
+	}
+
+	/** The physics meshes back since the last call. */
+	public TakePhysics(): SdfChunk[] {
+		const ready = this._physicsReady;
+
+		this._physicsReady = [];
+		return ready;
 	}
 
 	public CenterOn( x: number, y: number, z: number ): void {
@@ -133,13 +193,16 @@ export class SdfMeshWorkers implements SdfChunkSource {
 		// a chunk still being meshed waits for that mesh before the next one:
 		// an edit moving every frame would otherwise keep the workers busy
 		// with meshes that are dropped before they arrive
-		const jobs = this._chunks.Next(
-			free,
-			( key ) => this._latest.has( key ),
-		);
+		const jobs = free > 0
+			? this._chunks.Next( free, ( key ) => this._latest.has( key ) )
+			: [];
+
+		// a couple of workers at most: the rest keep the cores free for the
+		// render and the physics (the physics' chunks may come a frame later)
+		const slots = this._workers.slice( 0, PhysicsSlots );
 
 		for ( const job of jobs ) {
-			const slot = this._workers.reduce(
+			const slot = slots.reduce(
 				( best, next ) => ( next.Busy < best.Busy ? next : best ),
 			);
 			const id = this._nextJob++;
@@ -151,6 +214,7 @@ export class SdfMeshWorkers implements SdfChunkSource {
 				Job: id,
 				Key: job.Key,
 				Coord: [ job.Coord[0], job.Coord[1], job.Coord[2] ],
+				Level: job.Level,
 			} );
 		}
 
@@ -175,15 +239,28 @@ export class SdfMeshWorkers implements SdfChunkSource {
 
 	private Receive( slot: WorkerSlot, message: FromMeshWorker ): void {
 		slot.Busy--;
+		if ( message.Physics ) {
+			this._physicsBusy--;
+			this._physicsReady.push( {
+				Key: message.Key,
+				Coord: message.Coord,
+				Level: message.Level,
+				Mesh: message.Mesh,
+				Version: message.Version,
+			} );
+			return;
+		}
 		// an older job's mesh (the chunk was asked for again) or a chunk that
 		// left the area meanwhile: dropped
 		if ( this._latest.get( message.Key ) !== message.Job ) {
 			return;
 		}
 		this._latest.delete( message.Key );
+		this._chunks.Built( message.Key );
 		this._ready.push( {
 			Key: message.Key,
 			Coord: message.Coord,
+			Level: message.Level,
 			Mesh: message.Mesh,
 			Version: message.Version,
 		} );

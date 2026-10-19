@@ -4,13 +4,12 @@
 import { FMath } from "@cse/fastmath";
 import type { EditList } from "../Edits/EditList";
 import {
-	IsCarving,
-	IsGlobal,
+	LayerIndex,
 	SdfEditFlags,
 	type SdfEdit,
 } from "../Edits/SdfEdit";
 import type { SdfBaseLayer } from "./BaseLayers";
-import { ApplyOp } from "./Ops";
+import { FieldState } from "./FieldState";
 import { ShapeDistance } from "./Shapes";
 import { SdfProgram } from "./SdfProgram";
 
@@ -40,8 +39,8 @@ const StepScale = 0.9;
  * order on top of the base layer (L0).
  */
 export class SdfField {
-	/** Material of the last Evaluate. */
-	private _material = 0;
+	/** The last Evaluate's layers and materials. */
+	private readonly _state = new FieldState();
 
 	public constructor(
 		public readonly Edits: EditList,
@@ -56,7 +55,9 @@ export class SdfField {
 
 	/**
 	 * Signed distance over `edits` only (by Order, e.g. a region's
-	 * Candidates): exact wherever no other edit reaches.
+	 * Candidates): exact wherever no other edit reaches. The reference the
+	 * compiled SdfProgram is checked against (both apply edits with
+	 * FieldState).
 	 */
 	public Evaluate(
 		edits: readonly SdfEdit[],
@@ -64,33 +65,35 @@ export class SdfField {
 		y: number,
 		z: number,
 	): number {
-		let d = Infinity;
-		let material = 0;
+		const state = this._state;
 
+		state.Reset();
 		if ( this.Base ) {
-			d = this.Base.Distance( x, y, z );
-			material = this.Base.MaterialId;
+			const base = this.Base;
+			const d = base.Distance( x, y, z );
+
+			state.SetBase(
+				d,
+				base.LayerIndex ?? 0,
+				base.MaterialId,
+				base.MaterialB ?? base.MaterialId,
+				base.MaterialMix ?? 0,
+			);
 		}
 		for ( const edit of edits ) {
 			if ( ( edit.Flags & SdfEditFlags.Muted ) !== 0 ) {
 				continue;
 			}
-
-			const e = EditDistance( edit, x, y, z );
-			const next = ApplyOp( edit.Op, d, e, edit.SmoothK );
-
-			// the surface here is the edit's where it wins the plain
-			// operation: nearer for a union, farther for an intersection, its
-			// inside deeper for a subtraction
-			if ( IsCarving( edit.Op ) ? -e > d
-				: IsGlobal( edit.Op ) ? e > d
-					: e < d ) {
-				material = edit.MaterialId;
-			}
-			d = next;
+			state.Apply(
+				edit.Op,
+				LayerIndex( edit.Layer ),
+				edit.Mask,
+				EditDistance( edit, x, y, z ),
+				edit.SmoothK,
+				edit.MaterialId,
+			);
 		}
-		this._material = material;
-		return d;
+		return state.Result();
 	}
 
 	/**
@@ -103,7 +106,21 @@ export class SdfField {
 
 	/** Material at the point of the last Evaluate (or Distance). */
 	public get LastMaterial(): number {
-		return this._material;
+		return this._state.Material;
+	}
+
+	/** The second material there and its share (0..1): where two fade. */
+	public get LastMaterialB(): number {
+		return this._state.MaterialB;
+	}
+
+	public get LastMix(): number {
+		return this._state.Mix;
+	}
+
+	/** The layer of the surface nearest there. */
+	public get LastLayer(): number {
+		return this._state.Layer;
 	}
 
 	/** Material of the surface nearest to a world point. */
@@ -119,7 +136,7 @@ export class SdfField {
 		z: number,
 	): number {
 		this.Evaluate( edits, x, y, z );
-		return this._material;
+		return this._state.Material;
 	}
 
 	/**
@@ -178,7 +195,7 @@ export class SdfField {
 			const d = this.Evaluate( edits, x, y, z );
 
 			if ( d < epsilon ) {
-				const material = this._material;
+				const material = this._state.Material;
 
 				return {
 					T: t / length,

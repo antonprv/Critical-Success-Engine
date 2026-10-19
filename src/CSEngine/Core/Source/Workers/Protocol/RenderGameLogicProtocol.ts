@@ -35,6 +35,11 @@ export type GameLogicToRenderMessage =
 		operation: RendOpType.Frame;
 		frameId: number;
 		camera: CameraPose | null;
+		/**
+		 * The SDF world's dynamic edits, packed (SdfDynamicEdits.Packed),
+		 * when they changed since the last frame; else null.
+		 */
+		sdfDynamic: Float32Array | null;
 	} & TransformBatchPayload )
 	| { operation: RendOpType.ClearScene; }
 	| { operation: RendOpType.SetVisible; entityId: number; visible: boolean; }

@@ -1003,6 +1003,172 @@ describe(
 				},
 			);
 
+			// a floor at y = 1 over x, z in 0..4, wound counter-clockwise
+			// seen from above (facing up); `flip`: facing down (a ceiling)
+			const Floor = ( flip = false ): PhysicsCommand => ( {
+				operation: PhysOpType.SdfChunk,
+				key: "floor",
+				positions: new Float32Array(
+					[ 0, 1, 0, 0, 1, 4, 4, 1, 0, 4, 1, 4 ],
+				),
+				indices: new Uint16Array( flip
+					? [ 0, 2, 1, 2, 3, 1, 0, 0, 0 ]
+					: [ 0, 1, 2, 2, 1, 3, 0, 0, 0 ] ),
+				layer: 1,
+				mask: -1,
+				ownerId: 0,
+			} );
+
+			it( "pushes up out of a new surface the bodies under it", () => {
+				const { bridge, world, apply, spawn } = Setup();
+
+				spawn(
+					5,
+					PhysBodyType.Dynamic,
+					{ shape: PhysShape.Sphere, radius: 0.3 },
+				);
+
+				const handle = bridge.AddDynamicBody!.mock.results[0]!.value;
+
+				// under the floor that just came back (a hole gone by)
+				bridge.GetBodyPose!.mockReturnValue(
+					[ 1, 0.5, 1, 0, 0, 0, 1 ],
+				);
+				bridge.GetLinearVelocity!.mockReturnValue( [ 1, -3, 0 ] );
+				apply( Floor() );
+				// never put through it: woken, and pushed up step by step
+				expect( bridge.SetBodyPose ).not.toHaveBeenCalled();
+				expect( bridge.SetAwakeState )
+					.toHaveBeenCalledWith( handle, true );
+				world.Step( 1 / 60 );
+
+				const [ , vx, vy, vz ] =
+					bridge.SetLinearVelocity!.mock.calls.at( -1 )!;
+
+				expect( [ vx, vz ] ).toEqual( [ 1, 0 ] );
+				// half a metre down: out in four steps (7.8 m/s, under the cap)
+				expect( vy ).toBeCloseTo( 7.8, 6 );
+				// deeper: no faster than MaxRiseSpeed
+				bridge.GetBodyPose!.mockReturnValue( [ 1, -2, 1, 0, 0, 0, 1 ] );
+				world.Step( 1 / 60 );
+				expect( bridge.SetLinearVelocity!.mock.calls.at( -1 )![2] )
+					.toBe( 8 );
+				// a little under it: slower, but at least MinRiseSpeed
+				bridge.GetBodyPose!.mockReturnValue(
+					[ 1, 0.995, 1, 0, 0, 0, 1 ],
+				);
+				world.Step( 1 / 60 );
+				expect( bridge.SetLinearVelocity!.mock.calls.at( -1 )![2] )
+					.toBe( 1 );
+				// out over it: left to its triangles
+				bridge.SetLinearVelocity!.mockClear();
+				bridge.GetBodyPose!.mockReturnValue(
+					[ 1, 1.05, 1, 0, 0, 0, 1 ],
+				);
+				world.Step( 1 / 60 );
+				world.Step( 1 / 60 );
+				expect( bridge.SetLinearVelocity ).not.toHaveBeenCalled();
+
+				// on it, beside it, or under a ceiling: left alone
+				bridge.GetBodyPose!.mockReturnValue(
+					[ 1, 1.3, 1, 0, 0, 0, 1 ],
+				);
+				apply( Floor() );
+				bridge.GetBodyPose!.mockReturnValue(
+					[ 9, 0.5, 1, 0, 0, 0, 1 ],
+				);
+				apply( Floor() );
+				bridge.GetBodyPose!.mockReturnValue(
+					[ 1, 0.5, 9, 0, 0, 0, 1 ],
+				);
+				apply( Floor() );
+				bridge.GetBodyPose!.mockReturnValue(
+					[ 1, 0.5, 1, 0, 0, 0, 1 ],
+				);
+				apply( Floor( true ) );
+				world.Step( 1 / 60 );
+				expect( bridge.SetLinearVelocity ).not.toHaveBeenCalled();
+				// kinematic bodies and statics aren't moved
+				spawn( 6, PhysBodyType.Kinematic );
+				spawn( 7, PhysBodyType.Static );
+				bridge.GetBodyPose!.mockClear();
+				apply( Floor( true ) );
+				expect( bridge.GetBodyPose ).toHaveBeenCalledTimes( 1 );
+			} );
+
+			it(
+				"looks at every chunk over a body: under an overhang it stays",
+				() => {
+					const { bridge, world, apply, spawn } = Setup();
+
+					spawn(
+						5,
+						PhysBodyType.Dynamic,
+						{ shape: PhysShape.Sphere, radius: 0.3 },
+					);
+					// the underside of a blob (another chunk), then its top; a
+					// chunk elsewhere has no say
+					bridge.GetBodyPose!.mockReturnValue(
+						[ 1, 0.5, 1, 0, 0, 0, 1 ],
+					);
+					apply(
+						{
+							...Floor(),
+							key: "far",
+							positions: new Float32Array(
+								[ 10, 1, 0, 10, 1, 4, 14, 1, 0, 14, 1, 4 ],
+							),
+						},
+					);
+					apply( { ...Floor( true ), key: "under" } );
+					apply(
+						{
+							...Floor(),
+							key: "top",
+							positions: new Float32Array(
+								[ 0, 2, 0, 0, 2, 4, 4, 2, 0, 4, 2, 4 ],
+							),
+						},
+					);
+					world.Step( 1 / 60 );
+					expect( bridge.SetLinearVelocity ).not.toHaveBeenCalled();
+				},
+			);
+
+			it(
+				"gives up on a body it can't get out, and forgets removed ones",
+				() => {
+					const { bridge, world, apply, spawn } = Setup();
+
+					spawn(
+						5,
+						PhysBodyType.Dynamic,
+						{ shape: PhysShape.Sphere, radius: 0.3 },
+					);
+					spawn(
+						6,
+						PhysBodyType.Dynamic,
+						{ shape: PhysShape.Sphere, radius: 0.3 },
+					);
+					bridge.GetBodyPose!.mockReturnValue(
+						[ 1, 0.5, 1, 0, 0, 0, 1 ],
+					);
+					apply( Floor() );
+					apply(
+						{
+							operation: PhysOpType.RemoveBody,
+							entityId: 6,
+						} as PhysicsCommand,
+					);
+					for ( let i = 0; i < 125; i++ ) {
+						world.Step( 1 / 60 );
+					}
+					bridge.SetLinearVelocity!.mockClear();
+					world.Step( 1 / 60 );
+					expect( bridge.SetLinearVelocity ).not.toHaveBeenCalled();
+				},
+			);
+
 			it( "takes the SDF worker's chunks for the current scene", () => {
 				const { bridge, world } = Setup();
 				const chunk = ( key: string ) => ( {

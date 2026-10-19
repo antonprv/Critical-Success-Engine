@@ -3,6 +3,18 @@
 
 /** The SDF world in a Babylon scene: ray marched (tier B) or as meshes (C). */
 export * from "./Palette";
+export * from "./SdfGlsl";
+export * from "./SdfRenderContext";
+export * from "./SdfMaterialPlugin";
+export * from "./SdfVolumeTexture";
+export * from "./RaymarchMaterial";
+export * from "./SdfConeMarch";
+export * from "./SdfCheckerboard";
+export * from "./SdfLightBuffer";
+export * from "./SdfShadowCache";
+export * from "./SdfBrickTexture";
+export * from "./SdfDynamicProxies";
+export * from "./SdfGrassLayer";
 export * from "./SdfRaymarchLayer";
 export * from "./SdfMeshLayer";
 export * from "./SdfRenderReceiver";

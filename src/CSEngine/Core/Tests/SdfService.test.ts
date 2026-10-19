@@ -92,6 +92,40 @@ describe( "SdfService", () => {
 		expect( focus[2] ).toBeCloseTo( 3, 9 );
 	} );
 
+	it( "keeps the dynamic edits for the renderer, not the SDF worker", () => {
+		const port = new FakePort();
+		const sdf = new SdfService( port as unknown as MessagePort );
+
+		sdf.Load( { Base: { Url: "level.sdf" } } );
+		expect( sdf.TakeDynamic() ).toBeNull();
+
+		const hole = sdf.AddDynamic( {
+			Shape: SdfShape.Sphere,
+			Op: SdfOp.SmoothSubtract,
+		} );
+
+		expect( sdf.UpdateDynamic( hole.Id, { Position: [ 1, 2, 3 ] } ) )
+			.toBe( true );
+		expect( sdf.Edits.Count ).toBe( 0 );
+		expect( [ ...sdf.TakeDynamic()!.slice( 0, 3 ) ] )
+			.toEqual( [ 1, 2, 3 ] );
+		expect( sdf.TakeDynamic() ).toBeNull();
+		expect( sdf.RemoveDynamic( hole.Id ) ).toBe( true );
+		expect( sdf.RemoveDynamic( hole.Id ) ).toBe( false );
+		expect( sdf.TakeDynamic() ).toHaveLength( 0 );
+	} );
+
+	it( "sticks splats as edits of the world", () => {
+		const sdf = new SdfService( null );
+
+		sdf.Load( null );
+
+		const splat = sdf.Splat( { Position: [ 0, 1, 0 ], Radius: 0.3 } );
+
+		expect( splat.Shape ).toBe( SdfShape.Ellipsoid );
+		expect( sdf.Edits.Get( splat.Id ) ).toBe( splat );
+	} );
+
 	it( "answers null without an SDF worker", async () => {
 		const sdf = new SdfService( null );
 

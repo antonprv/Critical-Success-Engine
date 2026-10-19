@@ -994,16 +994,31 @@ describe( "PhysicsWorker", () => {
 				fixedTimestepMs: 10,
 			} );
 			sdf.Receive( { Type: "begin", Epoch: 1 } );
+			sdf.Receive( { Type: "chunks", Epoch: 1 } );
+			// queued: not taken yet
+			expect( sdf.sent ).toEqual( [] );
 			finishLoading( {} );
 			await flush();
 
 			const world = World.instances[0]!;
 
-			// the first world asks too (the SDF worker has nothing yet)
-			expect( sdf.sent ).toEqual( [ { Type: "reset" } ] );
-			expect( world.sdf ).toEqual( [ { Type: "begin", Epoch: 1 } ] );
+			// the first world asks too (the SDF worker has nothing yet); the
+			// queued chunks are taken in, and the SDF worker told
+			expect( sdf.sent ).toEqual( expect.arrayContaining( [
+				{ Type: "reset" },
+				{ Type: "taken", Epoch: 1 },
+			] ) );
+			expect( sdf.sent ).toHaveLength( 2 );
+			expect( world.sdf ).toEqual( [
+				{ Type: "begin", Epoch: 1 },
+				{ Type: "chunks", Epoch: 1 },
+			] );
 			sdf.Receive( { Type: "chunks", Epoch: 1 } );
-			expect( world.sdf ).toHaveLength( 2 );
+			expect( world.sdf ).toHaveLength( 3 );
+			expect( sdf.sent.at( -1 ) ).toEqual( { Type: "taken", Epoch: 1 } );
+			// a new scene's begin needs no answer
+			sdf.Receive( { Type: "begin", Epoch: 2 } );
+			expect( sdf.sent ).toHaveLength( 3 );
 		},
 	);
 
@@ -1025,6 +1040,9 @@ describe( "PhysicsWorker", () => {
 			await flush();
 			sdf.Receive( { Type: "begin", Epoch: 2 } );
 			expect( World.instances ).toHaveLength( 0 );
+			// chunks are still "taken": the SDF worker never waits for them
+			sdf.Receive( { Type: "chunks", Epoch: 2 } );
+			expect( sdf.sent.at( -1 ) ).toEqual( { Type: "taken", Epoch: 2 } );
 		},
 	);
 } );
@@ -1348,35 +1366,104 @@ describe( "RenderWorker", () => {
 	);
 	it( "draws the SDF worker's chunks and wakes the loop for them", async () => {
 		const handled: unknown[] = [];
+		const dynamic: Float32Array[] = [];
+		const options: unknown[] = [];
 
 		vi.doMock( "@cse/sdf/render", () => ( {
 			SdfRenderReceiver: class {
+				public constructor( _scene: unknown, given: unknown ) {
+					options.push( given );
+				}
+
 				public Handle( message: { changed: boolean; } ): boolean {
 					handled.push( message );
 					return message.changed;
+				}
+
+				public SetDynamic( packed: Float32Array ): boolean {
+					dynamic.push( packed );
+					return true;
 				}
 			},
 		} ) );
 
 		const { scene } = await Start();
 		const sdfPort = new FakePort();
+		const gameLogicPort = new FakePort();
 
 		fakeSelf.Send( {
 			type: RenderMsg.Init,
 			canvas: {},
-			gameLogicPort: new FakePort(),
+			gameLogicPort,
 			sdfPort,
 			devMode: false,
 			width: 800,
 			height: 600,
 			devicePixelRatio: 1,
+			shadows: false,
 		} );
+		fakeSelf.Send( {
+			type: RenderMsg.Init,
+			canvas: {},
+			gameLogicPort: new FakePort(),
+			sdfPort: new FakePort(),
+			devMode: false,
+			width: 800,
+			height: 600,
+			devicePixelRatio: 1,
+			sdfOcclusion: false,
+		} );
+		// as the page says, else on
+		expect( options ).toEqual( [
+			{ Shadows: false, Occlusion: true },
+			{ Shadows: true, Occlusion: false },
+		] );
 		scene.Wake.mockClear();
 		sdfPort.Receive( { changed: false } );
 		expect( scene.Wake ).not.toHaveBeenCalled();
 		sdfPort.Receive( { changed: true } );
 		expect( scene.Wake ).toHaveBeenCalledTimes( 1 );
 		expect( handled ).toHaveLength( 2 );
+
+		// a frame's dynamic edits go to the SDF world at once
+		const packed = new Float32Array( 16 );
+		const frame = {
+			operation: RendOpType.Frame,
+			frameId: 1,
+			buffer: new ArrayBuffer( 0 ),
+			entityCount: 0,
+			camera: null,
+		};
+
+		gameLogicPort.Receive( { ...frame, sdfDynamic: null } );
+		expect( dynamic ).toEqual( [] );
+		gameLogicPort.Receive( { ...frame, frameId: 2, sdfDynamic: packed } );
+		expect( dynamic ).toEqual( [ packed ] );
+	} );
+
+	it( "ignores dynamic edits without an SDF worker", async () => {
+		const { registry } = await Start();
+		const gameLogicPort = new FakePort();
+
+		fakeSelf.Send( {
+			type: RenderMsg.Init,
+			canvas: {},
+			gameLogicPort,
+			devMode: false,
+			width: 1,
+			height: 1,
+			devicePixelRatio: 1,
+			sdfOcclusion: false,
+		} );
+		gameLogicPort.Receive( {
+			operation: RendOpType.Frame,
+			frameId: 1,
+			buffer: new ArrayBuffer( 0 ),
+			entityCount: 0,
+			camera: null,
+			sdfDynamic: new Float32Array( 16 ),
+		} );
+		expect( registry.ApplyTransformBatch ).not.toHaveBeenCalled();
 	} );
 } );
 

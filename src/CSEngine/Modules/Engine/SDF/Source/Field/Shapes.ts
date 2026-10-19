@@ -39,7 +39,47 @@ export function ShapeDistance(
 		}
 		case SdfShape.Ellipsoid:
 			return Ellipsoid( x, y, z, p[0], p[1], p[2] );
+		case SdfShape.RoundCone:
+			return RoundCone( x, y, z, p[0], p[1], p[2] );
 	}
+}
+
+/**
+ * A segment from -half to +half on Y, of radius r1 at its -Y end and r2 at
+ * its +Y end: exact (the round cone of the catalogue). Where one end's
+ * sphere holds the other, that sphere.
+ */
+export function RoundCone(
+	x: number,
+	y: number,
+	z: number,
+	half: number,
+	r1: number,
+	r2: number,
+): number {
+	const h = 2 * half;
+	// from the -Y end, in the plane of the axis
+	const qx = Math.sqrt( x * x + z * z );
+	const qy = y + half;
+	const b = h > 0 ? ( r1 - r2 ) / h : r1 >= r2 ? 1 : -1;
+
+	if ( b >= 1 ) {
+		return Math.sqrt( qx * qx + qy * qy ) - r1;
+	}
+	if ( b <= -1 ) {
+		return Math.sqrt( qx * qx + ( qy - h ) * ( qy - h ) ) - r2;
+	}
+
+	const a = Math.sqrt( 1 - b * b );
+	const k = -b * qx + a * qy;
+
+	if ( k < 0 ) {
+		return Math.sqrt( qx * qx + qy * qy ) - r1;
+	}
+	if ( k > a * h ) {
+		return Math.sqrt( qx * qx + ( qy - h ) * ( qy - h ) ) - r2;
+	}
+	return a * qx + b * qy - r1;
 }
 
 /**
@@ -114,5 +154,7 @@ export function ShapeRadius(
 			return FMath.Length2( p[0], p[1] );
 		case SdfShape.Ellipsoid:
 			return FMath.Max( p[0], FMath.Max( p[1], p[2] ) );
+		case SdfShape.RoundCone:
+			return p[0] + FMath.Max( p[1], p[2] );
 	}
 }

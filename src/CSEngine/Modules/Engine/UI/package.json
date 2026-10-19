@@ -10,7 +10,7 @@
   "exports": {
     ".": "./Source/index.ts",
     "./game": "./Source/Runtime/GameUiModule.ts",
-    "./build": "./Build/QuasarBuild.ts"
+    "./build": "./Build/QuasarBuild.mjs"
   },
   "scripts": {
     "dev": "vite",

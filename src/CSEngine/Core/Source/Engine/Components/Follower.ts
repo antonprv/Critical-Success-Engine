@@ -31,7 +31,7 @@ export class Follower extends Component {
 		}
 
 		this._target.Transform.WriteInterpolated(
-			this.Engine.Time.RenderAlpha,
+			this.Engine.Time.RenderStep,
 			this._scratch,
 			0,
 		);

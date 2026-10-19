@@ -50,7 +50,14 @@ export function TailwindThemeClasses(theme: TailwindTheme): string[] {
 	return classes;
 }
 
-/** The classes of the Quasar kit's root: the Tailwind kit's (its tokens dress the toolkit's components) plus Quasar's. */
+/**
+ * The classes of the Quasar kit's root: its own (Styles/quasar-kit.css draws every toolkit component as Quasar draws
+ * its own) and the palette's variables - not the Tailwind kit's look. A palette other than Quasar's default replaces
+ * Quasar's primary colour.
+ */
 export function QuasarThemeClasses(theme: TailwindTheme): string[] {
-	return ["win-kit--quasar", ...TailwindThemeClasses(theme)];
+	const classes = ["win-kit--quasar", `tw-accent--${theme.Accent}`, `tw-neutral--${theme.Neutral}`];
+	if (theme.Accent !== DefaultQuasarTheme.Accent) classes.push("qk-brand--palette");
+	if (theme.Dark) classes.push("tw-dark");
+	return classes;
 }

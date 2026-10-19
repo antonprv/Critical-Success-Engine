@@ -2,14 +2,20 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import {
+	CurveEdits,
 	SdfClient,
 	type EditList,
 	type FromSdfWorker,
 	type SdfDistanceResult,
+	type SdfDynamicEdit,
+	type SdfDynamicEdits,
+	type SdfDynamicInit,
 	type SdfEdit,
 	type SdfEditInit,
 	type SdfHit,
+	type SdfCurveInit,
 	type SdfSceneDescriptor,
+	type SdfSplatInit,
 } from "@cse/sdf";
 import { Task } from "@cse/task";
 import { Quat, type QuatTuple } from "../Math/Quat";
@@ -49,6 +55,13 @@ export class SdfService {
 		return this._client.Edits;
 	}
 
+	/**
+	 * The dynamic edits now (drawn by the GPU, felt by the physics if flagged).
+	 */
+	public get Dynamic(): SdfDynamicEdits {
+		return this._client.Dynamic;
+	}
+
 	/** Whether the current scene's SDF world is ready. */
 	public get Loaded(): boolean {
 		return this._client.Loaded;
@@ -74,6 +87,59 @@ export class SdfService {
 
 	public Remove( id: number ): boolean {
 		return this._client.Remove( id );
+	}
+
+	/**
+	 * A splat sticks where it landed: paint, mud, snow (see SdfSplatInit). It
+	 * is an edit like any other - flattened against the surface, merged into
+	 * it if the layers allow - so splats pile up; the SdfSplat component
+	 * throws them.
+	 */
+	public Splat( splat: SdfSplatInit ): SdfEdit {
+		return this._client.Splat( splat );
+	}
+
+	/**
+	 * A tube along a curve (SdfCurveInit: points, a radius at each): its
+	 * pieces as edits, in order - a worm, a root, a cable, a tunnel with Op
+	 * Subtract.
+	 */
+	public AddCurve( curve: SdfCurveInit ): SdfEdit[] {
+		return CurveEdits( curve ).map( ( edit ) => this.Add( edit ) );
+	}
+
+	/**
+	 * Adds a dynamic edit: something that moves or comes and goes every
+	 * frame (a hole following a tunnel gun, a pulsing crater). It is never
+	 * written anywhere - no edit list, no save - the renderer draws it on
+	 * top of the world, so moving it costs the GPU a little and nothing
+	 * else. With SdfDynamicFlags.Physics the physics feels it too: the SDF
+	 * worker remeshes the chunks it reaches for the physics alone, a few
+	 * times a second. Raycasts and distances don't see it. At most
+	 * MAX_DYNAMIC_EDITS at once.
+	 */
+	public AddDynamic( init: SdfDynamicInit ): SdfDynamicEdit {
+		return this._client.AddDynamic( init );
+	}
+
+	/** Changes a dynamic edit; false if it is gone. */
+	public UpdateDynamic(
+		id: number,
+		changes: Partial<Omit<SdfDynamicEdit, "Id">>,
+	): boolean {
+		return this._client.UpdateDynamic( id, changes );
+	}
+
+	public RemoveDynamic( id: number ): boolean {
+		return this._client.RemoveDynamic( id );
+	}
+
+	/**
+	 * The dynamic edits for the renderer, packed, if they changed since the
+	 * last frame (else null).
+	 */
+	public TakeDynamic(): Float32Array | null {
+		return this._client.TakeDynamic();
 	}
 
 	/** Where a ray meets the world, null if nowhere within `tMax`. */

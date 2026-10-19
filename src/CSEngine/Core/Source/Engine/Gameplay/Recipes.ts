@@ -71,6 +71,7 @@ export class Door extends Component {
 		this.Transform.PushPhysicsPose(
 			new Vec3( position.X, y, position.Z ),
 			this.Transform.Rotation,
+			this.Engine.Time.PhysicsStepCount,
 		);
 	}
 }

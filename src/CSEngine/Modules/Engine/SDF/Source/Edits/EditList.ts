@@ -6,6 +6,7 @@ import { ShapeRadius } from "../Field/Shapes";
 import { CreateAabb, SphereAabb, type Aabb } from "../Spatial/Aabb";
 import { Bvh } from "../Spatial/Bvh";
 import {
+	ALL_LAYERS,
 	EDIT_BYTES,
 	EDIT_WORDS,
 	IsGlobal,
@@ -119,6 +120,8 @@ export class EditList {
 			Flags: SdfEditFlags.None,
 			PhysicsMode: SdfPhysicsMode.StaticWorld,
 			Group: 0,
+			Layer: 1,
+			Mask: ALL_LAYERS,
 			...init,
 			Id: this._nextId++,
 			Order: this._nextOrder++,

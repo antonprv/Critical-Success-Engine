@@ -52,6 +52,9 @@ describe( "packed edits", () => {
 			PhysicsMode: SdfPhysicsMode.Sensor,
 			Group: 3,
 			Order: 42,
+			// a layer and a mask of a few: a word with the group
+			Layer: 1 << 5,
+			Mask: 0b1010_0101,
 		};
 
 		PackEdit( edit, floats, words, 1 );

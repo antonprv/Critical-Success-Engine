@@ -106,7 +106,7 @@ export function MakeEngine() {
 		Elapsed: 0,
 		FrameCount: 0,
 		PhysicsStepCount: 0,
-		RenderAlpha: 0,
+		RenderStep: 0,
 	};
 	const scenes = {
 		CurrentSceneId: "test" as string | null,

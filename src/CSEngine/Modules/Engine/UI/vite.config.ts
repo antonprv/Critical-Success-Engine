@@ -3,7 +3,7 @@
 
 import tailwindcss from "@tailwindcss/vite";
 import vue from "@vitejs/plugin-vue";
-import { QuasarDefines } from "./Build/QuasarBuild.ts";
+import { QuasarDefines } from "./Build/QuasarBuild.mjs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";

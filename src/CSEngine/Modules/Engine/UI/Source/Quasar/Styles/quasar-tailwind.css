@@ -1,8 +1,7 @@
 /*
  * How the Tailwind kit dresses Quasar's components: its semantic tokens (panel, field, line, ink, primary...) on its
  * palettes, its radius, Tailwind's flat look - thin borders and rings instead of Material's shadows and underlines, no
- * capital letters on buttons. The Quasar kit (whose root carries the Tailwind kit's classes too, for the toolkit's own
- * components) keeps Quasar's look and only takes its colours from the palette.
+ * capital letters on buttons. The Quasar kit keeps Quasar's look (its root doesn't carry the Tailwind kit's class).
  */
 
 @layer cse-quasar {
@@ -24,11 +23,7 @@
 		--q-negative: var(--color-red-500);
 		--q-info: var(--color-sky-500);
 	}
-	.win-kit--quasar { --q-primary: var(--accent-700); --q-secondary: var(--color-teal-600); --q-accent: var(--color-purple-500); }
-	.win-kit--quasar.tw-dark { --q-primary: var(--accent-400); }
-	.win-kit--quasar .q-card--dark, .win-kit--quasar .q-menu--dark, .win-kit--quasar .q-table--dark,
-	.win-kit--quasar .q-date--dark, .win-kit--quasar .q-time--dark, .win-kit--quasar .q-color-picker--dark,
-	.win-kit--quasar .q-stepper--dark, .win-kit--quasar .q-editor--dark, .win-kit--quasar .q-uploader--dark { background: var(--neutral-900); }
+	/* the Quasar kit's colours are its own (Styles/quasar-kit.css) */
 
 	/* ---------- the Tailwind kit only from here ---------- */
 

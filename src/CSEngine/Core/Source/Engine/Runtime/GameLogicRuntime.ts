@@ -64,6 +64,9 @@ export interface GameLogicPorts {
 	sdf?: MessagePort;
 }
 
+/** How far behind the newest physics step frames are drawn (steps). */
+const RenderLagSteps = 1.5;
+
 /**
  * Owns the entities and runs their hooks on two clocks: frame requests from the
  * render worker (input, update, UI, answered with interpolated poses) and
@@ -154,7 +157,7 @@ export class GameLogicRuntime {
 			Elapsed: 0,
 			FrameCount: 0,
 			PhysicsStepCount: 0,
-			RenderAlpha: 0,
+			RenderStep: 0,
 		};
 		this._physics = new PhysicsService( ports.physics );
 		this._sdf = new SdfService( ports.sdf ?? null );
@@ -574,7 +577,6 @@ export class GameLogicRuntime {
 
 	private RunFrame( frameId: number ): void {
 		const now = performance.now();
-		const stepMs = this._time.FixedDelta * 1000;
 
 		if ( this._scenes.IsLoading ) {
 			// The world is being rebuilt: keep the render worker's request
@@ -596,10 +598,7 @@ export class GameLogicRuntime {
 		this._time.FrameCount++;
 		// frame waits (Task.NextFrame, Task.Delay in game time) complete here
 		PlayerLoop.Default.Tick( dt );
-		this._time.RenderAlpha = FMath.Min(
-			1,
-			FMath.Max( 0, ( now - this._physics.LastStepTimeMs ) / stepMs ),
-		);
+		this._time.RenderStep = this.RenderStepAt( dt );
 
 		this._world.FlushLifecycle();
 		this._world.RunInputUpdate( this._input, dt );
@@ -619,18 +618,40 @@ export class GameLogicRuntime {
 	}
 
 	/**
+	 * The step time to draw at: a step and a half behind the newest step
+	 * (frames between two steps have both; a step late or two at once - the
+	 * physics worker catches up in bursts - don't show). It only goes
+	 * forward: faster while behind that lag, slower while ahead (a physics
+	 * that can't keep up), at once only when far behind (a stall, the first
+	 * frames).
+	 */
+	private RenderStepAt( dt: number ): number {
+		const latest = this._time.PhysicsStepCount;
+		const at = this._time.RenderStep;
+		const behind = latest - RenderLagSteps - at;
+
+		if ( behind > 8 ) {
+			return latest - RenderLagSteps;
+		}
+
+		const rate = FMath.Clamp( 1 + behind * 0.5, 0.1, 3 );
+
+		return FMath.Min( at + dt / this._time.FixedDelta * rate, latest );
+	}
+
+	/**
 	 * The frame for the renderer: the poses that changed since the last one
 	 * (an entity standing still costs nothing here or there) and the camera.
 	 */
 	private PostFrame( frameId: number ): void {
 		const renderables = this._world.Renderables;
-		const alpha = this._time.RenderAlpha;
+		const at = this._time.RenderStep;
 		const pose = this._pose;
 		let count = 0;
 
 		for ( const [id, entity] of renderables ) {
 			const transform = entity.Transform;
-			transform.WriteInterpolated( alpha, pose, 0 );
+			transform.WriteInterpolated( at, pose, 0 );
 
 			const sent = transform.SentPose;
 
@@ -654,7 +675,7 @@ export class GameLogicRuntime {
 			count++;
 		}
 
-		const camera = this._render.MainCamera?.GetPose( alpha ) ?? null;
+		const camera = this._render.MainCamera?.GetPose( at ) ?? null;
 
 		// the SDF worker meshes around the camera
 		const [ px, py, pz, qx, qy, qz, qw ] = camera?.transform
@@ -666,7 +687,13 @@ export class GameLogicRuntime {
 		const buffer = count === 0
 			? EmptyFrame
 			: this._frame.slice( 0, count * TRANSFORM_STRIDE ).buffer;
-		this._render.PostFrame( frameId, count, buffer, camera );
+		this._render.PostFrame(
+			frameId,
+			count,
+			buffer,
+			camera,
+			this._sdf.TakeDynamic(),
+		);
 	}
 
 

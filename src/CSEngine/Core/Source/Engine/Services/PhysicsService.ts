@@ -121,12 +121,6 @@ export class PhysicsService {
 	public FixedDelta = 1 / 60;
 
 	/**
-	 * performance.now() of the most recently applied step - the interpolation
-	 * clock.
-	 */
-	public LastStepTimeMs = 0;
-
-	/**
 	 * Fired once per physics step, after the snapshot has been copied into this
 	 * service, with that step's overlap transitions.
 	 */
@@ -541,7 +535,6 @@ export class PhysicsService {
 			}
 		}
 
-		this.LastStepTimeMs = performance.now();
 		this.OnStep?.( message.step, events );
 	}
 

@@ -189,16 +189,17 @@ export class StrategyCamera extends CameraComponent {
 	}
 
 	/**
-	 * Puts the focus on the player as drawn at `alpha` between two physics
-	 * ticks (the raw position lags the interpolated mesh and makes it jitter).
+	 * Puts the focus on the player as drawn at step time `at` between two
+	 * physics ticks (the raw position lags the interpolated mesh and makes it
+	 * jitter).
 	 */
-	private FollowTarget( alpha: number ): void {
+	private FollowTarget( at: number ): void {
 		const target = this.Engine.World.FindByName( this.TargetName );
 
 		if ( !target ) {
 			return;
 		}
-		target.Transform.WriteInterpolated( alpha, this._followScratch, 0 );
+		target.Transform.WriteInterpolated( at, this._followScratch, 0 );
 		this.Focus.Set(
 			this._followScratch[0]!,
 			this._followScratch[1]!,
@@ -208,9 +209,9 @@ export class StrategyCamera extends CameraComponent {
 
 	private readonly _followScratch = new Float64Array( 7 );
 
-	public override GetPose( alpha: number ): CameraPose {
+	public override GetPose( at: number ): CameraPose {
 		if ( this.Following ) {
-			this.FollowTarget( alpha );
+			this.FollowTarget( at );
 		}
 		const rotation = Quat.FromYawPitch(
 			this.Yaw * DegToRad,

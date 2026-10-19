@@ -3,9 +3,11 @@
 
 import { describe, expect, it, vi } from "vitest";
 import {
+	DYNAMIC_EDIT_FLOATS,
 	EditList,
 	SdfBakedLayer,
 	SdfClient,
+	SdfDynamicFlags,
 	SdfEditFlags,
 	SdfField,
 	SdfOp,
@@ -43,6 +45,7 @@ const Scene: SdfSceneDescriptor = {
 	Radius: 1,
 	Layer: 4,
 	Mask: 6,
+	VolumeTexels: 16,
 };
 
 /** Lets the async work (fetches, queued replies) run. */
@@ -55,7 +58,8 @@ async function Settle(): Promise<void> {
 /** GameLogic's client wired to an SDF worker's host, as the ports do. */
 function Wire(
 	fetch = vi.fn( async ( _url: string ) => new ArrayBuffer( 0 ) ),
-	pool: { Workers?: number; } = { Workers: 2 },
+	pool: { Workers?: number; PoolMs?: number; } = { Workers: 2 },
+	ack = true,
 ) {
 	const render: SdfToRender[] = [];
 	const physics: SdfToPhysics[] = [];
@@ -69,8 +73,16 @@ function Wire(
 			);
 		},
 		ToRender: ( message ) => render.push( message ),
-		ToPhysics: ( message ) => physics.push( message ),
-	}, { Spawn: () => new FakeWorker(), Fetch: fetch, ...pool } );
+		ToPhysics: ( message ) => {
+			physics.push( message );
+			// the physics takes the chunks in (what paces moving edits')
+			if ( ack && message.Type === "chunks" ) {
+				queueMicrotask( () => host.HandlePhysics(
+					{ Type: "taken", Epoch: message.Epoch },
+				) );
+			}
+		},
+	}, { Spawn: () => new FakeWorker(), Fetch: fetch, PoolMs: 0, ...pool } );
 	const posted: ToSdfWorker[] = [];
 
 	client = new SdfClient( ( message ) => {
@@ -86,6 +98,12 @@ async function Mesh( wired: ReturnType<typeof Wire> ): Promise<void> {
 		wired.client.Tick( [ 1, 1, 1 ] );
 		await Settle();
 	}
+}
+
+function Same( a: Float32Array, b: Float32Array | undefined ): boolean {
+	return b !== undefined
+		&& a.length === b.length
+		&& a.every( ( v, i ) => v === b[i] );
 }
 
 function Keys( messages: Array<SdfToRender | SdfToPhysics> ): Set<string> {
@@ -131,6 +149,58 @@ describe( "SdfClient", () => {
 		expect( tick.Focus ).toEqual( [ 1, 2, 3 ] );
 		// adds, folds, the update and the removal, last change per edit
 		expect( new Uint32Array( tick.Delta, 0, 1 )[0] ).toBe( 6 );
+	} );
+
+	it( "sticks a splat as an edit of the world", () => {
+		const client = new SdfClient( () => undefined );
+
+		client.Load( Scene );
+
+		const splat = client.Splat(
+			{ Position: [ 0, 1, 0 ], Radius: 0.3, MaterialId: 2 },
+		);
+
+		expect( splat.Shape ).toBe( SdfShape.Ellipsoid );
+		expect( client.Edits.Count ).toBe( 1 );
+		expect( client.Edits.Get( splat.Id )!.MaterialId ).toBe( 2 );
+	} );
+
+	it( "keeps the dynamic edits apart, for the renderer only", () => {
+		const posted: ToSdfWorker[] = [];
+		const client = new SdfClient( ( message ) => posted.push( message ) );
+
+		client.Load( Scene );
+		expect( client.TakeDynamic() ).toBeNull();
+
+		const hole = client.AddDynamic( {
+			Shape: SdfShape.Sphere,
+			Op: SdfOp.SmoothSubtract,
+			Params: [ 1, 0, 0, 0 ],
+		} );
+
+		expect( client.UpdateDynamic( hole.Id, { Position: [ 1, 2, 3 ] } ) )
+			.toBe( true );
+		client.Tick( [ 0, 0, 0 ] );
+
+		const tick = posted.at( -1 ) as Extract<ToSdfWorker, { Type: "tick"; }>;
+
+		// nothing of it goes to the SDF worker
+		expect( new Uint32Array( tick.Delta, 0, 1 )[0] ).toBe( 0 );
+		expect( client.Edits.Count ).toBe( 0 );
+
+		const packed = client.TakeDynamic()!;
+
+		expect( packed ).toHaveLength( DYNAMIC_EDIT_FLOATS );
+		expect( [ ...packed.slice( 0, 3 ) ] ).toEqual( [ 1, 2, 3 ] );
+		// only when it changed again
+		expect( client.TakeDynamic() ).toBeNull();
+		expect( client.RemoveDynamic( hole.Id ) ).toBe( true );
+		expect( client.TakeDynamic() ).toHaveLength( 0 );
+		client.AddDynamic( { Shape: SdfShape.Box } );
+		// a new scene drops them
+		client.Load( null );
+		expect( client.Dynamic.Count ).toBe( 0 );
+		expect( client.TakeDynamic() ).toHaveLength( 0 );
 	} );
 
 	it( "answers its questions when a new scene comes", async () => {
@@ -195,7 +265,9 @@ describe( "SdfWorkerHost", () => {
 			wired.client.Load( Scene );
 			await Settle();
 			expect( wired.client.Loaded ).toBe( true );
-			expect( wired.render[0] ).toEqual( { Type: "begin", Epoch: 1 } );
+			expect( wired.render[0] ).toEqual(
+				{ Type: "begin", Epoch: 1, Settings: { Shadows: true } },
+			);
 			expect( wired.physics[0] )
 				.toEqual( { Type: "begin", Epoch: 1, Layer: 4, Mask: 6 } );
 
@@ -220,6 +292,109 @@ describe( "SdfWorkerHost", () => {
 			expect( wired.client.Meshed ).toBe( true );
 		},
 	);
+
+	it(
+		"samples the base into a volume for the renderer, again after edits",
+		async () => {
+			const wired = Wire();
+
+			wired.client.Load( Scene );
+			await Settle();
+
+			const volumes = (): Array<Extract<
+				SdfToRender,
+				{ Type: "volume"; }
+			>> => wired.render.filter( ( message ) => (
+				message.Type === "volume"
+			) ) as Array<Extract<SdfToRender, { Type: "volume"; }>>;
+			const first = volumes()[0]!;
+
+			const [ nx, ny, nz ] = first.Volume.Resolution;
+
+			// the base's box (8 m across, its bricks' cells) at 16 texels
+			// along its longest side
+			expect( first.Epoch ).toBe( 1 );
+			expect( Math.max( nx, ny, nz ) ).toBe( 16 );
+			expect( first.Volume.Spacing ).toBeCloseTo( 0.5, 1 );
+			expect( first.Volume.Data ).toHaveLength( nx * ny * nz * 4 );
+			expect( first.Volume.First ).toBeUndefined();
+
+			// an edit changes it: sent again; a dynamic edit never does
+			wired.client.AddDynamic( { Shape: SdfShape.Sphere } );
+			wired.client.Tick( [ 0, 0, 0 ] );
+			await Settle();
+			expect( volumes() ).toHaveLength( 1 );
+			wired.client.Add( {
+				Shape: SdfShape.Sphere,
+				Op: SdfOp.Subtract,
+				Position: [ 0, 0, 0 ],
+				Params: [ 1.5, 0, 0, 0 ],
+			} );
+			wired.client.Tick( [ 0, 0, 0 ] );
+			await Settle();
+			expect( volumes() ).toHaveLength( 2 );
+
+			// only the slices the edit changed (here all of them: it reaches
+			// past the box), from the first of them
+			const second = volumes()[1]!.Volume;
+			const slice = nx * ny * 4;
+			const from = ( second.First ?? 0 ) * slice;
+
+			expect( second.Data.length % slice ).toBe( 0 );
+			expect( second.Data ).not.toEqual(
+				first.Volume.Data.slice( from, from + second.Data.length ),
+			);
+		},
+	);
+
+	it( "tells the renderer the scene's grass", async () => {
+		const wired = Wire();
+		const grass = {
+			Bounds: [ -1, -1, 1, 1 ] as [ number, number, number, number ],
+		};
+
+		wired.client.Load( { ...Scene, Grass: grass } );
+		await Settle();
+		expect( wired.render[0] ).toEqual(
+			{
+				Type: "begin",
+				Epoch: 1,
+				Settings: { Shadows: true, Grass: grass },
+			},
+		);
+	} );
+
+	it(
+		"remeshes nothing for an intersection the physics feels (it reaches "
+			+ "everywhere)",
+		async () => {
+			const wired = Wire();
+
+			wired.client.Load( Scene );
+			await Settle();
+			await Mesh( wired );
+			wired.physics.length = 0;
+			wired.client.AddDynamic( {
+				Shape: SdfShape.Sphere,
+				Op: SdfOp.Intersect,
+				Params: [ 50, 0, 0, 0 ],
+				Flags: SdfDynamicFlags.Physics,
+			} );
+			wired.client.Tick( [ 1, 1, 1 ] );
+			await Settle();
+			expect( Keys( wired.physics ) ).toEqual( new Set() );
+		},
+	);
+
+	it( "samples no volume and no shadows when the scene says so", async () => {
+		const wired = Wire();
+
+		wired.client.Load( { ...Scene, VolumeTexels: 0, Shadows: false } );
+		await Settle();
+		expect( wired.render ).toEqual(
+			[ { Type: "begin", Epoch: 1, Settings: { Shadows: false } } ],
+		);
+	} );
 
 	it( "starts meshing at the scene's start point", async () => {
 		const wired = Wire();
@@ -296,6 +471,218 @@ describe( "SdfWorkerHost", () => {
 		vi.unstubAllGlobals();
 	} );
 
+	it(
+		"meshes the chunks a physics-felt dynamic edit reaches for the physics "
+			+ "alone",
+		async () => {
+			const wired = Wire();
+
+			wired.client.Load( Scene );
+			await Settle();
+			await Mesh( wired );
+
+			const own = new Map<string, Float32Array>();
+
+			for ( const message of wired.physics ) {
+				if ( message.Type === "chunks" ) {
+					message.Built.forEach(
+						( chunk ) => own.set( chunk.Key, chunk.Positions ),
+					);
+				}
+			}
+			wired.physics.length = 0;
+			wired.render.length = 0;
+
+			// one the renderer alone draws: nothing for the physics
+			wired.client.AddDynamic(
+				{ Shape: SdfShape.Sphere, Position: [ 3, 1, 3 ] },
+			);
+			wired.client.Tick( [ 1, 1, 1 ] );
+			await Settle();
+			expect( ( wired.posted.at( -1 ) as { Dynamic: unknown; } ).Dynamic )
+				.toBeNull();
+			expect( wired.physics ).toEqual( [] );
+
+			// a hole through the ball the physics feels: its chunks meshed with
+			// it, sent to the physics, never to the renderer
+			const hole = wired.client.AddDynamic( {
+				Shape: SdfShape.Sphere,
+				Op: SdfOp.Subtract,
+				Position: [ 0, 1, 0 ],
+				Params: [ 0.7, 0, 0, 0 ],
+				Flags: SdfDynamicFlags.Physics,
+			} );
+
+			wired.client.Tick( [ 1, 1, 1 ] );
+			await Settle();
+			wired.client.Tick( [ 1, 1, 1 ] );
+			await Settle();
+
+			const holed = Keys( wired.physics );
+
+			expect( holed.size ).toBeGreaterThan( 0 );
+			expect( Keys( wired.render ) ).toEqual( new Set() );
+			// the ones it cuts are new (those it only nears may come out the
+			// same)
+			const changed = wired.physics.flatMap(
+				( message ) => message.Type === "chunks"
+					? message.Built.filter(
+						( chunk ) => !Same(
+							chunk.Positions,
+							own.get( chunk.Key ),
+						),
+					)
+					: [],
+			);
+
+			expect( changed.length ).toBeGreaterThan( 0 );
+
+			// a real edit in a holed chunk: meshed for the renderer, while the
+			// physics keeps its holed mesh (meshed again with the hole)
+			wired.physics.length = 0;
+			wired.client.Add( {
+				Shape: SdfShape.Sphere,
+				Position: [ 0.2, 1.8, 0 ],
+				Params: [ 0.3, 0, 0, 0 ],
+			} );
+			for ( let i = 0; i < 4; i++ ) {
+				wired.client.Tick( [ 1, 1, 1 ] );
+				await Settle();
+			}
+			// (the physics' meshes are made again at most DynamicPhysicsHz)
+			for ( let i = 0; i < 3; i++ ) {
+				await new Promise( ( resolve ) => setTimeout( resolve, 60 ) );
+				wired.client.Tick( [ 1, 1, 1 ] );
+				await Settle();
+			}
+
+			const drawn = new Map<string, Float32Array>();
+
+			for ( const message of wired.render ) {
+				if ( message.Type === "chunks" ) {
+					message.Built.forEach(
+						( chunk ) => drawn.set(
+							chunk.Key,
+							chunk.Mesh.Positions,
+						),
+					);
+				}
+			}
+			expect( drawn.size ).toBeGreaterThan( 0 );
+
+			const again = wired.physics.flatMap(
+				( message ) => message.Type === "chunks"
+					? message.Built.filter(
+						( chunk ) => holed.has( chunk.Key )
+							&& drawn.has( chunk.Key ),
+					)
+					: [],
+			);
+
+			// the holed ones differ from what is drawn
+			expect(
+				again.some(
+					( chunk ) => !Same(
+						chunk.Positions,
+						drawn.get( chunk.Key ),
+					),
+				),
+			)
+				.toBe( true );
+
+			// gone: the chunks get their own meshes back
+			wired.physics.length = 0;
+			wired.client.RemoveDynamic( hole.Id );
+			await new Promise( ( resolve ) => setTimeout( resolve, 60 ) );
+			wired.client.Tick( [ 1, 1, 1 ] );
+			await Settle();
+			const back = Keys( wired.physics );
+
+			expect( [ ...holed ].every( ( key ) => back.has( key ) ) )
+				.toBe( true );
+			// and when it stays gone, nothing more is sent
+			wired.client.Tick( [ 1, 1, 1 ] );
+			expect( ( wired.posted.at( -1 ) as { Dynamic: unknown; } ).Dynamic )
+				.toBeNull();
+		},
+	);
+
+	it(
+		"moves the physics' chunks with the edit, as fast as the physics takes "
+			+ "them",
+		async () => {
+			const wired = Wire( undefined, undefined, false );
+
+			wired.client.Load( Scene );
+			await Settle();
+			await Mesh( wired );
+
+			const blob = wired.client.AddDynamic( {
+				Shape: SdfShape.Sphere,
+				Position: [ 1, 1, 1 ],
+				Params: [ 0.4, 0, 0, 0 ],
+				Flags: SdfDynamicFlags.Physics,
+			} );
+
+			// the physics hasn't taken what it was sent: nothing new for it
+			wired.physics.length = 0;
+			wired.client.Tick( [ 1, 1, 1 ] );
+			await Settle();
+			expect( wired.physics ).toEqual( [] );
+
+			// it took them (a stale scene's word changes nothing)
+			const sent = wired.posted.length;
+
+			wired.host.HandlePhysics( { Type: "taken", Epoch: 99 } );
+			for ( let i = 0; i < 200; i++ ) {
+				wired.host.HandlePhysics( { Type: "taken", Epoch: 1 } );
+			}
+			wired.client.UpdateDynamic( blob.Id, { Position: [ 1.2, 1, 1 ] } );
+			wired.client.Tick( [ 1, 1, 1 ] );
+			await Settle();
+			wired.client.Tick( [ 1, 1, 1 ] );
+			await Settle();
+			expect( wired.posted.length ).toBeGreaterThan( sent );
+			expect( Keys( wired.physics ).size ).toBeGreaterThan( 0 );
+
+			// moved far: the chunks it left get their own meshes back, those
+			// it reaches now are meshed with it (none meshed yet: removed)
+			wired.physics.length = 0;
+			for ( let i = 0; i < 200; i++ ) {
+				wired.host.HandlePhysics( { Type: "taken", Epoch: 1 } );
+			}
+			wired.client.UpdateDynamic( blob.Id, { Position: [ 30, 1, 30 ] } );
+			await new Promise( ( resolve ) => setTimeout( resolve, 60 ) );
+			wired.client.Tick( [ 1, 1, 1 ] );
+			await Settle();
+
+			const left = wired.physics.find(
+				( message ) => message.Type === "chunks",
+			);
+
+			expect( left ).toBeDefined();
+
+			// and back: the far chunks (never meshed for the renderer) removed
+			wired.physics.length = 0;
+			for ( let i = 0; i < 200; i++ ) {
+				wired.host.HandlePhysics( { Type: "taken", Epoch: 1 } );
+			}
+			wired.client.UpdateDynamic( blob.Id, { Position: [ 1, 1, 1 ] } );
+			// (the far meshes come back first, and must be taken)
+			for ( let round = 0; round < 3; round++ ) {
+				await new Promise( ( resolve ) => setTimeout( resolve, 60 ) );
+				wired.client.Tick( [ 1, 1, 1 ] );
+				await Settle();
+				for ( let i = 0; i < 200; i++ ) {
+					wired.host.HandlePhysics( { Type: "taken", Epoch: 1 } );
+				}
+			}
+			expect( wired.physics.some( ( message ) => message.Type === "chunks"
+			&& message.Removed.some( ( key ) => /^1[45],/.test( key ) ) ) )
+				.toBe( true );
+		},
+	);
+
 	it( "sends a recreated physics world every chunk again", async () => {
 		const wired = Wire();
 
@@ -314,6 +701,105 @@ describe( "SdfWorkerHost", () => {
 			.toBe( 1 );
 	} );
 
+	it( "gives the physics only the near levels, without skirts", async () => {
+		const wired = Wire();
+
+		wired.client.Load(
+			{ ...Scene, Levels: 2, PhysicsLevels: 1, Radius: 1 },
+		);
+		await Settle();
+		await Mesh( wired );
+
+		const drawn = Keys( wired.render );
+		const felt = Keys( wired.physics );
+
+		// the renderer has the far, coarse chunks too
+		expect( [ ...drawn ].some( ( key ) => key.startsWith( "1:" ) ) )
+			.toBe( true );
+		expect( [ ...felt ].every( ( key ) => !key.startsWith( "1:" ) ) )
+			.toBe( true );
+		expect( felt.size ).toBeGreaterThan( 0 );
+
+		// the same chunk: skirts on screen, none in the physics
+		const key = [ ...felt ].find( ( k ) => wired.render.some(
+			( m ) => m.Type === "chunks" && m.Built.some(
+				( c ) => c.Key === k && c.Mesh.Indices.length > 0,
+			),
+		) )!;
+		const Of = <T>(
+			messages: Array<{ Type: string; Built?: T[]; }>,
+			pick: ( chunk: T ) => boolean,
+		): T => messages
+			.flatMap( ( m ) => m.Built ?? [] ).find( pick )!;
+		const shown = Of(
+			wired.render as Array<
+				{
+					Type: string;
+					Built?: Array<
+						{ Key: string; Mesh: { Indices: Uint16Array; }; }
+					>;
+				}
+			>,
+			( c ) => c.Key === key,
+		);
+		const solid = Of(
+			wired.physics as Array<
+				{
+					Type: string;
+					Built?: Array<{ Key: string; Indices: Uint16Array; }>;
+				}
+			>,
+			( c ) => c.Key === key,
+		);
+
+		expect( solid.Indices.length ).toBeGreaterThan( 0 );
+		expect( solid.Indices.length )
+			.toBeLessThan( shown.Mesh.Indices.length );
+
+		// a moving edit out over the coarse chunks: nothing for the physics
+		wired.physics.length = 0;
+		wired.client.AddDynamic( {
+			Shape: SdfShape.Sphere,
+			Op: SdfOp.Subtract,
+			Position: [ 7, 0, 7 ],
+			Params: [ 0.5, 0, 0, 0 ],
+			Flags: SdfDynamicFlags.Physics,
+		} );
+		wired.client.Tick( [ 1, 1, 1 ] );
+		await Settle();
+		expect( Keys( wired.physics ) ).toEqual( new Set() );
+	} );
+
+	it( "sees to the pool at most every PoolMs, edits always", async () => {
+		const wired = Wire(
+			undefined,
+			{ Workers: 2, PoolMs: undefined } as { Workers: number; },
+		);
+
+		wired.client.Load( Scene );
+		await Settle();
+		// the first tick meshes; the next ones within the default 4 ms (the
+		// clock stands still) only bring their edits
+		const clock = vi.spyOn( performance, "now" ).mockReturnValue( 1000 );
+
+		wired.client.Tick( [ 1, 1, 1 ] );
+		await Settle();
+
+		const after = wired.render.length;
+
+		wired.client.Add( { Shape: SdfShape.Sphere, Position: [ 1, 1, 1 ] } );
+		for ( let i = 0; i < 5; i++ ) {
+			wired.client.Tick( [ 1, 1, 1 ] );
+			await Settle();
+		}
+		expect( wired.render.length ).toBe( after );
+		expect( wired.client.Meshed ).toBe( false );
+		clock.mockRestore();
+		// the edit is in the world all the same
+		expect( ( await wired.client.Distance( [ 1, 1, 1 ] ) )!.Distance )
+			.toBeLessThan( 0 );
+	} );
+
 	it( "has no world without an SDF scene", async () => {
 		const wired = Wire();
 
@@ -325,7 +811,9 @@ describe( "SdfWorkerHost", () => {
 		expect( await wired.client.Distance( [ 0, 0, 0 ] ) ).toBeNull();
 		wired.client.Tick( [ 0, 0, 0 ] );
 		await Settle();
-		expect( wired.render ).toHaveLength( 1 );
+		expect( wired.render ).toEqual(
+			[ { Type: "begin", Epoch: 1, Settings: null } ],
+		);
 	} );
 
 	it(

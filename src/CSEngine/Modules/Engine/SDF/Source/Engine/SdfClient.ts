@@ -2,7 +2,13 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { EditList } from "../Edits/EditList";
+import {
+	SdfDynamicEdits,
+	type SdfDynamicEdit,
+	type SdfDynamicInit,
+} from "../Edits/SdfDynamicEdits";
 import type { SdfEdit, SdfEditInit } from "../Edits/SdfEdit";
+import { SplatEdit, type SdfSplatInit } from "../Edits/SdfSplat";
 import type { SdfHit } from "../Field/SdfField";
 import { FoldExcess } from "../World/SdfWorld";
 import type {
@@ -24,6 +30,12 @@ export class SdfClient {
 	/** The recent edits; replaced by every Load. */
 	public Edits = new EditList();
 
+	/**
+	 * The dynamic edits: never sent to the SDF worker, drawn by the renderer
+	 * (TakeDynamic). Cleared by every Load.
+	 */
+	public readonly Dynamic = new SdfDynamicEdits();
+
 	public MaxEdits = 32;
 
 	/** The scene being shown (it grows with every Load). */
@@ -38,6 +50,11 @@ export class SdfClient {
 	public Meshed = false;
 
 	private _whenMeshed: Array<() => void> = [];
+
+	/** The dynamic edits' version the SDF worker was last told about. */
+	private _physicsVersion = 0;
+
+	private _hadPhysics = false;
 
 	private _nextQuery = 1;
 
@@ -58,6 +75,10 @@ export class SdfClient {
 	public Load( scene: SdfSceneDescriptor | null ): void {
 		this.Epoch++;
 		this.Edits = new EditList();
+		this.Dynamic.Clear();
+		// a new scene's worker knows of none
+		this._physicsVersion = this.Dynamic.Version;
+		this._hadPhysics = false;
 		this.MaxEdits = scene?.MaxEdits ?? 32;
 		this.Loaded = false;
 		this.LoadError = null;
@@ -89,13 +110,72 @@ export class SdfClient {
 	}
 
 	/**
+	 * A splat sticks (SplatEdit): a real edit, kept with the recent ones and
+	 * folded into the base when they are too many - so splats pile up as
+	 * long as the game goes on.
+	 */
+	public Splat( splat: SdfSplatInit ): SdfEdit {
+		return this.Add( SplatEdit( splat ) );
+	}
+
+	/** Adds a dynamic edit (at most MAX_DYNAMIC_EDITS at once). */
+	public AddDynamic( init: SdfDynamicInit ): SdfDynamicEdit {
+		return this.Dynamic.Add( init );
+	}
+
+	public UpdateDynamic(
+		id: number,
+		changes: Partial<Omit<SdfDynamicEdit, "Id">>,
+	): boolean {
+		return this.Dynamic.Update( id, changes );
+	}
+
+	public RemoveDynamic( id: number ): boolean {
+		return this.Dynamic.Remove( id );
+	}
+
+	/**
+	 * The dynamic edits packed for the renderer if they changed since the
+	 * last call, else null.
+	 */
+	public TakeDynamic(): Float32Array | null {
+		return this.Dynamic.TakeChanged() ? this.Dynamic.Packed() : null;
+	}
+
+	/**
 	 * Once per game frame: sends the edits since the last call and where the
 	 * world matters most (the camera or the player).
 	 */
 	public Tick( focus: [ number, number, number ] ): void {
 		const delta = this.Edits.TakeDelta();
+		const dynamic = this.TakePhysics();
+		const transfer: Transferable[] = [ delta ];
 
-		this._post( { Type: "tick", Delta: delta, Focus: focus }, [ delta ] );
+		if ( dynamic ) {
+			transfer.push( dynamic.buffer );
+		}
+		this._post(
+			{ Type: "tick", Delta: delta, Focus: focus, Dynamic: dynamic },
+			transfer,
+		);
+	}
+
+	/**
+	 * The dynamic edits the physics feels, packed, when they changed since
+	 * the last tick (also when the last of them went: then none).
+	 */
+	private TakePhysics(): Float32Array | null {
+		const dynamic = this.Dynamic;
+		const has = dynamic.HasPhysics;
+
+		if ( dynamic.Version === this._physicsVersion || ( !has
+			&& !this._hadPhysics ) ) {
+			this._physicsVersion = dynamic.Version;
+			return null;
+		}
+		this._physicsVersion = dynamic.Version;
+		this._hadPhysics = has;
+		return dynamic.PackedPhysics();
 	}
 
 	/** Where a ray meets the world (null: nowhere within tMax). */

@@ -135,7 +135,7 @@ export class CameraComponent extends Component implements ICameraSource {
 		}
 		this._armQueryInFlight = true;
 
-		const pivot = this.ComputePivot( this.Engine.Time.RenderAlpha );
+		const pivot = this.ComputePivot( this.Engine.Time.RenderStep );
 		const back = this.Rotation().Rotate( new Vec3( 0, 0, 1 ) );
 
 		void this.Engine.Physics
@@ -160,11 +160,11 @@ export class CameraComponent extends Component implements ICameraSource {
 		return Quat.FromYawPitch( this.Yaw * DegToRad, this.Pitch * DegToRad );
 	}
 
-	private ComputePivot( alpha: number ): Vec3 {
+	private ComputePivot( at: number ): Vec3 {
 		if ( !this._target ) {
 			return this.Transform.Position.Clone();
 		}
-		this._target.Transform.WriteInterpolated( alpha, this._scratch, 0 );
+		this._target.Transform.WriteInterpolated( at, this._scratch, 0 );
 		return new Vec3(
 			this._scratch[0]!,
 			this._scratch[1]! + this.EyeHeight,
@@ -172,9 +172,9 @@ export class CameraComponent extends Component implements ICameraSource {
 		);
 	}
 
-	public GetPose( alpha: number ): CameraPose {
+	public GetPose( at: number ): CameraPose {
 		const rotation = this.Rotation();
-		const pivot = this.ComputePivot( alpha );
+		const pivot = this.ComputePivot( at );
 		const position = this.ThirdPerson
 			? pivot.Add( rotation.Rotate( new Vec3( 0, 0, this._armLength ) ) )
 			: pivot;
@@ -219,7 +219,7 @@ export class FixedCamera extends Component implements ICameraSource {
 		this.Engine.Render.MainCamera = this;
 	}
 
-	public GetPose( _alpha: number ): CameraPose {
+	public GetPose( _at: number ): CameraPose {
 		const p = this.Transform.Position;
 		const look = this.LookAt;
 		const last = this._pose;

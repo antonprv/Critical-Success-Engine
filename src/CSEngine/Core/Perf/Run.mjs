@@ -10,6 +10,7 @@
 //   pnpm perf -- --runs 5 --seconds 15 --warmup 5
 //   pnpm perf -- --update-baseline     also keep these results as the baseline
 //   pnpm perf -- --params aa=off       an experiment: more of the page's switches
+//   pnpm perf -- --screenshots         also a picture of each scenario (perf/screens/<id>.png)
 //   PERF_CHROMIUM_PATH=/path/chrome    another browser (default: the system Chromium, else Playwright's)
 //
 // The numbers come from the engine itself (Source/Engine/Diagnostics/PerfProbe.ts): each thread keeps its samples,
@@ -42,6 +43,8 @@ const Warmup = Number( Option( "warmup", "3" ) );
 const Only = Option( "only", "" ).split( "," ).filter( Boolean );
 const UpdateBaseline = process.argv.includes( "--update-baseline" );
 const Headless = process.argv.includes( "--headless" );
+/** A picture of each scenario after its measurement, to see what was measured. */
+const Screenshots = process.argv.includes( "--screenshots" );
 /** More of the page's switches for an experiment (e.g. "aa=off"). */
 const Params = Option( "params", "" );
 const Viewport = { width: 1280, height: 720 };
@@ -190,6 +193,10 @@ async function Measure( page, url, scenario ) {
 		windows.push( Summarize( await Take( probes, "Render" ), await Take( probes, "GameLogic" ), await Take( probes, "Physics" ) ) );
 	}
 	const gpu = await probes["Render"].evaluate( () => globalThis.__csePerf.Info() );
+	if ( Screenshots ) {
+		mkdirSync( join( Output, "screens" ), { recursive: true } );
+		await page.screenshot( { path: join( Output, "screens", `${ scenario.Id }.png` ) } );
+	}
 	return { result: { ...Combine( windows ), ...( await Memory( page, probes ) ) }, windows, gpu, issues };
 }
 
