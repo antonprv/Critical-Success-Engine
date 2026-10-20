@@ -5,6 +5,7 @@ import { FMath } from "@cse/fastmath";
 import type { Effect } from "@babylonjs/core/Materials/effect";
 import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
+import { PointLight } from "@babylonjs/core/Lights/pointLight";
 import {
 	ShadowGenerator,
 } from "@babylonjs/core/Lights/Shadows/shadowGenerator";
@@ -38,6 +39,9 @@ function MeanHalfSize( half: Vector3 ): number {
 	return ( half.x + half.y + half.z ) / 3;
 }
 
+/** Point lights the SDF shaders take at most (PointLights). */
+export const MAX_POINT_LIGHTS = 4;
+
 /** A refresh rate the shadow map never reaches by itself. */
 const NeverRefresh = 0x7fffffff;
 
@@ -57,6 +61,23 @@ export interface SdfVolumeBinding {
 	 * this the map over them; the shaders compile with SDF_BRICKS.
 	 */
 	Bricks?: SdfBrickBinding | null;
+	/**
+	 * A formula instead of a texture (SdfFormulaVolume): the shaders
+	 * compile with SDF_FORMULA and its GLSL; Texture and Materials are
+	 * placeholders.
+	 */
+	Formula?: SdfFormulaBinding | null;
+}
+
+/** A formula as the shaders read it (SdfFormulaVolume). */
+export interface SdfFormulaBinding {
+	/** Names the shaders made with this formula's GLSL. */
+	Key: string;
+	/** FormulaGlsl. */
+	Glsl: string;
+	/** sdfFormulaParams and sdfFormulaFrame. */
+	Params: Float32Array;
+	Frame: Float32Array;
 }
 
 /** A brick map as the shaders read it (SdfBrickTexture). */
@@ -156,6 +177,14 @@ export class SdfRenderContext {
 
 	public readonly GroundColor = new Color3( 0.16, 0.16, 0.2 );
 
+	/**
+	 * The scene's point lights (a lantern in a cave), MAX_POINT_LIGHTS at
+	 * most: two vec4s each - position and range, colour times intensity.
+	 */
+	public readonly PointLights = new Float32Array( MAX_POINT_LIGHTS * 8 );
+
+	public PointLightCount = 0;
+
 	private _volume: SdfVolumeBinding | null = null;
 
 	/** The SDF's own meshes: no plugin, no occluder sphere. */
@@ -243,9 +272,11 @@ export class SdfRenderContext {
 	public set Volume( volume: SdfVolumeBinding | null ) {
 		const had = this._volume !== null;
 		const bricks = !!this._volume?.Bricks;
+		const formula = !!this._volume?.Formula;
 
 		this._volume = volume;
-		if ( had !== ( volume !== null ) || bricks !== !!volume?.Bricks ) {
+		if ( had !== ( volume !== null ) || bricks !== !!volume?.Bricks
+			|| formula !== !!volume?.Formula ) {
 			for ( const plugin of this._plugins ) {
 				plugin.markAllDefinesAsDirty();
 			}
@@ -381,7 +412,28 @@ export class SdfRenderContext {
 
 	/** Takes the sun and the sky from the scene's lights. */
 	public SyncLights(): void {
+		let points = 0;
+
 		for ( const light of this.Scene.lights ) {
+			if ( light instanceof PointLight ) {
+				if ( points < MAX_POINT_LIGHTS && light.isEnabled() ) {
+					const at = points++ * 8;
+					const position = light.getAbsolutePosition();
+					const color = light.diffuse.scale( light.intensity );
+
+					this.PointLights.set( [
+						position.x,
+						position.y,
+						position.z,
+						Math.min( light.range, 1e30 ),
+						color.r,
+						color.g,
+						color.b,
+						0,
+					], at );
+				}
+				continue;
+			}
 			if ( light instanceof DirectionalLight ) {
 				this.SunDirection.copyFrom( light.direction ).normalize();
 				this.SunColor.copyFrom(
@@ -397,6 +449,7 @@ export class SdfRenderContext {
 				);
 			}
 		}
+		this.PointLightCount = points;
 	}
 
 	/**
@@ -472,6 +525,13 @@ export class SdfRenderContext {
 				);
 				effect.setFloat( "sdfBrickMapSize", bricks.MapSize );
 			}
+
+			const formula = volume.Formula;
+
+			if ( formula ) {
+				effect.setFloatArray( "sdfFormulaParams", formula.Params );
+				effect.setFloatArray4( "sdfFormulaFrame", formula.Frame );
+			}
 		}
 	}
 
@@ -482,6 +542,8 @@ export class SdfRenderContext {
 		effect.setVector3( "skyDirection", this.SkyDirection );
 		effect.setColor3( "skyColor", this.SkyColor );
 		effect.setColor3( "groundColor", this.GroundColor );
+		effect.setFloatArray4( "sdfPointLights", this.PointLights );
+		effect.setFloat( "sdfPointCount", this.PointLightCount );
 	}
 
 	/** The shadow map's uniforms of the SDF shaders (SHADOWMAP). */

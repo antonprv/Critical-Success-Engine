@@ -384,11 +384,26 @@ float cseSdfDynamicDistance( vec3 p, float d ) {
 `;
 
 /**
+ * Where a formula's GLSL (FormulaGlsl) goes into a shader that reads one
+ * (SDF_FORMULA): the shader is stored under a name of its own per formula.
+ */
+export const FormulaMarker = "//#CSE_FORMULA";
+
+/**
  * The volume's distance; outside its box at least the distance to the box
  * (the texture clamps at its edge).
  */
 export const VolumeFunctions = /* glsl */ `
-#ifdef SDF_BRICKS
+// how fine the field is read (world units): a formula leaves out what is
+// finer (the march sets it from the pixel's cone)
+float cseSdfDetail = 0.0;
+#ifdef SDF_FORMULA
+${ FormulaMarker }
+
+float cseSdfVolume( vec3 p ) {
+	return cseSdfFormula( p, cseSdfDetail );
+}
+#elif defined( SDF_BRICKS )
 // the map's cell at p, toroidal (its texel: a brick's slot with alpha
 // 255, a solid cell's 254, an empty one's distance in cells to one that
 // isn't); false outside the window
@@ -469,7 +484,13 @@ vec4 cseSdfDecodeTexel( vec4 texel ) {
 }
 
 // the texel at p: its material pair, the second's share and the layer
-#ifdef SDF_BRICKS
+#ifdef SDF_FORMULA
+// a formula's: the orbit trap fading between the frame's two materials
+vec4 cseSdfVolumeMaterial( vec3 p ) {
+	cseSdfFormula( p, cseSdfDetail );
+	return vec4( sdfFormulaFrame[2].zw, cseFormulaMix, 0.0 );
+}
+#elif defined( SDF_BRICKS )
 vec4 cseSdfVolumeMaterial( vec3 p ) {
 	vec3 cell;
 	vec4 texel;

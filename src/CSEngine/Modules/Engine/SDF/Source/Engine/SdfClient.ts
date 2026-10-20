@@ -10,6 +10,7 @@ import {
 import type { SdfEdit, SdfEditInit } from "../Edits/SdfEdit";
 import { SplatEdit, type SdfSplatInit } from "../Edits/SdfSplat";
 import type { SdfHit } from "../Field/SdfField";
+import type { StandingOptions, StandingPlace } from "../Field/Standing";
 import { FoldExcess } from "../World/SdfWorld";
 import type {
 	FromSdfWorker,
@@ -48,6 +49,12 @@ export class SdfClient {
 
 	/** Whether the current scene's first area has been meshed. */
 	public Meshed = false;
+
+	/**
+	 * Where the scene starts after all: the place to stand its
+	 * StartOnSurface found (null: none asked or none found).
+	 */
+	public Start: [ number, number, number ] | null = null;
 
 	private _whenMeshed: Array<() => void> = [];
 
@@ -202,6 +209,21 @@ export class SdfClient {
 	}
 
 	/**
+	 * A place to stand near a point (FindStandingPlace; null: none within
+	 * the radius) - where to put a player down on a fractal.
+	 */
+	public FindStandingPlace(
+		near: [ number, number, number ],
+		options: StandingOptions = {},
+	): Promise<StandingPlace | null> {
+		return this.Ask( {
+			Kind: "standing",
+			Near: near,
+			Options: options,
+		} ) as Promise<StandingPlace | null>;
+	}
+
+	/**
 	 * Resolves once the current scene's first area has been meshed (at once
 	 * without an SDF world, or when it failed to load).
 	 */
@@ -217,6 +239,7 @@ export class SdfClient {
 			if ( message.Epoch === this.Epoch ) {
 				this.Loaded = message.Error === null;
 				this.LoadError = message.Error;
+				this.Start = message.Start ?? null;
 				if ( message.Error !== null ) {
 					this.MarkMeshed();
 				}

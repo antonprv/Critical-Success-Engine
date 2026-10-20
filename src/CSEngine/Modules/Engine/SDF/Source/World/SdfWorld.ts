@@ -1,7 +1,8 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-import { SdfBakedLayer } from "../Bake/SdfBakedLayer";
+import { BAKED_MAGIC, SdfBakedLayer } from "../Bake/SdfBakedLayer";
+import { SdfSparseLayer } from "../Bake/SdfSparseLayer";
 import { EditList } from "../Edits/EditList";
 import {
 	SdfEditFlags,
@@ -9,6 +10,19 @@ import {
 	type SdfEditInit,
 } from "../Edits/SdfEdit";
 import { SdfField } from "../Field/SdfField";
+
+/**
+ * A base old edits fold into: the editor's bake over a box, or a sparse
+ * layer over an analytic base (a fractal: no bounds).
+ */
+export type SdfFoldBase = SdfBakedLayer | SdfSparseLayer;
+
+/** A base read back from its saved form, whichever kind it is. */
+export function DeserializeBase( buffer: ArrayBuffer ): SdfFoldBase {
+	return new DataView( buffer ).getUint32( 0, true ) === BAKED_MAGIC
+		? SdfBakedLayer.Deserialize( buffer )
+		: SdfSparseLayer.Deserialize( buffer );
+}
 
 export interface SdfWorldOptions {
 	/**
@@ -39,7 +53,7 @@ export class SdfWorld {
 	 * @param Edits The recent edits to start with (by default none).
 	 */
 	public constructor(
-		public readonly Base: SdfBakedLayer,
+		public readonly Base: SdfFoldBase,
 		options: SdfWorldOptions = {},
 		public readonly Edits = new EditList(),
 	) {
@@ -50,7 +64,7 @@ export class SdfWorld {
 
 	/**
 	 * A replica for another worker: the base and the recent edits read back
-	 * from their saved forms (SdfBakedLayer.Serialize, EditList.Serialize).
+	 * from their saved forms (the base's Serialize, EditList.Serialize).
 	 */
 	public static FromBase(
 		base: ArrayBuffer,
@@ -58,7 +72,7 @@ export class SdfWorld {
 		edits: ArrayBuffer | null = null,
 	): SdfWorld {
 		return new SdfWorld(
-			SdfBakedLayer.Deserialize( base ),
+			DeserializeBase( base ),
 			options,
 			edits ? EditList.Deserialize( edits ) : new EditList(),
 		);

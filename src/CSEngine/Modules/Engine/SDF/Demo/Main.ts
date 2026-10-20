@@ -22,20 +22,29 @@ import "@babylonjs/core/Culling/ray";
 import { Engine } from "@babylonjs/core/Engines/engine";
 import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
+import { PointLight } from "@babylonjs/core/Lights/pointLight";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
+import { CreateCapsule } from "@babylonjs/core/Meshes/Builders/capsuleBuilder";
 import { Scene } from "@babylonjs/core/scene";
 import {
 	ChooseTier,
 	CreateAabb,
+	Expanded as Grown,
 	CreateMeshWorker,
 	DenseSdfGrid,
 	DetectCapabilities,
 	EditList,
 	GroundPlane,
 	SdfBakedLayer,
+	SdfSparseLayer,
+	InvertedMandelbrot,
+	FindStandingPlace,
+	FormulaPresets,
+	FormulaBase,
+	type SdfBaseDescriptor,
 	SdfField,
 	SdfMeshWorkers,
 	SdfOp,
@@ -52,12 +61,15 @@ import {
 import { RollingBalls, SplatThrower } from "./Behaviours";
 import {
 	DefaultPalette,
+	FsrUpscaler,
 	SdfGrassLayer,
 	SdfMeshLayer,
 	SdfRaymarchLayer,
 	SdfRenderContext,
 	SdfVolumeTexture,
 	type SdfDebugView,
+	SdfFormulaVolume,
+	type RaymarchLayerOptions,
 } from "../Source/Render/Index";
 
 const params = new URLSearchParams( location.search );
@@ -98,6 +110,11 @@ interface Preset {
 	Levels?: number;
 	/** The mesh tier meshes around the camera's target as it moves. */
 	Follow?: boolean;
+	/**
+	 * An analytic base without bounds (a fractal) instead of the baked
+	 * edits: old edits fold into a sparse layer over it.
+	 */
+	Base?: SdfBaseDescriptor;
 }
 
 const Presets: Record<string, Preset> = {
@@ -339,6 +356,52 @@ Presets["lod"] = {
 	Follow: true,
 };
 
+// "inside the Mandelbulb": the inverted Julia bulb, a cave 30 m across
+// with spiral tunnels (?power=, ?scale= to vary it)
+Presets["fractal"] = {
+	Camera: [ -Math.PI / 2.6, 1.2, 12, [ 0, 0, 0 ] ],
+	Interactive: true,
+	Sun: [ -0.4, -1, -0.5 ],
+	// a closed cave: the sun's shadow would leave it all dark (?shadows=1)
+	Shadows: params.get( "shadows" ) === "1",
+	Ground: null,
+	Edits: [],
+	Bake: CreateAabb( -1, -1, -1, 1, 1, 1 ),
+	Volume: CreateAabb( -64, -64, -64, 64, 64, 64 ),
+	Cubes: [],
+	Tilted: false,
+	Hole: null,
+	Moving: false,
+	Focus: [ 0, 0, 0 ],
+	Levels: 5,
+	Follow: true,
+	// ?formula=Mandelbox: another preset of the formula editor's
+	Base: ( () => {
+		const preset = FormulaPresets.find(
+			( it ) => it.Name === params.get( "formula" ),
+		);
+
+		const base = preset
+			? { Kind: "Formula", Options: preset.Options } as const
+			: InvertedMandelbrot( Number( params.get( "scale" ) ?? 20 ) );
+		const ds = params.get( "ds" );
+
+		// ?ds=1: the estimate less shrunk (FractalFrameOptions)
+		return base.Kind === "Formula" && ds
+			? {
+				...base,
+				Options: {
+					...base.Options,
+					Frame: {
+						...base.Options.Frame,
+						DistanceScale: Number( ds ),
+					},
+				},
+			}
+			: base;
+	} )(),
+};
+
 // the same wall, shot with splats that take matter away: three holes
 Presets["breach"] = { ...Presets["splats"]!, SplatsCarve: true };
 
@@ -377,6 +440,15 @@ const scene = new Scene( engine );
 // the engine's convention; ?lh=1 checks Babylon's default too
 scene.useRightHandedSystem = params.get( "lh" ) !== "1";
 scene.clearColor = new Color4( 0.08, 0.1, 0.14, 1 );
+
+// ?rs=0.5: the frame drawn at half the screen's size, brought up by FSR 1
+// (?sharp=: RCAS's stops, -1 none)
+const upscaler = params.get( "rs" )
+	? new FsrUpscaler( scene, {
+		Scale: Number( params.get( "rs" ) ),
+		Sharpness: Number( params.get( "sharp" ) ?? 0.25 ),
+	} )
+	: null;
 
 // ?cam=alpha,beta,radius,x,y,z: another view of the preset
 const view0 = params.get( "cam" )?.split( "," )
@@ -424,11 +496,69 @@ const field = new SdfField(
 
 // the editor's build: all of it baked into one sampled base
 const bakeStart = performance.now();
-const world = new SdfWorld( SdfBakedLayer.Bake( field, {
-	Bounds: preset.Bake,
-	Spacing: preset.BakeSpacing ?? 0.1,
-} ), { MaxEdits: 8 } );
+const world = new SdfWorld( preset.Base
+	? new SdfSparseLayer( preset.Base, preset.BakeSpacing ?? 0.1 )
+	: SdfBakedLayer.Bake( field, {
+		Bounds: preset.Bake,
+		Spacing: preset.BakeSpacing ?? 0.1,
+	} ), { MaxEdits: 8 } );
 const bakeMs = performance.now() - bakeStart;
+
+// a world without a known floor (a fractal): the camera on a place to
+// stand near the focus, a lantern over it (the sun can't reach in)
+if ( preset.Base ) {
+	const place = view0
+		? null
+		: FindStandingPlace( world.Field, preset.Focus, { Radius: 30 } );
+
+	if ( place ) {
+		// someone standing there, seen from above and behind
+		const body = CreateCapsule(
+			"player",
+			{ height: 1.8, radius: 0.35 },
+			scene,
+		);
+
+		body.position.set(
+			place.Position[0],
+			place.Position[1] + 0.9,
+			place.Position[2],
+		);
+		camera.target = new Vector3( ...place.Position )
+			.addInPlaceFromFloats( 0, 1.5, 0 );
+		camera.radius = 9;
+		// the first view down at it no wall stands in front of
+		for ( let k = 0; k < 64; k++ ) {
+			const alpha = k * 2.39996;
+			const beta = 0.6 + ( k % 8 ) * 0.1;
+			const dir: [ number, number, number ] = [
+				Math.cos( alpha ) * Math.sin( beta ),
+				Math.cos( beta ),
+				Math.sin( alpha ) * Math.sin( beta ),
+			];
+
+			if ( !world.Field.Raycast(
+				camera.target.asArray() as [ number, number, number ],
+				dir,
+				10,
+			) ) {
+				camera.alpha = alpha;
+				camera.beta = beta;
+				break;
+			}
+		}
+	}
+
+	const lantern = new PointLight( "lantern", camera.target.clone(), scene );
+
+	lantern.diffuse = new Color3( 1, 0.85, 0.65 );
+	lantern.intensity = 1.4;
+	lantern.range = 30;
+	scene.onBeforeRenderObservable.add( () => {
+		lantern.position.copyFrom( camera.target )
+			.addInPlaceFromFloats( 0, 1, 0 );
+	} );
+}
 
 // in play: a dynamic edit - drawn by the GPU, never written anywhere
 for ( const still of preset.Still ?? [] ) {
@@ -459,6 +589,9 @@ let tier = params.get( "tier" ) === "mesh" ? SdfTier.Mesh
 	: params.get( "tier" ) === "gl" ? SdfTier.Gl
 		: auto.Tier;
 let marched: SdfRaymarchLayer | null = null;
+
+/** The second variant of an A/B measurement (?ab=). */
+let marchedB: SdfRaymarchLayer | null = null;
 let meshed: SdfMeshLayer | null = null;
 let volume: { Grid: DenseSdfGrid; Texture: SdfVolumeTexture; } | null = null;
 let grass: SdfGrassLayer | null = null;
@@ -498,10 +631,12 @@ function Show( next: SdfTier ): void {
 	grassVersion = -1;
 	tier = next;
 	if ( tier === SdfTier.Mesh ) {
+		// ?cell=0.4, ?radius=1: the finest level's cell and its radius in
+		// chunks
 		const chunks = new SdfMeshWorkers( world, {
-			CellSize: 0.2,
+			CellSize: Number( params.get( "cell" ) ?? 0.2 ),
 			ChunkCells: 20,
-			Radius: 2,
+			Radius: Number( params.get( "radius" ) ?? 2 ),
 			Levels: Number( params.get( "levels" ) ?? preset.Levels ?? 1 ),
 			...params.get( "skirts" ) === "0" ? { Skirts: false } : {},
 		}, CreateMeshWorker );
@@ -522,26 +657,78 @@ function Show( next: SdfTier ): void {
 		} );
 	} else {
 		const res = Number( params.get( "res" ) ?? 160 );
-		// ?bricks=1: the world in bricks (plan.md 5), not a dense grid
-		const grid = params.get( "bricks" ) === "1"
-			? Bricks( world.Field, preset.Volume, res )
-			: new DenseSdfGrid( world.Field, preset.Volume, res );
+		const under = world.Base instanceof SdfSparseLayer
+			? world.Base.Under
+			: null;
+		// a formula world: the formula marched on the GPU as it is (no
+		// grid); ?bricks=1: the world in bricks (plan.md 5)
+		const grid = under instanceof FormulaBase
+			? new SdfFormulaVolume(
+				scene,
+				under,
+				// ?box=16: marched only this far round the camera's target
+				params.get( "box" )
+					? Grown(
+						CreateAabb(
+							...camera.target.asArray(),
+							...camera.target.asArray(),
+						),
+						Number( params.get( "box" ) ),
+					)
+					: preset.Volume,
+				0.05,
+			)
+			: params.get( "bricks" ) === "1"
+				? Bricks( world.Field, preset.Volume, res )
+				: new DenseSdfGrid( world.Field, preset.Volume, res );
 
 		// ?cone=16,8: the cone march's tiles (?cone=: none)
 		const cone = params.get( "cone" );
 
-		marched = new SdfRaymarchLayer( scene, grid, {
-			Context: context,
-			Checkerboard: params.get( "checker" ) !== "0",
-			// ?light=0: no low-resolution shadows and occlusion
-			LightResolution: Number( params.get( "light" ) ?? 0.5 ),
-			// ?scache=0: the box's shadow marched every frame
-			ShadowCache: params.get( "scache" ) !== "0",
-			...cone === null ? {} : {
-				ConeTiles: cone.split( "," ).filter( Boolean )
-					.map( Number ),
-			},
-		} );
+		// ?ab=checker (light, scache, cone, memory, relax): a second layer
+		// with that one
+		// option the other way, shown in turn by sdfDemo.AB( 0 / 1 ) - two
+		// variants measured in one page (the GPU's clocks differ between
+		// launches more than most of what is measured)
+		const ab = params.get( "ab" );
+		const Options = ( flip: boolean ): RaymarchLayerOptions => {
+			const checker = params.get( "checker" ) !== "0";
+			const light = Number( params.get( "light" ) ?? 0.5 );
+			const shadowCache = params.get( "scache" ) !== "0";
+
+			return {
+				Context: context,
+				Checkerboard: flip && ab === "checker" ? !checker : checker,
+				// ?light=0: no low-resolution shadows and occlusion
+				LightResolution: flip && ab === "light" ? ( light > 0
+					? 0
+					: 0.5 ) : light,
+				// ?scache=0: the box's shadow marched every frame
+				ShadowCache: flip && ab === "scache"
+					? !shadowCache
+					: shadowCache,
+				// ?memory=0: every corner marches from scratch
+				Memory: ( params.get( "memory" ) !== "0" )
+					!== ( flip && ab === "memory" ),
+				// ?relax=1: no over-relaxation
+				Relaxation: flip && ab === "relax"
+					? 1
+					: Number( params.get( "relax" ) ?? 1.6 ),
+				...flip && ab === "cone"
+					? { ConeTiles: cone === "" ? [ 8 ] : [] }
+					: cone === null ? {} : {
+						ConeTiles: cone.split( "," ).filter( Boolean )
+							.map( Number ),
+					},
+			};
+		};
+
+		marched = new SdfRaymarchLayer( scene, grid, Options( false ) );
+		if ( ab ) {
+			marchedB = new SdfRaymarchLayer( scene, grid, Options( true ) );
+			marchedB.Mesh.setEnabled( false );
+			marchedB.DebugView = view;
+		}
 		marched.DebugView = view;
 		// grass grows on the dense grid (not on bricks yet)
 		grassGrid = grid instanceof DenseSdfGrid ? grid : null;
@@ -641,7 +828,9 @@ engine.runRenderLoop( () => {
 			`recent edits ${ world.Edits.Count }, version `
 				+ `${ world.Edits.Version }, `
 				+ `dynamic ${ context.Dynamic.Count }`,
-			`base: ${ world.Base.BrickCount } bricks, baked in `
+			`base: ${ world.Base instanceof SdfBakedLayer
+				? world.Base.BrickCount
+				: world.Base.CellCount } bricks, baked in `
 				+ `${ bakeMs.toFixed( 0 ) } ms`,
 			meshed
 				? `chunks ${ meshed.Count }, `
@@ -712,6 +901,78 @@ const probe = {
 	get Pending(): number {
 		return meshed?.Chunks?.Pending ?? 0;
 	},
+	/**
+	 * Whether the GPU drew the same surface the CPU's field has: on a grid
+	 * of pixels, a hit on screen (not the clear colour) against a ray
+	 * marched through the pixel on the CPU, reading no detail finer than
+	 * the pixel (as the GPU's march). Counts of each and of disagreements.
+	 */
+	async Agreement( columns: number, rows: number ): Promise<{
+		Samples: number;
+		Gpu: number;
+		Cpu: number;
+		Disagree: number;
+	}> {
+		const width = engine.getRenderWidth();
+		const height = engine.getRenderHeight();
+		const pixels = await engine.readPixels(
+			0,
+			0,
+			width,
+			height,
+		) as Uint8Array;
+		const clear = scene.clearColor;
+		const angle = Math.tan( camera.fov / 2 ) * 2 / height;
+		const box = preset.Volume;
+		const result = { Samples: 0, Gpu: 0, Cpu: 0, Disagree: 0 };
+
+		for ( let j = 0; j < rows; j++ ) {
+			for ( let i = 0; i < columns; i++ ) {
+				const x = Math.floor( ( i + 0.5 ) * width / columns );
+				const y = Math.floor( ( j + 0.5 ) * height / rows );
+				// rows from the bottom in the read pixels
+				const at = ( ( height - 1 - y ) * width + x ) * 4;
+				const gpu = Math.abs( pixels[at]! / 255 - clear.r )
+					+ Math.abs( pixels[at + 1]! / 255 - clear.g )
+					+ Math.abs( pixels[at + 2]! / 255 - clear.b ) > 0.05;
+				const ray = scene.createPickingRay(
+					x,
+					y,
+					Matrix.Identity(),
+					camera,
+				);
+				const o = ray.origin;
+				const d = ray.direction;
+				let t = 0;
+				let cpu = false;
+
+				for ( let step = 0; step < 400; step++ ) {
+					const px = o.x + d.x * t;
+					const py = o.y + d.y * t;
+					const pz = o.z + d.z * t;
+
+					if ( px < box[0]! || py < box[1]! || pz < box[2]!
+						|| px > box[3]! || py > box[4]! || pz > box[5]! ) {
+						break;
+					}
+
+					const detail = t * angle;
+					const distance = world.Base.Distance( px, py, pz, detail );
+
+					if ( distance < Math.max( detail, 0.0025 ) ) {
+						cpu = true;
+						break;
+					}
+					t += Math.max( distance * 0.9, 0.005 );
+				}
+				result.Samples++;
+				result.Gpu += gpu ? 1 : 0;
+				result.Cpu += cpu ? 1 : 0;
+				result.Disagree += gpu !== cpu ? 1 : 0;
+			}
+		}
+		return result;
+	},
 };
 
 Object.assign(
@@ -720,9 +981,40 @@ Object.assign(
 		sdfProbe: probe,
 		sdfReady: true,
 		sdfDemo: {
+			/** Shows variant A (0) or B (1) of ?ab=. */
+			AB: ( which: number ): void => {
+				marched?.Mesh.setEnabled( which === 0 );
+				marchedB?.Mesh.setEnabled( which === 1 );
+			},
+			/**
+			 * The GPU's milliseconds per frame: `count` frames drawn back to
+			 * back, the queue drained before and after by a pixel read
+			 * back - no vsync, no compositor (Scratch: bench2.mjs); `turn`
+			 * turns the camera that much each frame.
+			 */
+			Bench: ( count: number, turn = 0 ): number => {
+				const gl = engine._gl;
+				const pixel = new Uint8Array( 4 );
+				const Drain = (): void => gl.readPixels(
+					0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel,
+				);
+
+				Drain();
+
+				const start = performance.now();
+
+				for ( let i = 0; i < count; i++ ) {
+					// ( turn: radians a frame round the target, a moving view )
+					camera.alpha += turn;
+					scene.render();
+				}
+				Drain();
+				return ( performance.now() - start ) / count;
+			},
 			scene,
 			context,
 			world,
+			upscaler,
 			Layers: () => ( {
 				marched,
 				meshed,

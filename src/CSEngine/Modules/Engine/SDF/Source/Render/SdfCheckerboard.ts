@@ -12,6 +12,7 @@ import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Observer } from "@babylonjs/core/Misc/observable";
 import type { Scene } from "@babylonjs/core/scene";
+import { FrameSize } from "./FrameSize";
 
 /**
  * Checkerboard rendering of the ray-marched passes (plan.md 21.7, after
@@ -36,6 +37,9 @@ export class SdfCheckerboard {
 
 	/** Which half of the corners this frame marches (0 or 1). */
 	public Parity = 0;
+
+	/** Frames counted (whose turn it is to march from scratch). */
+	public Frame = 0;
 
 	/**
 	 * The previous frame's view-projection, its inverse and camera position.
@@ -140,13 +144,14 @@ export class SdfCheckerboard {
 	 * marching these meshes (or, `on` false, nothing: no pass).
 	 */
 	public Next( meshes: readonly Mesh[], on: boolean ): void {
-		const engine = this._scene.getEngine();
 		const camera = this._scene.activeCamera;
+		const frame = FrameSize( this._scene );
 
 		this.Parity = 1 - this.Parity;
+		this.Frame++;
 		this._drawn = on;
-		this.Screen.Width = engine.getRenderWidth();
-		this.Screen.Height = engine.getRenderHeight();
+		this.Screen.Width = frame.width;
+		this.Screen.Height = frame.height;
 		if ( camera ) {
 			this._projection.copyFrom( camera.getProjectionMatrix() );
 		}
@@ -198,11 +203,11 @@ export class SdfCheckerboard {
 
 	/** A texel a corner of the pixel grid, half of them. */
 	private SizeOf(): { width: number; height: number; } {
-		const engine = this._scene.getEngine();
+		const frame = FrameSize( this._scene );
 
 		return {
-			width: Math.floor( engine.getRenderWidth() / 2 ) + 1,
-			height: engine.getRenderHeight() + 1,
+			width: Math.floor( frame.width / 2 ) + 1,
+			height: frame.height + 1,
 		};
 	}
 }

@@ -328,6 +328,12 @@ const QuadCells: ReadonlyArray<
 	[ [ -1, -1, 0 ], [ 0, -1, 0 ], [ 0, 0, 0 ], [ -1, 0, 0 ] ],
 ];
 
+/**
+ * How many times a skirt's depth halves to stay in the solid before it
+ * gives up (none: the skirt folds onto its edge).
+ */
+const SkirtTries = 4;
+
 /** Weights of the occlusion samples, nearest first. */
 const AoWeights = [ 1, 0.5, 0.25, 0.125, 0.0625 ];
 
@@ -565,12 +571,24 @@ class MeshBuilder {
 			}
 
 			const n = [ 0, 1, 2 ].map( ( c ) => this._normals[v * 3 + c]! );
+			const p = [ 0, 1, 2 ].map( ( c ) => this._positions[v * 3 + c]! );
 			const index = this._positions.length / 3;
+			// as deep as the solid goes: through a wall thinner than the
+			// skirt it would stick out of the far side (a shard)
+			let reach = depth;
 
+			for ( let i = 0; i < SkirtTries; i++ ) {
+				if ( this._distance(
+					p[0]! - n[0]! * reach,
+					p[1]! - n[1]! * reach,
+					p[2]! - n[2]! * reach,
+				) < 0 ) {
+					break;
+				}
+				reach = i < SkirtTries - 1 ? reach * 0.5 : 0;
+			}
 			for ( let c = 0; c < 3; c++ ) {
-				this._positions.push(
-					this._positions[v * 3 + c]! - n[c]! * depth,
-				);
+				this._positions.push( p[c]! - n[c]! * reach );
 				this._normals.push( n[c]! );
 			}
 			this._ao.push( this._ao[v]! );

@@ -2,18 +2,20 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { SdfBakedLayer } from "../Bake/SdfBakedLayer";
+import { SdfSparseLayer } from "../Bake/SdfSparseLayer";
 import { DenseSdfGrid, TexelBytes } from "../Bricks/DenseGrid";
 import { SdfDynamicEdits } from "../Edits/SdfDynamicEdits";
 import { EditList } from "../Edits/EditList";
 import { GroundPlane } from "../Field/BaseLayers";
 import { SdfField } from "../Field/SdfField";
+import { FindStandingPlace } from "../Field/Standing";
 import type { ChunkJob, MeshChunksUpdate, SdfChunk } from "../Mesh/MeshChunks";
 import { CreateAabb } from "../Spatial/Aabb";
 import {
 	SdfMeshWorkers,
 	type MeshWorkerPort,
 } from "../Workers/SdfMeshWorkers";
-import { SdfWorld } from "../World/SdfWorld";
+import { SdfWorld, type SdfFoldBase } from "../World/SdfWorld";
 import type {
 	FromSdfWorker,
 	PhysicsToSdf,
@@ -187,7 +189,7 @@ export class SdfWorkerHost {
 			return;
 		}
 
-		let base: SdfBakedLayer;
+		let base: SdfFoldBase;
 
 		try {
 			base = await this.Base( scene );
@@ -229,11 +231,24 @@ export class SdfWorkerHost {
 			PoolAt: -Infinity,
 			PhysicsLevels: scene.PhysicsLevels ?? 2,
 		};
-		this._loaded.Pool.CenterOn( ...scene.Start ?? [ 0, 0, 0 ] );
-		this._loaded.Volume = this.SampleVolume( world, scene );
-		this._ports.ToGameLogic(
-			{ Type: "loaded", Epoch: epoch, Error: null },
-		);
+		// on the surface if asked (and found): meshed first, told the game
+		const place = scene.StartOnSurface
+			? FindStandingPlace(
+				world.Field,
+				scene.Start ?? [ 0, 0, 0 ],
+				scene.StartOnSurface === true ? {} : scene.StartOnSurface,
+			)
+			: null;
+		const start = place?.Position ?? scene.Start ?? [ 0, 0, 0 ];
+
+		this._loaded.Pool.CenterOn( ...start );
+		this._loaded.Volume = this.SampleVolume( world, scene, start );
+		this._ports.ToGameLogic( {
+			Type: "loaded",
+			Epoch: epoch,
+			Error: null,
+			Start: place ? start : null,
+		} );
 		for ( const tick of this._waiting.splice( 0 ) ) {
 			this.Tick( tick );
 		}
@@ -246,6 +261,7 @@ export class SdfWorkerHost {
 	private SampleVolume(
 		world: SdfWorld,
 		scene: SdfSceneDescriptor,
+		start: readonly [ number, number, number ],
 	): DenseSdfGrid | null {
 		const texels = scene.VolumeTexels ?? 128;
 
@@ -253,11 +269,17 @@ export class SdfWorkerHost {
 			return null;
 		}
 
-		const volume = new DenseSdfGrid(
-			world.Field,
-			world.Base.Bounds,
-			texels,
-		);
+		const bounds = world.Base instanceof SdfBakedLayer
+			? world.Base.Bounds
+			: CreateAabb( ...scene.VolumeBounds ?? [
+				start[0] - 32,
+				start[1] - 32,
+				start[2] - 32,
+				start[0] + 32,
+				start[1] + 32,
+				start[2] + 32,
+			] );
+		const volume = new DenseSdfGrid( world.Field, bounds, texels );
 
 		this.SendVolume( this._epoch, volume );
 		return volume;
@@ -292,7 +314,13 @@ export class SdfWorkerHost {
 		}, [ data.buffer ] );
 	}
 
-	private async Base( scene: SdfSceneDescriptor ): Promise<SdfBakedLayer> {
+	private async Base( scene: SdfSceneDescriptor ): Promise<SdfFoldBase> {
+		if ( "Analytic" in scene.Base ) {
+			return new SdfSparseLayer(
+				scene.Base.Analytic,
+				scene.Base.Spacing ?? 0.1,
+			);
+		}
 		if ( "Url" in scene.Base ) {
 			return SdfBakedLayer.Deserialize(
 				await this._options.Fetch( scene.Base.Url ),
@@ -486,6 +514,9 @@ export class SdfWorkerHost {
 		}
 		if ( query.Kind === "raycast" ) {
 			return field.Raycast( query.Origin, query.Dir, query.TMax );
+		}
+		if ( query.Kind === "standing" ) {
+			return FindStandingPlace( field, query.Near, query.Options );
 		}
 
 		const [ x, y, z ] = query.Point;

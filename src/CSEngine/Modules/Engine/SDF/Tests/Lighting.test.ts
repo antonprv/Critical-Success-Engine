@@ -4,7 +4,9 @@
 import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
 import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
-import type { Effect } from "@babylonjs/core/Materials/effect";
+import { PointLight } from "@babylonjs/core/Lights/pointLight";
+import { SpotLight } from "@babylonjs/core/Lights/spotLight";
+import { Effect } from "@babylonjs/core/Materials/effect";
 import { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 import type { ShaderMaterial } from "@babylonjs/core/Materials/shaderMaterial";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
@@ -29,20 +31,28 @@ import {
 	SdfOp,
 	SdfShape,
 	SdfVolume,
+	FormulaBase,
+	InvertedMandelbrotFormula,
+	MandelbulbFormula,
 } from "../Source/Index";
 import {
 	CreateRaymarchMaterial,
 	MAX_OCCLUDERS,
+	MAX_POINT_LIGHTS,
 	SdfDynamicProxies,
 	SdfMaterialFeatures,
 	SdfMaterialPlugin,
 	SdfMeshLayer,
 	SdfRaymarchLayer,
+	SdfQuality,
 	SdfRenderContext,
 	SdfConeMarch,
 	SdfRenderReceiver,
 	SdfBrickTexture,
+	SdfFormulaVolume,
 	SdfVolumeTexture,
+	FormulaMarker,
+	RaymarchShaderName,
 	type RaymarchSettings,
 } from "../Source/Render/Index";
 import { NewScene } from "./RenderScene";
@@ -87,6 +97,7 @@ const Settings: RaymarchSettings = {
 	DebugView: 1,
 	Quality: 2,
 	StepScale: 0.8,
+	Relaxation: 1.6,
 	ProxyThreshold: 0.05,
 	Palette: Array.from( { length: 24 }, () => 0.5 ),
 };
@@ -107,6 +118,64 @@ function Bind( material: ShaderMaterial, mesh: AbstractMesh ): void {
 		mesh.subMeshes[0]!,
 	);
 }
+
+describe( "SdfRenderContext point lights", () => {
+	it(
+		"takes the scene's point lights, four at most, for the SDF shaders",
+		() => {
+			const { scene } = LitScene();
+			const context = new SdfRenderContext(
+				scene,
+				{ AutoMeshes: false },
+			);
+			const lights = Array.from( { length: 5 }, ( _, i ) => {
+				const light = new PointLight(
+					`p${ i }`,
+					new Vector3( i, 2, 0 ),
+					scene,
+				);
+
+				light.diffuse = new Color3( 1, 0.5, 0.25 );
+				light.intensity = 2;
+				light.range = 10 + i;
+				return light;
+			} );
+
+			lights[1]!.setEnabled( false );
+			// a spot light: none of the kinds the SDF shaders take
+			new SpotLight(
+				"spot",
+				Vector3.Zero(),
+				Vector3.Down(),
+				1,
+				1,
+				scene,
+			);
+			context.SyncLights();
+			expect( context.PointLightCount ).toBe( MAX_POINT_LIGHTS );
+			expect( [ ...context.PointLights.slice( 0, 8 ) ] )
+				.toEqual( [ 0, 2, 0, 10, 2, 1, 0.5, 0 ] );
+			// the disabled one left out
+			expect( context.PointLights[8] ).toBe( 2 );
+
+			// an endless range as a large one
+			lights.forEach( ( light ) => light.dispose() );
+			new PointLight( "far", Vector3.Zero(), scene );
+			context.SyncLights();
+			expect( context.PointLightCount ).toBe( 1 );
+			expect( context.PointLights[3] ).toBe( Math.fround( 1e30 ) );
+
+			const effect = SpyEffect();
+
+			context.BindLights( effect as unknown as Effect );
+			expect( effect.setFloatArray4 )
+				.toHaveBeenCalledWith( "sdfPointLights", context.PointLights );
+			expect( effect.setFloat )
+				.toHaveBeenCalledWith( "sdfPointCount", 1 );
+			context.Dispose();
+		},
+	);
+} );
 
 describe( "SdfRenderContext", () => {
 	it( "makes the sun's shadow map, only with a sun and shadows on", () => {
@@ -816,6 +885,128 @@ describe( "SdfBrickTexture", () => {
 		dense.Dispose();
 		context.Dispose();
 	} );
+} );
+
+describe( "SdfFormulaVolume", () => {
+	it(
+		"marches a formula on the GPU: no texture, its GLSL in the shaders",
+		() => {
+			const { scene } = LitScene();
+
+			FloatTargets( scene, true );
+			const context = new SdfRenderContext(
+				scene,
+				{ AutoMeshes: false },
+			);
+			const plugin = context.Plug(
+				new StandardMaterial( "standard", scene ),
+				SdfMaterialFeatures.VolumeOcclusion,
+			);
+			const dirty = vi.spyOn( plugin, "markAllDefinesAsDirty" );
+			const base = new FormulaBase( InvertedMandelbrotFormula( 10 ) );
+			const volume = new SdfFormulaVolume(
+				scene,
+				base,
+				CreateAabb( -8, -4, -8, 8, 4, 8 ),
+				0.05,
+			);
+
+			expect( volume.Min ).toEqual( [ -8, -4, -8 ] );
+			expect( volume.Size ).toEqual( [ 16, 8, 16 ] );
+			expect( volume.Resolution[0] ).toBeCloseTo( 320, 9 );
+			expect( volume.Range ).toBeCloseTo( Math.hypot( 16, 8, 16 ), 9 );
+			expect( volume.Formula.Glsl ).toBe( base.Glsl );
+			expect( volume.Formula.Params ).toEqual( base.ParamValues() );
+			// the same formula, the same shaders; another, others
+			expect(
+				new SdfFormulaVolume(
+					scene,
+					base,
+					CreateAabb( 0, 0, 0, 1, 1, 1 ),
+					1,
+				)
+					.Formula.Key,
+			).toBe( volume.Formula.Key );
+			expect( new SdfFormulaVolume(
+				scene,
+				new FormulaBase( { Source: MandelbulbFormula } ),
+				CreateAabb( 0, 0, 0, 1, 1, 1 ),
+				1,
+			).Formula.Key ).not.toBe( volume.Formula.Key );
+
+			const layer = new SdfRaymarchLayer(
+				scene,
+				volume,
+				{ Context: context },
+			);
+			const fragment =
+				`${ RaymarchShaderName }F${ volume.Formula.Key }FragmentShader`;
+
+			expect( layer.Volume ).toBe( volume );
+			expect( layer.Bricks ).toBeNull();
+			expect( context.Volume ).toBe( volume );
+			// the meshes' plugins don't read a formula: no volume for them
+			expect( dirty ).toHaveBeenCalled();
+
+			const defines: Record<string, boolean> = {};
+
+			plugin.prepareDefines( defines as never );
+			expect( defines["SDF_VOLUME_AO"] ).toBe( false );
+			// the shaders: SDF_FORMULA, stored under the formula's name with it
+			expect( EffectOf( layer.Material, layer.Mesh ).defines )
+				.toContain( "#define SDF_FORMULA" );
+			expect( Effect.ShadersStore[fragment] ).toContain(
+				"float cseSdfFormula( vec3 P, float detail )",
+			);
+			expect( Effect.ShadersStore[fragment] ).not
+				.toContain( FormulaMarker );
+
+			const caster = layer.Material.shadowDepthWrapper!
+				.baseMaterial as ShaderMaterial;
+
+			expect( EffectOf( caster, layer.Mesh ).defines )
+				.toContain( "#define SDF_FORMULA" );
+
+			// its uniforms
+			const effect = SpyEffect() as ReturnType<typeof SpyEffect> & {
+				setFloatArray: ReturnType<typeof vi.fn>;
+			};
+
+			effect.setFloatArray = vi.fn();
+			context.BindTo( effect as unknown as Effect );
+			expect( effect.setFloatArray )
+				.toHaveBeenCalledWith(
+					"sdfFormulaParams",
+					volume.Formula.Params,
+				);
+			expect( effect.setFloatArray4 )
+				.toHaveBeenCalledWith(
+					"sdfFormulaFrame",
+					volume.Formula.Frame,
+				);
+
+			// nothing to upload; the light buffer only with something to keep
+			const reset = vi.spyOn(
+				layer.Light!.Target,
+				"resetRefreshCounter",
+			);
+
+			expect( layer.Update() ).toBe( false );
+			expect( reset ).toHaveBeenCalledTimes( 1 );
+			layer.Quality = SdfQuality.Plain;
+			layer.Update();
+			expect( reset ).toHaveBeenCalledTimes( 1 );
+
+			// disposed once, with the layer
+			const gone = vi.spyOn( volume, "Dispose" );
+
+			dirty.mockClear();
+			layer.Dispose();
+			expect( gone ).toHaveBeenCalledTimes( 1 );
+			expect( dirty ).toHaveBeenCalled();
+			context.Dispose();
+		},
+	);
 } );
 
 describe( "SdfVolumeTexture", () => {
@@ -1722,7 +1913,9 @@ describe( "SdfShadowCache", () => {
 		expect( reset ).toHaveBeenCalledTimes( 2 );
 
 		// so do an upload, the step, the box and the map
-		layer.Grid.Field.Edits.Add( { Shape: SdfShape.Box } );
+		( layer.Grid as DenseSdfGrid ).Field.Edits.Add(
+			{ Shape: SdfShape.Box },
+		);
 		layer.Update();
 		expect( cache.Valid ).toBe( false );
 		layer.Update();

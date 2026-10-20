@@ -475,6 +475,8 @@ export class SdfVolume {
 
 		const field = this.Field;
 		const program = field.Compile( field.Edits.Candidates( region ) );
+
+		program.Detail = h;
 		const Distance = ( px: number, py: number, pz: number ): number => (
 			program.Distance( px, py, pz )
 		);

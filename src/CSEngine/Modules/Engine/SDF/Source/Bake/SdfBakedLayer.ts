@@ -15,13 +15,15 @@ export const BAKED_MAGIC = 0x42445343;
 export const BAKED_VERSION = 2;
 
 /** Bytes a node keeps: distance, first and second material, mix, layer. */
-const NodeBytes = 5;
+export const NodeBytes = 5;
 
 /** Bytes a cell keeps besides its brick index and center distance. */
 const CellBytes = 4;
 
 /** Cells along a baked brick's edge; it stores the 9 nodes of each axis. */
-const Cells = 8;
+export const BAKED_CELLS = 8;
+
+const Cells = BAKED_CELLS;
 
 const Nodes = Cells + 1;
 
@@ -29,7 +31,9 @@ const Nodes = Cells + 1;
 export const BAKED_BRICK_NODES = Nodes * Nodes * Nodes;
 
 /** Encoded range on each side of the surface, in sample spacings. */
-const RangeSpacings = 4;
+export const BAKED_RANGE_SPACINGS = 4;
+
+const RangeSpacings = BAKED_RANGE_SPACINGS;
 
 /** Byte offset of the cell arrays in the saved form. */
 const HeaderBytes = 56;
@@ -550,7 +554,7 @@ export class SdfBakedLayer implements SdfBaseLayer {
  * bytes, then per node the material, second material, mix and layer); false if
  * every node is out of range on the same side (no brick needed after all).
  */
-function SampleBrick(
+export function SampleBrick(
 	program: SdfProgram,
 	ox: number,
 	oy: number,
@@ -592,7 +596,7 @@ function SampleBrick(
 /**
  * The material at a program's last point as stored: first, second, mix, layer.
  */
-function MaterialBytes( program: SdfProgram ): Uint8Array {
+export function MaterialBytes( program: SdfProgram ): Uint8Array {
 	const bytes = new Uint8Array( 4 );
 
 	WriteMaterial( program, bytes, 0 );

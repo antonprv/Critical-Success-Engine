@@ -356,6 +356,50 @@ means the first surface straight above the body, in any chunk, faces up; under a
 stays. Bodies past the meshed area (`Radius` chunks around the focus) have nothing under
 them: keep play inside it, or fence it.
 
+## Fractals
+
+A base can be a formula instead of a bake: `MandelbulbBase` (power, iterations, a Julia constant, sphere inversion -
+"inside the Mandelbulb", the default world of the fractal templates: `InvertedMandelbulb()`). The field is the escape-time
+estimate 0.5 r ln r / dr, taken back to world units by the inversion's scale (it is conformal) and bounded near the
+center. A base has no bounds, so the world's old edits fold into an `SdfSparseLayer`: only the cells they touched keep
+samples, the formula answers everywhere else. Bases travel as `SdfBaseDescriptor` (workers, saves, scenes: an engine
+scene says `Base: { Analytic: InvertedMandelbulb( 20 ) }`). Samplers pass the detail they can hold (`SdfProgram.Detail`:
+a chunk its cell, a grid its spacing) and the orbit stops where the next iteration would only add finer noise. The
+demo shows the cave with `?scene=fractal`; the perf scene `sdf-fractal` runs at 759 fps.
+
+A fractal has no known floor: `FindStandingPlace( field, near )` finds one - points tried in a spiral outward, each
+dropped onto the floor below, which must face up and leave room for a body - and an engine scene asks for it with
+`StartOnSurface` (the place is meshed first and comes back as `Sdf.Start`; `Sdf.FindStandingPlace` asks later). Point
+lights (four at most) light the ray-marched SDF as Babylon's standard materials light the meshes: a lantern in a cave.
+
+### The formula language
+
+A fractal can be written as a formula (`FormulaBase`, descriptor `{ Kind: "Formula", Options }`): one source, compiled to
+JavaScript for the CPU (meshing, physics, rays; every vec3 three numbers, no allocation per sample) and to GLSL for the
+GPU (`SdfFormulaVolume`: the ray marcher evaluates it as it is, parameters as uniforms). A formula is a few blocks over
+the orbit's state - `z` and `c` (vec3, both start at the point), `dr` (starts at 1), read-only `p`, `r` (|z|), `i`:
+
+```
+param float power = 8 in [2, 16];   // parameters: float or vec3, a default, a range for the editor
+init { c = vec3(0.2, 0.6, 0.1); }   // once (optional): here, a Julia set
+iterate {                           // every iteration
+	float theta = acos(clamp(z.z / max(r, 1e-30), -1, 1)) * power;
+	float phi = atan(z.y, z.x) * power;
+	float rp = pow(r, power - 1);
+	dr = rp * power * dr;
+	z = rp * r * vec3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta)) + c;
+}
+distance { return 0.5 * log(r) * r / dr; }   // optional: this is the default
+```
+
+Statements: `float` / `vec3` locals, `=`, `+=`, `-=`, `*=`, `/=` (a float spreads over a vec3 in `*=` and `/=`), `if` /
+`else`, `return` in `distance`. Functions: abs, sign, floor, fract, sqrt, sin, cos, tan, asin, acos, exp, log, min, max,
+mod, pow (of |x|, as the GPU), atan(y, x), clamp, mix, length, dot, cross, normalize, vec3. A mistake is a
+`FormulaError` with its line and column. The frame around every formula (`FractalFrameOptions`) places and scales it,
+inverts it in a sphere, cuts the iterations by detail and fades two materials by the orbit trap. Presets
+(`FormulaPresets`): the inverted Mandelbrot (`InvertedMandelbrot()`, the default world), Mandelbulb, Mandelbox, Menger
+sponge. An end-to-end check marches the same pixels on the CPU: the GPU's picture differs on 0.35 % of them (silhouettes).
+
 ## What's next
 
 Not yet: tier B in the engine (ray marching works in the module's demo, not in the render worker), multi-level clipmaps

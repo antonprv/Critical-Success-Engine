@@ -401,6 +401,9 @@ export class SdfMeshChunks implements SdfChunkSource {
 		);
 		const edits = [ ...field.Edits.Candidates( box ), ...reaching ];
 		const program = field.Compile( edits );
+
+		// nothing finer than a cell of this level (a fractal base aliases)
+		program.Detail = cell;
 		const Distance = ( x: number, y: number, z: number ): number => (
 			program.Distance( x, y, z )
 		);
@@ -447,6 +450,8 @@ export class SdfMeshChunks implements SdfChunkSource {
 						}
 
 						const part = field.Compile( some );
+
+						part.Detail = cell;
 
 						return ( x, y, z ) => part.Distance( x, y, z );
 					},

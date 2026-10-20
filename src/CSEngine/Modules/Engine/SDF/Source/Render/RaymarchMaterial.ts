@@ -16,8 +16,10 @@ import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { SubMesh } from "@babylonjs/core/Meshes/subMesh";
 import type { Scene } from "@babylonjs/core/scene";
+import { FrameSize } from "./FrameSize";
 import type { SdfCheckerboard } from "./SdfCheckerboard";
 import type { SdfRenderContext } from "./SdfRenderContext";
+import { FormulaMarker } from "./SdfGlsl";
 import {
 	RaymarchFragment,
 	RaymarchShaderName,
@@ -32,6 +34,8 @@ export interface RaymarchSettings {
 	Quality: number;
 	/** Shrinks steps where distances are bounds, not exact. */
 	StepScale: number;
+	/** Over-relaxes the march's steps (1: none). */
+	Relaxation: number;
 	/** Proxies: how much the dynamic edits must move the surface. */
 	ProxyThreshold: number;
 	/** Colors of material ids 0..7, three floats each. */
@@ -46,6 +50,7 @@ const Uniforms = [
 	"marchMax",
 	"pixelAngle",
 	"stepScale",
+	"stepRelaxation",
 	"sunDirection",
 	"sunColor",
 	"skyDirection",
@@ -70,6 +75,7 @@ const Uniforms = [
 	"sdfCarveThreshold",
 	"checkerParity",
 	"checkerHistory",
+	"checkerFrame",
 	"screenSize",
 	"inverseViewProjection",
 	"previousViewProjection",
@@ -78,8 +84,13 @@ const Uniforms = [
 	"coneStartScale",
 	"coneStartTan",
 	"lightBufferScale",
+	"lightHistory",
 	"sdfBrickInfo",
 	"sdfBrickMapSize",
+	"sdfFormulaParams",
+	"sdfFormulaFrame",
+	"sdfPointLights",
+	"sdfPointCount",
 ];
 
 /**
@@ -97,11 +108,33 @@ export const ConeSpread = 1.5;
  * 21.7, SdfCheckerboard) - "checker" marches this frame's half of the pixel
  * grid's corners into its target, "resolve" draws the pixels on screen from
  * them and the previous frame's - or the low-resolution shadows and
- * occlusion ("light", SdfLightBuffer).
+ * occlusion ("light", SdfLightBuffer). The corners start their rays from
+ * the previous frame's (MEMORY_START); with a checkerboard (`Corners`) the
+ * light buffer is made after them, from them (LIGHT_CORNERS).
  */
 export type PassStage =
-	| { Stage: "cone" | "light"; Target(): RenderTargetTexture; }
-	| { Stage: "checker" | "resolve"; Checker(): SdfCheckerboard; };
+	| { Stage: "cone"; Target(): RenderTargetTexture; }
+	| {
+		Stage: "light";
+		Target(): RenderTargetTexture;
+		Corners?: () => SdfCheckerboard | null;
+		/** What the previous frame's buffer holds, to keep from. */
+		Kept?: () => LightKept;
+	}
+	| {
+		Stage: "checker" | "resolve";
+		Checker(): SdfCheckerboard;
+		/** The corners start from the previous frame's. Default on. */
+		Memory?: boolean;
+	};
+
+/** The passes that read the checkerboard's corners (CHECKER_CORNERS). */
+const CornerReaders = [
+	"CHECKER_PASS",
+	"CHECKER_RESOLVE",
+	"MEMORY_START",
+	"LIGHT_CORNERS",
+];
 
 /** Where the rays start: a level of the cone march (SdfConeMarch). */
 export interface ConeStart {
@@ -110,11 +143,19 @@ export interface ConeStart {
 	Tan(): number;
 }
 
+/** The light buffer the previous frame drew, and whether it may be kept. */
+export interface LightKept {
+	readonly Target: RenderTargetTexture;
+	readonly HasHistory: boolean;
+}
+
 /** Where the soft shadows and occlusion come from: SdfLightBuffer. */
 export interface LightStart {
 	readonly Target: RenderTargetTexture;
 	/** Its texels per screen pixel. */
 	Scale(): [ number, number ];
+	/** Made after the pass that reads it: the previous frame's. */
+	readonly Previous?: boolean;
 }
 
 /** Where the shadow pass may find the box's shadow (SdfShadowCache). */
@@ -165,7 +206,26 @@ function BindCommon(
 		effect.setVector3( "marchMax", box.maximumWorld );
 	}
 	effect.setFloat( "stepScale", settings.StepScale );
+	effect.setFloat( "stepRelaxation", settings.Relaxation );
 	effect.setFloat( "proxyThreshold", settings.ProxyThreshold );
+}
+
+/**
+ * Puts the ray marcher's shaders where Babylon finds them, and returns
+ * their name: the plain ones, or - for a formula volume - ones with the
+ * formula's GLSL in (a name of their own per formula).
+ */
+function RegisterShader( context: SdfRenderContext ): string {
+	const formula = context.Volume?.Formula;
+	const name = formula
+		? `${ RaymarchShaderName }F${ formula.Key }`
+		: RaymarchShaderName;
+
+	EffectStore.ShadersStore[`${ name }VertexShader`] = RaymarchVertex;
+	EffectStore.ShadersStore[`${ name }FragmentShader`] = formula
+		? RaymarchFragment.replace( FormulaMarker, formula.Glsl )
+		: RaymarchFragment;
+	return name;
 }
 
 /**
@@ -179,6 +239,7 @@ export function CreateCasterMaterial(
 	proxy: boolean,
 	mode: CasterMode = null,
 ): ShaderMaterial {
+	const shader = RegisterShader( context );
 	const defines = [ "CASTER", ...proxy ? HullDefines : [] ];
 	const store = mode !== null && "Store" in mode;
 	const cached = mode !== null && "Cached" in mode ? mode.Cached : null;
@@ -189,6 +250,9 @@ export function CreateCasterMaterial(
 	if ( context.Volume?.Bricks ) {
 		defines.push( "SDF_BRICKS" );
 	}
+	if ( context.Volume?.Formula ) {
+		defines.push( "SDF_FORMULA" );
+	}
 	if ( cached ) {
 		defines.push( "CASTER_CACHED" );
 	}
@@ -198,7 +262,7 @@ export function CreateCasterMaterial(
 			? "sdfShadowStore"
 			: `${ proxy ? "sdfProxy" : "sdfRaymarch" }Caster`,
 		scene,
-		RaymarchShaderName,
+		shader,
 		{
 			attributes: AttributesOf( proxy ),
 			uniforms: [
@@ -307,10 +371,7 @@ export function CreateRaymarchMaterial(
 	light: LightStart | null = null,
 	cache: ShadowCacheSource | null = null,
 ): ShaderMaterial {
-	EffectStore.ShadersStore[`${ RaymarchShaderName }VertexShader`]
-		= RaymarchVertex;
-	EffectStore.ShadersStore[`${ RaymarchShaderName }FragmentShader`]
-		= RaymarchFragment;
+	const shader = RegisterShader( context );
 
 	// a proxy's few pixels are the dearest: the meshes' spheres don't
 	// darken them (the chunks around keep their own occlusion)
@@ -330,13 +391,29 @@ export function CreateRaymarchMaterial(
 	if ( cone ) {
 		defines.push( "CONE_START" );
 	}
+	if ( stage?.Stage === "checker" && stage.Memory !== false ) {
+		defines.push( "MEMORY_START" );
+	}
+	if ( stage?.Stage === "light" && stage.Corners ) {
+		defines.push( "LIGHT_CORNERS" );
+	}
 	if ( light ) {
 		defines.push( "LIGHT_START" );
+		if ( light.Previous ) {
+			defines.push( "LIGHT_PREVIOUS" );
+		}
 	}
 	// the volume as it is when the material is made (a layer shows its
 	// own before making its materials)
 	if ( context.Volume?.Bricks ) {
 		defines.push( "SDF_BRICKS" );
+	}
+	if ( context.Volume?.Formula ) {
+		defines.push( "SDF_FORMULA" );
+	}
+	// what reads the checkerboard's corners
+	if ( defines.some( ( define ) => CornerReaders.includes( define ) ) ) {
+		defines.push( "CHECKER_CORNERS" );
 	}
 	// a cone pass, the light buffer and the resolve take no shadow map
 	if ( context.Shadows && ( !stage || stage.Stage === "checker" ) ) {
@@ -346,7 +423,7 @@ export function CreateRaymarchMaterial(
 	const material = new SdfShaderMaterial(
 		proxy ? "sdfProxy" : "sdfRaymarch",
 		scene,
-		RaymarchShaderName,
+		shader,
 		{
 			attributes,
 			uniforms: Uniforms,
@@ -364,20 +441,21 @@ export function CreateRaymarchMaterial(
 		},
 		( effect, mesh ) => {
 			const camera = scene.activeCamera;
-			const engine = scene.getEngine();
 			const target = stage?.Stage === "cone" || stage?.Stage === "light"
 				? stage.Target()
 				: null;
 			const checker = stage?.Stage === "checker"
 				|| stage?.Stage === "resolve"
 				? stage.Checker()
-				: null;
+				: stage?.Stage === "light"
+					? stage.Corners?.() ?? null
+					: null;
 			// a cone level's pixels (and the light buffer's) are its target's;
 			// the checkerboard's are the screen's (also while it marches into
 			// its own target)
 			const height = target
 				? target.getSize().height
-				: checker?.Screen.Height ?? engine.getRenderHeight();
+				: checker?.Screen.Height ?? FrameSize( scene ).height;
 
 			BindCommon( effect, mesh, context, settings, proxy );
 			if ( camera ) {
@@ -394,6 +472,7 @@ export function CreateRaymarchMaterial(
 			effect.setArray3( "palette", settings.Palette as number[] );
 			context.BindLights( effect );
 			context.BindShadowMap( effect );
+			// (the light buffer: the corners it is made from)
 			if ( checker ) {
 				scene.getTransformMatrix().invertToRef( inverse );
 				effect.setFloat( "checkerParity", checker.Parity );
@@ -403,24 +482,33 @@ export function CreateRaymarchMaterial(
 					checker.Screen.Height,
 				);
 				effect.setMatrix( "inverseViewProjection", inverse );
-				if ( stage?.Stage === "resolve" ) {
+				effect.setTexture( "checkerPrevious", checker.Previous );
+				effect.setFloat( "checkerFrame", checker.Frame % 8 );
+				effect.setFloat( "checkerHistory", checker.HasHistory ? 1 : 0 );
+				effect.setMatrix(
+					"previousViewProjection",
+					checker.PreviousViewProjection,
+				);
+				effect.setMatrix( "previousInverse", checker.PreviousInverse );
+				effect.setVector3( "previousCamera", checker.PreviousCamera );
+				if ( stage?.Stage === "resolve" || stage?.Stage === "light" ) {
 					effect.setTexture( "checkerCurrent", checker.Current );
-					effect.setTexture( "checkerPrevious", checker.Previous );
-					effect.setFloat(
-						"checkerHistory",
-						checker.HasHistory ? 1 : 0,
-					);
-					effect.setMatrix(
-						"previousViewProjection",
-						checker.PreviousViewProjection,
-					);
-					effect.setMatrix(
-						"previousInverse",
-						checker.PreviousInverse,
-					);
-					effect.setVector3(
-						"previousCamera",
-						checker.PreviousCamera,
+				}
+				if ( stage?.Stage === "light" ) {
+					const size = stage.Target().getSize();
+					const kept = stage.Kept?.();
+
+					if ( kept ) {
+						effect.setTexture( "lightBuffer", kept.Target );
+						effect.setFloat(
+							"lightHistory",
+							kept.HasHistory ? 1 : 0,
+						);
+					}
+					effect.setFloat2(
+						"lightBufferScale",
+						size.width / FMath.Max( 1, checker.Screen.Width ),
+						size.height / FMath.Max( 1, checker.Screen.Height ),
 					);
 				}
 			}
@@ -435,10 +523,7 @@ export function CreateRaymarchMaterial(
 							width: checker.Screen.Width,
 							height: checker.Screen.Height,
 						}
-						: {
-							width: engine.getRenderWidth(),
-							height: engine.getRenderHeight(),
-						};
+						: FrameSize( scene );
 
 				effect.setTexture( "coneStart", start );
 				effect.setFloat2(

@@ -31,6 +31,7 @@ import {
 	SdfQuality,
 	SdfRaymarchLayer,
 	SdfRenderReceiver,
+	type SdfVolumeTexture,
 } from "../Source/Render/Index";
 
 const engines: NullEngine[] = [];
@@ -136,7 +137,7 @@ describe( "SdfRaymarchLayer", () => {
 			Quality: SdfQuality.Plain,
 			StepScale: 0.8,
 		} );
-		const update = vi.spyOn( layer.Volume, "Update" );
+		const update = vi.spyOn( layer.Volume as SdfVolumeTexture, "Update" );
 
 		expect( layer.Texture ).toBe( layer.Volume.Texture );
 		expect( layer.Mesh.scaling.asArray() ).toEqual( [ 4, 4, 4 ] );

@@ -103,7 +103,12 @@ export class SdfDynamicProxies {
 					_context,
 					settings,
 					true,
-					{ Stage: "checker", Checker: () => checker },
+					{
+						Stage: "checker",
+						Checker: () => checker,
+						// never through dynamic edits: a hull is nothing else
+						Memory: false,
+					},
 					start,
 				),
 			);

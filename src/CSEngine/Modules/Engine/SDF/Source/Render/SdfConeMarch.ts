@@ -10,6 +10,7 @@ import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color4 } from "@babylonjs/core/Maths/math.color";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
+import { FrameSize } from "./FrameSize";
 import {
 	type ConeStart,
 	ConeSpread,
@@ -142,11 +143,11 @@ export class SdfConeMarch {
 
 	/** A level's size: a texel a tile of the screen. */
 	private SizeOf( tile: number ): { width: number; height: number; } {
-		const engine = this._scene.getEngine();
+		const frame = FrameSize( this._scene );
 
 		return {
-			width: Math.max( 1, Math.ceil( engine.getRenderWidth() / tile ) ),
-			height: Math.max( 1, Math.ceil( engine.getRenderHeight() / tile ) ),
+			width: Math.max( 1, Math.ceil( frame.width / tile ) ),
+			height: Math.max( 1, Math.ceil( frame.height / tile ) ),
 		};
 	}
 }

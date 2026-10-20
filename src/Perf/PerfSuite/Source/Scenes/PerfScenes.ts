@@ -22,7 +22,7 @@ import {
 } from "@cse/core/Engine/Components/Physics/PhysicsBodies";
 import { DynamicShape, StaticBox } from "@cse/core/Engine/Scenes/SceneHelpers";
 import type { Vec3Tuple } from "@cse/core/Engine/Math/Vec3";
-import { SdfOp, SdfShape } from "@cse/sdf";
+import { InvertedMandelbrot, SdfOp, SdfShape } from "@cse/sdf";
 import { InteropLoad } from "../Scripts/Interop";
 import { SdfDigger } from "../Scripts/SdfDigger";
 import { SdfCannon } from "../Scripts/SdfCannon";
@@ -633,6 +633,37 @@ export const SdfLodScene: SceneManifest = {
 	},
 };
 
+/**
+ * "Inside the Mandelbulb": the inverted Julia bulb as the world's base (no
+ * bounds, nothing baked), a cave about 60 m across with tunnels leading off,
+ * meshed with five levels of detail as the camera circles inside it. The
+ * sun stays out (a closed cave would be all shadow).
+ */
+export const SdfFractalScene: SceneManifest = {
+	...Scene(
+		"sdf-fractal",
+		"SDF fractal cave",
+		"Inside an inverted Mandelbulb, meshed with levels of detail, flown round.",
+		[
+			Ent( "Camera", [
+				Comp( FixedCamera, { LookAt: [ 0, 0, 0 ], FovDegrees: 60 } ),
+				Comp( Flyover, { Radius: 12, Height: 2 } ),
+			], { position: [ 12, 2, 0 ] } ),
+		],
+	),
+	sdf: {
+		Start: [ 12, 2, 0 ],
+		Base: { Analytic: InvertedMandelbrot( 20 ), Spacing: 0.25 },
+		CellSize: 0.25,
+		ChunkCells: 16,
+		Radius: 2,
+		Levels: 5,
+		Shadows: false,
+		VolumeBounds: [ -32, -32, -32, 32, 32, 32 ],
+		VolumeTexels: 64,
+	},
+};
+
 export const PerfScenes = [
 	EmptyScene,
 	EntitiesScene,
@@ -650,4 +681,5 @@ export const PerfScenes = [
 	SdfBreachScene,
 	SdfWormScene,
 	SdfLodScene,
+	SdfFractalScene,
 ];

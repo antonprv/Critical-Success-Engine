@@ -7,5 +7,9 @@ import { defineConfig } from "vite";
 // the SDF world in one scene, ray-marched or as the mesh tier.
 export default defineConfig( {
 	server: { host: "127.0.0.1", port: 5177, strictPort: true },
-	build: { outDir: "../../../../Binaries/Modules/Engine/SDF" },
+	build: {
+		outDir: "../../../../Binaries/Modules/Engine/SDF",
+		// raw.html: Babylon against bare WebGL2 on one shader (Demo/Raw.ts)
+		rollupOptions: { input: { main: "index.html", raw: "raw.html" } },
+	},
 } );

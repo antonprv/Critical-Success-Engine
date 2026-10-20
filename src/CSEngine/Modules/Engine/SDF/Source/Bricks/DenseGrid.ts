@@ -169,6 +169,8 @@ export class DenseSdfGrid {
 				mz + ( z1 + 1 ) * h,
 			), range ) ),
 		);
+
+		program.Detail = h;
 		// EncodeDistance clamps at RANGE_SPACINGS spacings: scale the
 		// spacing so the clamp lands at this grid's range
 		const unit = range / RANGE_SPACINGS;

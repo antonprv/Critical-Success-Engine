@@ -13,10 +13,12 @@ import { DefaultPalette, PaletteFloats } from "./Palette";
 import { SdfCheckerboard } from "./SdfCheckerboard";
 import { SdfConeMarch } from "./SdfConeMarch";
 import { SdfBrickTexture } from "./SdfBrickTexture";
+import { SdfFormulaVolume } from "./SdfFormulaVolume";
 import { SdfLightBuffer } from "./SdfLightBuffer";
 import {
 	CreateCasterMaterial,
 	CreateRaymarchMaterial,
+	type LightStart,
 	type RaymarchSettings,
 } from "./RaymarchMaterial";
 import { SdfRenderContext } from "./SdfRenderContext";
@@ -49,6 +51,12 @@ export interface RaymarchLayerOptions {
 	/** Shrinks steps where distances are bounds, not exact. Default 0.9. */
 	StepScale?: number;
 	/**
+	 * Over-relaxes the steps (Keinert et al.): this many times the distance
+	 * while two steps' spheres overlap, back to the safe step where they
+	 * don't. 1: none. Default 1.6.
+	 */
+	Relaxation?: number;
+	/**
 	 * What the layer shares with the scene's meshes (shadows, dynamic edits,
 	 * occlusion); by default a context of its own, disposed with it.
 	 */
@@ -64,6 +72,12 @@ export interface RaymarchLayerOptions {
 	 * rays a frame. Default on (where the GPU draws into float targets).
 	 */
 	Checkerboard?: boolean;
+	/**
+	 * With the checkerboard: each corner's ray starts where the previous
+	 * frame's corners around it met the surface (plan.md 21.8, memory over
+	 * marching; a tile in eight marches from scratch each frame). Default on.
+	 */
+	Memory?: boolean;
 	/**
 	 * The soft shadows and occlusion marched at this fraction of the
 	 * screen's width and height (plan.md 21.8 item 6, SdfLightBuffer); 0:
@@ -92,8 +106,10 @@ export class SdfRaymarchLayer {
 
 	public readonly Material: ShaderMaterial;
 
-	/** The grid's texture, or the bricks' map and atlases. */
-	public readonly Volume: SdfVolumeTexture | SdfBrickTexture;
+	/** The grid's texture, the bricks' map and atlases, or the formula. */
+	public readonly Volume: SdfVolumeTexture
+		| SdfBrickTexture
+		| SdfFormulaVolume;
 
 	public readonly Context: SdfRenderContext;
 
@@ -108,6 +124,9 @@ export class SdfRaymarchLayer {
 	/** Bumped as the grid is uploaded: the cached shadow is old. */
 	private _uploads = 0;
 
+	/** What the light buffer's kept texels were worked out with. */
+	private readonly _lightKey: number[] = [];
+
 	private readonly _settings: RaymarchSettings;
 
 	private readonly _ownContext: boolean;
@@ -117,18 +136,22 @@ export class SdfRaymarchLayer {
 	private readonly _drawn: Observer<Scene>;
 
 	/**
-	 * @param Grid The world sampled: a dense grid over its box, or bricks
+	 * @param Grid The world sampled: a dense grid over its box, bricks
 	 * (plan.md 5: memory only near the surface; the box drawn is the map's
-	 * window as it is now, built so far as its budget allows each frame).
+	 * window as it is now, built so far as its budget allows each frame),
+	 * or a formula marched on the GPU as it is (a fractal: the box drawn is
+	 * the volume's).
 	 */
 	public constructor(
 		private readonly _scene: Scene,
-		public readonly Grid: DenseSdfGrid | SdfVolume,
+		public readonly Grid: DenseSdfGrid | SdfVolume | SdfFormulaVolume,
 		options: RaymarchLayerOptions = {},
 	) {
 		this.Volume = Grid instanceof DenseSdfGrid
 			? SdfVolumeTexture.FromGrid( _scene, Grid )
-			: new SdfBrickTexture( _scene, Grid );
+			: Grid instanceof SdfFormulaVolume
+				? Grid
+				: new SdfBrickTexture( _scene, Grid );
 
 		const [ sx, sy, sz ] = this.Volume.Size;
 		const [ mx, my, mz ] = this.Volume.Min;
@@ -139,6 +162,7 @@ export class SdfRaymarchLayer {
 			DebugView: SdfDebugView.Lit,
 			Quality: options.Quality ?? SdfQuality.Shadows,
 			StepScale: options.StepScale ?? 0.9,
+			Relaxation: options.Relaxation ?? 1.6,
 			ProxyThreshold: 0,
 			Palette: PaletteFloats( options.Palette ?? DefaultPalette ),
 		};
@@ -156,28 +180,52 @@ export class SdfRaymarchLayer {
 		}
 		const start = this.Cone?.Start ?? null;
 		const resolution = options.LightResolution ?? 0.5;
-
-		// before the corners: they read it
-		if ( resolution > 0 && SdfConeMarch.Supported( _scene ) ) {
-			this.Light = new SdfLightBuffer(
-				_scene,
-				resolution,
-				( buffer ) => CreateRaymarchMaterial(
-					_scene,
-					this.Context,
-					this._settings,
-					false,
-					{ Stage: "light", Target: () => buffer.Target },
-					start,
-				),
-			);
-		}
-
-		const light = this.Light;
-
 		// float targets for the corners, as for the cones
-		if ( ( options.Checkerboard ?? true )
-			&& SdfConeMarch.Supported( _scene ) ) {
+		const checkered = ( options.Checkerboard ?? true )
+			&& SdfConeMarch.Supported( _scene );
+
+		const lit = resolution > 0 && SdfConeMarch.Supported( _scene );
+		// with the checkerboard after the corners, from them (no march): the
+		// corners read the previous frame's; without it before the pixels,
+		// which read it
+		const Light = (
+			corners: boolean,
+		): SdfLightBuffer => new SdfLightBuffer(
+			_scene,
+			resolution,
+			( buffer ) => CreateRaymarchMaterial(
+				_scene,
+				this.Context,
+				this._settings,
+				false,
+				{
+					Stage: "light",
+					Target: () => buffer.Drawn,
+					...corners
+						? { Corners: () => this.Checker, Kept: () => buffer }
+						: {},
+				},
+				corners ? null : start,
+			),
+			corners,
+		);
+
+		if ( lit && !checkered ) {
+			this.Light = Light( false );
+		}
+		if ( checkered ) {
+			// made below, read once the frames draw
+			const made = (): SdfLightBuffer => this.Light!;
+			const later: LightStart | null = lit
+				? {
+					get Target() {
+						return made().Target;
+					},
+					Scale: () => made().Scale(),
+					Previous: true,
+				}
+				: null;
+
 			this.Checker = new SdfCheckerboard(
 				_scene,
 				( checker ) => CreateRaymarchMaterial(
@@ -185,13 +233,21 @@ export class SdfRaymarchLayer {
 					this.Context,
 					this._settings,
 					false,
-					{ Stage: "checker", Checker: () => checker },
+					{
+						Stage: "checker",
+						Checker: () => checker,
+						Memory: options.Memory ?? true,
+					},
 					start,
-					light,
+					later,
 				),
 			);
+			if ( lit ) {
+				this.Light = Light( true );
+			}
 		}
 
+		const light = this.Light;
 		const checker = this.Checker;
 		const shadows = this.Context.Shadows;
 
@@ -238,7 +294,10 @@ export class SdfRaymarchLayer {
 
 	/** The bricks, when the world is sampled into them. */
 	public get Bricks(): SdfVolume | null {
-		return this.Grid instanceof DenseSdfGrid ? null : this.Grid;
+		return this.Grid instanceof DenseSdfGrid
+			|| this.Grid instanceof SdfFormulaVolume
+			? null
+			: this.Grid;
 	}
 
 	/** The volume's 3D texture. */
@@ -271,6 +330,14 @@ export class SdfRaymarchLayer {
 		this._settings.StepScale = scale;
 	}
 
+	public get Relaxation(): number {
+		return this._settings.Relaxation;
+	}
+
+	public set Relaxation( relaxation: number ) {
+		this._settings.Relaxation = relaxation;
+	}
+
 	/**
 	 * Re-samples what the edits changed and uploads the grid if anything
 	 * was (bricks: rebuilds within their budget and sends what changed);
@@ -279,13 +346,21 @@ export class SdfRaymarchLayer {
 	 */
 	public Update(): boolean {
 		this.Cone?.Draw( [ this.Mesh ], this.Mesh.isEnabled() );
-		this.Light?.Draw( [ this.Mesh ], this.Mesh.isEnabled() );
+		// no occlusion, no soft shadow: nothing for the light buffer to keep
+		this.Light?.Draw(
+			[ this.Mesh ],
+			this.Mesh.isEnabled()
+				&& this._settings.Quality >= SdfQuality.Occlusion,
+		);
 		this.Checker?.Next( [ this.Mesh ], this.Mesh.isEnabled() );
 
 		const grid = this.Grid;
 		let uploaded: boolean;
 
-		if ( grid instanceof DenseSdfGrid ) {
+		if ( grid instanceof SdfFormulaVolume ) {
+			// nothing to upload: the GPU evaluates the formula
+			uploaded = false;
+		} else if ( grid instanceof DenseSdfGrid ) {
 			uploaded = grid.Refresh() !== 0;
 			if ( uploaded ) {
 				( this.Volume as SdfVolumeTexture )
@@ -303,6 +378,22 @@ export class SdfRaymarchLayer {
 			this.Context.Dynamic.Version,
 			this._settings.StepScale,
 		] );
+
+		// what the light buffer keeps holds while these stay as they were
+		const sun = this.Context.SunDirection;
+		const key = [
+			sun.x,
+			sun.y,
+			sun.z,
+			this._uploads,
+			this._settings.Quality,
+			this._settings.StepScale,
+		];
+
+		if ( key.some( ( value, i ) => value !== this._lightKey[i] ) ) {
+			this.Light?.Invalidate();
+			this._lightKey.splice( 0, key.length, ...key );
+		}
 		return uploaded;
 	}
 
@@ -324,7 +415,9 @@ export class SdfRaymarchLayer {
 		this.Light?.Dispose();
 		this.ShadowCache?.Dispose();
 		this.Volume.Dispose();
-		this.Grid.Dispose();
+		if ( this.Grid !== this.Volume ) {
+			this.Grid.Dispose();
+		}
 		if ( this._ownContext ) {
 			this.Context.Dispose();
 		}

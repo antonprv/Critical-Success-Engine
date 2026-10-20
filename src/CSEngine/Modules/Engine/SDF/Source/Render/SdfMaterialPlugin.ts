@@ -86,7 +86,9 @@ export class SdfMaterialPlugin extends MaterialPluginBase {
 	}
 
 	public override prepareDefines( defines: MaterialDefines ): void {
-		const volume = this._context.Volume !== null;
+		// a formula's field the meshes' shaders don't read (yet): no volume
+		const volume = this._context.Volume !== null
+			&& !this._context.Volume.Formula;
 		const ao = volume
 			&& ( this.Features & SdfMaterialFeatures.VolumeOcclusion ) !== 0;
 		const occluders = ( this.Features & SdfMaterialFeatures.Occluders )

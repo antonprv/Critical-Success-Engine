@@ -32,7 +32,11 @@ import {
  *   CONE_START starts the rays where the level before it left off;
  * - CHECKER_PASS: this frame's half of the pixel grid's corners, a texel
  *   each (SdfCheckerboard, plan.md 21.7); CHECKER_RESOLVE: the pixels on
- *   screen from them and the previous frame's other half.
+ *   screen from them and the previous frame's other half;
+ *   MEMORY_START starts the corners' rays near where the previous
+ *   frame's corners met the surface; LIGHT_CORNERS makes the light buffer
+ *   from this frame's corners (no march), LIGHT_PREVIOUS has the corners
+ *   read the previous frame's.
  * SHADOWMAP adds the sun's shadow map (the meshes' shadows), OCCLUDERS the
  * spheres that stand for meshes in the occlusion.
  *
@@ -157,11 +161,16 @@ uniform vec3 marchMax;
 // how far a pixel spans per unit of distance (tan(fov / 2) * 2 / height)
 uniform float pixelAngle;
 uniform float stepScale;
+// over-relaxation of the march's steps (1: none)
+uniform float stepRelaxation;
 uniform vec3 sunDirection;
 uniform vec3 sunColor;
 uniform vec3 skyDirection;
 uniform vec3 skyColor;
 uniform vec3 groundColor;
+// point lights: position and range, colour (SdfRenderContext.PointLights)
+uniform vec4 sdfPointLights[8];
+uniform float sdfPointCount;
 uniform vec3 palette[8];
 // 0 lit, 1 normals, 2 step count, 3 distance bands
 uniform float debugMode;
@@ -181,7 +190,7 @@ uniform vec4 proxySphere;
 #define PROXY_SPHERE proxySphere
 #define PROXY_MASK sdfDynamicMask
 #endif
-#if defined( CHECKER_PASS ) || defined( CHECKER_RESOLVE )
+#ifdef CHECKER_CORNERS
 // which half of the pixel grid's corners this frame marched (the corners
 // whose x + y + parity is even); the screen in pixels; the camera's inverse
 // view-projection (a corner's ray)
@@ -189,11 +198,15 @@ uniform float checkerParity;
 uniform vec2 screenSize;
 uniform mat4 inverseViewProjection;
 #endif
-#ifdef CHECKER_RESOLVE
+#ifdef CHECKER_CORNERS
 // this frame's corners and the previous frame's (the colour, and how far
 // along the corner's ray; 0: nothing there), whether there is a previous
-// frame, and its camera
+// frame, and its camera; the frames counted (a corner's turn to march
+// from scratch)
+#if defined( CHECKER_RESOLVE ) || defined( LIGHT_CORNERS )
 uniform sampler2D checkerCurrent;
+#endif
+uniform float checkerFrame;
 uniform sampler2D checkerPrevious;
 uniform float checkerHistory;
 uniform mat4 previousViewProjection;
@@ -207,11 +220,16 @@ uniform sampler2D coneStart;
 uniform vec2 coneStartScale;
 uniform float coneStartTan;
 #endif
-#ifdef LIGHT_START
+#if defined( LIGHT_START ) || defined( LIGHT_CORNERS )
 // the soft shadows and occlusion at a lower resolution (shadow, occlusion,
 // how far along the texel's ray; 0: nothing there), its texels per pixel
+// (the light buffer's own pass: the previous frame's, and whether it holds
+// what may be kept)
 uniform sampler2D lightBuffer;
 uniform vec2 lightBufferScale;
+#endif
+#ifdef LIGHT_CORNERS
+uniform float lightHistory;
 #endif
 #ifdef CONE_PASS
 // a cone's radius per unit of distance, in texels (RaymarchMaterial)
@@ -253,6 +271,9 @@ vec3 PaletteOf( vec4 material ) {
 vec3 VolumeColor( vec3 p ) {
 #ifdef PROXY
 	// a hull's pixels are the dearest: the nearest texel's colour
+	return PaletteOf( cseSdfVolumeMaterial( p ) );
+#elif defined( SDF_FORMULA )
+	// the orbit trap's fade at p
 	return PaletteOf( cseSdfVolumeMaterial( p ) );
 #else
 #ifdef SDF_BRICKS
@@ -376,7 +397,7 @@ float Shadow( vec3 p, vec3 l, float start, float far ) {
 	return light * light * ( 3.0 - 2.0 * light );
 }
 
-#ifdef LIGHT_START
+#if defined( LIGHT_START ) || defined( LIGHT_CORNERS )
 // the shadow and occlusion at a point of the screen (pixels) t along its
 // ray, from the buffer's four nearest texels that saw the same surface (as
 // far along their rays), weighed by nearness; false where none did
@@ -386,6 +407,9 @@ bool LightFrom( vec2 pixel, float t, float tolerance, out vec2 light ) {
 	vec2 f = at - base;
 	ivec2 last = textureSize( lightBuffer, 0 ) - 1;
 	vec3 sum = vec3( 0.0 );
+	// none as deep: the one nearest in depth (an edge, softened a little)
+	vec2 nearest = vec2( 1.0 );
+	float gap = 1e30;
 
 	for ( int j = 0; j < 2; j++ ) {
 		for ( int i = 0; i < 2; i++ ) {
@@ -400,17 +424,60 @@ bool LightFrom( vec2 pixel, float t, float tolerance, out vec2 light ) {
 			if ( s.z > 0.0 && abs( s.z - t ) < tolerance ) {
 				sum += vec3( s.xy, 1.0 ) * max( w, 1e-3 );
 			}
+			if ( s.z > 0.0 && abs( s.z - t ) < gap ) {
+				gap = abs( s.z - t );
+				nearest = s.xy;
+			}
 		}
 	}
-	if ( sum.z <= 0.0 ) {
-		return false;
+	light = sum.z > 0.0 ? sum.xy / sum.z : nearest;
+	return sum.z > 0.0 || gap < 1e30;
+}
+
+#ifdef LIGHT_CORNERS
+// as LightFrom, only where the buffer saw the same surface: what the
+// previous frame's buffer found at this point
+bool LightKept( vec2 pixel, float t, float tolerance, out vec2 light ) {
+	vec2 at = floor( pixel * lightBufferScale - 0.5 );
+	ivec2 last = textureSize( lightBuffer, 0 ) - 1;
+	vec3 sum = vec3( 0.0 );
+
+	for ( int k = 0; k < 4; k++ ) {
+		vec4 s = texelFetch(
+			lightBuffer,
+			clamp( ivec2( at ) + ivec2( k & 1, k >> 1 ), ivec2( 0 ), last ),
+			0
+		);
+
+		if ( s.z > 0.0 && abs( s.z - t ) < tolerance ) {
+			sum += vec3( s.xy, 1.0 );
+		}
 	}
-	light = sum.xy / sum.z;
-	return true;
+	light = sum.xy / max( sum.z, 1.0 );
+	return sum.z > 0.0;
 }
 #endif
+#endif
 
-#ifdef CHECKER_RESOLVE
+// where on screen this ray is (pixels): this pixel, or the checkerboard's
+// corner - a texel's row is a row of corners, every other one of it.
+// Worked out again wherever it is needed, not kept through the march: a
+// value alive across the loop takes registers from every lane (on Intel
+// two more were enough to halve the shader's SIMD width)
+vec2 ScreenPixel() {
+#ifdef CHECKER_PASS
+	vec2 texel = floor( gl_FragCoord.xy );
+
+	return vec2(
+		texel.x * 2.0 + mod( texel.y + checkerParity, 2.0 ),
+		texel.y
+	);
+#else
+	return gl_FragCoord.xy;
+#endif
+}
+
+#ifdef CHECKER_CORNERS
 // a corner of the pixel grid as the half of parity marched it (texel x:
 // the corners of a row whose x + y + parity is even, every other one)
 vec4 CheckerCorner( sampler2D corners, vec2 corner, float parity ) {
@@ -456,20 +523,10 @@ void main( void ) {
 	vec3 rd = normalize( vWorld - cameraPosition );
 	float spread = pixelAngle;
 #endif
-	// where on screen this ray is (pixels): this pixel, or the checkerboard's
-	// corner - a texel's row is a row of corners, every other one of it
-	vec2 screenPixel = gl_FragCoord.xy;
 #ifdef CHECKER_PASS
 	{
-		vec2 texel = floor( gl_FragCoord.xy );
-
-		screenPixel = vec2(
-			texel.x * 2.0 + mod( texel.y + checkerParity, 2.0 ),
-			texel.y
-		);
-
 		vec4 far = inverseViewProjection
-			* vec4( screenPixel / screenSize * 2.0 - 1.0, 1.0, 1.0 );
+			* vec4( ScreenPixel() / screenSize * 2.0 - 1.0, 1.0, 1.0 );
 
 		rd = normalize( far.xyz / far.w - ro );
 	}
@@ -537,6 +594,31 @@ void main( void ) {
 		return;
 	}
 #endif
+#ifdef LIGHT_CORNERS
+	// the light buffer from this frame's corners, marched before it: the
+	// surface where one of the two around this texel's middle met it
+	float t = 0.0;
+	int steps = 0;
+	float last = 0.0;
+
+	{
+		vec2 base = floor( gl_FragCoord.xy / lightBufferScale );
+		float odd = mod( base.x + base.y + checkerParity, 2.0 );
+		vec2 c0 = base + vec2( odd, 0.0 );
+		vec2 c1 = base + vec2( 1.0 - odd, 1.0 );
+		float w0 = CheckerCorner( checkerCurrent, c0, checkerParity ).w;
+		float w1 = CheckerCorner( checkerCurrent, c1, checkerParity ).w;
+		vec2 corner = w0 > 0.0 ? c0 : c1;
+		vec4 far = inverseViewProjection
+			* vec4( corner / screenSize * 2.0 - 1.0, 1.0, 1.0 );
+
+		t = w0 > 0.0 ? w0 : w1;
+		if ( t <= 0.0 ) {
+			discard;
+		}
+		rd = normalize( far.xyz / far.w - ro );
+	}
+#else
 #ifdef CONE_PASS
 	// the cone meets the box where its axis meets one wider by the cone
 	// (its radius at the box's far corner)
@@ -607,7 +689,7 @@ void main( void ) {
 	{
 		float start = texelFetch(
 			coneStart,
-			ivec2( screenPixel * coneStartScale ),
+			ivec2( ScreenPixel() * coneStartScale ),
 			0
 		).r;
 
@@ -639,6 +721,65 @@ void main( void ) {
 #else
 	cseEdits = baseEdits;
 #endif
+#ifdef MEMORY_START
+	// a start from memory (plan.md 21.8): the surface hardly moves between
+	// frames - this ray starts a little before the nearest of the points
+	// the previous frame's corners around it met, or went to meeting
+	// nothing (none of them meeting anything before the end: nothing
+	// here either). Not where it knows nothing (off its screen, a corner
+	// it never marched), nor through a
+	// dynamic edit, nor - checked - inside a solid; and every eighth frame
+	// a corner marches from scratch, so what a start skipped wrongly (a
+	// surface come into view in front) lasts no longer - by tiles of 16
+	// pixels: a lane marching from scratch holds up all of its group
+	if ( checkerHistory > 0.5 && cseEdits == 0
+		&& mod(
+			dot( floor( ScreenPixel() / 16.0 ), vec2( 3.0, 5.0 ) )
+				+ checkerFrame,
+			8.0
+		) >= 1.0 ) {
+		vec4 then = previousViewProjection * vec4( ro + rd * t, 1.0 );
+		vec2 q = floor( ( then.xy / then.w * 0.5 + 0.5 ) * screenSize );
+		float parity = 1.0 - checkerParity;
+		float least = then.w > 0.0 ? 1e30 : 0.0;
+
+		for ( int k = 0; k < 9; k++ ) {
+			vec2 corner = q + vec2( float( k % 3 - 1 ), float( k / 3 - 1 ) );
+
+			if ( mod( corner.x + corner.y + parity, 2.0 ) > 0.5 ) {
+				continue;
+			}
+
+			// how far it met the surface, or (negative) went meeting nothing
+			float w = CheckerCorner( checkerPrevious, corner, parity ).w;
+
+			least = w != 0.0 ? min( least, distance( CornerPoint(
+				corner,
+				abs( w ),
+				previousCamera,
+				previousInverse
+			), ro ) ) : 0.0;
+		}
+		if ( any( lessThan( q, vec2( 1.0 ) ) )
+			|| any( greaterThan( q, screenSize - 2.0 ) ) ) {
+			least = 0.0;
+		}
+		least *= 0.97;
+		// the corners around went past the end meeting nothing
+		if ( least > far ) {
+			gl_FragColor = vec4( 0.0, 0.0, 0.0, -least );
+			gl_FragDepth = 1.0 - 1e-6;
+			return;
+		}
+#ifdef SDF_FORMULA
+		cseSdfDetail = max( least * spread, near );
+#endif
+		if ( least > t && least < far
+			&& Distance( ro + rd * least ) > 0.0 ) {
+			t = least;
+		}
+	}
+#endif
 #ifdef CONE_PASS
 	// one cone around the texel's rays, r(t) = t * tan: on while the empty
 	// sphere around its axis holds the cone ahead (a step of (d - r) /
@@ -650,6 +791,10 @@ void main( void ) {
 		bool touched = false;
 
 		for ( int i = 0; i < CONE_STEPS; i++ ) {
+#ifdef SDF_FORMULA
+			// nothing finer than the cone is wide here
+			cseSdfDetail = t * spread;
+#endif
 			float free = Distance( ro + rd * t ) * stepScale - t * spread;
 
 			if ( free < near ) {
@@ -670,30 +815,89 @@ void main( void ) {
 	}
 #endif
 
+	// over-relaxed (Keinert et al., "Enhanced Sphere Tracing"): steps
+	// longer than the distance while the spheres of two steps still
+	// overlap; where they don't - or a step went into a solid - back to
+	// the last safe step, and on without (fewer steps where rays graze
+	// a surface or pass it by)
+	float omega = stepRelaxation;
+	float previous = 0.0;
+	float stride = 0.0;
+
 	for ( int i = 0; i < MAX_STEPS; i++ ) {
 		if ( i >= maxSteps ) {
 			break;
 		}
 
+		float fine = max( abs( t ) * spread, near );
+#ifdef SDF_FORMULA
+		// nothing finer than the pixel is wide here (a caster: the map's
+		// texels are wider still)
+		cseSdfDetail = max( abs( t ) * spread, near );
+#endif
 		float d = Distance( ro + rd * t );
+		float r = abs( d ) * stepScale;
 
+		if ( omega > 1.0 && ( d < 0.0 || r + previous < stride ) ) {
+			t += previous - stride;
+			stride = previous;
+			omega = 1.0;
+			continue;
+		}
 		steps = i;
 		last = d;
-		if ( d < max( abs( t ) * spread, near ) ) {
+		if ( d < fine ) {
 			hit = true;
 			break;
 		}
-		t += max( d * stepScale, h * 0.1 );
+		stride = max( r * omega, h * 0.1 );
+		previous = r;
+		t += stride;
 		if ( t > far ) {
 			break;
 		}
 	}
 	if ( !hit ) {
+#if defined( CHECKER_PASS ) && !defined( PROXY )
+		// nothing met as far as it got: drawn as nothing, remembered (the
+		// next frame's corners start from there)
+		gl_FragColor = vec4( 0.0, 0.0, 0.0, -t );
+		gl_FragDepth = 1.0 - 1e-6;
+		return;
+#else
 		discard;
+#endif
 	}
 
+#endif
 	vec3 p = ro + rd * t;
 
+#if defined( LIGHT_PASS ) && defined( LIGHT_CORNERS )
+	// the sun and the world stay as they were: most texels keep what the
+	// previous frame's buffer found at the same point, a quarter of the
+	// tiles (16 texels: a group of lanes together) work it out anew each
+	// frame - and wherever it saw something else
+	if ( lightHistory > 0.5 && sdfDynamicCount < 0.5
+		&& mod( dot( floor( gl_FragCoord.xy / 16.0 ), vec2( 1.0, 2.0 ) )
+			+ checkerFrame, 4.0 ) >= 1.0 ) {
+		vec4 then = previousViewProjection * vec4( p, 1.0 );
+		vec2 kept;
+
+		if ( then.w > 0.0 && LightKept(
+			( then.xy / then.w * 0.5 + 0.5 ) * screenSize,
+			distance( p, previousCamera ),
+			t * pixelAngle * 4.0 + h,
+			kept
+		) ) {
+			gl_FragColor = vec4( kept, t, 1.0 );
+			return;
+		}
+	}
+#endif
+#ifdef SDF_FORMULA
+	// the normal, the colour and the light see the surface as the pixel
+	cseSdfDetail = max( abs( t ) * spread, h * 0.5 );
+#endif
 	// around the hit (normals, materials, occlusion): the edits near it
 #ifndef DYNAMIC_MASK
 	cseEdits = baseEdits & cseSdfPointEdits( p, h * 12.0 );
@@ -763,12 +967,6 @@ void main( void ) {
 	} else if ( debugMode > 0.5 ) {
 		color = n * 0.5 + 0.5;
 	} else {
-		// the volume's colours, then the dynamic edits' where they show
-		vec3 q = p - n * h * 0.5;
-		vec3 albedo = VolumeColor( q );
-		float layer = -1.0;
-
-		cseSdfDynamic( q, cseSdfVolume( q ), layer, albedo );
 		vec3 l = -normalize( sunDirection );
 		float lit = max( dot( n, l ), 0.0 );
 		// the soft shadow and the occlusion: from the light buffer where it
@@ -777,23 +975,62 @@ void main( void ) {
 		bool known = false;
 
 #ifdef LIGHT_START
-		known = LightFrom(
-			screenPixel,
+		// (plain lighting: the buffer isn't drawn) - with the buffer, no
+		// marching here at all: inlined, the occlusion's and the shadow's
+		// loops alone took this shader's width down by half (registers)
+#ifdef LIGHT_PREVIOUS
+		// the buffer is the previous frame's (made from its corners): where
+		// this point was on its screen, as far from its camera
+		{
+			vec4 then = previousViewProjection * vec4( p, 1.0 );
+
+			known = quality > 0.5 && then.w > 0.0 && LightFrom(
+				( then.xy / then.w * 0.5 + 0.5 ) * screenSize,
+				distance( p, previousCamera ),
+				t * pixelAngle * 4.0 + h,
+				marched
+			);
+		}
+#else
+		known = quality > 0.5 && LightFrom(
+			ScreenPixel(),
 			t,
 			t * pixelAngle * 4.0 + h,
 			marched
 		);
 #endif
+#else
 		if ( !known ) {
 			marched.y = quality > 0.5 ? Occlusion( p, n, h * 2.0 ) : 1.0;
 			if ( quality > 1.5 && lit > 0.0 ) {
 				marched.x = Shadow( p + n * h, l, h, length( sdfBoundsSize ) );
 			}
 		}
+#endif
 
 		float ao = marched.y;
 
 		lit *= marched.x;
+
+		// the volume's colours, then the dynamic edits' where they show -
+		// after the loops above: kept through them, the colour would take
+		// registers from every lane (enough to halve the shader's width)
+		vec3 q = p - n * h * 0.5;
+		float layer = -1.0;
+#ifdef SDF_FORMULA
+		// one evaluation: the distance, and the orbit trap's fade with it
+		float under = cseSdfVolume( q );
+		vec3 albedo = PaletteOf(
+			vec4( sdfFormulaFrame[2].zw, cseFormulaMix, 0.0 )
+		);
+#else
+		vec3 albedo = VolumeColor( q );
+		float under = cseSdfVolume( q );
+#endif
+
+		if ( sdfDynamicCount > 0.5 ) {
+			cseSdfDynamic( q, under, layer, albedo );
+		}
 #ifdef OCCLUDERS
 		ao *= cseSdfOccluders( p, n );
 #endif
@@ -805,11 +1042,28 @@ void main( void ) {
 		vec3 sky = mix( groundColor, skyColor,
 			dot( n, skyDirection ) * 0.5 + 0.5 );
 
+		// the point lights, as Babylon's standard materials light the
+		// meshes: Lambert, fading to nothing at the range (no shadows)
+		vec3 points = vec3( 0.0 );
+
+		for ( int k = 0; k < 4; k++ ) {
+			if ( float( k ) >= sdfPointCount ) {
+				break;
+			}
+
+			vec4 place = sdfPointLights[k * 2];
+			vec3 towards = place.xyz - p;
+			float far = length( towards );
+			float fade = max( 0.0, 1.0 - far / place.w );
+
+			points += sdfPointLights[k * 2 + 1].rgb
+				* max( dot( n, towards / max( far, 1e-6 ) ), 0.0 ) * fade;
+		}
 #ifdef PROXY
 		// as the chunks: their occlusion darkens the vertex color
-		color = albedo * ao * ( sky + sunColor * lit );
+		color = albedo * ao * ( sky + sunColor * lit ) + albedo * points;
 #else
-		color = albedo * ( sky * ao + sunColor * lit );
+		color = albedo * ( sky * ao + sunColor * lit + points );
 #endif
 	}
 #ifdef CHECKER_PASS

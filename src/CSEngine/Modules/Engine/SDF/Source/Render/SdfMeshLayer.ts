@@ -133,6 +133,7 @@ export class SdfMeshLayer {
 					DebugView: 0,
 					Quality: 1,
 					StepScale: 0.9,
+					Relaxation: 1,
 					ProxyThreshold: this._context.CarveThreshold,
 					Palette: PaletteFloats( this._palette ),
 				},

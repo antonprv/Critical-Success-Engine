@@ -10,9 +10,12 @@ import { FMath } from "@cse/fastmath";
 export interface SdfBaseLayer {
 	/**
 	 * Signed distance (or a bound of it: never larger than the true one by
-	 * more than 1 / Lipschitz) at a world point.
+	 * more than 1 / Lipschitz) at a world point. `detail`: the smallest
+	 * feature the caller can hold (world units; its sample spacing), 0 for
+	 * all - a base with detail at every scale (a fractal) leaves out what is
+	 * finer, instead of aliasing it into noise.
 	 */
-	Distance( x: number, y: number, z: number ): number;
+	Distance( x: number, y: number, z: number, detail?: number ): number;
 
 	/** Material of the ground (at the point of the last Distance). */
 	readonly MaterialId: number;

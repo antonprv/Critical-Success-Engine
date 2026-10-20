@@ -2,6 +2,8 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import type { SdfEditInit } from "../Edits/SdfEdit";
+import type { SdfBaseDescriptor } from "../Field/BaseDescriptor";
+import type { StandingOptions, StandingPlace } from "../Field/Standing";
 import type { SdfHit } from "../Field/SdfField";
 import type { SdfChunk } from "../Mesh/MeshChunks";
 import type { SdfVolumeData } from "../Render/SdfVolumeTexture";
@@ -28,10 +30,21 @@ export interface SdfBakeSource {
 /** What a scene says about its SDF world. */
 export interface SdfSceneDescriptor {
 	/**
-	 * The editor's build (an SdfBakedLayer saved file, by URL) or edits to
-	 * bake as the scene loads.
+	 * The editor's build (an SdfBakedLayer saved file, by URL), edits to
+	 * bake as the scene loads, or an analytic base without bounds (a
+	 * fractal): old edits fold into a sparse layer over it, cells of
+	 * `Spacing` (default 0.1).
 	 */
-	Base: { Url: string; } | { Bake: SdfBakeSource; };
+	Base:
+		| { Url: string; }
+		| { Bake: SdfBakeSource; }
+		| { Analytic: SdfBaseDescriptor; Spacing?: number; };
+	/**
+	 * The box the renderer's volume covers with an analytic base (it has
+	 * no box of its own): min x, y, z, max x, y, z. Default 64 m around
+	 * Start.
+	 */
+	VolumeBounds?: [ number, number, number, number, number, number ];
 	/** Edits the game keeps before the oldest fold in. Default 32. */
 	MaxEdits?: number;
 	/**
@@ -45,6 +58,12 @@ export interface SdfSceneDescriptor {
 	 * so nothing falls through ground that isn't in the physics yet.
 	 */
 	Start?: [ number, number, number ];
+	/**
+	 * Start on the surface (a fractal: nobody knows where its floor is): a
+	 * place to stand near Start is found as the scene loads, meshed first,
+	 * and told to the game (SdfClient.Start).
+	 */
+	StartOnSurface?: StandingOptions | true;
 	/** Mesh tier: cell size (default 0.25), cells per chunk (16), radius. */
 	CellSize?: number;
 	ChunkCells?: number;
@@ -90,14 +109,23 @@ export type SdfQuery =
 		Dir: [ number, number, number ];
 		TMax: number;
 	}
-	| { Kind: "distance"; Point: [ number, number, number ]; };
+	| { Kind: "distance"; Point: [ number, number, number ]; }
+	| {
+		Kind: "standing";
+		Near: [ number, number, number ];
+		Options: StandingOptions;
+	};
 
 export interface SdfDistanceResult {
 	Distance: number;
 	MaterialId: number;
 }
 
-export type SdfQueryResult = SdfHit | SdfDistanceResult | null;
+export type SdfQueryResult =
+	| SdfHit
+	| SdfDistanceResult
+	| StandingPlace
+	| null;
 
 /** GameLogic -> SDF worker. */
 export type ToSdfWorker =
@@ -118,7 +146,13 @@ export type ToSdfWorker =
 
 /** SDF worker -> GameLogic. */
 export type FromSdfWorker =
-	| { Type: "loaded"; Epoch: number; Error: string | null; }
+	| {
+		Type: "loaded";
+		Epoch: number;
+		Error: string | null;
+		/** Where the scene starts after all (StartOnSurface's find). */
+		Start?: [ number, number, number ] | null;
+	}
 	/** The first time every chunk around the focus has been meshed. */
 	| { Type: "meshed"; Epoch: number; }
 	| { Type: "result"; Id: number; Result: SdfQueryResult; };

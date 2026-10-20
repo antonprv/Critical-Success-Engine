@@ -29,6 +29,7 @@ export const Scenarios = [
 	{ Id: "sdf-breach", Project: PerfSuite, Scene: "sdf-breach", Description: "PerfSuite: carving SDF shots at one spot of an SDF wall: craters deepening until the shots drill through and fly on through the hole." },
 	{ Id: "sdf-worm", Project: PerfSuite, Scene: "sdf-worm", Description: "PerfSuite: a worm of the SDF world growing over the floor (a curve of round cones, a real edit every 0.4 m), 60 balls rolling off it." },
 	{ Id: "sdf-lod", Project: PerfSuite, Scene: "sdf-lod", Description: "PerfSuite: a 256 m SDF land meshed with five levels of detail (cells 0.25 m near, 4 m far), the camera flying round it: chunks split and merge all the time." },
+	{ Id: "sdf-fractal", Project: PerfSuite, Scene: "sdf-fractal", Description: "PerfSuite: inside an inverted Mandelbulb (no bounds, nothing baked): the fractal meshed in the pool with five levels of detail as the camera circles the cave." },
 	{ Id: "sdf-digging", Project: PerfSuite, Scene: "sdf-digging", Description: "PerfSuite: ten pits dug a second into the SDF world under 200 balls: remeshing in the pool, the renderer's volume sampled again, chunks swapped in the physics." },
 	{ Id: "ui-heavy", Project: PerfSuite, Scene: "ui-heavy", Description: "PerfSuite: a UI document of 120 labels, all changed every frame from the game thread." },
 	{ Id: "bouncing-ball", Project: null, Scene: "bouncing-ball", Description: "Blank template: a ball, the ground, a C# component (Games Sample)." },

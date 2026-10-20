@@ -47,6 +47,10 @@ import {
 	BRICK_VOLUME,
 	BuildBrick,
 	CreateAabb,
+	CreateBaseLayer,
+	FormulaBase,
+	InvertedMandelbrotFormula,
+	InvertedMandelbulb,
 	DenseSdfGrid,
 	EditList,
 	ExtractChunk,
@@ -241,6 +245,51 @@ describe( "mesh tier, a dug world", () => {
 				return ( x, y, z ) => part.Distance( x, y, z );
 			},
 		} );
+	} );
+} );
+
+describe( "mesh tier, inside the Mandelbulb", () => {
+	const field = new SdfField(
+		new EditList(),
+		CreateBaseLayer( InvertedMandelbulb( 20 ) ),
+	);
+	const program = field.Compile();
+
+	// a chunk of the cave's wall, as the finest level meshes it
+	program.Detail = 0.25;
+	bench( "one chunk, 16^3 cells of 0.25 m, no AO", () => {
+		ExtractChunk( ( x, y, z ) => program.Distance( x, y, z ), {
+			Origin: [ 27, -2, -2 ],
+			CellSize: 0.25,
+			Cells: 16,
+			Ao: false,
+		} );
+	} );
+
+	const formula = new SdfField(
+		new EditList(),
+		new FormulaBase( InvertedMandelbrotFormula( 20 ) ),
+	).Compile();
+
+	formula.Detail = 0.25;
+	bench( "the same from its formula (compiled JavaScript)", () => {
+		ExtractChunk( ( x, y, z ) => formula.Distance( x, y, z ), {
+			Origin: [ 27, -2, -2 ],
+			CellSize: 0.25,
+			Cells: 16,
+			Ao: false,
+		} );
+	} );
+
+	bench( "the same, all the detail (no cut by cell)", () => {
+		program.Detail = 0;
+		ExtractChunk( ( x, y, z ) => program.Distance( x, y, z ), {
+			Origin: [ 27, -2, -2 ],
+			CellSize: 0.25,
+			Cells: 16,
+			Ao: false,
+		} );
+		program.Detail = 0.25;
 	} );
 } );
 

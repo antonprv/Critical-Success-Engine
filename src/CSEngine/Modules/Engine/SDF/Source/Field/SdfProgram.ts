@@ -62,6 +62,12 @@ export class SdfProgram {
 
 	private readonly _state = new FieldState();
 
+	/**
+	 * The smallest feature the caller samples (world units, 0: all): passed
+	 * to the base (SdfBaseLayer.Distance).
+	 */
+	public Detail = 0;
+
 	public constructor(
 		edits: readonly SdfEdit[],
 		private readonly _base: SdfBaseLayer | null,
@@ -135,7 +141,7 @@ export class SdfProgram {
 		state.Reset();
 		if ( this._base !== null ) {
 			const base = this._base;
-			const d = base.Distance( x, y, z );
+			const d = base.Distance( x, y, z, this.Detail );
 
 			state.SetBase(
 				d,

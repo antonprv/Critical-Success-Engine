@@ -7,6 +7,7 @@ import {
 	EditList,
 	SdfBakedLayer,
 	SdfClient,
+	SdfSparseLayer,
 	SdfDynamicFlags,
 	SdfEditFlags,
 	SdfField,
@@ -20,8 +21,10 @@ import {
 	type SdfSceneDescriptor,
 	type SdfToPhysics,
 	type SdfToRender,
+
 	type ToSdfWorker,
 } from "../Source/Index";
+import type { SdfVolumeData } from "../Source/Render/SdfVolumeTexture";
 import { FakeWorker } from "./FakeWorker";
 
 const Bake: SdfBakeSource = {
@@ -395,6 +398,96 @@ describe( "SdfWorkerHost", () => {
 			[ { Type: "begin", Epoch: 1, Settings: { Shadows: false } } ],
 		);
 	} );
+
+	it(
+		"loads an analytic base without bounds, its volume where asked",
+		async () => {
+			const wired = Wire();
+			const analytic: SdfSceneDescriptor = {
+				...Scene,
+				Base: { Analytic: { Kind: "Ground", Height: 0 } },
+				Start: [ 40, 0, 0 ],
+			};
+
+			wired.client.Load( analytic );
+			await Settle();
+			expect( wired.host.World!.Base ).toBeInstanceOf( SdfSparseLayer );
+			expect( ( wired.host.World!.Base as SdfSparseLayer ).Spacing )
+				.toBe( 0.1 );
+
+			// the volume: 64 m round the start
+			const Volume = (): SdfVolumeData => {
+				const volumes = wired.render.filter(
+					( m ) => m.Type === "volume",
+				);
+
+				return ( volumes[volumes.length - 1] as Extract<
+					SdfToRender,
+					{ Type: "volume"; }
+				> ).Volume;
+			};
+
+			expect( Volume().Min ).toEqual( [ 8, -32, -32 ] );
+
+			// asked for a box and a spacing: those
+			wired.client.Load( {
+				...analytic,
+				Base: { Analytic: { Kind: "Ground" }, Spacing: 0.2 },
+				VolumeBounds: [ -2, -2, -2, 2, 2, 2 ],
+			} );
+			await Settle();
+			expect( ( wired.host.World!.Base as SdfSparseLayer ).Spacing )
+				.toBe( 0.2 );
+			expect( Volume().Min ).toEqual( [ -2, -2, -2 ] );
+
+			// no start: round the origin
+			const origin: SdfSceneDescriptor = { ...analytic };
+
+			delete origin.Start;
+			wired.client.Load( origin );
+			await Settle();
+			expect( Volume().Min ).toEqual( [ -32, -32, -32 ] );
+		},
+	);
+
+	it(
+		"starts on the surface when asked, and finds places to stand",
+		async () => {
+			const wired = Wire();
+
+			// the scene's ground at 0: from a meter up, the floor under it
+			wired.client.Load(
+				{ ...Scene, Start: [ 2.5, 1, -2.5 ], StartOnSurface: true },
+			);
+			await Settle();
+			expect( wired.client.Loaded ).toBe( true );
+			expect( wired.client.Start![1] ).toBeCloseTo( 0, 2 );
+
+			const place = await wired.client.FindStandingPlace(
+				[ -2.5, 1.5, 2.5 ],
+				{ Radius: 1 },
+			);
+
+			expect( place!.Position[1] ).toBeCloseTo( 0, 2 );
+			expect( place!.Normal[1] ).toBeGreaterThan( 0.99 );
+
+			// options given; none found: no start of its own
+			wired.client.Load( {
+				...Scene,
+				Start: [ 0, 1, 0 ],
+				StartOnSurface: { Radius: 0.5, Height: 50 },
+			} );
+			await Settle();
+			expect( wired.client.Start ).toBeNull();
+			wired.client.Load( Scene );
+			await Settle();
+			expect( wired.client.Start ).toBeNull();
+			// no start given: from the origin
+			wired.client.Load( { ...Scene, StartOnSurface: true } );
+			await Settle();
+			expect( wired.client.Start![1] ).toBeCloseTo( 0, 2 );
+		},
+	);
 
 	it( "starts meshing at the scene's start point", async () => {
 		const wired = Wire();
@@ -898,7 +991,8 @@ describe( "SdfWorkerHost", () => {
 			release!();
 			await Settle();
 			// the second scene's world (ground), not the first one's late file
-			expect( slow.host.World!.Base.Size ).toEqual( [ 10, 8, 10 ] );
+			expect( ( slow.host.World!.Base as SdfBakedLayer ).Size )
+				.toEqual( [ 10, 8, 10 ] );
 			expect( slow.client.Epoch ).toBe( 2 );
 		},
 	);
