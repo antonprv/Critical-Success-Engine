@@ -5,6 +5,7 @@ import type { IpcMain } from "electron";
 import type { ProjectTheme } from "../../../../Core/Source/Engine/Projects/ProjectDescriptor.ts";
 import type { DesignerService, DocumentToSave } from "./DesignerService";
 import type { ProjectsService } from "./ProjectsService";
+import type { SolutionService } from "./SolutionService";
 import type { BuildConfiguration, BuildPlatform, ProjectRunner, RunMode } from "./ProjectRunner";
 
 /** A call's answer over IPC: the value, or the error's message (so the page reads the message, not Electron's wrapping). */
@@ -75,4 +76,46 @@ export function RegisterProjectIpc(ipc: Pick<IpcMain, "handle">, service: Projec
 	ipc.handle(ProjectChannels.RunModes, (_event, file: string) => Answer(() => Runner().Availability(file)));
 	ipc.handle(ProjectChannels.Run, (_event, file: string, mode: RunMode) => Answer(() => Runner().Run(file, mode)));
 	ipc.handle(ProjectChannels.Build, (_event, file: string, platform: BuildPlatform, configuration: BuildConfiguration) => Answer(() => Runner().Build(file, platform, configuration)));
+}
+
+export const SolutionChannels = {
+	List: "solution:list",
+	CreateFolder: "solution:create-folder",
+	Move: "solution:move",
+	Copy: "solution:copy",
+	Delete: "solution:delete",
+	ReadText: "solution:read-text",
+	WriteText: "solution:write-text",
+	Watch: "solution:watch",
+	Unwatch: "solution:unwatch",
+	/** Main → page: a watched project's folder changed (with the watch's id). */
+	Changed: "solution:changed",
+} as const;
+
+/** The page a call came from: where changes are sent, and how it tells it is gone. */
+export interface IpcSender {
+	send(channel: string, ...args: unknown[]): void;
+	isDestroyed(): boolean;
+	once(event: "destroyed", listener: () => void): unknown;
+}
+
+/** Solution Explorer's file calls on a project (S6-20), answered by the main process. */
+export function RegisterSolutionIpc(ipc: Pick<IpcMain, "handle">, service: SolutionService): void {
+	ipc.handle(SolutionChannels.List, (_event, project: string) => Answer(() => service.List(project)));
+	ipc.handle(SolutionChannels.CreateFolder, (_event, project: string, path: string) => Answer(() => service.CreateFolder(project, path)));
+	ipc.handle(SolutionChannels.Move, (_event, project: string, from: string, to: string) => Answer(() => service.Move(project, from, to)));
+	ipc.handle(SolutionChannels.Copy, (_event, project: string, from: string, to: string) => Answer(() => service.Copy(project, from, to)));
+	ipc.handle(SolutionChannels.Delete, (_event, project: string, path: string) => Answer(() => service.Delete(project, path)));
+	ipc.handle(SolutionChannels.ReadText, (_event, project: string, path: string) => Answer(() => service.ReadText(project, path)));
+	ipc.handle(SolutionChannels.WriteText, (_event, project: string, path: string, text: string) => Answer(() => service.WriteText(project, path, text)));
+	ipc.handle(SolutionChannels.Watch, (event, project: string) => Answer(() => {
+		const sender = event.sender as unknown as IpcSender;
+		const id = service.Watch(project, () => {
+			if (!sender.isDestroyed()) sender.send(SolutionChannels.Changed, id);
+		});
+		// A page closed without stopping: its watch goes with it.
+		sender.once("destroyed", () => service.Unwatch(id));
+		return id;
+	}));
+	ipc.handle(SolutionChannels.Unwatch, (_event, id: number) => Answer(() => service.Unwatch(id)));
 }

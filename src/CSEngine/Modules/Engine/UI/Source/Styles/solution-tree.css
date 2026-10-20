@@ -1,0 +1,42 @@
+/* Solution Explorer's tree (WinSolutionTree): its structure, flags and icons, shared by every kit (the rows are the kits' .win-tree items). */
+
+.win-solution { position: relative; overflow: auto; }
+.win-solution__space { position: relative; min-height: 100%; }
+.win-solution__rows { position: absolute; top: 0; left: 0; right: 0; }
+.win-solution__row { box-sizing: border-box; }
+.win-solution__label { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+.win-solution__name { overflow: hidden; text-overflow: ellipsis; }
+.win-solution__rename { min-width: 120px; padding: 0 2px; font: inherit; }
+.win-solution__icon { flex-shrink: 0; width: 16px; height: 16px; background: currentColor; opacity: 0.75; -webkit-mask: var(--win-solution-icon, var(--win-solution-icon-file)) center / contain no-repeat; mask: var(--win-solution-icon, var(--win-solution-icon-file)) center / contain no-repeat; }
+.win-solution__row--hidden .win-solution__label { opacity: 0.5; }
+.win-solution__row--missing .win-solution__name { text-decoration: line-through; opacity: 0.7; }
+.win-solution__row--missing .win-solution__icon { --win-solution-icon: var(--win-solution-icon-missing); background: #c62828; opacity: 1; }
+.win-solution__row--modified .win-solution__name::after { content: " *"; }
+.win-solution__row--error .win-solution__name { text-decoration: underline wavy #c62828; }
+.win-solution__row--drop .win-solution__label { outline: 1px dashed currentColor; outline-offset: -1px; }
+.win-solution__row--focused:focus-within .win-solution__label, .win-solution:focus .win-solution__row--focused .win-solution__label { outline: 1px dotted currentColor; outline-offset: -1px; }
+.win-solution--disabled { opacity: 0.6; pointer-events: none; }
+
+/* Icons: masks drawn in the text colour, so every kit and theme colours them. */
+.win-solution {
+	--win-solution-icon-file: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 1h6l4 4v10H3z' fill='none' stroke='black'/%3E%3Cpath d='M9 1v4h4' fill='none' stroke='black'/%3E%3C/svg%3E");
+	--win-solution-icon-folder: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1 3h5l2 2h7v9H1z'/%3E%3C/svg%3E");
+	--win-solution-icon-virtual: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 3.5h4.5l2 2h6.5v8h-13z' fill='none' stroke='black' stroke-dasharray='2 1'/%3E%3C/svg%3E");
+	--win-solution-icon-project: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1.5' y='1.5' width='13' height='13' rx='2' fill='none' stroke='black'/%3E%3Cpath d='M4 5h8M4 8h8M4 11h5' stroke='black'/%3E%3C/svg%3E");
+	--win-solution-icon-solution: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 1l7 4v6l-7 4-7-4V5z' fill='none' stroke='black'/%3E%3Cpath d='M1 5l7 4 7-4M8 9v6' fill='none' stroke='black'/%3E%3C/svg%3E");
+	--win-solution-icon-code: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M5 4L1 8l4 4M11 4l4 4-4 4M9 2L7 14' fill='none' stroke='black' stroke-width='1.4'/%3E%3C/svg%3E");
+	--win-solution-icon-document: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1.5' y='2.5' width='13' height='11' rx='1' fill='none' stroke='black'/%3E%3Cpath d='M1.5 5.5h13M4 8h4M4 10.5h7' stroke='black'/%3E%3C/svg%3E");
+	--win-solution-icon-table: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1.5' y='2.5' width='13' height='11' fill='none' stroke='black'/%3E%3Cpath d='M1.5 6h13M1.5 9.5h13M6 2.5v11' stroke='black'/%3E%3C/svg%3E");
+	--win-solution-icon-missing: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 1l7 14H1z'/%3E%3C/svg%3E");
+}
+.win-solution__icon--folder { --win-solution-icon: var(--win-solution-icon-folder); }
+.win-solution__icon--virtualfolder { --win-solution-icon: var(--win-solution-icon-virtual); }
+.win-solution__icon--project { --win-solution-icon: var(--win-solution-icon-project); }
+.win-solution__icon--solution { --win-solution-icon: var(--win-solution-icon-solution); }
+.win-solution__icon--file-ts, .win-solution__icon--file-cs, .win-solution__icon--file-js, .win-solution__icon--file-vue, .win-solution__icon--file-mjs { --win-solution-icon: var(--win-solution-icon-code); }
+.win-solution__icon--file-ui-json { --win-solution-icon: var(--win-solution-icon-document); }
+.win-solution__icon--file-cstables, .win-solution__icon--file-csv { --win-solution-icon: var(--win-solution-icon-table); }
+.win-solution__icon--folder, .win-solution__icon--virtualfolder { background: #d8a92a; opacity: 1; }
+
+/* Every row is RowHeight tall (only the rows on screen are drawn): the kits' minimum row heights don't apply. */
+.win-solution .win-tree__item { min-height: 0; padding-top: 0; padding-bottom: 0; }

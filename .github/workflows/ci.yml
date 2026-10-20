@@ -223,6 +223,14 @@ jobs:
           pnpm build
           pnpm test:e2e
 
+      # Solution Explorer's model (S6-20): the tree of both modes, .uisolution, the operations, the real disk.
+      - name: "Solution module: type check, lint, unit tests (100% coverage)"
+        working-directory: src/CSEngine/Modules/Editor/Solution
+        run: |
+          pnpm typecheck
+          pnpm lint
+          pnpm test
+
       # The UI Designer editor module: its own checks, on top of the UI module it builds on.
       - name: "UI Designer: type check, lint, unit tests (100% coverage), build, end-to-end"
         working-directory: src/CSEngine/Modules/Editor/UIDesigner

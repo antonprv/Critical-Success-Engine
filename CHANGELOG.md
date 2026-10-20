@@ -14,6 +14,22 @@ The following steps were used to generate this project:
 - Add project to solution.
 - Write this file.
 
+## Stage 6: Solution Explorer (S6-20)
+
+- New module `@cse/solution` (`Modules/Editor/Solution`): a project's files as a tree in Visual Studio's two modes,
+  Folder View (the disk) and the solution view (visual projects and sub-projects bound to folders, virtual folders,
+  items moved in the view only, hidden files, Show All Files). Operations: new folder (real or virtual), rename, move,
+  copy ("Name - Copy"), delete, hide, with undo/redo; files a manifest lists but the disk lacks show as missing; nested
+  files (generated code under its document); search; "Sync with Active Document"; 40 000 files in both modes.
+- The `.uisolution` next to the `.cseproject`: only the presentation, indented JSON in a fixed key order; read again
+  when another tool changes it.
+- `@cse/ui`: `SolutionTreeController` and `WinSolutionTree` (multiple selection, F2 in place, Del, Ctrl+C/X/V/Z/Y,
+  drag and drop with Ctrl to copy, context menu, filter, virtualised rows, icons by kind and extension, flags), styled
+  by all three kits; the widget `solutiontree` in the UI Designer's palette.
+- Desktop app: `SolutionService` and `window.cse.solution` (IPC): the disk for the tools' pages, watching the folder,
+  deletes to the recycle bin.
+- Docs: `docs/solution-explorer-parity.md`, guide 26.
+
 ## Stage 6: the SDF world (`Modules/Engine/SDF`)
 
 - New module `@cse/sdf` (plan.md): the ordered edit list as the world's source of truth (64-byte edits, versions,

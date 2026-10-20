@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DesignerChannels, ProjectChannels, RegisterDesignerIpc, RegisterProjectIpc, type IpcResult } from "../Source/Main/Ipc";
+import { DesignerChannels, ProjectChannels, SolutionChannels, RegisterDesignerIpc, RegisterProjectIpc, type IpcResult } from "../Source/Main/Ipc";
 import { ProjectsService } from "../Source/Main/ProjectsService";
 
 const Templates = resolve(__dirname, "../../../../Templates");
@@ -119,7 +119,7 @@ describe("the main process", () => {
 			},
 			ipcMain: { handle: (channel: string, handler: never) => handlers.set(channel, handler) },
 			dialog: { showOpenDialog: vi.fn(async () => picked) },
-			shell: { openExternal: vi.fn(async () => undefined) },
+			shell: { openExternal: vi.fn(async () => undefined), trashItem: vi.fn(async () => undefined) },
 		};
 		return { electron, windows, handlers, appEvents, ready: () => ready() };
 	}
@@ -159,6 +159,9 @@ describe("the main process", () => {
 		writeFileSync(join(site, "index.html"), "");
 		expect(await fake.handlers.get(ProjectChannels.Run)!(null, join(sandbox, "Moon", "Moon.cseproject"), "web:dev")).toEqual({ ok: true, value: undefined });
 		expect(fake.electron.shell.openExternal).toHaveBeenCalledWith(expect.stringMatching(/^http:\/\/127\.0\.0\.1:\d+\/$/));
+		// Solution Explorer's deletes go to the recycle bin.
+		expect(await fake.handlers.get(SolutionChannels.Delete)!(null, join(sandbox, "Moon", "Moon.cseproject"), "Binaries")).toEqual({ ok: true, value: undefined });
+		expect(fake.electron.shell.trashItem).toHaveBeenCalledWith(join(sandbox, "Moon", "Binaries"));
 		fake.appEvents.get("before-quit")!();
 		vi.doUnmock("electron");
 	});

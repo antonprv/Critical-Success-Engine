@@ -6,9 +6,10 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { RegistryPath } from "../../../../Core/BuildTools/Projects.ts";
 import { DesignerService } from "./DesignerService";
-import { RegisterDesignerIpc, RegisterProjectIpc } from "./Ipc";
+import { RegisterDesignerIpc, RegisterProjectIpc, RegisterSolutionIpc } from "./Ipc";
 import { ProjectRunner } from "./ProjectRunner";
 import { ProjectsService } from "./ProjectsService";
+import { SolutionService } from "./SolutionService";
 
 /**
  * The desktop app's main process: the editor's programs in windows of the operating system. It starts on the project
@@ -48,7 +49,12 @@ export function StartDesktop(): void {
 		CoreDirectory: process.env["CSE_CORE_DIR"] ?? join(Binaries, "../Core"),
 		Open: (url) => shell.openExternal(url),
 	});
-	app.on("before-quit", () => runner.Dispose());
+	// Solution Explorer's files (S6-20): deletes go to the recycle bin.
+	const solution = new SolutionService({ Trash: (path) => shell.trashItem(path) });
+	app.on("before-quit", () => {
+		runner.Dispose();
+		solution.Dispose();
+	});
 	RegisterProjectIpc(ipcMain, service, {
 		PickFolder: async () => {
 			const result = await dialog.showOpenDialog(browser!, { properties: ["openDirectory", "createDirectory"] });
@@ -59,6 +65,7 @@ export function StartDesktop(): void {
 		},
 	}, runner);
 	RegisterDesignerIpc(ipcMain, new DesignerService());
+	RegisterSolutionIpc(ipcMain, solution);
 	app.on("window-all-closed", () => app.quit());
 	void app.whenReady().then(() => {
 		if (process.argv.includes("--ui-designer")) OpenDesigner(null);

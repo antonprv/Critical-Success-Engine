@@ -33,6 +33,7 @@ tests (`pnpm test`), so when the engine API changes the guides don't silently go
 | 23 | [Performance](23-performance.md) | `pnpm perf`: the perf harness, its metrics and scenarios, `?scene=` and `?uncapped` |
 | 24 | [The SDF world](24-sdf.md) | The edit list, the exact field, bricks, the mesh tier, the ray-marched layer in a Babylon scene |
 | 25 | [Quasar in UI documents](25-quasar.md) | Every Quasar component as a widget, the three kits, Quasar's plugins as services, bindings, shortcuts, screens |
+| 26 | [Solution Explorer](26-solution-explorer.md) | A project's files in two modes (real files, virtual folders) as in Visual Studio, `.uisolution`, the tree widget |
 
 ## The model in one paragraph
 
@@ -62,3 +63,4 @@ is services that a component reaches through `this.Engine`.
 - …get the engine's subsystems and your own services by interface → 20
 - …call C# from TypeScript and TypeScript from C#, or register services across languages → 22
 - …measure how fast the game runs, find what slows it down → 23
+- …show a project's files as Visual Studio's Solution Explorer does (real files and virtual folders) → 26

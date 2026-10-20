@@ -24,7 +24,7 @@ describe("widget definitions", () => {
 		expect(BuiltInWidgets.Palette.filter((type) => !type.startsWith("q-"))).toEqual([
 			WidgetType.Window, WidgetType.GroupBox, WidgetType.Label, WidgetType.Image, WidgetType.Button, WidgetType.CheckBox,
 			WidgetType.RadioGroup, WidgetType.TextBox, WidgetType.Spinner, WidgetType.ComboBox, WidgetType.ProgressBar, WidgetType.Toast,
-			WidgetType.Slider, WidgetType.Joystick, WidgetType.GameButton, WidgetType.ListBox, WidgetType.StatusBar,
+			WidgetType.Slider, WidgetType.Joystick, WidgetType.GameButton, WidgetType.ListBox, WidgetType.StatusBar, WidgetType.SolutionTree,
 		]);
 		for (const type of [WidgetType.Canvas, ...BuiltInWidgets.Palette]) {
 			const definition = BuiltInWidgets.Get(type)!;

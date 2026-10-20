@@ -51,7 +51,7 @@ describe("WinDesigner: building", () => {
 	it("starts with the given layout (or an empty one), the palette, and an empty hierarchy", () => {
 		const { wrapper } = Mount();
 		expect(wrapper.findAll('[data-group="Controls"] .win-designer__palette-item').map((i) => i.text())).toEqual([
-			"Window", "Group box", "Label", "Image", "Button", "Check box", "Radio buttons", "Text box", "Spinner", "Combo box", "Progress bar", "Toast", "Slider", "Stick (touch)", "Game button (touch)", "List box", "Status bar",
+			"Window", "Group box", "Label", "Image", "Button", "Check box", "Radio buttons", "Text box", "Spinner", "Combo box", "Progress bar", "Toast", "Slider", "Stick (touch)", "Game button (touch)", "List box", "Status bar", "Solution tree",
 		]);
 		// then Quasar's components, by Quasar's groups
 		expect(wrapper.findAll(".win-designer__palette-group").map((group) => group.attributes("data-group"))).toEqual(["Controls", ...QuasarGroups.map((group) => `Quasar: ${group}`)]);

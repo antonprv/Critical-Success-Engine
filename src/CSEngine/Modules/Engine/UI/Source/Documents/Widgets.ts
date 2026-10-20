@@ -17,6 +17,7 @@ import WinStatusBar from "../Components/WinStatusBar.vue";
 import WinToast from "../Components/WinToast.vue";
 import WinTextBox from "../Components/WinTextBox.vue";
 import WinWindow from "../Components/WinWindow.vue";
+import WinSolutionTree from "../Components/WinSolutionTree.vue";
 import { ButtonController } from "../Controls/ButtonController";
 import { CheckBoxController, CheckState } from "../Controls/CheckBoxController";
 import { ComboBoxController } from "../Controls/ComboBoxController";
@@ -32,6 +33,7 @@ import { StatusBarController } from "../Controls/StatusBarController";
 import { ToastController } from "../Controls/ToastController";
 import { TextBoxController } from "../Controls/TextBoxController";
 import { WindowController } from "../Controls/WindowController";
+import { SolutionTreeController, type SolutionTreeNode } from "../Controls/SolutionTreeController";
 import { UseControl } from "../Core/UseControl";
 import { DialogResult, DialogResults } from "./DialogResult";
 import { IsJson, type JsonValue } from "./Json";
@@ -60,6 +62,7 @@ export const enum WidgetType {
 	ListBox = "listbox",
 	StatusBar = "statusbar",
 	Toast = "toast",
+	SolutionTree = "solutiontree",
 }
 
 export const enum PropKind {
@@ -426,4 +429,23 @@ export const BuiltInWidgets = new WidgetRegistry()
 //#endregion
 
 // Every Quasar component is a widget type too: available to every document, loaded only when one is shown.
+/** What a solution tree shows in the designer before a tool gives it a project. */
+const SampleSolution: SolutionTreeNode[] = [{
+	Id: "s", Label: "Solution 'Game' (1 project)", Kind: "Solution", Children: [{
+		Id: "p:main", Label: "Game", Kind: "Project", Children: [
+			{ Id: "d:Content", Label: "Content", Kind: "Folder", Children: [{ Id: "f:Content/Menu.ui.json", Label: "Menu.ui.json", Kind: "File", Children: [] }] },
+			{ Id: "f:Main.ts", Label: "Main.ts", Kind: "File", Children: [] },
+		],
+	}],
+}];
+
+BuiltInWidgets.Register({
+	Type: WidgetType.SolutionTree, Label: "Solution tree", Container: false, Size: [240, 320], Component: Control(WinSolutionTree),
+	Events: ["selection-change", "activate", "rename", "delete", "copy", "cut", "paste", "move", "drop-copy", "undo", "redo", "context-menu", "expand-change"],
+	Props: [Enabled, Prop("Nodes", "Nodes (JSON: Id, Label, Kind, Children)", PropKind.Json, SampleSolution as unknown as PropValue), Prop("RowHeight", "Row height, px", PropKind.Number, 22)],
+	CreateController: (node) => UseControl(new SolutionTreeController({
+		Nodes: node.Props["Nodes"] as unknown as SolutionTreeNode[], Expanded: ["s", "p:main"], RowHeight: P(node).number("RowHeight"), Enabled: P(node).flag("Enabled"),
+	})),
+});
+
 for (const definition of QuasarWidgets()) BuiltInWidgets.Register(definition);
