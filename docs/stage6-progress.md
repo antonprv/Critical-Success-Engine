@@ -36,3 +36,20 @@
 
 Сверка по заимствованиям: код написан заново по `plan.md`; папки `/Claude` в контейнере не было, ничего из неё не
 использовалось. Формулы расстояний — общеизвестные замкнутые формы (каталог Иниго Килеса), записаны своими словами.
+
+---
+
+# Этап 6: сверка — остальные задачи
+
+Тесты: `pnpm test` в папке модуля (vitest, 100 % покрытия на файл).
+
+| Задача | Критерий | Коммиты | Доказательство |
+|---|---|---|---|
+| S6-20 | Дерево работает в обоих режимах; по умолчанию оба показывают одно и то же | 9868653 | `Modules/Editor/Solution/Tests/Tree.test.ts` «is the same as Folder View under one project…» |
+| S6-20 | В виртуальном режиме: виртуальные папки, визуальные проекты, скрытие; в реальном — реальные папки | 9868653 | `Tests/SolutionModel.test.ts` (разделы «Folder View works on the disk», «the solution view works on the presentation») |
+| S6-20 | Повторное открытие возвращает ту же структуру; относительные пути | 9868653 | `Tests/SolutionFile.test.ts` «reads back what it writes, byte for byte», `Tests/SolutionModel.test.ts` «opens a project's own .uisolution» |
+| S6-20 | Паритет с Solution Explorer по согласованному списку | 9868653 | `docs/solution-explorer-parity.md`; `Engine/UI/Tests/SolutionTree.test.ts` |
+| S6-20 | Внешние изменения, пропавшие файлы помечаются | 9868653 | `Tests/SolutionModel.test.ts` «changes made outside», «marks a missing file…» |
+| S6-20 | Большие деревья | 9868653 | `Tests/Tree.test.ts` «builds 40 000 files in both modes quickly»; виртуализация строк — `SolutionTree.test.ts` «draws only the rows in the viewport» |
+| S6-20 | Файлы проекта в настольном приложении (IPC, корзина) | 9868653 | `Programs/Desktop/Tests/Solution.test.ts`, `Tests/Desktop.test.ts` |
+| S6-20 | Применение в инструментах | — | вместе с S6-19 (UIDesigner), S6-17, S6-18 |

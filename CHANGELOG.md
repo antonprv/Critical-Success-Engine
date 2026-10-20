@@ -14,6 +14,20 @@ The following steps were used to generate this project:
 - Add project to solution.
 - Write this file.
 
+## Stage 6: CSTables, first part (S6-01.1)
+
+- New module `@cse/cstables` (`Modules/Common/CSTables`): `.cstables` translation tables by key, as `.resx`
+  (docs/cstables.md). Languages by file name (`UiNames.en.cstables`), comments per key, `@access`
+  (public, internal, none), quoted and multi-line values, `{0}`/`{name}` arguments, CLDR plural forms. A lossless
+  document model: an edited table changes only what was edited (for the table editor, S6-17).
+- Checks with codes (CST001...CST035): duplicates, missing and unused translations, argument mismatches, plural slips,
+  name collisions; a build report.
+- Generated TypeScript (`CSTables.UiNames.MenuTitle` reads the current language when read, short access for unique
+  keys, functions for arguments and plurals), a module per language, the base one bundled and the others lazy.
+- Runtime `Localization`: array lookup by id without allocations, fallback current → base → key name (logged once),
+  `SetLanguage`, `OnLanguageChanged`, `PickLanguage` (remembered, then the system's), `Remember`.
+- `CSTablesPlugin` for Vite: tables built before the build (errors stop it) and again when one changes in dev.
+
 ## Stage 6: Solution Explorer (S6-20)
 
 - New module `@cse/solution` (`Modules/Editor/Solution`): a project's files as a tree in Visual Studio's two modes,

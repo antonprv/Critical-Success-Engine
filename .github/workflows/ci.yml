@@ -223,6 +223,14 @@ jobs:
           pnpm build
           pnpm test:e2e
 
+      # CSTables (S6-01): the .cstables format, the checks, the generated code, the runtime.
+      - name: "CSTables module: type check, lint, unit tests (100% coverage)"
+        working-directory: src/CSEngine/Modules/Common/CSTables
+        run: |
+          pnpm typecheck
+          pnpm lint
+          pnpm test
+
       # Solution Explorer's model (S6-20): the tree of both modes, .uisolution, the operations, the real disk.
       - name: "Solution module: type check, lint, unit tests (100% coverage)"
         working-directory: src/CSEngine/Modules/Editor/Solution
