@@ -306,6 +306,7 @@ describe( "templates and new projects", () => {
 						Title: "Blank game",
 						Description: "d",
 						Genre: "Blank",
+						Kind: "Game",
 						Order: 0,
 						Directory: join( sandbox, "Blank" ),
 					},
@@ -417,6 +418,32 @@ describe( "templates and new projects", () => {
 				.toThrow( `${ join( sandbox, "Taken" ) } already exists` );
 		},
 	);
+
+	it( "the engine's own Program template creates a program (S6-14)", () => {
+		const templates = resolve( "../../Templates" );
+		const template = ListTemplates( templates )
+			.find( ( t ) => t.Name === "Program" )!;
+
+		expect( template ).toMatchObject( { Kind: "Program", Genre: "Application" } );
+		const created = CreateProject(
+			{
+				TemplatesDirectory: templates,
+				Template: "Program",
+				Name: "Hello",
+				Location: sandbox,
+				Registry: join( sandbox, "Projects.json" ),
+			},
+		);
+		const project = ParseProject( readFileSync( created.File, "utf8" ) );
+
+		expect( project ).toMatchObject(
+			{ Name: "Hello", Kind: "Program", Genre: "Application", Template: "Program" },
+		);
+		expect( existsSync( join( sandbox, "Hello", "Source", "Program.ts" ) ) )
+			.toBe( true );
+		expect( readFileSync( join( sandbox, "Hello", "Source", "Program.ts" ), "utf8" ) )
+			.not.toContain( "TemplateProject\"" );
+	} );
 
 	it( "the engine's own Blank template creates a working project", () => {
 		const templates = resolve( "../../Templates" );

@@ -1,7 +1,8 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-// `pnpm smoke:exe` (Windows, S6-07): packages a Desktop build into an .exe (Tests/PackageSmoke.test.ts), then runs it
+// `pnpm smoke:exe` (Windows, S6-07, S6-14): packages a Desktop build and a program made from the Program template into
+// .exe files (Tests/PackageSmoke.test.ts), then runs each
 // as a player would - Windows' own PATH (no Node, no browser, no pnpm), an empty app profile - with --cse-smoke: the
 // shell quits with 0 once its page has loaded and run for a few seconds, 1 if it didn't load. Prints the exe's size.
 import { spawnSync } from "node:child_process";
@@ -19,12 +20,20 @@ try {
 	const packaged = spawnSync("pnpm", ["exec", "vitest", "run", "Tests/PackageSmoke.test.ts"], {
 		stdio: "inherit", shell: process.platform === "win32", env: { ...process.env, CSE_PACKAGE_SMOKE_OUT: sandbox },
 	});
-	const record = join(sandbox, "exe.txt");
-	if (packaged.status !== 0 || !existsSync(record)) throw new Error("packaging failed (see above)");
-	const exe = readFileSync(record, "utf8");
+	const records = ["exe.txt", "program-exe.txt"].map((name) => join(sandbox, name));
+	if (packaged.status !== 0 || !records.every((record) => existsSync(record))) throw new Error("packaging failed (see above)");
+	for (const [index, record] of records.entries()) Smoke(readFileSync(record, "utf8"), join(sandbox, `Profile${index}`));
+} catch (error) {
+	Fail(error.message);
+} finally {
+	// The portable exe's unpacked copy may still be closing.
+	rmSync(sandbox, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
+}
+
+/** Runs one packaged program as a player would and checks its log said it started. */
+function Smoke(exe, profile) {
 
 	// Windows' own variables stay (Chromium needs them; it also hangs on a USERPROFILE that isn't there).
-	const profile = join(sandbox, "Profile");
 	const temp = join(profile, "Temp");
 	mkdirSync(temp, { recursive: true });
 	const env = {};
@@ -46,9 +55,4 @@ try {
 	if (run.status !== 0) Fail(`the program exited with ${run.status ?? run.error?.message}`);
 	else if (!text.includes("smoke: ok")) Fail("the page did not report having loaded");
 	else console.log("smoke: OK");
-} catch (error) {
-	Fail(error.message);
-} finally {
-	// The portable exe's unpacked copy may still be closing.
-	rmSync(sandbox, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
 }

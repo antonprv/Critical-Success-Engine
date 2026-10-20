@@ -44,7 +44,7 @@ export interface ProjectsApi {
 	/** dev starts the dev server and opens the browser; web:* opens the finished build in the browser, desktop:* in its Electron window. */
 	Run(file: string, mode: RunMode): Promise<void>;
 	/** Builds into the project's Binaries/<platform>/<configuration>; resolves with that folder. */
-	Build(file: string, platform: BuildPlatform, configuration: BuildConfiguration): Promise<{ Directory: string; }>;
+	Build(file: string, platform: BuildPlatform, configuration: BuildConfiguration): Promise<{ Directory: string; Executable?: string; }>;
 }
 
 /** The desktop app's preload puts its API here. */

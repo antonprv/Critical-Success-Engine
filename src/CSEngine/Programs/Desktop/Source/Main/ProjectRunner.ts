@@ -2,7 +2,7 @@
 // Any direct commercial use of derivative work is strictly prohibited.
 
 import { spawn, type ChildProcess } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { createServer, get, type Server } from "node:http";
 import { createServer as createSocketServer, type AddressInfo } from "node:net";
@@ -27,6 +27,8 @@ const BuildModes: Record<Exclude<RunMode, "dev">, { Platform: BuildPlatform; Con
 export interface ProjectRunnerOptions {
 	/** The engine's Vite project (src/CSEngine/Core): it builds the project named by CSE_PROJECT. */
 	CoreDirectory: string;
+	/** @cse/program (Modules/Engine/Program): it builds programs (S6-14); CoreDirectory/../Modules/Engine/Program by default. */
+	ProgramDirectory?: string;
 	/** Shows a page in the system's browser. */
 	Open(url: string): void | Promise<void>;
 	/** The Electron executable that runs a Desktop build (the desktop app's own by default). */
@@ -51,6 +53,18 @@ const MimeTypes: Record<string, string> = {
 
 /** A project's finished build: Binaries/<Web|Desktop>/<Dev|Prod> next to the .cseproject, so platforms never overwrite each other. */
 export const BuildDirectory = (file: string, platform: BuildPlatform, configuration: BuildConfiguration): string => join(dirname(file), "Binaries", platform, configuration);
+/** Whether a .cseproject is a program (S6-14: no engine, desktop only), built by @cse/program rather than the Core. */
+export function IsProgram(file: string): boolean {
+	try {
+		return (JSON.parse(readFileSync(file, "utf8")) as { Kind?: unknown; }).Kind === "Program";
+	} catch {
+		return false;
+	}
+}
+
+/** The program build's Vite config, from @cse/program's folder (three passes: the page, main, preload). */
+const ProgramConfig = ["--configLoader", "runner", "--config", "Build/vite.program.config.ts"];
+
 /** Where a Desktop build's Windows executable goes: Binaries/Windows/<Dev|Prod>. */
 export const ExecutableDirectory = (file: string, configuration: BuildConfiguration): string => join(dirname(file), "Binaries", "Windows", configuration);
 const HasBuild = (directory: string): boolean => existsSync(join(directory, "index.html"));
@@ -158,9 +172,11 @@ export class ProjectRunner {
 
 	/** Dev is always possible; a build mode only when Binaries/<Web|Desktop>/<Dev|Prod> holds that build (a Desktop one with its Electron shell). */
 	public Availability(file: string): RunAvailability {
+		const program = IsProgram(file);
 		const built = (mode: Exclude<RunMode, "dev">): boolean => {
 			const { Platform, Configuration } = BuildModes[mode];
 			const directory = BuildDirectory(file, Platform, Configuration);
+			if (program) return Platform === "Desktop" && HasBuild(directory) && existsSync(join(directory, "main.cjs"));
 			return HasBuild(directory) && (Platform === "Web" || existsSync(join(directory, "electron-main.cjs")));
 		};
 		return { "dev": existsSync(file), "web:dev": built("web:dev"), "web:prod": built("web:prod"), "desktop:dev": built("desktop:dev"), "desktop:prod": built("desktop:prod") };
@@ -169,7 +185,8 @@ export class ProjectRunner {
 	/** dev: the dev server starts (once per project) and the page opens in the browser. Web: the build is hosted and opened in the browser. Desktop: the build opens in its own Electron window. */
 	public async Run(file: string, mode: RunMode): Promise<void> {
 		if (mode === "dev") {
-			await this._options.Open(await this.StartDev(file));
+			if (IsProgram(file)) await this.StartProgramDev(file);
+			else await this._options.Open(await this.StartDev(file));
 			return;
 		}
 		const { Platform, Configuration } = BuildModes[mode];
@@ -193,13 +210,19 @@ export class ProjectRunner {
 	 */
 	public async Build(file: string, platform: BuildPlatform, configuration: BuildConfiguration): Promise<{ Directory: string; Executable?: string; }> {
 		const directory = BuildDirectory(file, platform, configuration);
-		const modeArguments = configuration === "Dev" ? ["--mode", "development"] : [];
-		await this.Exec(["exec", "vite", "build", ...modeArguments], { CSE_PROJECT: file, CSE_OUT_DIR: directory });
+		const program = IsProgram(file);
+		if (program) {
+			if (platform !== "Desktop") throw new Error("A program is built for the desktop only (Desktop - Dev or Desktop - Prod)");
+			await this.BuildProgram(file, directory, configuration);
+		} else {
+			const modeArguments = configuration === "Dev" ? ["--mode", "development"] : [];
+			await this.Exec(["exec", "vite", "build", ...modeArguments], { CSE_PROJECT: file, CSE_OUT_DIR: directory });
+		}
 		if (!HasBuild(directory)) throw new Error(`The build finished but ${directory} has no index.html`);
 		// A server of the old files would serve the folder as it is now, which is fine; nothing to restart.
 		if (platform !== "Desktop") return { Directory: directory };
 		const name = basename(file, ".cseproject");
-		WriteElectronShell(directory, name);
+		if (!program) WriteElectronShell(directory, name);
 		if ((this._options.Platform ?? process.platform) !== "win32") return { Directory: directory };
 		const executable = await (this._options.Package ?? PackageApp)({
 			App: directory, Output: ExecutableDirectory(file, configuration), Name: name, Id: `com.criticalsuccess.${name.toLowerCase()}`,
@@ -214,13 +237,39 @@ export class ProjectRunner {
 		this._hosted.clear();
 	}
 
-	private async StartDev(file: string): Promise<string> {
+	private get ProgramDirectory(): string {
+		return this._options.ProgramDirectory ?? join(this._options.CoreDirectory, "../Modules/Engine/Program");
+	}
+
+	/** A program's three passes (the page, main, preload) into the folder, with @cse/program's Vite. */
+	private async BuildProgram(file: string, directory: string, configuration: BuildConfiguration): Promise<void> {
+		const env = { CSE_PROJECT: file, CSE_OUT_DIR: directory, CSE_CONFIGURATION: configuration };
+		for (const pass of [[], ["--mode", "main"], ["--mode", "preload"]]) await this.Exec(["exec", "vite", "build", ...ProgramConfig, ...pass], env, this.ProgramDirectory);
+	}
+
+	/**
+	 * A program in development: its page from @cse/program's dev server (hot reload), in a window of its own Electron
+	 * shell (main and preload built into Binaries/Desktop/DevShell), which loads the server's page (CSE_PROGRAM_URL).
+	 */
+	private async StartProgramDev(file: string): Promise<void> {
+		const shell = join(dirname(file), "Binaries", "Desktop", "DevShell");
+		const env = { CSE_PROJECT: file, CSE_OUT_DIR: shell, CSE_CONFIGURATION: "Dev" };
+		const url = await this.StartDev(file, this.ProgramDirectory, ["exec", "vite", ...ProgramConfig], env);
+		for (const pass of [["--mode", "main"], ["--mode", "preload"]]) await this.Exec(["exec", "vite", "build", ...ProgramConfig, ...pass], env, this.ProgramDirectory);
+		const name = basename(file, ".cseproject");
+		writeFileSync(join(shell, "package.json"), `${JSON.stringify({ name: name.toLowerCase(), productName: name, version: "1.0.0", main: "main.cjs" }, null, 2)}\n`);
+		const child = this._spawn(this._options.ElectronPath ?? process.execPath, [shell], { cwd: shell, env: { ...process.env, ELECTRON_RUN_AS_NODE: undefined, CSE_PROGRAM_URL: url }, stdio: "ignore", detached: true });
+		child.once("error", () => undefined);
+		child.unref();
+	}
+
+	private async StartDev(file: string, cwd = this._options.CoreDirectory, command = ["exec", "vite"], env: Record<string, string> = { CSE_PROJECT: file }): Promise<string> {
 		const running = this._dev.get(file);
 		if (running && running.Process.exitCode === null) return running.Url;
 		const port = await FreePort();
 		const url = `http://127.0.0.1:${port}/`;
-		const child = this._spawn(Pnpm, ["exec", "vite", "--host", "127.0.0.1", "--port", String(port)], {
-			cwd: this._options.CoreDirectory, env: { ...process.env, CSE_PROJECT: file }, stdio: "ignore", shell: process.platform === "win32",
+		const child = this._spawn(Pnpm, [...command, "--host", "127.0.0.1", "--port", String(port)], {
+			cwd, env: { ...process.env, ...env }, stdio: "ignore", shell: process.platform === "win32",
 		});
 		this._dev.set(file, { Process: child, Url: url });
 		let failure: string | null = null;
@@ -239,13 +288,13 @@ export class ProjectRunner {
 		throw new Error(`The dev server did not answer in ${(attempts * interval) / 1000} seconds`);
 	}
 
-	/** Runs `pnpm <args>` in the Core; fails with the end of its output. */
-	private Exec(args: string[], env: Record<string, string>): Task {
+	/** Runs `pnpm <args>` in the Core (or `cwd`); fails with the end of its output. */
+	private Exec(args: string[], env: Record<string, string>, cwd = this._options.CoreDirectory): Task {
 		const exited = new TaskCompletionSource();
 		const done = (): boolean => exited.TrySetResult();
 		const fail = (error: Error): boolean => exited.TrySetError(error);
 		{
-			const child = this._spawn(Pnpm, args, { cwd: this._options.CoreDirectory, env: { ...process.env, ...env }, stdio: ["ignore", "pipe", "pipe"], shell: process.platform === "win32" });
+			const child = this._spawn(Pnpm, args, { cwd, env: { ...process.env, ...env }, stdio: ["ignore", "pipe", "pipe"], shell: process.platform === "win32" });
 			let tail = "";
 			const keep = (chunk: Buffer): void => { tail = (tail + chunk.toString()).slice(-2000); };
 			child.stdout?.on("data", keep);

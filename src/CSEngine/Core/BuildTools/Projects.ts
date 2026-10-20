@@ -15,6 +15,7 @@ import { dirname, extname, join, resolve } from "node:path";
 import {
 	Genres,
 	ParseProject,
+	ProjectKind,
 	SerializeProject,
 	type Genre,
 } from "../Source/Engine/Projects/ProjectDescriptor.ts";
@@ -48,6 +49,8 @@ export interface TemplateInfo {
 	Title: string;
 	Description: string;
 	Genre: Genre;
+	/** A game's template or a program's (S6-14: desktop only, no engine). */
+	Kind: ProjectKind;
 	Order: number;
 	Directory: string;
 }
@@ -256,6 +259,9 @@ export function ListTemplates( templatesDirectory: string ): TemplateInfo[] {
 			Name: String( raw["Name"] ), Title: String( raw["Title"] ),
 			Description: String( raw["Description"] ?? "" ),
 			Genre: raw["Genre"] as Genre,
+			Kind: raw["Kind"] === ProjectKind.Program
+				? ProjectKind.Program
+				: ProjectKind.Game,
 			Order: typeof raw["Order"] === "number" ? raw["Order"] : 100,
 			Directory: join( templatesDirectory, name ),
 		} );

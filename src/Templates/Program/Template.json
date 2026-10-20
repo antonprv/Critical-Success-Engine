@@ -1,0 +1,8 @@
+{
+	"Name": "Program",
+	"Title": "Program",
+	"Description": "An application without the engine, as a Windows Forms one: a UI document and Program.ts. Desktop only, an .exe.",
+	"Genre": "Application",
+	"Kind": "Program",
+	"Order": 0
+}

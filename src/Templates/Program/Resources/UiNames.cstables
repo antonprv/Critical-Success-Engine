@@ -1,0 +1,14 @@
+# The program's texts in its base language (Russian). The translations are UiNames.<language>.cstables.
+Title = {name}
+NameLabel = Как вас зовут?
+Greet = Поздороваться
+Greeting = Привет, {name}!
+NoName = Сначала введите имя.
+Theme = Тема
+Language = Язык
+Open = Открыть файл...
+Opened[one] = Файл открыт: {path} ({count} строка)
+Opened[few] = Файл открыт: {path} ({count} строки)
+Opened[many] = Файл открыт: {path} ({count} строк)
+Opened[other] = Файл открыт: {path} ({count} строки)
+NoFile = Файл не выбран.

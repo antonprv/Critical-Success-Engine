@@ -9,6 +9,8 @@ import { ThemeChoices, type ThemeChoice } from "./Themes";
 export const BrowserId = "ProjectBrowser";
 export const NewProjectId = "NewProject";
 const AllGenres = "All genres";
+/** The genre of programs (the Program template): applications without the engine, desktop only. */
+const ProgramGenre = "Application";
 
 /** The run combo's choices, in order: dev runs at once, the build modes need that platform's build of the project. */
 const RunChoices: readonly { Mode: RunMode; Label: string; }[] = [
@@ -89,7 +91,8 @@ export class ProjectBrowser {
 		// Run waits for a project and for a mode that can run (the build modes only when their files exist); Build for a project and a target.
 		const run = browser.Controller<Combo>("RunMode").SelectedOption;
 		browser.Controller<ButtonController>("RunButton").SetEnabled(project?.Exists === true && run !== null && run.Disabled !== true && !this._building);
-		browser.Controller<ButtonController>("BuildButton").SetEnabled(project?.Exists === true && browser.Controller<Combo>("BuildMode").SelectedOption !== null && !this._building);
+		const build = browser.Controller<Combo>("BuildMode").SelectedOption;
+		browser.Controller<ButtonController>("BuildButton").SetEnabled(project?.Exists === true && build !== null && build.Disabled !== true && !this._building);
 	}
 
 	/** Asks which run modes the picked project has (its build files) and greys out the ones it has not. */
@@ -101,6 +104,10 @@ export class ProjectBrowser {
 		this._availability = availability;
 		const combo = browser.Controller<Combo>("RunMode");
 		combo.Options.splice(0, combo.Options.length, ...RunChoices.map((choice, i) => ({ Value: i, Label: choice.Label, Disabled: !(availability?.[choice.Mode] ?? false) })));
+		// A program (the Program template) is built for the desktop only: the Web targets are greyed out.
+		const program = project?.Genre === ProgramGenre;
+		const build = browser.Controller<Combo>("BuildMode");
+		build.Options.splice(0, build.Options.length, ...BuildChoices.map((choice, i) => ({ Value: i, Label: choice.Label, Disabled: program && choice.Platform === "Web" })));
 		this.UpdateButtons(browser);
 	}
 
@@ -135,8 +142,8 @@ export class ProjectBrowser {
 		this.UpdateButtons(browser);
 		this.Status(`Building ${project.Name} (${choice.Label})...`);
 		try {
-			const { Directory } = await this._api.Build(project.File, choice.Platform, choice.Configuration);
-			this.Status(`Built ${project.Name} (${choice.Label}): ${Directory}`);
+			const { Directory, Executable } = await this._api.Build(project.File, choice.Platform, choice.Configuration);
+			this.Status(`Built ${project.Name} (${choice.Label}): ${Executable ?? Directory}`);
 		} catch (error) {
 			this.Status(`The build of ${project.Name} failed: ${(error as Error).message}`);
 		} finally {

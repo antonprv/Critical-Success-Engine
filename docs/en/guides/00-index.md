@@ -34,6 +34,7 @@ tests (`pnpm test`), so when the engine API changes the guides don't silently go
 | 24 | [The SDF world](24-sdf.md) | The edit list, the exact field, bricks, the mesh tier, the ray-marched layer in a Babylon scene |
 | 25 | [Quasar in UI documents](25-quasar.md) | Every Quasar component as a widget, the three kits, Quasar's plugins as services, bindings, shortcuts, screens |
 | 26 | [Solution Explorer](26-solution-explorer.md) | A project's files in two modes (real files, virtual folders) as in Visual Studio, `.uisolution`, the tree widget |
+| 27 | [Programs](27-programs.md) | Applications without the engine (the Program template): Application, Form, an .exe |
 
 ## The model in one paragraph
 
@@ -64,3 +65,4 @@ is services that a component reaches through `this.Engine`.
 - …call C# from TypeScript and TypeScript from C#, or register services across languages → 22
 - …measure how fast the game runs, find what slows it down → 23
 - …show a project's files as Visual Studio's Solution Explorer does (real files and virtual folders) → 26
+- …make an application without the engine (a tool, a utility) and build it into an .exe → 27

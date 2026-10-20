@@ -24,6 +24,17 @@ export const enum Genre {
 	ThirdPerson = "ThirdPerson",
 	TopDown = "TopDown",
 	Collectathon = "Collectathon",
+	/** Not a game: a program made from the Program template (S6-14). */
+	Application = "Application",
+}
+
+/**
+ * A game (the engine runs it) or a program (S6-14): an application with no
+ * engine, only UI documents and its Program.ts, built for the desktop only.
+ */
+export const enum ProjectKind {
+	Game = "Game",
+	Program = "Program",
 }
 
 export const Genres: readonly Genre[] = [
@@ -32,6 +43,7 @@ export const Genres: readonly Genre[] = [
 	Genre.ThirdPerson,
 	Genre.TopDown,
 	Genre.Collectathon,
+	Genre.Application,
 ];
 
 /**
@@ -56,6 +68,8 @@ export interface CseProject {
 	Description: string;
 	/** The template it was created from ("" when made by hand). */
 	Template: string;
+	/** A program, not a game (absent: a game). */
+	Kind?: ProjectKind;
 	Genre: Genre;
 	Modules: ProjectModule[];
 	Plugins: PluginReference[];
@@ -227,6 +241,11 @@ export function ParseProject( text: string ): CseProject {
 		);
 	}
 	const genre = record["Genre"] ?? Genre.Blank;
+	const kind = record["Kind"] ?? ProjectKind.Game;
+
+	if ( kind !== ProjectKind.Game && kind !== ProjectKind.Program ) {
+		throw new ProjectError( `unknown Kind "${ String( kind ) }"` );
+	}
 
 	if ( !Genres.includes( genre as Genre ) ) {
 		throw new ProjectError( `unknown Genre "${ String( genre ) }"` );
@@ -262,6 +281,7 @@ export function ParseProject( text: string ): CseProject {
 			? record["Template"]
 			: "",
 		Genre: genre as Genre,
+		...( kind === ProjectKind.Program ? { Kind: ProjectKind.Program } : {} ),
 		Modules: modules,
 		Plugins: ( Array.isArray( record["Plugins"] )
 			? record["Plugins"]

@@ -1,0 +1,16 @@
+{
+	"FileVersion": 1,
+	"Name": "TemplateProject",
+	"Description": "",
+	"Kind": "Program",
+	"Genre": "Application",
+	"Modules": [],
+	"Plugins": [],
+	"Ui": {
+		"Manifest": "Content/UI/Ui.manifest.json",
+		"Theme": {
+			"Kit": "quasar",
+			"Theme": "xp-blue"
+		}
+	}
+}

@@ -80,7 +80,9 @@
 	],
 
 	"exclude": [
-		"node_modules"
+		"node_modules",
+		// Programs (S6-14) have no engine: @cse/program type-checks its template
+		"../../Templates/Program/**"
 	]
 
 }

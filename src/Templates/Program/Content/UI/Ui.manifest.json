@@ -1,0 +1,10 @@
+{
+	"FileVersion": 1,
+	"Documents": [
+		{
+			"Id": "MainForm",
+			"Path": "MainForm.ui.json",
+			"Script": ""
+		}
+	]
+}

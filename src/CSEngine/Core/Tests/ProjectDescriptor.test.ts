@@ -57,6 +57,7 @@ describe( "project descriptors (.cseproject)", () => {
 					Genre.ThirdPerson,
 					Genre.TopDown,
 					Genre.Collectathon,
+					Genre.Application,
 				],
 			);
 		expect( SerializeProject( Valid() ) )
@@ -117,6 +118,8 @@ describe( "project descriptors (.cseproject)", () => {
 			.toBe( "Not a project file: Name must be a string" );
 		expect( reason( { Genre: "Racing" } ) )
 			.toBe( "Not a project file: unknown Genre \"Racing\"" );
+		expect( reason( { Kind: "Plugin" } ) )
+			.toBe( "Not a project file: unknown Kind \"Plugin\"" );
 		expect( reason( { Modules: "x" } ) )
 			.toBe( "Not a project file: Modules must be a list" );
 		expect( reason( { Modules: [{ Name: "A" }] } ) )

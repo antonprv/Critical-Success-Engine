@@ -281,6 +281,19 @@ describe("the project browser: run and build", () => {
 		expect(made.enabled(BrowserId, "BuildButton")).toBe(true);
 	});
 
+	it("a program (the Program template) builds for the desktop only, into an .exe", async () => {
+		const made = await Make([{ ...Project("Hello", true, "Program"), Genre: "Application" }]);
+		vi.spyOn(made.api, "Build").mockResolvedValueOnce({ Directory: "/games/Hello/Binaries/Desktop/Prod", Executable: "/games/Hello/Binaries/Windows/Prod/Hello.exe" });
+		made.pick(BrowserId, "Projects", 0);
+		await settle();
+		expect(builds(made).Options.map((o) => [o.Label, o.Disabled])).toEqual([["Web - Dev", true], ["Web - Prod", true], ["Desktop - Dev", false], ["Desktop - Prod", false]]);
+		builds(made).Choose(0);
+		expect(made.enabled(BrowserId, "BuildButton")).toBe(false);
+		builds(made).Choose(3);
+		await made.press(BrowserId, "BuildButton");
+		expect(made.label(BrowserId, "Status")).toBe("Built Hello (Desktop - Prod): /games/Hello/Binaries/Windows/Prod/Hello.exe");
+	});
+
 	it("the in-memory API refuses to run a build that isn't there", async () => {
 		const api = new MemoryProjectsApi([Project("Starfall")], Templates, "/games");
 		await expect(api.Run("/games/Starfall/Starfall.cseproject", "web:prod")).rejects.toThrow("There is no build for web:prod");

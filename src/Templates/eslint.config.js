@@ -6,4 +6,6 @@ export default [
 	...base,
 	// what the C# scripts build to (Binaries/Scripts, obj): not sources
 	{ ignores: [ "**/Binaries/**", "**/obj/**", "**/bin/**" ] },
+	// what the build generates (CSTables: Source/Generated)
+	{ ignores: [ "**/Source/Generated/**" ] },
 ];

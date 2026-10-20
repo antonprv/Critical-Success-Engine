@@ -1,0 +1,11 @@
+Title = {name}
+NameLabel = What is your name?
+Greet = Greet
+Greeting = Hello, {name}!
+NoName = Type a name first.
+Theme = Theme
+Language = Language
+Open = Open a file...
+Opened[one] = Opened {path} ({count} line)
+Opened[other] = Opened {path} ({count} lines)
+NoFile = No file picked.

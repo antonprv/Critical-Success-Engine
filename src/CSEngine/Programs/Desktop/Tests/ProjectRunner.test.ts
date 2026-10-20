@@ -9,7 +9,7 @@ import { createServer as createSocketServer, type Server as SocketServer } from 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { BuildDirectory, PnpmCommand, ProjectRunner, ServeDirectory, WriteElectronShell } from "../Source/Main/ProjectRunner";
+import { BuildDirectory, IsProgram, PnpmCommand, ProjectRunner, ServeDirectory, WriteElectronShell } from "../Source/Main/ProjectRunner";
 
 let sandbox = "";
 const servers: { close(): void; }[] = [];
@@ -302,5 +302,86 @@ describe( "pnpm", () => {
 	it( "is pnpm.cmd on Windows and pnpm elsewhere", () => {
 		expect( PnpmCommand( "win32" ) ).toBe( "pnpm.cmd" );
 		expect( PnpmCommand( "linux" ) ).toBe( "pnpm" );
+	} );
+} );
+
+describe( "programs (S6-14)", () => {
+	/** A program's project: Kind Program in its .cseproject. */
+	function Program(): string {
+		const file = join( sandbox, "Hello", "Hello.cseproject" );
+		mkdirSync( join( sandbox, "Hello" ), { recursive: true } );
+		writeFileSync( file, JSON.stringify( { Name: "Hello", Kind: "Program" } ) );
+		return file;
+	}
+
+	/** Plays the three passes of the program build: the page (index.html), main.cjs, preload.cjs. */
+	const ProgramBuilder = () => Spawner( ( call, child ) => {
+		queueMicrotask( () => {
+			const out = call.options.env?.["CSE_OUT_DIR"];
+			// Electron itself (the dev window): nothing to play.
+			if ( out === undefined || call.options.env?.["CSE_PROGRAM_URL"] ) return;
+			mkdirSync( out, { recursive: true } );
+			const mode = call.args.includes( "--mode" ) ? call.args[call.args.indexOf( "--mode" ) + 1] : "page";
+			if ( call.args.includes( "build" ) ) writeFileSync( join( out, mode === "page" ? "index.html" : `${ mode! }.cjs` ), "" );
+			else ServeOnPort( call.args );
+			if ( call.args.includes( "build" ) ) child.Exit( 0 );
+		} );
+	} );
+
+	it( "are told by their Kind", () => {
+		expect( IsProgram( Program() ) ).toBe( true );
+		expect( IsProgram( Project() ) ).toBe( false );
+		expect( IsProgram( join( sandbox, "missing.cseproject" ) ) ).toBe( false );
+	} );
+
+	it( "build for the desktop only, with @cse/program's Vite in three passes, into an .exe on Windows", async () => {
+		const file = Program();
+		const builder = ProgramBuilder();
+		const packaged = vi.fn( async () => "C:/Hello.exe" );
+		const runner = new ProjectRunner( { CoreDirectory: "/core", Open: vi.fn(), Spawn: builder.Spawn, Package: packaged, Platform: "win32" } );
+		await expect( runner.Build( file, "Web", "Prod" ) ).rejects.toThrow( /desktop only/ );
+		expect( runner.Availability( file )["desktop:prod"] ).toBe( false );
+		const built = await runner.Build( file, "Desktop", "Prod" );
+		const config = [ "--configLoader", "runner", "--config", "Build/vite.program.config.ts" ];
+		expect( builder.calls.map( ( c ) => c.args ) ).toEqual( [
+			[ "exec", "vite", "build", ...config ],
+			[ "exec", "vite", "build", ...config, "--mode", "main" ],
+			[ "exec", "vite", "build", ...config, "--mode", "preload" ],
+		] );
+		expect( builder.calls[0]!.options.cwd ).toBe( join( "/core", "../Modules/Engine/Program" ) );
+		expect( builder.calls[0]!.options.env ).toMatchObject( { CSE_PROJECT: file, CSE_OUT_DIR: built.Directory, CSE_CONFIGURATION: "Prod" } );
+		expect( existsSync( join( built.Directory, "electron-main.cjs" ) ) ).toBe( false );
+		expect( built.Executable ).toBe( "C:/Hello.exe" );
+		expect( runner.Availability( file ) ).toEqual( { "dev": true, "web:dev": false, "web:prod": false, "desktop:dev": false, "desktop:prod": true } );
+		// A folder of its own for @cse/program when the tools say so.
+		const own = ProgramBuilder();
+		await new ProjectRunner( { CoreDirectory: "/core", ProgramDirectory: "/program", Open: vi.fn(), Spawn: own.Spawn, Package: packaged, Platform: "linux" } ).Build( file, "Desktop", "Dev" );
+		expect( own.calls[0]!.options.cwd ).toBe( "/program" );
+	} );
+
+	it( "run in development in their own Electron window on the dev server's page", async () => {
+		const file = Program();
+		const builder = ProgramBuilder();
+		const open = vi.fn();
+		const runner = new ProjectRunner( { CoreDirectory: "/core", Open: open, Spawn: builder.Spawn, ElectronPath: "/bin/electron", DevPollMs: 5 } );
+		await runner.Run( file, "dev" );
+		const shell = join( sandbox, "Hello", "Binaries", "Desktop", "DevShell" );
+		expect( builder.calls[0]!.args.slice( 0, 6 ) ).toEqual( [ "exec", "vite", "--configLoader", "runner", "--config", "Build/vite.program.config.ts" ] );
+		expect( builder.calls[0]!.options.env ).toMatchObject( { CSE_PROJECT: file, CSE_OUT_DIR: shell, CSE_CONFIGURATION: "Dev" } );
+		expect( builder.calls.slice( 1, 3 ).map( ( c ) => c.args.at( -1 ) ) ).toEqual( [ "main", "preload" ] );
+		expect( JSON.parse( readFileSync( join( shell, "package.json" ), "utf8" ) ) ).toEqual( { name: "hello", productName: "Hello", version: "1.0.0", main: "main.cjs" } );
+		const electron = builder.calls[3]!;
+		expect( electron.command ).toBe( "/bin/electron" );
+		expect( electron.args ).toEqual( [ shell ] );
+		expect( electron.options.env!["CSE_PROGRAM_URL"] ).toMatch( /^http:\/\/127\.0\.0\.1:\d+\/$/ );
+		expect( open ).not.toHaveBeenCalled();
+		runner.Dispose();
+		// The tools' own Electron by default; a window that fails to start is not the tools' failure.
+		const fresh = ProgramBuilder();
+		const plain = new ProjectRunner( { CoreDirectory: "/core", Open: open, Spawn: fresh.Spawn, DevPollMs: 5 } );
+		await plain.Run( Program(), "dev" );
+		expect( fresh.calls[3]!.command ).toBe( process.execPath );
+		fresh.children[3]!.emit( "error", new Error( "no electron" ) );
+		plain.Dispose();
 	} );
 } );

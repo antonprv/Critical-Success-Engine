@@ -161,9 +161,26 @@ jobs:
         working-directory: src/CSEngine/Core
         run: |
           for template in ../../Templates/*/; do
-            if [ -f "$template/Template.json" ]; then CSE_PROJECT="$template" pnpm build; fi
+            # programs (Kind Program: no engine) are built by @cse/program, below
+            if [ -f "$template/Template.json" ] && ! grep -q '"Kind": "Program"' "$template/Template.json"; then CSE_PROJECT="$template" pnpm build; fi
           done
           pnpm build
+
+      # Programs without the engine (S6-14): the runtime's checks, the Program template type-checked against it, and
+      # the template built as a program (its page, its Electron main and preload).
+      - name: "Program module: type check, lint, unit tests (100% coverage), the Program template built"
+        working-directory: src/CSEngine/Modules/Engine/Program
+        run: |
+          pnpm typecheck
+          pnpm lint
+          pnpm test
+          export CSE_PROJECT="$PWD/../../../../Templates/Program/TemplateProject.cseproject" CSE_OUT_DIR="$RUNNER_TEMP/program" CSE_CONFIGURATION=Prod
+          pnpm exec vite build --configLoader runner --config Build/vite.program.config.ts
+          pnpm exec vite build --configLoader runner --config Build/vite.program.config.ts --mode main
+          pnpm exec vite build --configLoader runner --config Build/vite.program.config.ts --mode preload
+          test -f "$CSE_OUT_DIR/index.html" && test -f "$CSE_OUT_DIR/main.cjs" && test -f "$CSE_OUT_DIR/preload.cjs"
+          # no engine in a program: nothing of Babylon or the engine's workers in its page
+          ! grep -rliE "babylon|GameLogicWorker|PhysicsWorld" "$CSE_OUT_DIR/assets"
 
       # FastMath for TypeScript: the math the engine's TypeScript runs on.
       - name: "FastMath (TypeScript): type check, lint, unit tests (100% coverage)"

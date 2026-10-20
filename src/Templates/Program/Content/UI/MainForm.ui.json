@@ -1,0 +1,152 @@
+{
+	"Format": 1,
+	"Name": "Main form",
+	"Script": "",
+	"Root": {
+		"Name": "Root",
+		"Type": "canvas",
+		"X": 0,
+		"Y": 0,
+		"Width": 960,
+		"Height": 640,
+		"Props": {},
+		"Children": [
+			{
+				"Name": "TitleLabel",
+				"Type": "label",
+				"X": 0,
+				"Y": 48,
+				"Width": 480,
+				"Height": 32,
+				"AnchorX": "center",
+				"Props": {
+					"Text": "TemplateProject",
+					"FontSize": 22,
+					"Bold": true,
+					"Align": "center"
+				}
+			},
+			{
+				"Name": "NameLabel",
+				"Type": "label",
+				"X": 0,
+				"Y": 120,
+				"Width": 320,
+				"Height": 18,
+				"AnchorX": "center",
+				"Props": {
+					"Text": "Name"
+				}
+			},
+			{
+				"Name": "NameBox",
+				"Type": "textbox",
+				"X": 0,
+				"Y": 142,
+				"Width": 320,
+				"Height": 28,
+				"AnchorX": "center",
+				"Props": {
+					"Text": ""
+				}
+			},
+			{
+				"Name": "GreetButton",
+				"Type": "button",
+				"X": 0,
+				"Y": 184,
+				"Width": 160,
+				"Height": 32,
+				"AnchorX": "center",
+				"Props": {
+					"Text": "Greet",
+					"Default": true
+				}
+			},
+			{
+				"Name": "GreetingLabel",
+				"Type": "label",
+				"X": 0,
+				"Y": 232,
+				"Width": 480,
+				"Height": 24,
+				"AnchorX": "center",
+				"Props": {
+					"Text": "",
+					"FontSize": 15,
+					"Align": "center"
+				}
+			},
+			{
+				"Name": "ThemeLabel",
+				"Type": "label",
+				"X": 0,
+				"Y": 296,
+				"Width": 320,
+				"Height": 18,
+				"AnchorX": "center",
+				"Props": {
+					"Text": "Theme"
+				}
+			},
+			{
+				"Name": "ThemeBox",
+				"Type": "combobox",
+				"X": 0,
+				"Y": 318,
+				"Width": 320,
+				"Height": 28,
+				"AnchorX": "center",
+				"Props": {}
+			},
+			{
+				"Name": "LanguageLabel",
+				"Type": "label",
+				"X": 0,
+				"Y": 362,
+				"Width": 320,
+				"Height": 18,
+				"AnchorX": "center",
+				"Props": {
+					"Text": "Language"
+				}
+			},
+			{
+				"Name": "LanguageBox",
+				"Type": "combobox",
+				"X": 0,
+				"Y": 384,
+				"Width": 320,
+				"Height": 28,
+				"AnchorX": "center",
+				"Props": {}
+			},
+			{
+				"Name": "OpenButton",
+				"Type": "button",
+				"X": 0,
+				"Y": 440,
+				"Width": 200,
+				"Height": 32,
+				"AnchorX": "center",
+				"Props": {
+					"Text": "Open a file..."
+				}
+			},
+			{
+				"Name": "FileLabel",
+				"Type": "label",
+				"X": 0,
+				"Y": 484,
+				"Width": 640,
+				"Height": 40,
+				"AnchorX": "center",
+				"Props": {
+					"Text": "",
+					"Wrap": true,
+					"Align": "center"
+				}
+			}
+		]
+	}
+}

@@ -1,0 +1,80 @@
+{
+  // Visit https://aka.ms/tsconfig to read more about this file
+  "compilerOptions": {
+    // The engine's sources (reached through @cse/core) import with explicit .ts extensions.
+    "allowImportingTsExtensions": true,
+    // File Layout
+
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "noResolve": false,
+    "noEmit": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": false,
+    "noEmitOnError": true,
+    "allowUnreachableCode": false,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noImplicitOverride": true,
+    "preserveConstEnums": true,
+
+    "useUnknownInCatchVariables": true,
+    "noFallthroughCasesInSwitch": false,
+    "forceConsistentCasingInFileNames": true,
+
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "ES2022"
+    ],
+
+    // JS/TS interop
+    "allowJs": true,
+    "checkJs": false,
+
+    // Environment Settings
+    // See also https://aka.ms/tsconfig/module
+    "types": ["vite/client", "node"],
+
+    // Other Outputs
+
+    // Stricter Typechecking Options
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+
+    // Recommended Options
+    "strict": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "noUncheckedSideEffectImports": true,
+    "moduleDetection": "force",
+    "skipLibCheck": true,
+    // What a program's code imports (the build gives the same aliases).
+    "paths": {
+      "@cse/program": ["./Source/Index.ts"],
+      "@cse/cstables": ["../../Common/CSTables/Source/Index.ts"],
+      "@cse/ui": ["../UI/Source/index.ts"],
+      "@cse-project/Source/Program.ts": ["../../../../Templates/Program/Source/Program.ts"]
+    }
+  },
+
+  "include": [
+    // The engine's globals (__DEV__...): the module imports engine code that uses them.
+    "../../../Core/Source/Env.d.ts",
+    "./Source/**/*.ts", "./App/**/*.ts", "./Shell/**/*.ts", "./Build/**/*.ts",
+    // The Program template's code: a program is checked against this package (the engine's Core leaves it out).
+    "../../../../Templates/Program/Source/**/*.ts",
+    "./Source/**/*.tsx",
+    "./Source/**/*.vue",
+    "./Source/**/*.js",
+    "./Tests/**/*.ts",
+    "./E2E/**/*.ts"
+  ],
+
+  "exclude": [
+    "node_modules"
+  ]
+
+}
