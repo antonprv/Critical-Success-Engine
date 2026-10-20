@@ -9,7 +9,7 @@ import { createServer as createSocketServer, type Server as SocketServer } from 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { BuildDirectory, ProjectRunner, ServeDirectory, WriteElectronShell } from "../Source/Main/ProjectRunner";
+import { BuildDirectory, PnpmCommand, ProjectRunner, ServeDirectory, WriteElectronShell } from "../Source/Main/ProjectRunner";
 
 let sandbox = "";
 const servers: { close(): void; }[] = [];
@@ -238,7 +238,8 @@ describe( "ProjectRunner: building", () => {
 	it( "builds with the Core's Vite into the project's Binaries; Dev in development mode; Desktop adds the Electron shell", async () => {
 		const file = Project();
 		const builder = Builder();
-		const runner = new ProjectRunner( { CoreDirectory: "/core", Open: vi.fn(), Spawn: builder.Spawn } );
+		const packaged = vi.fn( async ( options: { Output: string; Name: string; } ) => join( options.Output, `${ options.Name }.exe` ) );
+		const runner = new ProjectRunner( { CoreDirectory: "/core", Open: vi.fn(), Spawn: builder.Spawn, Package: packaged, Platform: "win32" } );
 		const web = await runner.Build( file, "Web", "Prod" );
 		expect( web.Directory ).toBe( join( sandbox, "Moon", "Binaries", "Web", "Prod" ) );
 		expect( builder.calls[0] ).toMatchObject( { args: [ "exec", "vite", "build" ], options: { cwd: "/core" } } );
@@ -247,6 +248,14 @@ describe( "ProjectRunner: building", () => {
 		const desktop = await runner.Build( file, "Desktop", "Dev" );
 		expect( builder.calls[1]!.args ).toEqual( [ "exec", "vite", "build", "--mode", "development" ] );
 		expect( existsSync( join( desktop.Directory, "electron-main.cjs" ) ) ).toBe( true );
+		// On Windows the Desktop build is packaged into Binaries/Windows/<configuration>/<Name>.exe.
+		expect( desktop.Executable ).toBe( join( sandbox, "Moon", "Binaries", "Windows", "Dev", "Moon.exe" ) );
+		expect( packaged ).toHaveBeenCalledWith( { App: desktop.Directory, Output: join( sandbox, "Moon", "Binaries", "Windows", "Dev" ), Name: "Moon", Id: "com.criticalsuccess.moon" } );
+		expect( web.Executable ).toBeUndefined();
+		// Elsewhere only the shell (Linux and macOS packages come later).
+		const linux = await new ProjectRunner( { CoreDirectory: "/core", Open: vi.fn(), Spawn: Builder().Spawn, Package: packaged, Platform: "linux" } ).Build( file, "Desktop", "Prod" );
+		expect( linux.Executable ).toBeUndefined();
+		expect( packaged ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	it( "a failed build reports the end of its output; pnpm that won't start, or a build without a page, are errors too", async () => {
@@ -286,5 +295,12 @@ describe( "ProjectRunner: building", () => {
 		} finally {
 			Object.defineProperty( process, "platform", platform );
 		}
+	} );
+} );
+
+describe( "pnpm", () => {
+	it( "is pnpm.cmd on Windows and pnpm elsewhere", () => {
+		expect( PnpmCommand( "win32" ) ).toBe( "pnpm.cmd" );
+		expect( PnpmCommand( "linux" ) ).toBe( "pnpm" );
 	} );
 } );

@@ -24,7 +24,7 @@ export default defineConfig(({ mode }) => {
 			target: "node22",
 			minify: false,
 			lib: { entry: resolve(RootDirectory, entry), formats: ["cjs"], fileName: () => (preload ? "preload.cjs" : "main.cjs") },
-			rollupOptions: { external: ["electron", ...builtinModules, ...builtinModules.map((name) => `node:${name}`)] },
+			rollupOptions: { external: ["electron", "electron-builder", ...builtinModules, ...builtinModules.map((name) => `node:${name}`)] },
 		},
 	};
 });

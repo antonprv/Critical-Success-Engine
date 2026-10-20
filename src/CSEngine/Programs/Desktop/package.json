@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit && tsc --project tsconfig.node.json",
     "lint": "eslint .",
     "test": "vitest run --coverage",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "smoke:exe": "node Scripts/SmokeExe.mjs"
   },
   "dependencies": {
     "@cse/task": "workspace:*"
@@ -24,6 +25,7 @@
     "@types/node": "^26.2.0",
     "@vitest/coverage-v8": "^5.0.3",
     "electron": "44.4.5",
+    "electron-builder": "26.15.3",
     "eslint": "^10.11.0",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.71.0",

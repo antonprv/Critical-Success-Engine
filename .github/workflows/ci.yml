@@ -223,6 +223,14 @@ jobs:
           pnpm build
           pnpm test:e2e
 
+      # The desktop shell helpers (S6-07): one instance, files to open, file types, a log file.
+      - name: "Desktop shell module: type check, lint, unit tests (100% coverage)"
+        working-directory: src/CSEngine/Modules/Common/DesktopShell
+        run: |
+          pnpm typecheck
+          pnpm lint
+          pnpm test
+
       # CSTables (S6-01): the .cstables format, the checks, the generated code, the runtime.
       - name: "CSTables module: type check, lint, unit tests (100% coverage)"
         working-directory: src/CSEngine/Modules/Common/CSTables

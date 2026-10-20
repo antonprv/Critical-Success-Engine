@@ -75,6 +75,25 @@ Dev is a development build (`--mode development`: the `__DEV__` branches and deb
 
 What it needs: `pnpm` in the PATH and the dependencies installed (`pnpm install` in `src/CSEngine`) - the builds are made by the Core's Vite. The Core folder is found next to the program; `CSE_CORE_DIR` points to another one. The physics a game runs on is the engine's physics build (`devops/build-physics.sh`, or `build-all` without `--skip-physics`): without it a project still runs, but with no simulation (guide 01).
 
+## Executables (Windows)
+
+On Windows a **Desktop** build is also packaged into one executable, `Binaries/Windows/<Dev|Prod>/<Name>.exe`
+(electron-builder, portable): Electron's runtime is inside, so a double click runs the game on a machine with no Node,
+browser or anything else. The packaging is `Programs/Desktop/Source/Main/Packager.ts` (`PackageApp`); the first one
+downloads Electron and NSIS into electron-builder's cache. Linux and macOS packages are the next step (S6-07, 6.7b).
+
+The game's shell (`electron-main.cjs`) keeps one instance (a second launch brings the window forward), writes a log to
+`<user data>/logs/main.log`, reloads a crashed page, and takes `--cse-uncapped` (no frame-rate limit),
+`--cse-profile <folder>` (settings, saves and logs there) and `--cse-smoke <seconds>` (quit with 0 once the page has
+loaded and run that long, 1 if it didn't).
+
+`pnpm smoke:exe` (in `Programs/Desktop`, Windows) is the smoke test: it packages a build, starts the .exe with Windows'
+own PATH and an empty profile, and checks it loaded and quit with 0; it prints the size (about 88 MB).
+
+Programs' own helpers - one instance that the second launch hands its files to, the files of the command line, file
+types registered for the current user (a portable program registers itself, after asking), a log file - are
+`@cse/desktop-shell` (`Modules/Common/DesktopShell`).
+
 ## How it works
 
 The page talks to the main process only through `window.cse.projects`, which the preload provides

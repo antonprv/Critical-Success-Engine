@@ -1,0 +1,27 @@
+{
+	"name": "@cse/desktop-shell",
+	"version": "1.0.0",
+	"private": true,
+	"description": "Helpers for Electron main processes: one instance, files to open, file types, a log file.",
+	"type": "module",
+	"engines": {
+		"node": ">=22.12"
+	},
+	"exports": {
+		".": "./Source/Index.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"lint": "eslint .",
+		"lint:fix": "eslint . --fix",
+		"test": "vitest run --coverage"
+	},
+	"devDependencies": {
+		"@types/node": "^26.2.0",
+		"@vitest/coverage-v8": "^5.0.3",
+		"eslint": "^10.11.0",
+		"typescript": "~6.0.3",
+		"typescript-eslint": "^8.71.0",
+		"vitest": "^5.0.3"
+	}
+}
