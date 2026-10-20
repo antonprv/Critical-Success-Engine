@@ -18,6 +18,7 @@ import WinToast from "../Components/WinToast.vue";
 import WinTextBox from "../Components/WinTextBox.vue";
 import WinWindow from "../Components/WinWindow.vue";
 import WinSolutionTree from "../Components/WinSolutionTree.vue";
+import WinDataGrid from "../Components/WinDataGrid.vue";
 import { ButtonController } from "../Controls/ButtonController";
 import { CheckBoxController, CheckState } from "../Controls/CheckBoxController";
 import { ComboBoxController } from "../Controls/ComboBoxController";
@@ -34,6 +35,7 @@ import { ToastController } from "../Controls/ToastController";
 import { TextBoxController } from "../Controls/TextBoxController";
 import { WindowController } from "../Controls/WindowController";
 import { SolutionTreeController, type SolutionTreeNode } from "../Controls/SolutionTreeController";
+import { DataGridController, type DataGridColumn } from "../Controls/DataGridController";
 import { UseControl } from "../Core/UseControl";
 import { DialogResult, DialogResults } from "./DialogResult";
 import { IsJson, type JsonValue } from "./Json";
@@ -63,6 +65,7 @@ export const enum WidgetType {
 	StatusBar = "statusbar",
 	Toast = "toast",
 	SolutionTree = "solutiontree",
+	DataGrid = "datagrid",
 }
 
 export const enum PropKind {
@@ -445,6 +448,25 @@ BuiltInWidgets.Register({
 	Props: [Enabled, Prop("Nodes", "Nodes (JSON: Id, Label, Kind, Children)", PropKind.Json, SampleSolution as unknown as PropValue), Prop("RowHeight", "Row height, px", PropKind.Number, 22)],
 	CreateController: (node) => UseControl(new SolutionTreeController({
 		Nodes: node.Props["Nodes"] as unknown as SolutionTreeNode[], Expanded: ["s", "p:main"], RowHeight: P(node).number("RowHeight"), Enabled: P(node).flag("Enabled"),
+	})),
+});
+
+/** A table editor's columns, as Visual Studio's resource editor has them. */
+const SampleColumns: DataGridColumn[] = [
+	{ Key: "Name", Label: "Name", Width: 200, Editable: true },
+	{ Key: "Value", Label: "Value", Width: 280, Editable: true, Multiline: true },
+	{ Key: "Comment", Label: "Comment", Width: 220, Editable: true },
+];
+
+BuiltInWidgets.Register({
+	Type: WidgetType.DataGrid, Label: "Data grid", Container: false, Size: [520, 260], Component: Control(WinDataGrid),
+	Events: ["selection-change", "cell-edit", "row-add", "delete-rows", "copy", "paste", "activate", "sort-change", "undo", "redo"],
+	Props: [
+		Enabled, Prop("Columns", "Columns (JSON: Key, Label, Width, Editable, Multiline)", PropKind.Json, SampleColumns as unknown as PropValue),
+		Prop("RowHeight", "Row height, px", PropKind.Number, 24), Prop("AllowAdd", "A last row that adds a row", PropKind.Boolean, true),
+	],
+	CreateController: (node) => UseControl(new DataGridController({
+		Columns: node.Props["Columns"] as unknown as DataGridColumn[], Rows: [], RowHeight: P(node).number("RowHeight"), AllowAdd: P(node).flag("AllowAdd"), Enabled: P(node).flag("Enabled"),
 	})),
 });
 

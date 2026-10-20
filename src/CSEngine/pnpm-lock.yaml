@@ -380,6 +380,9 @@ importers:
       '@cse/desktop-shell':
         specifier: workspace:*
         version: link:../../Common/DesktopShell
+      '@cse/solution':
+        specifier: workspace:*
+        version: link:../../Editor/Solution
       '@cse/task':
         specifier: workspace:*
         version: link:../../Common/Task

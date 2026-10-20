@@ -26,6 +26,33 @@ const native: ProgramNative = {
 		ipcRenderer.on(ProgramChannels.OpenFiles, handler);
 		return () => ipcRenderer.removeListener(ProgramChannels.OpenFiles, handler);
 	},
+	ProjectOf: (file) => Call(ProgramChannels.ProjectOf, file),
+	Files: {
+		List: (folder) => Call(ProgramChannels.FilesList, folder),
+		CreateFolder: (folder, path) => Call(ProgramChannels.FilesCreateFolder, folder, path),
+		Move: (folder, from, to) => Call(ProgramChannels.FilesMove, folder, from, to),
+		Copy: (folder, from, to) => Call(ProgramChannels.FilesCopy, folder, from, to),
+		Delete: (folder, path) => Call(ProgramChannels.FilesDelete, folder, path),
+		ReadText: (folder, path) => Call(ProgramChannels.FilesRead, folder, path),
+		WriteText: (folder, path, text) => Call(ProgramChannels.FilesWrite, folder, path, text),
+		Watch: (folder, changed) => {
+			let id: number | null = null;
+			let stopped = false;
+			const listener = (_event: unknown, watch: number): void => {
+				if (watch === id) changed();
+			};
+			ipcRenderer.on(ProgramChannels.FilesChanged, listener);
+			void Call<number>(ProgramChannels.FilesWatch, folder).then((watch) => {
+				id = watch;
+				if (stopped) void Call(ProgramChannels.FilesUnwatch, watch);
+			}, () => { /* not a granted folder: nothing to watch */ });
+			return () => {
+				stopped = true;
+				ipcRenderer.removeListener(ProgramChannels.FilesChanged, listener);
+				if (id !== null) void Call(ProgramChannels.FilesUnwatch, id);
+			};
+		},
+	},
 	Quit: (code = 0) => Call(ProgramChannels.Quit, code),
 };
 

@@ -1,11 +1,12 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
-import { app, BrowserWindow, dialog, ipcMain, type IpcMainInvokeEvent } from "electron";
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { app, BrowserWindow, dialog, ipcMain, shell, type IpcMainInvokeEvent } from "electron";
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { FileLog, FilesInArguments, SingleInstance } from "@cse/desktop-shell";
+import { NodeFileSystem } from "@cse/solution/node";
 import { ProgramChannels, type IpcAnswer } from "./Channels";
 
 /**
@@ -34,6 +35,36 @@ const Allow = (files: string[]): string[] => {
 	for (const file of files) allowed.add(resolve(file));
 	return files;
 };
+/** The folders the page may work in (picked in a dialog, or a file's project): their files, by the folder. */
+const folders = new Map<string, NodeFileSystem>();
+const watches = new Map<number, () => void>();
+let nextWatch = 1;
+
+const Grant = (folder: string): string => {
+	const root = resolve(folder);
+	if (!folders.has(root)) folders.set(root, new NodeFileSystem(root, { Trash: (path) => shell.trashItem(path) }));
+	return root;
+};
+
+/** A granted folder's files (the page names the folder as it was given). */
+function FolderFiles(folder: string): NodeFileSystem {
+	const files = folders.get(resolve(folder));
+	if (!files) throw new Error(`${folder} was not given to the program: pick it in a dialog first`);
+	return files;
+}
+
+const Inside = (file: string, folder: string): boolean => {
+	const way = relative(folder, file);
+	return way !== "" && way !== ".." && !way.startsWith(`..${sep}`) && !isAbsolute(way);
+};
+
+/** The nearest folder above a file that holds a .cseproject. */
+function ProjectOf(file: string): string | null {
+	for (let folder = dirname(resolve(file)); ; folder = dirname(folder)) {
+		if (existsSync(folder) && readdirSync(folder).some((name) => name.toLowerCase().endsWith(".cseproject"))) return folder;
+		if (dirname(folder) === folder) return null;
+	}
+}
 
 function Answer<T>(work: () => T | Promise<T>): Promise<IpcAnswer<T>> {
 	return Promise.resolve().then(work).then((value) => ({ ok: true as const, value }), (error: Error) => ({ ok: false as const, error: error.message }));
@@ -41,7 +72,7 @@ function Answer<T>(work: () => T | Promise<T>): Promise<IpcAnswer<T>> {
 
 function Checked(path: string): string {
 	const file = resolve(path);
-	if (!allowed.has(file)) throw new Error(`${path} was not picked by the user: a program reaches only the files it is given`);
+	if (!allowed.has(file) && ![...folders.keys()].some((folder) => Inside(file, folder))) throw new Error(`${path} was not picked by the user: a program reaches only the files it is given`);
 	return file;
 }
 
@@ -58,7 +89,9 @@ function Register(): void {
 		const properties: ("openFile" | "openDirectory" | "multiSelections")[] = [options?.Folder ? "openDirectory" : "openFile"];
 		if (options?.Multiple) properties.push("multiSelections");
 		const result = await dialog.showOpenDialog(window!, { ...(options?.Title ? { title: options.Title } : {}), filters: (options?.Filters ?? []).map((f) => ({ name: f.Name, extensions: f.Extensions })), properties });
-		return result.canceled ? [] : Allow(result.filePaths);
+		if (result.canceled) return [];
+		if (options?.Folder) result.filePaths.forEach(Grant);
+		return Allow(result.filePaths);
 	});
 	handle(ProgramChannels.SaveDialog, async (_event, options: { Title?: string; Filters?: { Name: string; Extensions: string[]; }[]; DefaultPath?: string; }) => {
 		const result = await dialog.showSaveDialog(window!, { ...(options?.Title ? { title: options.Title } : {}), ...(options?.DefaultPath ? { defaultPath: options.DefaultPath } : {}), filters: (options?.Filters ?? []).map((f) => ({ name: f.Name, extensions: f.Extensions })) });
@@ -74,6 +107,30 @@ function Register(): void {
 		renameSync(temporary, file);
 	});
 	handle(ProgramChannels.SetTitle, (_event, title: string) => window?.setTitle(title));
+	handle(ProgramChannels.ProjectOf, (_event, file: string) => {
+		Checked(file);
+		const project = ProjectOf(file);
+		return project === null ? null : Grant(project);
+	});
+	handle(ProgramChannels.FilesList, (_event, folder: string) => FolderFiles(folder).List());
+	handle(ProgramChannels.FilesCreateFolder, (_event, folder: string, path: string) => FolderFiles(folder).CreateFolder(path));
+	handle(ProgramChannels.FilesMove, (_event, folder: string, from: string, to: string) => FolderFiles(folder).Move(from, to));
+	handle(ProgramChannels.FilesCopy, (_event, folder: string, from: string, to: string) => FolderFiles(folder).Copy(from, to));
+	handle(ProgramChannels.FilesDelete, (_event, folder: string, path: string) => FolderFiles(folder).Delete(path));
+	handle(ProgramChannels.FilesRead, (_event, folder: string, path: string) => FolderFiles(folder).ReadText(path));
+	handle(ProgramChannels.FilesWrite, (_event, folder: string, path: string, text: string) => FolderFiles(folder).WriteText(path, text));
+	handle(ProgramChannels.FilesWatch, (event, folder: string) => {
+		const id = nextWatch++;
+		const sender = event.sender;
+		watches.set(id, FolderFiles(folder).Watch(() => {
+			if (!sender.isDestroyed()) sender.send(ProgramChannels.FilesChanged, id);
+		}));
+		return id;
+	});
+	handle(ProgramChannels.FilesUnwatch, (_event, id: number) => {
+		watches.get(id)?.();
+		watches.delete(id);
+	});
 	handle(ProgramChannels.Quit, (_event, code: number) => {
 		log(`exit ${code ?? 0}`);
 		app.exit(code ?? 0);

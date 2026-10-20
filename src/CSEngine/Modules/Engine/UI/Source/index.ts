@@ -36,6 +36,7 @@ export * from "./Controls/ToolbarController";
 export * from "./Controls/TooltipController";
 export * from "./Controls/TreeViewController";
 export * from "./Controls/SolutionTreeController";
+export * from "./Controls/DataGridController";
 export * from "./Controls/WindowController";
 export * from "./Controls/WindowManager";
 
@@ -65,6 +66,7 @@ export { default as WinToolbar } from "./Components/WinToolbar.vue";
 export { default as WinTooltip } from "./Components/WinTooltip.vue";
 export { default as WinTreeView } from "./Components/WinTreeView.vue";
 export { default as WinSolutionTree } from "./Components/WinSolutionTree.vue";
+export { default as WinDataGrid } from "./Components/WinDataGrid.vue";
 export { default as WinWindow } from "./Components/WinWindow.vue";
 
 // Skins

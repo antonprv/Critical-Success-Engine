@@ -27,6 +27,8 @@ function Native(): ProgramNative & { Quit: ReturnType<typeof vi.fn>; SetTitle: R
 		WriteText: vi.fn(async () => undefined),
 		SetTitle: vi.fn(async () => undefined),
 		OnOpenFiles: vi.fn(() => () => undefined),
+		ProjectOf: vi.fn(async () => null),
+		Files: new BrowserNative().Files,
 		Quit: vi.fn(async () => undefined),
 	};
 }
@@ -154,6 +156,9 @@ describe("the browser's stand-in for the native side", () => {
 		await native.SetTitle("T");
 		expect(page.document.title).toBe("T");
 		native.OnOpenFiles()();
+		expect(await native.ProjectOf()).toBeNull();
+		await expect(native.Files.List("C:/project")).rejects.toThrow(/A browser has no folders/);
+		native.Files.Watch("C:/project", () => undefined)();
 		await native.Quit();
 		expect(close).toHaveBeenCalled();
 	});

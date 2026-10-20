@@ -11,6 +11,18 @@ export const ProgramChannels = {
 	WriteText: "program:write-text",
 	SetTitle: "program:set-title",
 	Quit: "program:quit",
+	ProjectOf: "program:project-of",
+	FilesList: "program:files-list",
+	FilesCreateFolder: "program:files-create-folder",
+	FilesMove: "program:files-move",
+	FilesCopy: "program:files-copy",
+	FilesDelete: "program:files-delete",
+	FilesRead: "program:files-read",
+	FilesWrite: "program:files-write",
+	FilesWatch: "program:files-watch",
+	FilesUnwatch: "program:files-unwatch",
+	/** Main → page: a watched folder changed (with the watch's id). */
+	FilesChanged: "program:files-changed",
 	/** Main → page: files a second launch handed over. */
 	OpenFiles: "program:open-files",
 } as const;

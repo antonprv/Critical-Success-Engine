@@ -1,6 +1,8 @@
 // Created by Anton Piruev in 2026.
 // Any direct commercial use of derivative work is strictly prohibited.
 
+import type { ProjectFilesApi } from "@cse/solution";
+
 /**
  * What a program's window may ask of its main process (the preload puts it on window.cseProgram): the command line,
  * the system's open and save dialogs, the files they picked, the window's title, quitting. A page never gets the file
@@ -43,6 +45,16 @@ export interface ProgramNative {
 	/** Writes a file the user picked to save to (atomically: a crash leaves the old one whole). */
 	WriteText(path: string, text: string): Promise<void>;
 	SetTitle(title: string): Promise<void>;
+	/**
+	 * The project a file belongs to: the nearest folder above it holding a .cseproject (null: none). The folder is then
+	 * granted, as one picked in a dialog is.
+	 */
+	ProjectOf(file: string): Promise<string | null>;
+	/**
+	 * The granted folders' files (a folder picked with OpenDialog({ Folder: true }), a ProjectOf folder), by the folder
+	 * and paths inside it: what Solution Explorer's model works on (BridgeFileSystem).
+	 */
+	Files: ProjectFilesApi;
 	/** Files handed over by a second launch (a file double-clicked while the program runs); returns the way to stop. */
 	OnOpenFiles(listener: (files: string[]) => void): () => void;
 	Quit(code?: number): Promise<void>;
@@ -84,10 +96,24 @@ export class BrowserNative implements ProgramNative {
 		return () => undefined;
 	}
 
+	public async ProjectOf(): Promise<string | null> { return null; }
+
+	/** No folders in a browser: every call says so. */
+	public readonly Files: ProjectFilesApi = BrowserFolders;
+
 	public async Quit(): Promise<void> {
 		this._window.close();
 	}
 }
+
+const NoFolders = async (): Promise<never> => {
+	throw new Error("A browser has no folders: open the program in its desktop window");
+};
+
+const BrowserFolders: ProjectFilesApi = {
+	List: NoFolders, CreateFolder: NoFolders, Move: NoFolders, Copy: NoFolders, Delete: NoFolders, ReadText: NoFolders, WriteText: NoFolders,
+	Watch: () => () => undefined,
+};
 
 /** The window's native side: the desktop app's preload, else the browser's stand-in. */
 export function NativeOf(target: Pick<Window, "cseProgram"> = window): ProgramNative {

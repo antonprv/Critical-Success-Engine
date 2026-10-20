@@ -12,6 +12,7 @@ import "../Styles/quasar-kit.css";
 import "../Styles/layout.css";
 import "../Styles/motion.css";
 import "../Styles/solution-tree.css";
+import "../Styles/data-grid.css";
 
 /**
  * `theme` picks the Windows look of the Classic kit; `tailwind` the palette of the Tailwind and Quasar kits (the Quasar
