@@ -1,0 +1,17 @@
+{
+	"FileVersion": 1,
+	"Name": "TableEditor",
+	"Description": "The visual editor of CSTables (S6-17): the engine's first program, made from the Program template.",
+	"Kind": "Program",
+	"Genre": "Application",
+	"Template": "Program",
+	"Modules": [],
+	"Plugins": [],
+	"Ui": {
+		"Manifest": "Content/UI/Ui.manifest.json",
+		"Theme": {
+			"Kit": "quasar",
+			"Theme": "xp-blue"
+		}
+	}
+}

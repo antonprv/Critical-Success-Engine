@@ -1,0 +1,24 @@
+# The table editor's own texts (Russian; Editor.en.cstables is the English).
+Title = Редактор таблиц
+OpenProject = Открыть проект...
+Save = Сохранить
+Undo = Отменить
+Redo = Повторить
+Access = Доступ
+Close = Закрыть
+Problems = Проблемы
+Ready = Готово
+NoProject = Откройте проект или таблицу.
+FilterAll = Все строки
+FilterUntranslated = Не переведено
+FilterErrors = С ошибками
+FilterChanged = Изменённые
+Saved = Сохранено: {path}
+SavedProblems[one] = Сохранено, {count} проблема
+SavedProblems[few] = Сохранено, {count} проблемы
+SavedProblems[many] = Сохранено, {count} проблем
+SavedProblems[other] = Сохранено, {count} проблемы
+Opened = Проект: {path}
+Changed = Изменено
+ChangedOutside = {path} изменён на диске. Загрузить с диска и потерять правки?
+UnsavedClose = В {path} есть несохранённые правки. Закрыть без сохранения?
